@@ -30,7 +30,19 @@
       <p class="muted" data-i18n="admin.history.desc">名前・メール・話題・目標・誕生日メモから探せます。閲覧は無料です。</p>
       <label class="search-field"><span data-i18n="admin.contacts.search">検索キーワード</span><input id="booking-search" type="search" data-i18n-placeholder="admin.contacts.searchPlaceholder" placeholder="名前、メール、話題、目標、誕生日メモで検索" /></label>
       <p id="booking-search-count" class="message"></p>
-      <div id="booking-list" class="list searchable-list"></div>
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th data-i18n="admin.contacts.colName">名前</th>
+              <th data-i18n="admin.contacts.colEmail">メール</th>
+              <th data-i18n="admin.contacts.colTopic">話題</th>
+              <th data-i18n="admin.contacts.colDate">日時</th>
+            </tr>
+          </thead>
+          <tbody id="booking-list" class="searchable-list"></tbody>
+        </table>
+      </div>
     </section>
 
     <!-- Pro案内（無料のみ）。履歴の下にスリムに表示 -->
@@ -45,7 +57,7 @@
       </ul>
       <p class="muted" data-i18n="admin.lock.note">無料版は「予約が決まる」までと予約履歴の閲覧まで。メモ・スコアは会った後の関係づくり（Pro）です。</p>
       <div class="actions">
-        <a class="button primary" href="/square.html" data-i18n="admin.lock.cta">1ヶ月無料でProを始める / Cat Key</a>
+        <a class="button primary" href="/square.html" data-i18n="admin.lock.cta">Proを始める / Cat Key</a>
         <a class="button premium" href="/ai-assist.html" data-i18n="admin.lock.ctaPremium">AIアシスト（プレミアム）を見る</a>
       </div>
     </section>

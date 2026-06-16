@@ -71,7 +71,7 @@
 - 画面を **認証前ゲスト / 認証後ユーザー / 運営者 / 予約ゲスト ＋ 法務** の4＋1グループで整理（[screens.md](./screens.md)）。
 - **ヘッダー3種**: 共通（Edge注入・guest/app出し分け）／運営専用（最小）／予約ページ用軽量。手動ヘッダー4ページを共通注入へ一本化。
 - **予約ページ**は軽量ヘッダー＋下部に製品説明＋無料作成CTA。**ハブ呼称は「ホーム」**に統一。**法務3ページ**（規約/プライバシー/特商法）を追加。
-- **運営はユーザーと完全分離**: 専用 **運営ログイン `/operator-login.html`（画面#11）** ＋ **運営セッション `kimaru_admin_session`**（ユーザーの `kimaru_session` と別Cookie）。運営者は `owners` と別テーブル `operators` で管理し、**運営者管理を独立画面 `/operators.html`（画面#13）** として追加（一覧/追加/削除）。**認証は共有管理キー `CAT_KEY_ADMIN_SECRET` を継続**（将来 運営者ごとのメール+パスワードへ拡張）。運営画面は一般ユーザーのログインを要求しない（[features/22](./features/22-admin-console.md) / [db-schema.md](./db-schema.md)）。
+- **運営はユーザーと完全分離**: 専用 **運営ログイン `/operator-login.html`（画面#11）** ＋ **運営セッション `kimaru_admin_session`**（ユーザーの `kimaru_session` と別Cookie）。運営者は `owners` と別テーブル `operators` で管理し、**運営者管理を独立画面 `/operators.html`（画面#13）** として追加（一覧/追加/削除）。**認証は共有管理キー `ADMIN_SECRET` を継続**（将来 運営者ごとのメール+パスワードへ拡張）。運営画面は一般ユーザーのログインを要求しない（[features/22](./features/22-admin-console.md) / [db-schema.md](./db-schema.md)）。
 
 ## ✅ 決定事項（2026-06-09 内山さん打ち合わせ）
 
@@ -97,7 +97,7 @@
 **将来（AWS SES等）**: AWS は必然の最終形ではない。Resend の中身は SES だが、SES直結で得する差額が運用負荷に見合うのは概ね **月100万通〜**（≒月25〜30万予約＝有料数万人規模）。そこに届いて初めて SES / Postmark / Resend エンタープライズを横並び比較する。送信は `_lib/mail.js` で抽象化済みのため将来の差し替えは局所的で済み、**今決める必要はない**。
 
 ### 14. 課金（Square）
-- ¥980/月（税込）・**1ヶ月無料お試し→自動課金**・返金原則なし、で確定。Squareでトライアル設定が可能な見込み（窓口へ電話確認予定）。設定は内山さん担当。
+- ¥980/月（税込）・**無料お試しなし（登録＝即時課金）**・返金原則なし、で確定。〔更新〕当初は1ヶ月無料お試し→自動課金で計画したが、**Square でトライアルを実装できなかったため廃止**。
 
 ### 15. 解約・無料降格時のデータ
 - 無料上限を超える既存データ（予約ページ3個目以降・アンケート3問目以降）は **削除せず非公開で残す（凍結）。再びProになったら自動復活**。
@@ -155,7 +155,7 @@
 - **独自ドメイン名**（`APP_BASE_URL`）が未定。決定後、Google OAuth リダイレクトURI登録・各リンクに反映。
 - **メール送信元**（[決定13](#13-メール送信方式決定)）: 方式は確定（Resend Pro・送信専用サブドメイン分離）。残TBDは **実ドメイン取得後の具体値** — 取引/営業サブドメイン名の確定と Resend 登録、SPF/DKIM/DMARC レコードの DNS 設定、受信用 Cloudflare Email Routing の転送設定。
 - **法務ドキュメントの差し込み情報**（[legal/](./legal/)）: 運営者名/責任者/所在地/連絡先/管轄裁判所/制定日。
-- **Square 課金の実装詳細**（決定6）: トライアル（カード登録・1ヶ月無料・期限後自動課金・解約）の Square サブスク設定と Webhook 連携の具体設計。
+- **Square 課金の実装詳細**（決定6）: 〔更新〕**1ヶ月無料トライアルは Square で実装できず廃止**。登録＝即時課金（¥980/月）。Webhook はサブスク/課金イベントで pro 付与・解約で free（`trial_ends_at` は付与しない）。
 - **メール+パスワード認証の細部**（決定3）: メール確認の要否、パスワード要件、再設定フロー、ハッシュ方式。
 - **Cat Key 承認運用**（決定7）: 承認者・通知方法・承認待ち中のユーザー表示文言。
 
@@ -166,7 +166,7 @@
 - **DB のレガシー重複**: `owners`/`users`、`google_connections`/`google_calendar_tokens`、`bookings` の `visitor_*`/`guest_*`・`start_at`/`start_time` 等が併存。新規は `owners`・`google_connections` 系を使用。整理マイグレーションは別途（[db-schema.md](./db-schema.md)）。
 - **実装が決定に未追従**: 受付期間 無料2ヶ月（[05](./features/05-booking-range.md)）、複数予約ページ 無料2/有料5（[24](./features/24-multiple-booking-pages.md)）はコード未反映。
 - **多言語の範囲**: 3言語対応は4画面のみ。予約枠表示やJS動的テキストは日本語のまま（[15](./features/15-i18n.md) / [screens.md](./screens.md)）。
-- **環境変数の設定が前提**: `GOOGLE_CLIENT_ID/SECRET`、`APP_BASE_URL`、`CAT_KEY_ADMIN_SECRET`、（誕生日メール利用時）`RESEND_API_KEY` 等が未設定だと該当機能は動かない（[api.md](./api.md)）。
+- **環境変数の設定が前提**: `GOOGLE_CLIENT_ID/SECRET`、`APP_BASE_URL`、`ADMIN_SECRET`、（誕生日メール利用時）`RESEND_API_KEY` 等が未設定だと該当機能は動かない（[api.md](./api.md)）。
 
 ### 前提・想定（明示）
 

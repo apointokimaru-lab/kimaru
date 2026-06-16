@@ -37,6 +37,21 @@ exports.handler = async (event) => {
       const id = String(body.id || "").trim();
       if (!id) return json(400, { error: "id が必要です。" });
 
+      if (action === "update") {
+        const email = String(body.email || "").trim().toLowerCase();
+        const name = String(body.name || "").trim();
+        if (!EMAIL_RE.test(email)) return json(400, { error: "メールアドレスが不正です。" });
+        const patch = { email, name };
+        if (body.password) patch.password_hash = hashPassword(String(body.password)); // 空欄なら変更しない
+        try {
+          const rows = await sb(`operators?id=${eq(id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+          return json(200, { ok: true, operator: rows[0] });
+        } catch (error) {
+          if (String(error.message || "").includes("duplicate")) return json(409, { error: "このメールアドレスは既に登録済みです。" });
+          throw error;
+        }
+      }
+
       if (action === "toggle") {
         const rows = await sb(`operators?id=${eq(id)}`, { method: "PATCH", body: JSON.stringify({ is_active: !!body.is_active }) });
         return json(200, { ok: true, operator: rows[0] });

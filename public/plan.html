@@ -19,13 +19,13 @@
       <p class="lead" data-i18n="pricing.lead">無料版で「予約が決まる」まで。Proで予約の前後（事前理解・フォロー・相手管理）まで。プレミアムでAIが次の一手まで提案します。</p>
       <div class="actions">
         <a class="button primary guest-only" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
-        <a class="button primary app-only plan-free-only" href="/square.html" data-i18n="pricing.startPro">1ヶ月無料でProを始める</a>
+        <a class="button primary app-only plan-free-only" href="/square.html" data-i18n="pricing.startPro">Proを始める</a>
         <a class="button primary app-only plan-paid-only" href="/dashboard.html" data-i18n="pricing.toHome">ホームへ</a>
         <a class="button secondary" href="#compare" data-i18n="pricing.compareCta">プランを比較する</a>
       </div>
     </section>
 
-    <section class="section">
+    <section class="section" id="premium">
       <p class="eyebrow" data-i18n="pricing.cards.eyebrow">3つのプラン</p>
       <h2 data-i18n="pricing.cards.heading">使い方に合わせて選ぶ</h2>
       <div class="plan-cards">
@@ -49,7 +49,7 @@
           <span class="plan-tag" data-i18n="pricing.pro.tag">人気</span>
           <p class="plan-name" data-i18n="pricing.pro.name">Pro</p>
           <p class="plan-price"><span class="price">980<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></p>
-          <p class="plan-desc" data-i18n="pricing.pro.desc">予約の前後（事前理解・フォロー・相手管理）まで強くする。1ヶ月無料お試しから。</p>
+          <p class="plan-desc" data-i18n="pricing.pro.desc">予約の前後（事前理解・フォロー・相手管理）まで強くする。月額¥980（登録時に課金）。</p>
           <ul>
             <li data-i18n="pricing.pro.f1">予約ページ 5つ・受付6ヶ月先まで</li>
             <li data-i18n="pricing.pro.f2">事前アンケート 最大5問・自由編集</li>
@@ -58,11 +58,11 @@
             <li data-i18n="pricing.pro.f5">占いベース相手分析（算命学＋数秘術）</li>
           </ul>
           <a class="button primary guest-only" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
-          <a class="button primary app-only plan-free-only" href="/square.html" data-i18n="pricing.startPro">1ヶ月無料でProを始める</a>
+          <a class="button primary app-only plan-free-only" href="/square.html" data-i18n="pricing.startPro">Proを始める</a>
           <a class="button primary app-only plan-paid-only" href="/dashboard.html" data-i18n="pricing.toHome">ホームへ</a>
         </article>
 
-        <article class="plan-card is-premium" id="premium">
+        <article class="plan-card is-premium">
           <span class="coming-soon-tag" data-i18n="pricing.premium.comingSoon">近日公開（フェーズ2）</span>
           <p class="plan-name" data-i18n="pricing.premium.name">プレミアム</p>
           <p class="plan-price"><span class="price">2,200<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></p>
@@ -89,7 +89,7 @@
             <thead><tr><th data-i18n="home.plan.th.feature">機能</th><th data-i18n="home.plan.th.free">無料版</th><th class="is-pro-col" data-i18n="home.plan.th.pro">Pro</th><th class="is-premium-col" data-i18n="home.plan.th.premium">プレミアム</th></tr></thead>
             <tbody>
               <tr><td data-i18n="home.plan.price.label">料金</td><td><span class="price">0<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></td><td><span class="price">980<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></td><td class="is-premium-col"><span class="price">2,200<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></td></tr>
-              <tr><td data-i18n="pricing.cmp.trial.label">無料お試し</td><td>—</td><td data-i18n="pricing.cmp.trial.pro">1ヶ月無料</td><td class="is-premium-col" data-i18n="pricing.cmp.trial.premium">なし（登録＝即時課金）</td></tr>
+              <tr><td data-i18n="pricing.cmp.trial.label">無料お試し</td><td>—</td><td data-i18n="pricing.cmp.trial.pro">なし（登録＝即時課金）</td><td class="is-premium-col" data-i18n="pricing.cmp.trial.premium">なし（登録＝即時課金）</td></tr>
               <tr><td data-i18n="pricing.cmp.pages.label">予約ページ（保存数）</td><td data-i18n="pricing.cmp.pages.free">2つまで</td><td data-i18n="pricing.cmp.pages.pro">5つまで</td><td class="is-premium-col" data-i18n="pricing.cmp.pages.premium">5つまで</td></tr>
               <tr><td data-i18n="pricing.cmp.range.label">予約受付期間</td><td data-i18n="pricing.cmp.range.free">2ヶ月先まで</td><td data-i18n="pricing.cmp.range.pro">6ヶ月先まで</td><td class="is-premium-col" data-i18n="pricing.cmp.range.premium">6ヶ月先まで</td></tr>
               <tr><td data-i18n="pricing.cmp.survey.label">事前アンケート</td><td data-i18n="pricing.cmp.survey.free">最大2問</td><td data-i18n="pricing.cmp.survey.pro">最大5問・自由編集</td><td class="is-premium-col" data-i18n="pricing.cmp.survey.premium">最大5問・自由編集</td></tr>
@@ -105,7 +105,7 @@
       </div>
       <div class="actions">
         <a class="button primary guest-only" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
-        <a class="button primary app-only plan-free-only" href="/square.html" data-i18n="pricing.startPro">1ヶ月無料でProを始める</a>
+        <a class="button primary app-only plan-free-only" href="/square.html" data-i18n="pricing.startPro">Proを始める</a>
         <a class="button primary app-only plan-paid-only" href="/dashboard.html" data-i18n="pricing.toHome">ホームへ</a>
         <a class="button secondary app-only" href="#cat-key" data-i18n="pricing.catkeyCta">Cat Keyを入力する</a>
       </div>

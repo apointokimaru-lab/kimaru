@@ -12,44 +12,69 @@
   <link rel="stylesheet" href="/operator.css" />
 </head>
 <body class="operator-console" data-page="operators">
-  <header class="site-header">
-    <a class="brand" href="/cat-key-admin.html">キマル<span class="brand-tag">運営</span></a>
-    <nav>
-      <a href="/cat-key-admin.html">運営コンソール</a>
-      <a href="/operators.html">運営者管理</a>
-      <button id="operator-logout" class="link-button" type="button">ログアウト</button>
-      <select class="lang-select" data-language-select aria-label="Language"></select>
-    </nav>
-  </header>
+  <div class="op-layout">
+    <aside class="op-sidebar">
+      <a class="op-brand" href="/cat-key-admin.html">キマル<span class="brand-tag">運営</span></a>
+      <nav class="op-nav">
+        <a class="op-nav-item" href="/cat-key-admin.html#owners">ユーザー一覧</a>
+        <a class="op-nav-item" href="/cat-key-admin.html#log">Cat Key認証 <span class="op-badge" id="nav-pending-badge" hidden></span></a>
+        <a class="op-nav-item" href="/cat-key-admin.html#history">操作履歴</a>
+        <a class="op-nav-item is-active" href="/operators.html">運営者管理</a>
+      </nav>
+      <div class="op-sidebar-foot">
+        <select class="lang-select" data-language-select aria-label="Language"></select>
+        <button id="operator-logout" class="link-button" type="button">ログアウト</button>
+      </div>
+    </aside>
 
-  <main class="shell narrow">
-    <section class="panel">
-      <p class="eyebrow">Operators</p>
-      <h1>運営者管理</h1>
-      <p class="lead">運営者アカウント（ユーザー=ownersとは別管理）の一覧・追加・削除を行います。パスワードは将来の運営者ごとログイン用で、現状の認証は共有管理キーです。</p>
-      <form id="operator-add-form" class="form-grid">
-        <label>メールアドレス<input name="email" type="email" autocomplete="off" required /></label>
-        <label>名前<input name="name" autocomplete="off" /></label>
-        <label>パスワード（任意・将来用）<input name="password" type="password" autocomplete="new-password" /></label>
-        <button class="primary" type="submit">運営者を追加</button>
-      </form>
-      <p id="operator-message" class="message" role="status"></p>
-    </section>
+    <main class="op-main">
+      <header class="op-page-head">
+        <p class="eyebrow">Operators</p>
+        <h1>運営者管理</h1>
+        <p class="lead">運営者アカウント（ユーザー=ownersとは別管理）の一覧・追加・編集・削除を行います。パスワードは将来の運営者ごとログイン用で、現状の認証は共有管理キーです。</p>
+        <p id="operator-message" class="message" role="status"></p>
+      </header>
 
-    <section class="panel">
-      <p class="eyebrow">List</p>
-      <h2>運営者一覧 <span id="operator-count" class="muted" style="font-size:14px;font-weight:600;"></span></h2>
-      <div id="operator-list" class="list"></div>
-    </section>
-  </main>
+      <section class="op-view is-active panel">
+        <div class="op-section-head">
+          <h2>運営者一覧 <span id="operator-count" class="op-count"></span></h2>
+          <button id="operator-add-btn" class="button primary" type="button">＋ 運営者を追加</button>
+        </div>
+        <div class="op-table-wrap" style="margin-top:14px;">
+          <table class="op-table">
+            <thead>
+              <tr><th>名前</th><th>メール</th><th>状態</th><th>登録</th><th>操作</th></tr>
+            </thead>
+            <tbody id="operator-list"></tbody>
+          </table>
+        </div>
+        <div class="op-pager" id="operator-pager" hidden></div>
+      </section>
+    </main>
+  </div>
 
-  <!-- site-footer -->
+  <!-- 追加・編集モーダル -->
+  <dialog id="operator-modal" class="op-modal">
+    <form id="operator-form">
+      <h2 id="operator-modal-title">運営者を追加</h2>
+      <label>メールアドレス<input name="email" type="email" autocomplete="off" required /></label>
+      <label>名前<input name="name" autocomplete="off" /></label>
+      <label><span id="operator-pw-label">パスワード（任意・将来用）</span><input name="password" type="password" autocomplete="new-password" /></label>
+      <p id="operator-modal-msg" class="message"></p>
+      <div class="op-modal-actions">
+        <button type="button" class="button secondary" id="operator-modal-cancel">キャンセル</button>
+        <button type="submit" class="button primary">保存</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="/i18n.js" defer></script>
   <script>
-    const message = document.querySelector('#operator-message');
-    const listEl = document.querySelector('#operator-list');
-    const countEl = document.querySelector('#operator-count');
+    const $ = (s) => document.querySelector(s);
+    const message = $('#operator-message');
+    const listEl = $('#operator-list');
+    const countEl = $('#operator-count');
+    let allOperators = [];
 
     function setMessage(text, kind = '') {
       message.textContent = text;
@@ -69,6 +94,37 @@
       } catch (_) { return value; }
     }
 
+    // ---- 共通ページネーション（20件/ページ） ----
+    const PER_PAGE = 20;
+    function renderPaged({ items, page, tbody, rowHtml, colspan, empty, pager, onPage }) {
+      const total = items.length;
+      const pages = Math.max(1, Math.ceil(total / PER_PAGE));
+      const cur = Math.min(Math.max(1, page), pages);
+      const start = (cur - 1) * PER_PAGE;
+      const slice = items.slice(start, start + PER_PAGE);
+      tbody.innerHTML = slice.length
+        ? slice.map(rowHtml).join('')
+        : `<tr><td colspan="${colspan}" class="empty-cell">${empty}</td></tr>`;
+      const el = document.querySelector(pager);
+      if (el) {
+        if (total <= PER_PAGE) {
+          el.hidden = true;
+          el.innerHTML = '';
+        } else {
+          el.hidden = false;
+          el.innerHTML = `
+            <span class="op-pager-info">${start + 1}–${start + slice.length} / ${total}件</span>
+            <button type="button" data-page="prev" ${cur <= 1 ? 'disabled' : ''}>前へ</button>
+            <span>${cur} / ${pages}</span>
+            <button type="button" data-page="next" ${cur >= pages ? 'disabled' : ''}>次へ</button>`;
+          el.querySelectorAll('button[data-page]').forEach((b) => {
+            b.addEventListener('click', () => onPage(b.dataset.page === 'next' ? cur + 1 : cur - 1));
+          });
+        }
+      }
+      return cur;
+    }
+
     async function api(options = {}) {
       const res = await fetch('/api/operators', {
         credentials: 'include',
@@ -81,21 +137,34 @@
       return data;
     }
 
+    function operatorRow(op) {
+      const id = escapeHtml(op.id);
+      return `
+        <tr>
+          <td class="cell-name" data-label="名前"><strong>${escapeHtml(op.name || op.email)}</strong></td>
+          <td class="cell-mono" data-label="メール">${escapeHtml(op.email)}</td>
+          <td data-label="状態">${op.is_active ? '有効' : '<span class="badge-off">無効</span>'}</td>
+          <td class="cell-mono" data-label="登録">${escapeHtml(formatDate(op.created_at))}</td>
+          <td class="cell-actions" data-label="操作">
+            <button class="button secondary" type="button" data-action="edit" data-id="${id}">編集</button>
+            <button class="button secondary" type="button" data-action="toggle" data-id="${id}" data-active="${op.is_active ? '0' : '1'}">${op.is_active ? '無効にする' : '有効にする'}</button>
+            <button class="button secondary" type="button" data-action="delete" data-id="${id}">削除</button>
+          </td>
+        </tr>`;
+    }
+    let opPage = 1;
+    function renderOperatorsPage() {
+      opPage = renderPaged({
+        items: allOperators, page: opPage, tbody: listEl, rowHtml: operatorRow,
+        colspan: 5, empty: '運営者がいません。「＋ 運営者を追加」から登録してください。', pager: '#operator-pager',
+        onPage: (p) => { opPage = p; renderOperatorsPage(); },
+      });
+    }
     function render(operators) {
-      const items = Array.isArray(operators) ? operators : [];
-      countEl.textContent = `（${items.length} 名）`;
-      if (!items.length) { listEl.innerHTML = '<p class="muted">運営者がいません。</p>'; return; }
-      listEl.innerHTML = items.map((op) => `
-        <article class="list-item">
-          <strong>${escapeHtml(op.name || op.email)}</strong>
-          <span>${escapeHtml(op.email)}</span>
-          <p>状態: ${op.is_active ? '有効' : '無効'}</p>
-          <small>登録: ${escapeHtml(formatDate(op.created_at))}</small>
-          <div class="actions">
-            <button class="button secondary" type="button" data-action="toggle" data-id="${escapeHtml(op.id)}" data-active="${op.is_active ? '0' : '1'}">${op.is_active ? '無効にする' : '有効にする'}</button>
-            <button class="button secondary" type="button" data-action="delete" data-id="${escapeHtml(op.id)}">削除</button>
-          </div>
-        </article>`).join('');
+      allOperators = Array.isArray(operators) ? operators : [];
+      countEl.textContent = `（${allOperators.length} 名）`;
+      opPage = 1;
+      renderOperatorsPage();
     }
 
     async function load() {
@@ -105,22 +174,53 @@
       setMessage('読み込みました。', 'success');
     }
 
-    document.querySelector('#operator-add-form').addEventListener('submit', async (event) => {
+    // ---- 追加・編集モーダル ----
+    const modal = $('#operator-modal');
+    const form = $('#operator-form');
+    const modalTitle = $('#operator-modal-title');
+    const modalMsg = $('#operator-modal-msg');
+    const pwLabel = $('#operator-pw-label');
+    let editingId = null;
+
+    function openModal(op) {
+      editingId = op ? op.id : null;
+      modalTitle.textContent = op ? '運営者を編集' : '運営者を追加';
+      pwLabel.textContent = op ? '新しいパスワード（空欄なら変更なし）' : 'パスワード（任意・将来用）';
+      form.elements.email.value = op ? (op.email || '') : '';
+      form.elements.name.value = op ? (op.name || '') : '';
+      form.elements.password.value = '';
+      modalMsg.textContent = '';
+      modalMsg.className = 'message';
+      modal.showModal();
+      form.elements.email.focus();
+    }
+    function closeModal() { modal.close(); }
+
+    $('#operator-add-btn').addEventListener('click', () => openModal(null));
+    $('#operator-modal-cancel').addEventListener('click', closeModal);
+    // 背景クリックで閉じる（dialog 直下のクリックのみ）。
+    modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const form = event.currentTarget;
       const payload = {
-        action: 'create',
+        action: editingId ? 'update' : 'create',
+        id: editingId || undefined,
         email: form.elements.email.value.trim(),
         name: form.elements.name.value.trim(),
         password: form.elements.password.value,
       };
-      setMessage('追加しています...');
+      modalMsg.textContent = '保存しています...';
+      modalMsg.className = 'message';
       try {
         await api({ method: 'POST', body: JSON.stringify(payload) });
-        form.reset();
+        closeModal();
         await load();
-        setMessage('運営者を追加しました。', 'success');
-      } catch (error) { setMessage(error.message, 'error'); }
+        setMessage(editingId ? '運営者を更新しました。' : '運営者を追加しました。', 'success');
+      } catch (error) {
+        modalMsg.textContent = error.message;
+        modalMsg.className = 'message error';
+      }
     });
 
     listEl.addEventListener('click', async (event) => {
@@ -128,6 +228,7 @@
       if (!button) return;
       const action = button.dataset.action;
       const id = button.dataset.id;
+      if (action === 'edit') { openModal(allOperators.find((o) => o.id === id) || null); return; }
       if (action === 'delete' && !confirm('この運営者を削除しますか？')) return;
       setMessage('更新中...');
       try {
@@ -147,6 +248,18 @@
     });
 
     load().catch((error) => setMessage(error.message, 'error'));
+
+    // サイドメニューの「Cat Key認証」に承認待ち件数バッジを表示（軽量取得・非ブロッキング）。
+    (async function loadPendingBadge() {
+      try {
+        const res = await fetch('/api/invite-apply?admin=cat-key', { credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        const n = (data.owners || []).filter((o) => o.cat_key_pending).length;
+        const badge = document.querySelector('#nav-pending-badge');
+        if (badge) { badge.textContent = String(n); badge.hidden = n === 0; }
+      } catch (_) { /* バッジは任意。失敗しても無視 */ }
+    })();
   </script>
 </body>
 </html>

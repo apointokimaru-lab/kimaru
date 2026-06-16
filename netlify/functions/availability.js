@@ -112,6 +112,11 @@ exports.handler = async (event) => {
     const dayMs = 24 * 60 * 60 * 1000;
     const weekOffset = Math.max(0, parseInt(event?.queryStringParameters?.week || "0", 10) || 0);
 
+    // 利用停止（cat_key_disabled）アカウントの予約ページは表示しない。
+    if (owner && owner.cat_key_disabled) {
+      return json(200, { slots: [], questions: [], host: null, suspended: true, week: weekOffset, hasPrev: false, hasNext: false });
+    }
+
     if (!owner) {
       const from0 = Date.now() + weekOffset * 7 * dayMs;
       return json(200, { slots: generateSlots(DEFAULT_WEEKLY_AVAILABILITY, null, from0, from0 + 7 * dayMs), questions: [], host: null, week: weekOffset, hasPrev: weekOffset > 0, hasNext: true });

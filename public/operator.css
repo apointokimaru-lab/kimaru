@@ -1,44 +1,38 @@
 /* ============================================================
-   operator.css — 運営コンソール専用テーマ（コントロールルーム / ダーク）
-   公開・ユーザー画面（styles.css）とは別世界であることを視覚的に明示する。
+   operator.css — 運営コンソール専用テーマ（ライト / 管理画面）
+   公開・ユーザー画面（styles.css）と同系の明るい配色だが、
+   アクセントを青にして「運営エリア」であることを控えめに示す。
    すべて body.operator-console 配下にスコープし、他画面へ影響させない。
-   ブランド青・Archivo・直角1pxラインは踏襲し、ダーク反転＋等幅で「管制画面」化。
    ============================================================ */
 
 .operator-console {
-  --op-bg: #0a0c11;
-  --op-panel: #11151e;
-  --op-panel-2: #141a25;
-  --op-line: #222a39;
-  --op-line-bright: #313b4f;
-  --op-ink: #eef1f7;
-  --op-soft: #99a3b7;
-  --op-dim: #5d6678;
-  --op-blue: #5b7cff;
-  --op-blue-2: #7d97ff;
-  --op-blue-soft: rgba(91, 124, 255, 0.14);
-  --op-green: #38d39a;
-  --op-red: #ff6b6b;
-  --op-amber: #ffc861;
+  --op-bg: #F4F6FA;
+  --op-panel: #FFFFFF;
+  --op-panel-2: #FBFCFE;
+  --op-line: #E3E7EE;
+  --op-line-bright: #CBD2DD;
+  --op-ink: #1A1D24;
+  --op-soft: #4C5566;
+  --op-dim: #6B7484;
+  --op-blue: #3B5BD9;
+  --op-blue-2: #2B43A6;
+  --op-blue-soft: rgba(59, 91, 217, 0.10);
+  --op-green: #157F3C;
+  --op-red: #C0392B;
+  --op-amber: #B45309;
   --op-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   min-height: 100vh;
   color: var(--op-ink);
   background-color: var(--op-bg);
-  background-image:
-    radial-gradient(1100px 460px at 50% -8%, rgba(91, 124, 255, 0.12), transparent 60%),
-    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
-  background-size: auto, 38px 38px, 38px 38px;
-  background-attachment: fixed;
 }
 
-/* ---- ヘッダー（管制バー） ---- */
+/* ---- ヘッダー（運営ログイン等で使用） ---- */
 .operator-console .site-header {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(10, 12, 17, 0.82);
+  background: rgba(255, 255, 255, 0.86);
   border-bottom: 1px solid var(--op-line-bright);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -50,13 +44,8 @@
 
 .operator-console .brand-tag {
   background: var(--op-blue);
-  box-shadow: 0 0 0 1px rgba(91, 124, 255, 0.5), 0 0 14px rgba(91, 124, 255, 0.55);
-  animation: opPulse 2.6s ease-in-out infinite;
-}
-
-@keyframes opPulse {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(91, 124, 255, 0.5), 0 0 10px rgba(91, 124, 255, 0.35); }
-  50% { box-shadow: 0 0 0 1px rgba(91, 124, 255, 0.6), 0 0 18px rgba(91, 124, 255, 0.7); }
+  box-shadow: none;
+  animation: none;
 }
 
 .operator-console .site-header a,
@@ -71,17 +60,16 @@
 
 .operator-console .lang-select {
   color: var(--op-ink);
-  background: #0c0f16;
+  background: #fff;
   border: 1px solid var(--op-line-bright);
 }
 
 /* ---- パネル（モジュール） ---- */
 .operator-console .panel {
   position: relative;
-  background:
-    linear-gradient(180deg, var(--op-panel-2), var(--op-panel));
+  background: var(--op-panel);
   border: 1px solid var(--op-line);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02) inset, 0 18px 40px -28px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 1px 2px rgba(20, 30, 60, 0.04), 0 14px 36px -28px rgba(20, 30, 60, 0.28);
   animation: opReveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .operator-console main .panel::before {
@@ -90,7 +78,6 @@
   left: -1px; top: -1px;
   width: 36px; height: 2px;
   background: var(--op-blue);
-  box-shadow: 0 0 12px rgba(91, 124, 255, 0.7);
 }
 .operator-console main .panel:nth-of-type(1) { animation-delay: 0.02s; }
 .operator-console main .panel:nth-of-type(2) { animation-delay: 0.10s; }
@@ -123,7 +110,7 @@
 .operator-console select,
 .operator-console textarea {
   color: var(--op-ink);
-  background: #0c0f16;
+  background: #fff;
   border: 1px solid var(--op-line-bright);
   border-radius: 0;
 }
@@ -147,37 +134,37 @@
 }
 .operator-console .primary,
 .operator-console button.primary {
-  color: #06080d;
+  color: #fff;
   background: var(--op-blue);
   border: 1px solid var(--op-blue);
 }
 .operator-console .primary:hover,
 .operator-console button.primary:hover {
   background: var(--op-blue-2);
-  box-shadow: 0 0 18px rgba(91, 124, 255, 0.5);
+  border-color: var(--op-blue-2);
 }
 .operator-console .button.secondary {
   color: var(--op-soft);
-  background: transparent;
+  background: #fff;
   border: 1px solid var(--op-line-bright);
 }
 .operator-console .button.secondary:hover {
-  color: var(--op-ink);
+  color: var(--op-blue-2);
   border-color: var(--op-blue);
   background: var(--op-blue-soft);
 }
 
-/* ---- リスト（ユーザー一覧・運営者一覧・監査ログ） ---- */
+/* ---- リスト（フォールバック・現在は主にテーブル使用） ---- */
 .operator-console .list-item {
   position: relative;
-  background: #0d111a;
+  background: #fff;
   border: 1px solid var(--op-line);
   border-left: 3px solid var(--op-line-bright);
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
 }
 .operator-console .list-item:hover {
   border-left-color: var(--op-blue);
-  background: #0f1422;
+  background: #F5F8FC;
   transform: translateX(2px);
 }
 .operator-console .list-item strong { color: var(--op-ink); }
@@ -194,13 +181,13 @@
 .operator-console .message.success { color: var(--op-green); }
 .operator-console .message.error { color: var(--op-red); }
 
-/* ---- フッター（ダーク） ---- */
+/* ---- フッター ---- */
 .operator-console .footer { border-top: 1px solid var(--op-line); color: var(--op-dim); }
 .operator-console .footer-nav a { color: var(--op-soft); }
 .operator-console .footer-nav a:hover { color: var(--op-blue-2); }
 .operator-console .footer-copy { color: var(--op-dim); }
 
-/* ---- 運営ログイン専用：セキュア端末風の演出 ---- */
+/* ---- 運営ログイン専用：制限エリア表示 ---- */
 .operator-console[data-page="operator-login"] main { padding-top: 64px; }
 .operator-console[data-page="operator-login"] .panel { overflow: hidden; }
 .operator-console[data-page="operator-login"] .panel::after {
@@ -215,6 +202,207 @@
 
 @media (prefers-reduced-motion: reduce) {
   .operator-console .panel,
-  .operator-console .brand-tag { animation: none; }
-  .operator-console .list-item { transition: none; }
+  .operator-console .brand-tag,
+  .operator-console .op-view.is-active { animation: none; }
+  .operator-console .list-item,
+  .operator-console .op-nav-item,
+  .operator-console .op-table tbody tr { transition: none; }
+}
+
+/* ============================================================
+   サイドメニュー型レイアウト（運営コンソール／運営者管理）
+   左に固定ナビ、右をワイドなコンテンツ領域にする。
+   ============================================================ */
+.operator-console .op-layout {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+}
+.operator-console .op-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 22px 16px;
+  background: #fff;
+  border-right: 1px solid var(--op-line-bright);
+}
+.operator-console .op-brand {
+  display: inline-flex;
+  align-items: center;
+  margin: 4px 8px 20px;
+  color: var(--op-ink);
+  font-family: var(--sans);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+.operator-console .op-nav { display: flex; flex-direction: column; gap: 2px; }
+.operator-console .op-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  color: var(--op-soft);
+  font-family: var(--op-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.operator-console .op-nav-item:hover { color: var(--op-blue-2); background: var(--op-blue-soft); }
+.operator-console .op-nav-item.is-active {
+  color: var(--op-blue-2);
+  background: var(--op-blue-soft);
+  border-left-color: var(--op-blue);
+}
+.operator-console .op-sidebar-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--op-line);
+}
+.operator-console .op-sidebar-foot .lang-select { width: 100%; padding: 8px 10px; font-family: var(--op-mono); font-size: 12px; }
+.operator-console .op-sidebar-foot .link-button { text-align: left; padding: 8px 12px; font-family: var(--op-mono); font-size: 12px; }
+
+.operator-console .op-main {
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  padding: 40px clamp(20px, 4vw, 56px) 72px;
+}
+.operator-console .op-page-head { margin-bottom: 26px; }
+.operator-console .op-page-head h1 { margin: 4px 0 10px; }
+.operator-console .op-count { font-family: var(--op-mono); color: var(--op-blue-2); font-size: 14px; font-weight: 600; }
+
+/* ビュー切替（同一ページ内でユーザー一覧 / ログを出し分け） */
+.operator-console .op-view { display: none; }
+.operator-console .op-view.is-active { display: block; animation: opReveal 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ---- データテーブル（運営・ライト） ---- */
+.operator-console .op-table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--op-line); }
+.operator-console .op-table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; }
+.operator-console .op-table thead th {
+  padding: 11px 14px;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--op-blue-2);
+  background: #EEF2F8;
+  border-bottom: 1px solid var(--op-line-bright);
+  font-family: var(--op-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.operator-console .op-table td {
+  padding: 11px 14px;
+  vertical-align: middle;
+  color: var(--op-soft);
+  border-bottom: 1px solid var(--op-line);
+  line-height: 1.5;
+}
+.operator-console .op-table tbody tr { background: #fff; transition: background 0.15s ease; }
+.operator-console .op-table tbody tr:hover { background: #F5F8FC; }
+.operator-console .op-table tbody tr:last-child td { border-bottom: 0; }
+.operator-console .op-table td strong { color: var(--op-ink); }
+.operator-console .op-table .cell-mono { font-family: var(--op-mono); }
+.operator-console .op-table .cell-actions { white-space: nowrap; }
+.operator-console .op-table .cell-actions .button { padding: 6px 11px; font-size: 11px; margin: 2px 4px 2px 0; }
+.operator-console .op-table .empty-cell { padding: 22px 14px; color: var(--op-dim); text-align: center; }
+
+/* 並び替え可能なヘッダ */
+.operator-console .op-table th[data-sort] { cursor: pointer; user-select: none; }
+.operator-console .op-table th[data-sort]:hover { color: var(--op-ink); }
+.operator-console .op-table th[data-sort]::after { content: "↕"; margin-left: 6px; font-size: 10px; opacity: 0.4; }
+.operator-console .op-table th.sorted-asc::after { content: "↑"; opacity: 1; color: var(--op-blue); }
+.operator-console .op-table th.sorted-desc::after { content: "↓"; opacity: 1; color: var(--op-blue); }
+
+/* プラン・状態バッジ */
+.operator-console .plan-pill {
+  display: inline-block; padding: 2px 9px;
+  font-family: var(--op-mono); font-size: 11px; font-weight: 700;
+  border: 1px solid var(--op-line-bright); color: var(--op-soft); background: #fff;
+}
+.operator-console .plan-pill.is-pro { color: var(--op-blue-2); border-color: var(--op-blue); }
+.operator-console .plan-pill.is-premium { color: #fff; background: var(--op-blue); border-color: var(--op-blue); }
+.operator-console .plan-pill.is-member { color: #fff; background: var(--op-green); border-color: var(--op-green); }
+.operator-console .badge-pending { color: var(--op-amber); font-family: var(--op-mono); font-size: 11px; font-weight: 700; }
+.operator-console .badge-off { color: var(--op-red); font-weight: 700; }
+.operator-console .state-active { color: var(--op-green); font-weight: 700; }
+.operator-console .state-withdrawn { color: var(--op-dim); }
+
+/* パネルのヘッダー行（見出し＋右側のアクション） */
+.operator-console .op-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.operator-console .op-section-head .button { align-self: center; }
+
+/* ---- モーダル（運営者の追加・編集） native <dialog> ---- */
+.operator-console .op-modal {
+  width: min(460px, calc(100vw - 32px));
+  padding: 0;
+  color: var(--op-ink);
+  background: var(--op-panel);
+  border: 1px solid var(--op-line-bright);
+  border-radius: 0;
+  box-shadow: 0 30px 80px -24px rgba(20, 30, 60, 0.4);
+}
+.operator-console .op-modal::backdrop {
+  background: rgba(26, 29, 36, 0.42);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.operator-console .op-modal form { display: flex; flex-direction: column; gap: 14px; padding: 24px; }
+.operator-console .op-modal h2 { margin: 0 0 2px; }
+.operator-console .op-modal label { display: flex; flex-direction: column; gap: 6px; color: var(--op-soft); font-size: 13px; }
+.operator-console .op-modal input { padding: 10px 12px; }
+.operator-console .op-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+
+/* ---- ページネーション（20件/ページ） ---- */
+.operator-console .op-pager { display: flex; align-items: center; gap: 12px; margin-top: 14px; font-family: var(--op-mono); font-size: 12px; color: var(--op-soft); }
+.operator-console .op-pager[hidden] { display: none; }
+.operator-console .op-pager .op-pager-info { color: var(--op-dim); margin-right: auto; }
+.operator-console .op-pager button { padding: 6px 12px; font-family: var(--op-mono); font-size: 12px; font-weight: 700; color: var(--op-soft); background: #fff; border: 1px solid var(--op-line-bright); border-radius: 0; cursor: pointer; }
+.operator-console .op-pager button:hover:not(:disabled) { color: var(--op-blue-2); border-color: var(--op-blue); background: var(--op-blue-soft); }
+.operator-console .op-pager button:disabled { opacity: 0.45; cursor: default; }
+
+/* サイドメニューの承認待ちバッジ */
+.operator-console .op-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 18px; margin-left: auto; padding: 0 6px;
+  font-family: var(--op-mono); font-size: 10px; font-weight: 800;
+  color: #fff; background: var(--op-red); border-radius: 10px;
+}
+.operator-console .op-badge[hidden] { display: none; }
+
+/* レスポンシブ：サイドバーを上部に畳む */
+@media (max-width: 900px) {
+  .operator-console .op-layout { grid-template-columns: 1fr; }
+  .operator-console .op-sidebar {
+    position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center;
+    gap: 4px 6px; border-right: 0; border-bottom: 1px solid var(--op-line-bright);
+  }
+  .operator-console .op-brand { margin: 0 14px 0 4px; }
+  .operator-console .op-nav { flex-direction: row; flex-wrap: wrap; }
+  .operator-console .op-sidebar-foot { margin: 0 0 0 auto; flex-direction: row; border-top: 0; padding-top: 0; }
+  .operator-console .op-sidebar-foot .lang-select { width: auto; }
+}
+@media (max-width: 620px) {
+  .operator-console .op-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .operator-console .op-table, .operator-console .op-table tbody, .operator-console .op-table tr, .operator-console .op-table td { display: block; width: 100%; }
+  .operator-console .op-table tr { border-bottom: 1px solid var(--op-line-bright); padding: 8px 0; }
+  .operator-console .op-table td { border: 0; padding: 4px 14px; }
+  .operator-console .op-table td::before { content: attr(data-label); display: inline-block; min-width: 92px; color: var(--op-dim); font-family: var(--op-mono); font-size: 11px; font-weight: 700; }
+  .operator-console .op-table td.cell-name::before { content: none; }
+  .operator-console .op-table .empty-cell::before { content: none; }
 }

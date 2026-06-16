@@ -63,7 +63,13 @@
       $("#auth-toggle-text").textContent = register ? T("auth.toggle.toLoginText", "すでにアカウントをお持ちですか？") : T("auth.toggle.toRegisterText", "アカウントをお持ちでないですか？");
       $("#auth-toggle").textContent = register ? T("auth.toggle.toLogin", "ログインする") : T("auth.toggle.toRegister", "新規登録する");
       $("#forgot-note").classList.toggle("hidden", register);
-      $("#auth-message").textContent = "";
+      // 利用停止アカウントが Google ログインから戻された場合は、その通知を（言語切替後も）出し続ける。
+      if (new URLSearchParams(location.search).get("suspended") === "1") {
+        $("#auth-message").textContent = T("auth.suspended", "このアカウントは現在ご利用いただけません。運営にお問い合わせください。");
+        $("#auth-message").className = "message error";
+      } else {
+        $("#auth-message").textContent = "";
+      }
     }
 
     $("#auth-toggle").addEventListener("click", (event) => {

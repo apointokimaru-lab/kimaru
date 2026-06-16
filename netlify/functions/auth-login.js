@@ -15,6 +15,10 @@ exports.handler = async (event) => {
     if (!owner || !owner.password_hash || !verifyPassword(password, owner.password_hash)) {
       return json(401, { error: "メールアドレスまたはパスワードが違います" });
     }
+    // 利用停止アカウントはログイン不可（セッションを発行しない）。
+    if (owner.cat_key_disabled) {
+      return json(403, { error: "このアカウントは現在ご利用いただけません。運営にお問い合わせください。" });
+    }
     return json(200, { ok: true, owner: { id: owner.id, email: owner.email, name: owner.name, plan: owner.plan } }, { "Set-Cookie": sessionCookie(owner.id) });
   } catch (error) {
     return json(error.statusCode || 500, { error: error.statusCode ? error.message : "サーバーでエラーが発生しました。時間をおいて再度お試しください。" });

@@ -104,7 +104,7 @@
 8. 🟡 **運営コンソール拡充**（全ユーザー一覧・Cat Key 承認制）（[22](./22-admin-console.md)）。
 9. ⚪ **会員同士の相互質問**（[20](./20-member-mutual-questions.md)）。
 10. ⚪ **AIアシスト高度化（LLM 連携）**（[18](./18-ai-assist.md)）。
-11. ⚪ **将来構想**: 無料お試し期間 / AI検索・顧客検索 / 議事録連携（マスタープラン、[23](./23-meeting-minutes.md)）/ 法人プラン / Zoom自動発行（[13](./13-plans.md) / [14](./14-customer-management.md) / [06](./06-location-type.md)）。
+11. ⚪ **将来構想**: AI検索・顧客検索 / 議事録連携（マスタープラン、[23](./23-meeting-minutes.md)）/ 法人プラン / Zoom自動発行（[13](./13-plans.md) / [14](./14-customer-management.md) / [06](./06-location-type.md)）。
 
 ---
 

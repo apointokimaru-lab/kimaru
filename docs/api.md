@@ -104,16 +104,16 @@ OAuth コールバック。`code` をトークン交換し、`owners` を upsert
 ### `POST /api/invite-apply` — 要
 招待コード（Cat Key）を適用して Pro へ昇格。
 - body: `{ code* }`（大文字化して照合。形式 `^[A-Z0-9_-]{6,40}$`）
-- 有効コード: `JF7YAIN40EQL`, `NEKO20240222`（= Cat Key `Neko20240222`）
+- 有効コード: `NEKO20240222`（= Cat Key `Neko20240222`）
 - `cat_key_disabled` のアカウントは 403。無効コードは 400。
 - 処理: **承認制** — 即時付与せず `cat_key_pending=true`（運営が承認すると `pro`）。`cat_key_events` に監査ログ。
 - 応答: `{ ok: true, pending: true, owner }`
 - DB: `owners`, `cat_key_events`
 
 ### Cat Key 管理モード（運営用・シークレット）
-同じ `invite-apply` 関数が `?admin=cat-key` で管理APIを兼ねる。運営セッション or `CAT_KEY_ADMIN_SECRET`（Bearer / `?secret=` / body.secret）。
+同じ `invite-apply` 関数が `?admin=cat-key` で管理APIを兼ねる。運営セッション or `ADMIN_SECRET`（Bearer / `?secret=` / body.secret）。
 - `GET /api/invite-apply?admin=cat-key`: オーナー一覧＋Cat Key イベント。応答 `{ owners, events }`
-- `POST /api/invite-apply?admin=cat-key`: body `{ owner_id*, action: "approve"|"reject"|"revoke"|"restore", secret }`。**approve で `plan=pro`（凍結データ復元）**、revoke で `plan=free`（超過データ凍結）。応答 `{ ok: true, owner }`
+- `POST /api/invite-apply?admin=cat-key`: body `{ owner_id*, action, secret }`。action は `approve`（申請承認→`plan=pro`）/ `reject`（申請却下→`invite_code=''`）/ `suspend`（利用停止）/ `resume`（利用再開）/ `demote`（無料降格→`plan=free`・`invite_code` 保持で退会済）。`suspend`/`resume` はメンバー（`invite_code` 有）のみ `plan` を `free`⇄`pro` 切替し、非メンバーは `cat_key_disabled` だけ切替（課金者の誤降格・非メンバーの誤昇格を防止）。Pro 昇格で凍結データ復元、無料降格で超過データ凍結。応答 `{ ok: true, owner }`
 - DB: `owners`, `cat_key_events`, `booking_pages`
 
 ---
@@ -176,7 +176,7 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 | `SESSION_SECRET` | セッション Cookie 署名 |
 | `TOKEN_ENCRYPTION_KEY` | Google トークン暗号化（無ければ SESSION_SECRET 代用） |
 | `SQUARE_WEBHOOK_SHARED_SECRET` | Square Webhook 検証 |
-| `CAT_KEY_ADMIN_SECRET`（or `ADMIN_SECRET`） | Cat Key 管理モード認証 |
+| `ADMIN_SECRET` | Cat Key 管理モード認証 |
 | `REMINDER_CRON_SECRET` / `THANKYOU_CRON_SECRET`（or `CRON_SECRET`） | リマインダー/サンキュー・ジョブ認証 |
 | `RESEND_API_KEY` / `TRANSACTIONAL_EMAIL_FROM`(notify) / `MARKETING_EMAIL_FROM`(news) / `RESEND_WEBHOOK_SECRET` | メール送信（経路分離）・配信イベント |
 | `SQUARE_PREMIUM_PLAN_ID` | プレミアム（¥2,200）の付与判定 |

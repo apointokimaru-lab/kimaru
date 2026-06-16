@@ -26,16 +26,19 @@
     </section>
 
     <section id="ai-pro-lock" class="panel wide">
-      <p class="eyebrow" data-i18n="aa.lock.eyebrow">Pro限定</p>
-      <h1 data-i18n="aa.lock.title">AIアシストはPro版の機能です</h1>
-      <p class="muted" data-i18n="aa.lock.desc">あなたのプロフィールと、相手管理に貯めたデータ（予約・面談メモ・印象スコア）を照合し、会う前後の打ち手を提案します。Pro版（または猫の鍵で承認されたアカウント）でご利用いただけます。</p>
+      <p class="eyebrow"><span data-i18n="aa.lock.eyebrow">AIアシスト</span> <span class="premium-badge" data-i18n="plan.premium">プレミアム</span></p>
+      <h1 data-i18n="aa.lock.title">AIアシストはプレミアムプランの機能です</h1>
+      <p class="muted" data-i18n="aa.lock.desc">本物のAIが、あなたのプロフィールと相手管理のデータ（予約・面談メモ・印象スコア）から、会う前後の打ち手を提案します。AIアシストはプレミアムプラン（¥2,200/月）の機能で、¥980会員が増えたフェーズ2で開放予定です。Pro以上ならルールベースの提案を今すぐお試しいただけます。</p>
       <ul class="feature-list">
         <li><strong data-i18n="aa.lock.li1Term">最初の入り方</strong><span data-i18n="aa.lock.li1Desc">：相手のタイプに合わせた会話の始め方を提案。</span></li>
         <li><strong data-i18n="aa.lock.li2Term">刺さりやすい話題</strong><span data-i18n="aa.lock.li2Desc">：目標・関心・印象スコアから話題を抽出。</span></li>
         <li><strong data-i18n="aa.lock.li3Term">避けた方がいい入り方</strong><span data-i18n="aa.lock.li3Desc">：相手に合わない進め方を回避。</span></li>
         <li><strong data-i18n="aa.lock.li4Term">次の一手</strong><span data-i18n="aa.lock.li4Desc">：次回日程・提案・紹介など、関係を進める行動を提示。</span></li>
       </ul>
-      <p><a class="button primary" href="/square.html" data-i18n="aa.lock.cta">1ヶ月無料でProを始める / Cat Key</a></p>
+      <div class="actions">
+        <a class="button premium" href="/plan.html#premium" data-i18n="aa.lock.ctaPremium">プレミアムの詳細を見る</a>
+        <a class="button secondary" href="/square.html" data-i18n="aa.lock.cta">Proでルールベースを試す / Cat Key</a>
+      </div>
     </section>
 
     <section class="panel wide pro-feature">
@@ -382,7 +385,7 @@
         // チラ見え防止：Pro機能は CSS で既定非表示。判定後に body クラスで出し分ける。
         if (!['pro', 'premium'].includes(currentOwner.plan)) {
           document.body.classList.add('plan-free');
-          status.textContent = 'この機能はPro版でご利用いただけます。';
+          status.textContent = 'AIアシストはプレミアムプランの機能です。Pro以上でルールベースの提案をお試しいただけます。';
           return;
         }
         isPremium = currentOwner.plan === 'premium';

@@ -100,11 +100,11 @@
 
 - **ルート保護（ユーザー）**：マトリクスで「無登録=−」のユーザー画面はログイン必須。未ログイン（`kimaru_session` Cookie 無）でアクセスすると `/login.html` へリダイレクト。
   - 対象: `/dashboard.html` `/contacts.html` `/booking-settings.html` `/profile.html` `/ai-assist.html` `/square.html`
-- **運営の認証（ユーザーと完全分離）**：運営は専用ログイン `/operator-login.html` で共有管理キー（`CAT_KEY_ADMIN_SECRET`）を入力し、**運営専用セッション `kimaru_admin_session`**（ユーザーの `kimaru_session` とは別Cookie・別署名）を発行する。
+- **運営の認証（ユーザーと完全分離）**：運営は専用ログイン `/operator-login.html` で共有管理キー（`ADMIN_SECRET`）を入力し、**運営専用セッション `kimaru_admin_session`**（ユーザーの `kimaru_session` とは別Cookie・別署名）を発行する。
   - 運営画面（`/cat-key-admin.html` / `/operators.html`）は **`kimaru_admin_session` で保護**。無ければ `/operator-login.html` へリダイレクト（ユーザーの `/login.html` には送らない）。
   - 各運営APIも運営セッション（または互換のため Bearer 管理キー）で認可。運営者は `owners` ではなく `operators` テーブルで管理（一般ユーザー登録は不要）。
   - 将来: 共有キー → 運営者ごとのメール+パスワード（`operators.password_hash`）ログインへ拡張。
 - **公開ページ**（無登録=✅）：`/` `/signup.html` `/booking.html` `/plan.html` `/login.html` `/reset-password.html` `/u/<slug>`（公開プロフィール）、法務（`/terms.html` `/privacy.html` `/tokushoho.html`）はそのまま表示。
 - **ナビ出し分け**：全HTMLの `<body>` に `data-auth="authed|guest"` を注入し、CSS（`[data-auth] .app-only / .guest-only`）で表示制御（JSトグル廃止・チラつき無し）。
-- 判定はCookie存在ベースの前段ゲート。**厳密な認可は各APIの署名検証**（`_lib/crypto.js` / `requireOwner`）＋運営キー（`CAT_KEY_ADMIN_SECRET`）が担保。
+- 判定はCookie存在ベースの前段ゲート。**厳密な認可は各APIの署名検証**（`_lib/crypto.js` / `requireOwner`）＋運営キー（`ADMIN_SECRET`）が担保。
 - プラン差（△の中身：無料2ヶ月/2問・有料の高度機能等）はページ内＋API側で制御。

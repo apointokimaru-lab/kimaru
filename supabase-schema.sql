@@ -254,7 +254,7 @@ create table if not exists payment_events (
 );
 
 -- 運営者アカウント（owners=ユーザーとは完全に分離）。運営者管理画面（/operators.html）で一覧・追加・削除。
--- 認証は当面 共有管理キー CAT_KEY_ADMIN_SECRET。password_hash は将来の運営者ごとログイン用（現状は未使用・NULL可）。
+-- 認証は当面 共有管理キー ADMIN_SECRET。password_hash は将来の運営者ごとログイン用（現状は未使用・NULL可）。
 create table if not exists operators (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,

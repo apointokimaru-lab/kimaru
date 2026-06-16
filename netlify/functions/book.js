@@ -111,6 +111,8 @@ exports.handler = async (event) => {
     }
     if (!owner) owner = await defaultOwner();
     if (!owner) return json(400, { error: "予約先が設定されていません。発行者がGoogleでログインしているかご確認ください" });
+    // 利用停止（cat_key_disabled）アカウントの予約ページは予約不可。
+    if (owner.cat_key_disabled) return json(403, { error: "このページは現在ご利用いただけません。" });
     if (bookingPage && bookingPage.is_active === false) return json(400, { error: "このページは現在、予約の受付を停止しています" });
     const relationshipContext = parseRelationshipContext(body.filter_request);
     const birthDatePrivate = body.birth_date_private === "yes" || body.birth_date_private === true;

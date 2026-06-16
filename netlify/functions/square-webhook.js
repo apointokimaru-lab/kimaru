@@ -34,9 +34,8 @@ exports.handler = async (event) => {
     const isGrant = !isCancel && /payment|subscription|invoice|charge/i.test(lowerType) && Boolean(email);
     const owner = email ? await findOwnerByEmail(email) : null;
     const subscription = body.data?.object?.subscription || {};
-    const trialEndsAt = body.trial_ends_at || subscription.charged_through_date || null;
-    // プレミアムプラン判定: サブスクの plan variation id が env(SQUARE_PREMIUM_PLAN_ID) と一致すれば premium。
-    // プレミアムは無料お試しなし（決定20）＝ trial_ends_at を付与しない。一致しなければ従来どおり pro。
+    // プレミアムプラン判定: サブスクの plan variation id が env(SQUARE_PREMIUM_PLAN_ID) と一致すれば premium。一致しなければ pro。
+    // Pro・プレミアムとも無料お試しなし（Square で実装不可のため廃止）＝ trial_ends_at は付与しない。
     const premiumPlanId = optional("SQUARE_PREMIUM_PLAN_ID", "");
     const planVariationId = String(subscription.plan_variation_id || subscription.plan_id || body.plan_variation_id || "");
     const targetPlan = premiumPlanId && planVariationId && planVariationId === premiumPlanId ? "premium" : "pro";
@@ -51,9 +50,7 @@ exports.handler = async (event) => {
         await freezeExcess(owner.id).catch(() => null); // 超過データを削除せず凍結（決定15・#174）
         planResult = "downgraded";
       } else if (isGrant) {
-        const grant = targetPlan === "premium"
-          ? { plan: "premium", trial_ends_at: null, updated_at: new Date().toISOString() }
-          : { plan: "pro", trial_ends_at: trialEndsAt, updated_at: new Date().toISOString() };
+        const grant = { plan: targetPlan, trial_ends_at: null, updated_at: new Date().toISOString() };
         await sb(`owners?id=${eq(owner.id)}`, {
           method: "PATCH",
           body: JSON.stringify(grant),

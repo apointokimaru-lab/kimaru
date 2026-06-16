@@ -367,19 +367,25 @@ function renderBookings(bookings) {
   const list = $("#booking-list");
   if (!list) return;
   if (!bookings.length) {
-    list.innerHTML = `<p class="muted">${t("admin.noBookings")}</p>`;
+    list.innerHTML = `<tr><td colspan="4" class="empty-cell">${t("admin.noBookings")}</td></tr>`;
     return;
   }
   list.innerHTML = bookings.map((booking) => {
     const context = parseRelationshipContext(booking.filter_request);
+    const insight = renderRelationshipContext(context);
+    const name = escapeHtml(booking.visitor_name || booking.guest_name || t("admin.guest"));
+    const email = escapeHtml(booking.visitor_email || booking.guest_email || "");
+    const topic = escapeHtml(booking.topic || "");
+    const when = booking.start_at || booking.start_time ? escapeHtml(formatSlot(booking.start_at || booking.start_time)) : "";
+    // インサイト（生年月日）は任意・行が膨らむので details に畳む。textContent には残るので検索は効く。
+    const insightCell = insight ? `<details class="insight-toggle"><summary>${t("admin.contacts.insightToggle")}</summary>${insight}</details>` : "";
     return `
-      <article class="list-item">
-        <strong>${escapeHtml(booking.visitor_name || booking.guest_name || t("admin.guest"))}</strong>
-        <span>${escapeHtml(booking.visitor_email || booking.guest_email || "")}</span>
-        <p>${escapeHtml(booking.topic || "")}</p>
-        ${renderRelationshipContext(context)}
-        <small>${booking.start_at || booking.start_time ? escapeHtml(formatSlot(booking.start_at || booking.start_time)) : ""}</small>
-      </article>
+      <tr class="list-item">
+        <td data-label="${t("admin.contacts.colName")}"><strong>${name}</strong></td>
+        <td data-label="${t("admin.contacts.colEmail")}" class="cell-email">${email || "—"}</td>
+        <td data-label="${t("admin.contacts.colTopic")}">${topic || (insightCell ? "" : "—")}${insightCell}</td>
+        <td data-label="${t("admin.contacts.colDate")}" class="cell-date">${when || "—"}</td>
+      </tr>
     `;
   }).join("");
 }

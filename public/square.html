@@ -12,11 +12,18 @@
 <body data-i18n-title="sq.pageTitle">
   <!-- site-header -->
 
-  <main class="shell narrow">
+  <main class="shell checkout">
     <section class="panel profile-card">
       <p class="eyebrow" data-i18n="sq.eyebrow">Square Checkout</p>
-      <h1 data-i18n="sq.heading">Pro版（1ヶ月無料お試し）を始める</h1>
-      <p class="lead" data-i18n="sq.lead">登録時にカード登録のうえ 1ヶ月無料 でお試しいただけます。期間終了後は自動で月額 ¥980 に移行します（期間中の解約で課金はありません）。猫の鍵 / Cat Keyをお持ちの方は、決済せず下の Cat Key 欄から入力してください。</p>
+      <h1 data-i18n="sq.heading">Pro版を始める</h1>
+      <p class="plan-price-line"><span class="price">980<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></p>
+      <p class="lead" data-i18n="sq.lead">月額 ¥980 でPro版の全機能をご利用いただけます。登録時に課金されます（無料お試しはありません）。</p>
+
+      <ul class="feature-list">
+        <li data-i18n="sq.feat1">相手管理（面談メモ・印象スコア）で関係構築を強化</li>
+        <li data-i18n="sq.feat2">高度プロフィール＋公開ページ・占いベース相手分析</li>
+        <li data-i18n="sq.feat3">月額 ¥980（登録時に課金・税込）・いつでも解約できます</li>
+      </ul>
 
       <p id="square-status" class="message" data-i18n="sq.js.checking">ログイン状態を確認しています...</p>
 
@@ -29,9 +36,11 @@
 
       <!-- ログイン後：決済へ -->
       <div class="actions app-only">
-        <a id="square-payment-link" class="button primary" href="https://square.link/u/sKdZIsyS?src=embed" target="_blank" rel="noopener noreferrer" data-i18n="sq.payCta">1ヶ月無料で始める（Square）</a>
+        <a id="square-payment-link" class="button primary" href="https://square.link/u/sKdZIsyS?src=embed" target="_blank" rel="noopener noreferrer" data-i18n="sq.payCta">Pro（¥980/月）を始める（Square）</a>
       </div>
-      <p class="message app-only"><span data-i18n="sq.payMsgPre">お支払いは登録メール </span><strong id="pay-email">（確認中）</strong><span data-i18n="sq.payMsgPost"> で行ってください。このメールとSquareの支払者メールが一致すると、Pro版が自動で有効化されます。決済は新しいタブで開きます。</span></p>
+      <div class="soft-box app-only" style="margin-top:14px;">
+        <p class="muted" style="margin:0;"><span data-i18n="sq.payMsgPre">お支払いは登録メール </span><strong id="pay-email">（確認中）</strong><span data-i18n="sq.payMsgPost"> で行ってください。このメールとSquareの支払者メールが一致すると、Pro版が自動で有効化されます。決済は新しいタブで開きます。</span></p>
+      </div>
     </section>
 
     <section class="panel app-only" id="catkey-box">
@@ -76,7 +85,7 @@
             ? T('sq.js.premiumActive', 'すでにプレミアムプランをご利用中です。')
             : owner.plan === 'pro'
               ? T('sq.js.proActive', 'すでにPro版をご利用中です。')
-              : T('sq.js.loggedIn', 'ログイン中です。下のボタンから1ヶ月無料お試しを開始できます。');
+              : T('sq.js.loggedIn', 'ログイン中です。下のボタンからPro（¥980/月）を申し込めます。');
           status.className = 'message ' + (isPaid ? 'success' : '');
           // すでに有料（またはCat Key承認済み）なら Cat Key 入力欄は不要
           if (isPaid) document.getElementById('catkey-box')?.remove();

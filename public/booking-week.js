@@ -353,6 +353,13 @@ async function loadWeek(week, full) {
       renderHost(data.host);
       renderQuestions(data.questions || []);
     }
+    if (data.suspended) {
+      grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.week.suspended", "このページは現在ご利用いただけません。"))}</p>`;
+      form.classList.add("hidden");
+      const nav = $("#week-nav");
+      if (nav) nav.style.display = "none";
+      return;
+    }
     if (data.paused) {
       grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.week.paused", "現在、この予約ページは受付を停止しています。しばらくしてから再度お試しください。"))}</p>`;
       form.classList.add("hidden");

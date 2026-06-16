@@ -12,44 +12,90 @@
   <link rel="stylesheet" href="/operator.css" />
 </head>
 <body class="operator-console" data-page="cat-key-admin">
-  <header class="site-header">
-    <a class="brand" href="/cat-key-admin.html">キマル<span class="brand-tag">運営</span></a>
-    <nav>
-      <a href="/cat-key-admin.html">運営コンソール</a>
-      <a href="/operators.html">運営者管理</a>
-      <button id="operator-logout" class="link-button" type="button">ログアウト</button>
-      <select class="lang-select" data-language-select aria-label="Language"></select>
-    </nav>
-  </header>
+  <div class="op-layout">
+    <aside class="op-sidebar">
+      <a class="op-brand" href="/cat-key-admin.html">キマル<span class="brand-tag">運営</span></a>
+      <nav class="op-nav">
+        <a class="op-nav-item" href="#owners" data-view="owners">ユーザー一覧</a>
+        <a class="op-nav-item" href="#log" data-view="log">Cat Key認証 <span class="op-badge" id="nav-pending-badge" hidden></span></a>
+        <a class="op-nav-item" href="#history" data-view="history">操作履歴</a>
+        <a class="op-nav-item" href="/operators.html">運営者管理</a>
+      </nav>
+      <div class="op-sidebar-foot">
+        <select class="lang-select" data-language-select aria-label="Language"></select>
+        <button id="operator-logout" class="link-button" type="button">ログアウト</button>
+      </div>
+    </aside>
 
-  <main class="shell narrow">
-    <section class="panel">
-      <p class="eyebrow">Admin / Cat Key</p>
-      <h1>運営コンソール</h1>
-      <p class="lead">Cat Keyの承認・却下や、不正利用時の無料プランへの降格（Cat Key欄の非表示）を行います。適用・失敗・停止のログも確認できます。</p>
-      <p id="admin-message" class="message"></p>
-    </section>
+    <main class="op-main">
+      <header class="op-page-head">
+        <p class="eyebrow">Admin / Cat Key</p>
+        <h1>運営コンソール</h1>
+        <p class="lead">Cat Key メンバーの状態管理（利用停止・再開・無料プランへの降格）を行います。新規申請の承認・却下は「Cat Key認証」で行います。</p>
+        <p id="admin-message" class="message"></p>
+      </header>
 
-    <section class="panel">
-      <p class="eyebrow">Owners</p>
-      <h2>ユーザー一覧 <span id="owner-count" class="muted" style="font-size:14px;font-weight:600;"></span></h2>
-      <label>検索<input id="owner-search" type="search" placeholder="名前・メール・プランで絞り込み" /></label>
-      <div id="owner-admin-list" class="list" style="margin-top:12px;"></div>
-    </section>
+      <section id="view-owners" class="op-view panel">
+        <p class="eyebrow">Owners</p>
+        <h2>ユーザー一覧 <span id="owner-count" class="op-count"></span></h2>
+        <label>検索<input id="owner-search" type="search" placeholder="名前・メール・プランで絞り込み" /></label>
+        <div class="op-table-wrap" style="margin-top:14px;">
+          <table class="op-table">
+            <thead>
+              <tr>
+                <th data-sort="name">名前</th>
+                <th data-sort="email">メール</th>
+                <th data-sort="plan">プラン</th>
+                <th data-sort="code">Cat Key</th>
+                <th data-sort="status">状態</th>
+                <th data-sort="created_at">登録</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="owner-admin-list"></tbody>
+          </table>
+        </div>
+        <div class="op-pager" id="owner-pager" hidden></div>
+      </section>
 
-    <section class="panel">
-      <p class="eyebrow">Audit Log</p>
-      <h2>Cat Keyログ</h2>
-      <div id="cat-key-event-list" class="list"></div>
-    </section>
-  </main>
+      <section id="view-log" class="op-view panel">
+        <p class="eyebrow">Cat Key / Approvals</p>
+        <h2>承認待ち <span id="pending-count" class="op-count"></span></h2>
+        <p class="muted" style="margin:2px 0 0;">Cat Key を登録したユーザーの承認・却下を行います。承認すると会員（利用中）になります。</p>
+        <div class="op-table-wrap" style="margin-top:12px;">
+          <table class="op-table">
+            <thead>
+              <tr><th>名前</th><th>メール</th><th>コード</th><th>登録</th><th>操作</th></tr>
+            </thead>
+            <tbody id="pending-list"></tbody>
+          </table>
+        </div>
+      </section>
 
-  <!-- site-footer -->
+      <section id="view-history" class="op-view panel">
+        <p class="eyebrow">Audit Log</p>
+        <h2>操作履歴</h2>
+        <p class="muted" style="margin:2px 0 0;">Cat Key の申請・承認・却下・利用停止・再開・降格などの履歴です。</p>
+        <div class="op-table-wrap" style="margin-top:12px;">
+          <table class="op-table">
+            <thead>
+              <tr><th>日時</th><th>操作</th><th>対象</th><th>メール</th><th>コード</th><th>IP</th></tr>
+            </thead>
+            <tbody id="cat-key-event-list"></tbody>
+          </table>
+        </div>
+        <div class="op-pager" id="event-pager" hidden></div>
+      </section>
+    </main>
+  </div>
 
   <script src="/i18n.js" defer></script>
   <script>
     const list = document.querySelector('#owner-admin-list');
     const eventList = document.querySelector('#cat-key-event-list');
+    const pendingList = document.querySelector('#pending-list');
+    const pendingCount = document.querySelector('#pending-count');
+    const navBadge = document.querySelector('#nav-pending-badge');
     const message = document.querySelector('#admin-message');
 
     function setMessage(text, kind = '') {
@@ -72,6 +118,52 @@
       }
     }
 
+    // ---- 共通ページネーション（20件/ページ） ----
+    const PER_PAGE = 20;
+    function renderPaged({ items, page, tbody, rowHtml, colspan, empty, pager, onPage }) {
+      const total = items.length;
+      const pages = Math.max(1, Math.ceil(total / PER_PAGE));
+      const cur = Math.min(Math.max(1, page), pages);
+      const start = (cur - 1) * PER_PAGE;
+      const slice = items.slice(start, start + PER_PAGE);
+      tbody.innerHTML = slice.length
+        ? slice.map(rowHtml).join('')
+        : `<tr><td colspan="${colspan}" class="empty-cell">${empty}</td></tr>`;
+      const el = document.querySelector(pager);
+      if (el) {
+        if (total <= PER_PAGE) {
+          el.hidden = true;
+          el.innerHTML = '';
+        } else {
+          el.hidden = false;
+          el.innerHTML = `
+            <span class="op-pager-info">${start + 1}–${start + slice.length} / ${total}件</span>
+            <button type="button" data-page="prev" ${cur <= 1 ? 'disabled' : ''}>前へ</button>
+            <span>${cur} / ${pages}</span>
+            <button type="button" data-page="next" ${cur >= pages ? 'disabled' : ''}>次へ</button>`;
+          el.querySelectorAll('button[data-page]').forEach((b) => {
+            b.addEventListener('click', () => onPage(b.dataset.page === 'next' ? cur + 1 : cur - 1));
+          });
+        }
+      }
+      return cur;
+    }
+
+    // ---- サイドメニューによるビュー切替（ユーザー一覧 / Cat Key認証） ----
+    const VIEWS = { owners: '#view-owners', log: '#view-log', history: '#view-history' };
+    function showView(name) {
+      const target = VIEWS[name] ? name : 'owners';
+      document.querySelectorAll('.op-view').forEach((v) => v.classList.remove('is-active'));
+      document.querySelector(VIEWS[target]).classList.add('is-active');
+      document.querySelectorAll('.op-nav-item[data-view]').forEach((a) => a.classList.toggle('is-active', a.dataset.view === target));
+      if (location.hash.slice(1) !== target) history.replaceState(null, '', `#${target}`);
+    }
+    document.querySelectorAll('.op-nav-item[data-view]').forEach((a) => {
+      a.addEventListener('click', (event) => { event.preventDefault(); showView(a.dataset.view); });
+    });
+    window.addEventListener('hashchange', () => showView(location.hash.slice(1)));
+    showView(location.hash.slice(1) || 'owners');
+
     async function adminApi(options = {}) {
       const response = await fetch('/api/invite-apply?admin=cat-key', {
         credentials: 'include',
@@ -88,59 +180,195 @@
     const ownerCount = document.querySelector('#owner-count');
     const ownerSearch = document.querySelector('#owner-search');
 
-    function ownerCard(owner) {
-      const plan = owner.plan === 'premium' ? 'プレミアム' : owner.plan === 'pro' ? 'Pro' : 'Free';
-      const pendingBadge = owner.cat_key_pending ? ' / <strong style="color:var(--op-amber,#e0a83d);">承認待ち</strong>' : '';
-      const approveButtons = owner.cat_key_pending ? `
-            <button class="button primary" type="button" data-action="approve" data-owner-id="${escapeHtml(owner.id)}">承認してProにする</button>
-            <button class="button secondary" type="button" data-action="reject" data-owner-id="${escapeHtml(owner.id)}">却下する</button>` : '';
-      return `
-        <article class="list-item">
-          <strong>${escapeHtml(owner.name || owner.email || 'No name')}</strong>
-          <span>${escapeHtml(owner.email || '')}</span>
-          <p>プラン: ${plan} / Cat Key: ${escapeHtml(owner.invite_code || '-')} / 欄: ${owner.cat_key_disabled ? '非表示' : '表示中'}${pendingBadge}</p>
-          <small>登録: ${escapeHtml(formatDate(owner.created_at))}</small>
-          <div class="actions">${approveButtons}
-            <button class="button secondary" type="button" data-action="revoke" data-owner-id="${escapeHtml(owner.id)}">無料に戻してCat Key欄を消す</button>
-            <button class="button secondary" type="button" data-action="restore" data-owner-id="${escapeHtml(owner.id)}">Cat Key欄を再表示</button>
-          </div>
-        </article>`;
+    // 状態の判定（invite_code を「メンバー(過去含む)」マーカーとして使う）
+    function ownerState(o) {
+      if (o.cat_key_pending) return 'pending';                    // 申請中（Cat Key登録→承認待ち）
+      if (o.cat_key_disabled) return 'suspended';                 // 停止中（運営が停止）
+      if (o.invite_code && o.plan === 'free') return 'withdrawn'; // 退会済（過去メンバー・無料へ降格）
+      return 'active';                                            // 利用中（一般Free・課金・メンバー）
+    }
+    const STATE_HTML = {
+      pending: '<span class="badge-pending">申請中</span>',
+      active: '<span class="state-active">利用中</span>',
+      suspended: '<span class="badge-off">停止中</span>',
+      withdrawn: '<span class="state-withdrawn">退会済</span>',
+    };
+
+    // 並び替え状態（既定：登録の新しい順）
+    let sortKey = 'created_at';
+    let sortDir = -1; // 1=昇順 / -1=降順
+    const PLAN_RANK = { free: 0, pro: 1, premium: 2 };
+    const STATE_RANK = { active: 1, withdrawn: 2, suspended: 3, pending: 4 };
+    function sortValue(owner, key) {
+      switch (key) {
+        case 'name': return (owner.name || owner.email || '').toLowerCase();
+        case 'email': return (owner.email || '').toLowerCase();
+        case 'plan': return owner.invite_code ? 3 : (PLAN_RANK[owner.plan] ?? -1);
+        case 'code': return (owner.invite_code || '').toLowerCase();
+        case 'status': return STATE_RANK[ownerState(owner)] ?? 0;
+        case 'created_at': return new Date(owner.created_at || 0).getTime() || 0;
+        default: return '';
+      }
+    }
+    function sortOwners(rows) {
+      return rows.sort((a, b) => {
+        const va = sortValue(a, sortKey);
+        const vb = sortValue(b, sortKey);
+        const cmp = (typeof va === 'number' && typeof vb === 'number')
+          ? va - vb
+          : String(va).localeCompare(String(vb), 'ja');
+        return cmp * sortDir;
+      });
+    }
+    function updateSortIndicators() {
+      document.querySelectorAll('#view-owners th[data-sort]').forEach((th) => {
+        th.classList.toggle('sorted-asc', th.dataset.sort === sortKey && sortDir === 1);
+        th.classList.toggle('sorted-desc', th.dataset.sort === sortKey && sortDir === -1);
+      });
     }
 
+    function planCell(owner) {
+      if (owner.invite_code) return '<span class="plan-pill is-member">メンバー</span>';
+      const cls = owner.plan === 'premium' ? 'is-premium' : owner.plan === 'pro' ? 'is-pro' : '';
+      const label = owner.plan === 'premium' ? 'プレミアム' : owner.plan === 'pro' ? 'Pro' : 'Free';
+      return `<span class="plan-pill ${cls}">${label}</span>`;
+    }
+
+    // 操作は状態に応じて出し分け。利用停止/再開は全員、無料プランへ降格はメンバーのみ。退会済・申請中は操作なし。
+    function ownerActions(owner, state, id) {
+      const demoteBtn = owner.invite_code
+        ? `<button class="button secondary" type="button" data-action="demote" data-owner-id="${id}" title="無料プランへ降格し退会扱いにする">無料プランへ降格</button>`
+        : '';
+      if (state === 'active') return `
+            <button class="button secondary" type="button" data-action="suspend" data-owner-id="${id}" title="利用を停止する（停止中にする）">利用停止</button>${demoteBtn}`;
+      if (state === 'suspended') return `
+            <button class="button primary" type="button" data-action="resume" data-owner-id="${id}" title="利用を再開する">利用再開</button>${demoteBtn}`;
+      return '<span class="muted">—</span>';
+    }
+
+    function ownerRow(owner) {
+      const state = ownerState(owner);
+      const id = escapeHtml(owner.id);
+      return `
+        <tr>
+          <td class="cell-name" data-label="名前"><strong>${escapeHtml(owner.name || owner.email || 'No name')}</strong></td>
+          <td class="cell-mono" data-label="メール">${escapeHtml(owner.email || '-')}</td>
+          <td data-label="プラン">${planCell(owner)}</td>
+          <td class="cell-mono" data-label="Cat Key">${escapeHtml(owner.invite_code || '-')}</td>
+          <td data-label="状態">${STATE_HTML[state]}</td>
+          <td class="cell-mono" data-label="登録">${escapeHtml(formatDate(owner.created_at))}</td>
+          <td class="cell-actions" data-label="操作">${ownerActions(owner, state, id)}</td>
+        </tr>`;
+    }
+
+    let ownerPage = 1;
     function applyOwnerFilter() {
       const query = (ownerSearch?.value || '').trim().toLowerCase();
-      const filtered = query
+      const filtered = sortOwners(query
         ? allOwners.filter((owner) => [owner.name, owner.email, owner.plan, owner.invite_code]
             .some((value) => String(value || '').toLowerCase().includes(query)))
-        : allOwners;
+        : allOwners.slice());
       if (ownerCount) ownerCount.textContent = `（${filtered.length} / ${allOwners.length} 名）`;
-      if (!filtered.length) {
-        list.innerHTML = '<p class="muted">該当ユーザーがいません。</p>';
+      ownerPage = renderPaged({
+        items: filtered, page: ownerPage, tbody: list, rowHtml: ownerRow,
+        colspan: 7, empty: '該当ユーザーがいません。', pager: '#owner-pager',
+        onPage: (p) => { ownerPage = p; applyOwnerFilter(); },
+      });
+    }
+
+    // 承認待ち（Cat Key認証画面で承認・却下）＋サイドメニューのバッジ
+    function renderPending() {
+      const pending = allOwners.filter((owner) => owner.cat_key_pending);
+      pendingCount.textContent = `（${pending.length} 件）`;
+      navBadge.textContent = String(pending.length);
+      navBadge.hidden = pending.length === 0;
+      if (!pending.length) {
+        pendingList.innerHTML = '<tr><td colspan="5" class="empty-cell">承認待ちはありません。</td></tr>';
         return;
       }
-      list.innerHTML = filtered.map(ownerCard).join('');
+      pendingList.innerHTML = pending.map((owner) => {
+        const id = escapeHtml(owner.id);
+        return `
+          <tr>
+            <td class="cell-name" data-label="名前"><strong>${escapeHtml(owner.name || owner.email || 'No name')}</strong></td>
+            <td class="cell-mono" data-label="メール">${escapeHtml(owner.email || '-')}</td>
+            <td class="cell-mono" data-label="コード">${escapeHtml(owner.invite_code || '-')}</td>
+            <td class="cell-mono" data-label="登録">${escapeHtml(formatDate(owner.created_at))}</td>
+            <td class="cell-actions" data-label="操作">
+              <button class="button primary" type="button" data-action="approve" data-owner-id="${id}" title="承認してProを無料解放">承認</button>
+              <button class="button secondary" type="button" data-action="reject" data-owner-id="${id}" title="申請を却下">却下</button>
+            </td>
+          </tr>`;
+      }).join('');
     }
 
     function renderOwners(owners) {
       allOwners = Array.isArray(owners) ? owners : [];
       applyOwnerFilter();
+      renderPending();
     }
 
-    if (ownerSearch) ownerSearch.addEventListener('input', applyOwnerFilter);
+    if (ownerSearch) ownerSearch.addEventListener('input', () => { ownerPage = 1; applyOwnerFilter(); });
 
+    // 列ヘッダクリックで並び替え（同じ列は昇順⇄降順、別の列は既定方向で開始）
+    document.querySelectorAll('#view-owners th[data-sort]').forEach((th) => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        if (sortKey === key) { sortDir = -sortDir; }
+        else { sortKey = key; sortDir = (key === 'created_at') ? -1 : 1; }
+        updateSortIndicators();
+        ownerPage = 1;
+        applyOwnerFilter();
+      });
+    });
+    updateSortIndicators();
+
+    // 操作コード → 日本語ラベル（履歴の「操作」列を読みやすく）。未知のコードは生のまま表示。
+    const ACTION_LABEL = {
+      apply_pending: '申請（承認待ち）',
+      apply_success: '即時適用',
+      invalid_format: 'コード形式エラー',
+      invalid_code: '無効なコード',
+      blocked_apply: '停止中アカウントの適用試行',
+      admin_approve: '承認',
+      admin_reject: '却下',
+      admin_suspend: '利用停止',
+      admin_resume: '利用再開',
+      admin_demote: '無料プランへ降格',
+      // 旧アクション（過去ログ互換）
+      admin_revoke: '無料降格（旧）',
+      admin_restore: '凍結解除（旧）',
+    };
+    const actionLabel = (a) => ACTION_LABEL[a] || a || '-';
+
+    let allEvents = [];
+    let eventPage = 1;
+    function eventRow(event) {
+      // 対象ユーザー名はユーザー一覧（owner_id）から引き当てる。見つからなければメールで代替。
+      const target = event.owner_id ? eventRow._ownerById.get(event.owner_id) : null;
+      const targetName = (target && (target.name || target.email)) || event.email || '-';
+      return `
+        <tr>
+          <td class="cell-mono" data-label="日時">${escapeHtml(formatDate(event.created_at))}</td>
+          <td data-label="操作"><strong title="${escapeHtml(event.action || '')}">${escapeHtml(actionLabel(event.action))}</strong></td>
+          <td data-label="対象"><strong>${escapeHtml(targetName)}</strong></td>
+          <td class="cell-mono" data-label="メール">${escapeHtml(event.email || (target && target.email) || '-')}</td>
+          <td class="cell-mono" data-label="コード">${escapeHtml(event.code || '-')}</td>
+          <td class="cell-mono" data-label="IP">${escapeHtml(event.ip_address || '-')}</td>
+        </tr>`;
+    }
+    function renderEventsPage() {
+      eventRow._ownerById = new Map(allOwners.map((o) => [o.id, o]));
+      eventPage = renderPaged({
+        items: allEvents, page: eventPage, tbody: eventList, rowHtml: eventRow,
+        colspan: 6, empty: 'まだログはありません。', pager: '#event-pager',
+        onPage: (p) => { eventPage = p; renderEventsPage(); },
+      });
+    }
     function renderEvents(events) {
-      if (!events.length) {
-        eventList.innerHTML = '<p class="muted">まだログはありません。</p>';
-        return;
-      }
-      eventList.innerHTML = events.map((event) => `
-        <article class="list-item">
-          <strong>${escapeHtml(event.action || '')}</strong>
-          <span>${escapeHtml(event.email || '')}</span>
-          <p>Code: ${escapeHtml(event.code || '-')} / IP: ${escapeHtml(event.ip_address || '-')}</p>
-          <small>${escapeHtml(formatDate(event.created_at))}</small>
-        </article>
-      `).join('');
+      allEvents = Array.isArray(events) ? events : [];
+      eventPage = 1;
+      renderEventsPage();
     }
 
     async function loadOwners() {
@@ -151,19 +379,17 @@
       setMessage('読み込みました。', 'success');
     }
 
-    list.addEventListener('click', async (event) => {
-      const button = event.target.closest('button[data-action]');
-      if (!button) return;
-      const action = button.dataset.action;
-      const ownerId = button.dataset.ownerId;
-      const confirmMap = {
-        revoke: 'このユーザーを無料プランへ戻し、Cat Key欄を非表示にします。実行しますか？',
-        restore: 'このユーザーのCat Key欄を再表示します。実行しますか？',
-        approve: 'このユーザーのCat Key申請を承認し、Proを無料で解放します。実行しますか？',
-        reject: 'このユーザーのCat Key申請を却下します。実行しますか？',
-      };
-      const confirmText = confirmMap[action] || '実行しますか？';
-      if (!confirm(confirmText)) return;
+    // 操作（ユーザー一覧＝停止/再開/降格、承認待ち＝承認/却下）
+    const confirmMap = {
+      approve: 'このユーザーの Cat Key 申請を承認し、Pro を無料で解放します。実行しますか？',
+      reject: 'このユーザーの Cat Key 申請を却下します。実行しますか？',
+      suspend: 'このユーザーの利用を停止します（停止中にします）。実行しますか？',
+      resume: 'このユーザーの利用を再開します。実行しますか？',
+      demote: 'このメンバーを無料プランへ降格し、退会扱いにします。実行しますか？',
+    };
+    async function doAction(action, ownerId) {
+      if (!action || !ownerId) return;
+      if (!confirm(confirmMap[action] || '実行しますか？')) return;
       setMessage('更新中...');
       try {
         await adminApi({ method: 'POST', body: JSON.stringify({ action, owner_id: ownerId }) });
@@ -172,7 +398,14 @@
       } catch (error) {
         setMessage(error.message, 'error');
       }
-    });
+    }
+    function onActionClick(event) {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      doAction(button.dataset.action, button.dataset.ownerId);
+    }
+    list.addEventListener('click', onActionClick);
+    pendingList.addEventListener('click', onActionClick);
 
     document.querySelector('#operator-logout').addEventListener('click', async () => {
       await fetch('/api/operator-login', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'logout' }) }).catch(() => {});

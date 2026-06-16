@@ -34,6 +34,9 @@
   --premium-soft:#EEF0FB;
 }
 *{box-sizing:border-box}
+/* 固定ヘッダー（.site-header は sticky・top:0）ぶん、アンカー遷移（#premium 等）の着地位置をオフセットし、見出しがヘッダーに潜るのを防ぐ。 */
+html{scroll-padding-top:88px}
+@media(max-width:620px){html{scroll-padding-top:150px}}
 body{
   margin:0;
   color:var(--ink);
@@ -105,7 +108,9 @@ a{color:inherit;text-decoration:none}
 .plan-pro .plan-paid-only,.plan-premium .plan-paid-only{display:inline-flex}
 .lang-select{width:auto;min-height:36px;padding:6px 10px;font-size:13px;font-weight:700}
 .shell{width:min(1120px,calc(100% - 32px));margin:0 auto;padding:48px 0}
-.shell.narrow{width:min(680px,calc(100% - 32px))}
+.shell.narrow{width:min(720px,calc(100% - 32px))}
+/* チェックアウト/アップグレード等、やや広めが見やすいページ */
+.shell.checkout{width:min(960px,calc(100% - 32px))}
 .two-column{display:grid;grid-template-columns:.92fr 1.08fr;gap:22px;align-items:start}
 .admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .wide{grid-column:1/-1}
@@ -262,6 +267,31 @@ textarea{resize:vertical}
 .field-warning a{color:inherit;font-weight:700;text-decoration:underline}
 .pause-badge{display:inline-block;margin-left:8px;padding:2px 9px;font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.04em;color:#b91c1c;background:#fde8e8;border:1px solid #f0a8a8;vertical-align:middle}
 .list-item.is-paused{opacity:.72}
+/* データ一覧テーブル（予約履歴など）。PC=整列した表 / スマホ(≤620px)=1件ずつ縦積み。検索は .list-item(tr) を .hidden で出し分け。 */
+.data-table-wrap{width:100%;overflow-x:auto}
+.data-table{width:100%;border-collapse:collapse;background:var(--surface);font-size:14px}
+.data-table thead th{padding:9px 14px;border-bottom:1.5px solid var(--line-strong);text-align:left;color:var(--ink-soft);font-family:var(--sans);font-size:12px;font-weight:800;letter-spacing:.04em;white-space:nowrap}
+.data-table td{padding:11px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;color:var(--muted);line-height:1.5}
+.data-table tbody tr:hover{background:var(--surface-subtle)}
+.data-table td strong{color:var(--ink);font-weight:700}
+.data-table .cell-email{word-break:break-all}
+.data-table .cell-date{white-space:nowrap;color:var(--ink-soft)}
+.data-table .insight-toggle{margin-top:6px}
+.data-table .insight-toggle>summary{cursor:pointer;color:var(--blue);font-family:var(--sans);font-size:13px;font-weight:700}
+.data-table .insight-toggle .relationship-insight{margin-top:8px}
+.data-table .empty-cell{padding:18px 14px;color:var(--muted)}
+@media(max-width:620px){
+  .data-table thead{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+  .data-table,.data-table tbody,.data-table tr,.data-table td{display:block;width:100%}
+  .data-table tr{border:1px solid var(--line);margin-bottom:10px;padding:8px 14px}
+  .data-table td{border:0;padding:4px 0}
+  .data-table td::before{content:attr(data-label);display:inline-block;min-width:80px;margin-right:8px;color:var(--ink-soft);font-family:var(--sans);font-size:12px;font-weight:800}
+  /* 先頭セル（名前）はラベルを省き、カードの見出しとして見せる。 */
+  .data-table td:first-child{padding-bottom:6px}
+  .data-table td:first-child::before{content:none}
+  .data-table td:first-child strong{font-size:15px}
+  .data-table .empty-cell::before{content:none}
+}
 
 /* ===== 設定画面 ===== */
 .settings-page{display:grid;gap:22px}
@@ -335,6 +365,9 @@ textarea{resize:vertical}
 /* 価格表記（等幅・タブ揃え） */
 .price{font-family:var(--mono);font-weight:700;font-feature-settings:"tnum" 1;letter-spacing:-.01em}
 .price .unit{font-family:var(--sans);font-size:.5em;font-weight:800;color:var(--muted);margin-left:4px}
+/* 料金行（大きな価格表示） */
+.plan-price-line{display:flex;align-items:baseline;gap:12px;margin:8px 0 6px}
+.plan-price-line .price{font-size:36px;color:var(--ink)}
 .aurora .price .unit,.premium-surface .price .unit,.plan-card.is-premium .price .unit{color:rgba(255,255,255,.82)}
 
 /* プランカード（3-up）。premiumのみ aurora 背景（.plan-card より高特異度で上書き） */

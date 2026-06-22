@@ -2,8 +2,8 @@ const { json, readJson } = require("./_lib/response");
 const { requireOwner } = require("./_lib/auth");
 const { sb, eq } = require("./_lib/supabase");
 const { optional } = require("./_lib/config");
-const { verifyAdminSession } = require("./_lib/crypto");
-const { freezeExcess, restoreFrozen } = require("./_lib/plan-freeze");
+const { verifyAdminSession, timingEqual } = require("./_lib/crypto");
+const { applyPlanLimits } = require("./_lib/plan-freeze");
 
 const proCodes = new Set([
   "NEKO20240222",
@@ -15,16 +15,16 @@ function clientIp(event) {
   return String(headers["x-forwarded-for"] || headers["X-Forwarded-For"] || "").split(",")[0].trim();
 }
 
-function isCatKeyAdmin(event, body = {}) {
+function isCatKeyAdmin(event) {
   // 運営セッション（/operator-login で発行）があれば許可。
   if (verifyAdminSession(event)) return true;
-  // 後方互換: 共有管理キーの Bearer / クエリ / body 直送も許可。
+  // 後方互換は Authorization: Bearer のみ（定数時間比較）。
+  // クエリ文字列/ボディでの秘密送付はログ・履歴に残るため廃止。
   const secret = optional("ADMIN_SECRET", "");
   if (!secret) return false;
   const headers = event.headers || {};
   const authorization = headers.authorization || headers.Authorization || "";
-  const querySecret = event.queryStringParameters?.secret || "";
-  return authorization === `Bearer ${secret}` || querySecret === secret || body.secret === secret;
+  return timingEqual(authorization, `Bearer ${secret}`);
 }
 
 async function auditCatKey(event, payload) {
@@ -56,7 +56,7 @@ async function listOwners(event) {
 
 async function updateOwnerCatKey(event) {
   const body = readJson(event);
-  if (!isCatKeyAdmin(event, body)) return json(401, { error: "認証が必要です" });
+  if (!isCatKeyAdmin(event)) return json(401, { error: "認証が必要です" });
   const ownerId = String(body.owner_id || "").trim();
   const action = String(body.action || "");
   if (!ownerId) return json(400, { error: "owner_id が指定されていません" });
@@ -82,8 +82,8 @@ async function updateOwnerCatKey(event) {
   // Pro 昇格→凍結データ復元 / 無料降格→超過データ凍結（プランが実際に変わるメンバー操作のみ・決定15・#174）。
   const promoted = action === "approve" || (action === "resume" && isMember);
   const demotedToFree = action === "demote" || (action === "suspend" && isMember);
-  if (promoted) await restoreFrozen(ownerId).catch(() => null);
-  else if (demotedToFree) await freezeExcess(ownerId).catch(() => null);
+  if (promoted) await applyPlanLimits(ownerId, "pro").catch(() => null); // Cat Key は Pro 付与
+  else if (demotedToFree) await applyPlanLimits(ownerId, "free").catch(() => null);
   await auditCatKey(event, { owner_id: ownerId, email: rows[0]?.email || "", action: `admin_${action}`, metadata: { source: "cat-key-admin" } });
   return json(200, { ok: true, owner: rows[0] });
 }

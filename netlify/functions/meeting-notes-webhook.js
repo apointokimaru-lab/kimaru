@@ -1,20 +1,18 @@
-const { json, readJson } = require("./_lib/response");
+const { json } = require("./_lib/response");
 const { optional } = require("./_lib/config");
 const { sb, findOwnerByEmail } = require("./_lib/supabase");
+const { rawBody, verifySharedSecret } = require("./_lib/webhook");
 
-// 議事録ツール等からの汎用 inbound Webhook（#24）。共有シークレットで認証し、面談メモ(appointment_logs)へ保存。
-// MEETING_NOTES_WEBHOOK_SECRET 未設定なら無効（503）。外部サービス連携が決まるまでの汎用受け口。
-
-function header(event, name) {
-  const headers = event.headers || {};
-  return headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()] || "";
-}
+// 議事録ツール等からの汎用 inbound Webhook（#24）。共有シークレット（定数時間）で認証し、面談メモ(appointment_logs)へ保存。
+// MEETING_NOTES_WEBHOOK_SECRET 未設定なら無効（503・fail-closed）。外部サービス連携が決まるまでの汎用受け口。
+// 注意: 認証はオーナー単位ではなく単一の共有シークレットのため、保有者は owner_email 指定で任意ホストにメモを書き込める。
+//       将来は per-owner トークンへ移行すること（連携方式確定後）。
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "許可されていない操作です" });
   const secret = optional("MEETING_NOTES_WEBHOOK_SECRET", "");
   if (!secret) return json(503, { error: "議事録連携は設定されていません" });
-  if (header(event, "x-kimaru-webhook-secret") !== secret) return json(401, { error: "認証が必要です" });
+  if (!verifySharedSecret(event, secret)) return json(401, { error: "認証が必要です" });
 
   try {
     const body = readJson(event);

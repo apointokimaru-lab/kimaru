@@ -2,6 +2,7 @@ const { json } = require("./_lib/response");
 const { optional } = require("./_lib/config");
 const { sb, eq } = require("./_lib/supabase");
 const { sendMail } = require("./_lib/mail");
+const { timingEqual } = require("./_lib/crypto");
 
 // 予約開始の約22分前にゲストへ「お相手プロフィール付き」リマインダーメールを送る。
 // スケジューラ（Netlify Scheduled Functions / 外部cron）から ~5分間隔で叩く想定。
@@ -10,11 +11,27 @@ const WINDOW_MINUTES = 5; // 実行間隔ぶんの送信ウィンドウ
 
 function isAuthorized(event) {
   const secret = optional("REMINDER_CRON_SECRET", optional("CRON_SECRET", ""));
-  if (!secret) return true;
+  if (!secret) return false; // fail-closed: 未設定なら HTTP 経由の手動実行は不可（定期実行は reminder-scheduled が run() を直接呼ぶので影響なし）
   const headers = event.headers || {};
   const authorization = headers.authorization || headers.Authorization || "";
   const querySecret = event.queryStringParameters?.secret || "";
-  return authorization === `Bearer ${secret}` || querySecret === secret;
+  return timingEqual(authorization, `Bearer ${secret}`) || timingEqual(querySecret, secret);
+}
+
+// HTTP 応答用に PII（宛先・本文）を伏せる。dry_run の確認には件数/状態/伏字宛先で十分。
+function maskEmail(value) {
+  const s = String(value || "");
+  const at = s.indexOf("@");
+  return at > 0 ? `${s[0]}***${s.slice(at)}` : "***";
+}
+function redactForHttp(payload) {
+  return {
+    ...payload,
+    results: (payload.results || []).map((r) => {
+      const { text, subject, to, error, ...rest } = r;
+      return { ...rest, to: to ? maskEmail(to) : undefined, body_chars: text ? text.length : undefined };
+    }),
+  };
 }
 
 function formatJst(iso) {
@@ -156,8 +173,8 @@ exports.handler = async (event) => {
   if (!isAuthorized(event)) return json(401, { error: "認証が必要です" });
   const dryRun = event.queryStringParameters?.dry_run === "1" || event.queryStringParameters?.dry_run === "true";
   try {
-    return json(200, await run(dryRun));
+    return json(200, redactForHttp(await run(dryRun)));
   } catch (error) {
-    return json(500, { error: error.message });
+    return json(500, { error: "サーバーでエラーが発生しました。" });
   }
 };

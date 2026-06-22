@@ -1,24 +1,46 @@
-const { json, redirect } = require("./_lib/response");
+const { json } = require("./_lib/response");
 const { appBaseUrl } = require("./_lib/config");
 const { exchangeCode, userInfo, saveGoogleConnection } = require("./_lib/google");
-const { sessionCookie } = require("./_lib/crypto");
+const { sessionCookie, verifyOauthState, clearOauthStateCookie } = require("./_lib/crypto");
 const { upsertOwner } = require("./_lib/supabase");
+
+const SECURE_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Cache-Control": "no-store",
+};
+
+// 複数 Set-Cookie を返すための 302。Location は headers、Cookie は multiValueHeaders に置く。
+function redirectWithCookies(location, cookies) {
+  return {
+    statusCode: 302,
+    headers: { ...SECURE_HEADERS, Location: location },
+    multiValueHeaders: { "Set-Cookie": cookies },
+    body: "",
+  };
+}
 
 exports.handler = async (event) => {
   try {
-    const code = event.queryStringParameters?.code;
+    const q = event.queryStringParameters || {};
+    const code = q.code;
     if (!code) return json(400, { error: "認証コードがありません" });
+    // ログインCSRF対策：start で発行した state cookie と query の state を定数時間で照合。
+    // 不一致（＝この攻撃ブラウザ発の正規フローではない）なら code を交換せずに拒否する。
+    if (!verifyOauthState(event, q.state)) {
+      return redirectWithCookies(`${appBaseUrl()}/login.html?error=state`, [clearOauthStateCookie()]);
+    }
     const tokens = await exchangeCode(code);
     const profile = await userInfo(tokens.access_token);
     const slug = (profile.email || "demo").split("@")[0].toLowerCase().replace(/[^a-z0-9-]/g, "-");
     const owner = await upsertOwner({ email: profile.email, name: profile.name || profile.email, avatar_url: profile.picture || null, slug });
     // 利用停止アカウントはログイン不可（セッションを発行せずログイン画面へ戻す）。
     if (owner.cat_key_disabled) {
-      return redirect(`${appBaseUrl()}/login.html?suspended=1`);
+      return redirectWithCookies(`${appBaseUrl()}/login.html?suspended=1`, [clearOauthStateCookie()]);
     }
     // 既定の予約ページは自動作成しない（ユーザーが予約設定で作成する）。
     await saveGoogleConnection(owner, tokens);
-    return redirect(`${appBaseUrl()}/dashboard.html`, { "Set-Cookie": sessionCookie(owner.id) });
+    return redirectWithCookies(`${appBaseUrl()}/dashboard.html`, [sessionCookie(owner.id), clearOauthStateCookie()]);
   } catch (error) {
     return json(500, { error: "サーバーでエラーが発生しました。時間をおいて再度お試しください。" });
   }

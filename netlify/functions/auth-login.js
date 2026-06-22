@@ -1,6 +1,7 @@
 const { json, readJson } = require("./_lib/response");
 const { findOwnerByEmail } = require("./_lib/supabase");
 const { sessionCookie, verifyPassword } = require("./_lib/crypto");
+const { checkRateLimit, clientIp, RATE_LIMIT_MESSAGE } = require("./_lib/rate-limit");
 
 // メール+パスワードでログイン（決定3）。
 exports.handler = async (event) => {
@@ -10,6 +11,11 @@ exports.handler = async (event) => {
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
     if (!email || !password) return json(400, { error: "メールアドレスとパスワードを入力してください" });
+
+    // ブルートフォース対策：メール別＋IP別のレート制限（どちらか超過で 429）。
+    const perEmail = await checkRateLimit({ bucket: "login", ident: email, limit: 8, windowSec: 600 });
+    const perIp = await checkRateLimit({ bucket: "login_ip", ident: clientIp(event), limit: 40, windowSec: 600 });
+    if (!perEmail.allowed || !perIp.allowed) return json(429, { error: RATE_LIMIT_MESSAGE });
 
     const owner = await findOwnerByEmail(email);
     if (!owner || !owner.password_hash || !verifyPassword(password, owner.password_hash)) {

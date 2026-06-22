@@ -4,9 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "netlify dev",
-    "deploy": "netlify deploy --prod"
+    "deploy": "netlify deploy --prod",
+    "mock": "node scripts/mock-serve.mjs"
   },
   "dependencies": {
-    "nodemailer": "^8.0.10"
+    "nodemailer": "^9.0.1"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.0"
   }
 }

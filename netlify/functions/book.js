@@ -1,6 +1,7 @@
 const { json, readJson } = require("./_lib/response");
 const { sb, eq, defaultOwner, findOwnerById } = require("./_lib/supabase");
 const { createCalendarEvent } = require("./_lib/google");
+const { checkRateLimit, clientIp, RATE_LIMIT_MESSAGE } = require("./_lib/rate-limit");
 const zoom = require("./_lib/zoom");
 const { sendMail } = require("./_lib/mail");
 const { LOCATION_LABELS, formatJst, manageUrl, answersSummary } = require("./_lib/booking-format");
@@ -99,6 +100,10 @@ exports.handler = async (event) => {
     const maxFuture = new Date(now);
     maxFuture.setMonth(maxFuture.getMonth() + 6);
     if (start < now || start > maxFuture) return json(400, { error: "予約できる期間外の日時です" });
+
+    // 予約スパム/カレンダー・メール濫用の抑止（IP別）。
+    const rl = await checkRateLimit({ bucket: "book_ip", ident: clientIp(event), limit: 20, windowSec: 3600 });
+    if (!rl.allowed) return json(429, { error: RATE_LIMIT_MESSAGE });
 
     // owner_slug で予約ページ＋オーナーを解決（無ければ既定オーナー）。
     const slug = String(body.owner_slug || "").trim().toLowerCase();

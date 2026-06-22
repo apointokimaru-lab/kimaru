@@ -2,6 +2,7 @@ const { json } = require("./_lib/response");
 const { optional, appBaseUrl } = require("./_lib/config");
 const { sb, eq } = require("./_lib/supabase");
 const { sendMail } = require("./_lib/mail");
+const { timingEqual } = require("./_lib/crypto");
 
 // 会員獲得の自動導線（決定22・#181）。前日に面談した相手のうち「キマル未登録」の人へ、
 // 翌日にサンキュー＋登録案内メールを送る。marketing 経路（List-Unsubscribe＋サプレッション）で送るため、
@@ -9,11 +10,27 @@ const { sendMail } = require("./_lib/mail");
 
 function isAuthorized(event) {
   const secret = optional("THANKYOU_CRON_SECRET", optional("CRON_SECRET", ""));
-  if (!secret) return true;
+  if (!secret) return false; // fail-closed: 未設定なら HTTP 経由は不可（定期実行は thankyou-scheduled が run() を直接呼ぶ）
   const headers = event.headers || {};
   const authorization = headers.authorization || headers.Authorization || "";
   const querySecret = event.queryStringParameters?.secret || "";
-  return authorization === `Bearer ${secret}` || querySecret === secret;
+  return timingEqual(authorization, `Bearer ${secret}`) || timingEqual(querySecret, secret);
+}
+
+// HTTP 応答用に PII（宛先・本文）を伏せる。
+function maskEmail(value) {
+  const s = String(value || "");
+  const at = s.indexOf("@");
+  return at > 0 ? `${s[0]}***${s.slice(at)}` : "***";
+}
+function redactForHttp(payload) {
+  return {
+    ...payload,
+    results: (payload.results || []).map((r) => {
+      const { text, subject, to, error, ...rest } = r;
+      return { ...rest, to: to ? maskEmail(to) : undefined, body_chars: text ? text.length : undefined };
+    }),
+  };
 }
 
 // JST の「昨日」00:00〜「今日」00:00 に対応する UTC 範囲。
@@ -127,8 +144,8 @@ exports.handler = async (event) => {
   if (!isAuthorized(event)) return json(401, { error: "認証が必要です" });
   const dryRun = event.queryStringParameters?.dry_run === "1" || event.queryStringParameters?.dry_run === "true";
   try {
-    return json(200, await run(dryRun));
+    return json(200, redactForHttp(await run(dryRun)));
   } catch (error) {
-    return json(500, { error: error.message });
+    return json(500, { error: "サーバーでエラーが発生しました。" });
   }
 };

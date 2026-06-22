@@ -27,6 +27,35 @@ async function bookingPageFor(booking) {
   return rows[0] || null;
 }
 
+// 日程変更先スロットの簡易バリデーション（受付時間内・他予約と非重複・リードタイム）。
+// availability.js のフル生成（バッファ/祝日/freeBusy/間隔）の厳密な再現ではなく、明確な違反だけを弾く。
+// 設定が無い項目はスキップ（正規予約を誤ってブロックしないよう保守的に判定）。
+async function rescheduleProblem(booking, start, end) {
+  const page = await bookingPageFor(booking);
+  const lead = Number(page && page.lead_time_hours) || 0;
+  if (lead > 0 && start.getTime() < Date.now() + lead * 3600 * 1000) {
+    return "受付開始までの時間（リードタイム）を満たしていません";
+  }
+  const avail = await sb(`availability_settings?owner_id=${eq(booking.owner_id)}&select=day_of_week,start_time,end_time`).catch(() => []);
+  if (Array.isArray(avail) && avail.length) {
+    const toJst = (d) => { const j = new Date(d.getTime() + 9 * 3600 * 1000); return { dow: j.getUTCDay(), min: j.getUTCHours() * 60 + j.getUTCMinutes() }; };
+    const hhmm = (t) => { const [h, m] = String(t || "0:0").split(":").map(Number); return (h || 0) * 60 + (m || 0); };
+    const s = toJst(start), e = toJst(end);
+    const within = avail.some((a) => a.day_of_week === s.dow && s.min >= hhmm(a.start_time) && (e.dow === s.dow ? e.min : 24 * 60) <= hhmm(a.end_time));
+    if (!within) return "受付時間外の日時です。空いている時間を選び直してください";
+  }
+  const others = await sb(`bookings?owner_id=${eq(booking.owner_id)}&status=eq.confirmed&select=id,start_at,end_at,start_time,end_time&limit=300`).catch(() => []);
+  for (const b of others || []) {
+    if (b.id === booking.id) continue;
+    const bs = new Date(b.start_at || b.start_time).getTime();
+    const be = new Date(b.end_at || b.end_time).getTime();
+    if (Number.isFinite(bs) && Number.isFinite(be) && start.getTime() < be && end.getTime() > bs) {
+      return "その時間は他の予約と重複しています。別の時間を選んでください";
+    }
+  }
+  return null;
+}
+
 function publicView(booking, owner, page) {
   return {
     id: booking.id,
@@ -101,6 +130,9 @@ exports.handler = async (event) => {
         const maxFuture = new Date(now);
         maxFuture.setMonth(maxFuture.getMonth() + 6);
         if (start < now || start > maxFuture) return json(400, { error: "予約できる期間外の日時です" });
+        // 受付時間/重複/リードタイムの再検証（ブロック時間・ダブルブッキングへのリスケを防ぐ）。
+        const problem = await rescheduleProblem(booking, start, end);
+        if (problem) return json(400, { error: problem });
 
         const before = formatJst(booking.start_at || booking.start_time);
         const updated = { ...booking, start_at: start.toISOString(), end_at: end.toISOString(), start_time: start.toISOString(), end_time: end.toISOString() };

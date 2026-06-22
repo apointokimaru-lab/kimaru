@@ -83,8 +83,8 @@ OAuth コールバック。`code` をトークン交換し、`owners` を upsert
 - 検証/プラン制限（premium は pro 扱い）:
   - duration ∈ 30〜120（10分刻み）、buffer ∈ 0〜60、range ∈ 1〜6（日数指定 7/14/21 も可）
   - location_type ∈ {in_person, google_meet, zoom, phone, custom_url, later}
-  - **無料は range 最大2ヶ月**（超過は 403）、質問は無料2問/有料5問（超過は 403）
-  - **保存数上限**: 無料2 / 有料5（凍結ページは上限カウント除外・#174）
+  - **無料は range 最大2ヶ月**（超過は 403）、質問は無料2問/Pro・プレミアム5問（超過は 403）
+  - **保存数上限**: 無料1 / Pro2 / プレミアム5（凍結ページは上限カウント除外・#174 / 決定27。`_lib/plan-limits.js`）
   - 受付時間（availability）が0件なら 400
 - 処理: `booking_pages` を upsert → `questionnaire_questions` を全削除して再投入 → `availability_settings` を全削除して再投入
 - 応答: `{ ok: true, booking_page, availability_settings, question_limit }`

@@ -16,7 +16,7 @@
 |---|---|---|
 | Google カレンダー連携 | ✅ | ✅ |
 | 予約形式 | 1 対 1 | 1 対 1 ＋複数名調整 |
-| 予約ページ（日程調整URL）保存数 | 2つまで | 5つまで |
+| 予約ページ（日程調整URL）保存数 | 1つまで | Pro 2つ / プレミアム 5つ |
 | 公開範囲 | 2ヶ月先まで | 6ヶ月先まで |
 | 予約時間 | 30/45/60分 | 30/45/60分 |
 | 前後バッファ | ✅ | ✅ |
@@ -32,16 +32,17 @@
 | AI 要約 / AI検索 | − | ※将来対応 |
 | 議事録(Meet録音) / 法人プラン | − | ※将来（上位プラン） |
 
-> 料金: 有料版 ¥980/月。プランは無料/有料の2段階を基本。打ち合わせ（2026-06-03）で公開範囲 無料を 3→2ヶ月 に変更。アンケートは無料2問・有料5問で据え置き。
+> 料金: Pro ¥980/月・プレミアム ¥2,200/月。打ち合わせ（2026-06-03）で公開範囲 無料を 3→2ヶ月 に変更。アンケートは無料2問・Pro/プレミアム5問。**予約ページ保存数は 無料1/Pro2/プレミアム5（2026-06-18 決定27。旧 無料2/Pro5 から縮小）**。上限は `_lib/plan-limits.js` の `PLAN_LIMITS` に集約。
 
 ## 現状の実装
 
 - `owners.plan`（`free` / `pro` / `premium`）が存在。昇格経路は2つ:
   - 招待コード（Cat Key）適用（[12](./12-invite-code.md)）＝ Pro 付与
   - Square 決済 Webhook（`square-webhook` が payment/subscription イベント＋email でオーナーを `pro`、`SQUARE_PREMIUM_PLAN_ID` 一致時は `premium` に更新）
-- プラン別制限が `booking-page-save` で実効:
+- プラン別制限が `booking-page-save` で実効（上限は `_lib/plan-limits.js` の `PLAN_LIMITS`＝free/pro/premium）:
   - 受付期間: 無料は最大3ヶ月（6要求は 403、`updateBookingPageControls` で UI も無効化）※打ち合わせ決定の「無料2ヶ月」は未反映（[05](./05-booking-range.md)）
-  - 事前アンケート設定数: 無料2問 / 有料5問（超過は 403）
+  - 事前アンケート設定数: 無料2問 / Pro・プレミアム5問（超過は 403）
+  - 予約ページ保存数: **無料1 / Pro2 / プレミアム5**（超過は 403。2026-06-18 決定27）。降格/昇格時は `_lib/plan-freeze.js` の `applyPlanLimits(ownerId, plan)` が新上限へ凍結/復元（既存超過は grandfather・即時強制縮小はしない）。
 - サーバ判定は `isProPlan`（pro/premium）・`requireProOwner`（pro/premium）・`requirePremiumOwner`（premium のみ）。
 - **フロント（2026-06 改修）**: 全画面を「知/AIオーロラ」配色へリスキン。`public/plan.js` が `/api/me` から `body` に `plan-free`/`plan-pro`/`plan-premium` を付与し、`window.KimaruPlan`（`isPro`/`isPremium`/`planLabel`）＋ `kimaru:plan` を提供。料金ページ `plan.html`・ダッシュボード（3価値帯）・比較表（index）は3段（無料/Pro/プレミアム）で、プレミアム面のみオーロラ表現。**プレミアムは UI 上「近日公開（フェーズ2）」**＝ Square 即購入は Pro のみ・AIアシストのサーバ経路は `ai-assist.html` の `PREMIUM_AI_LIVE=false` でガード（決定20）。ヘッダーナビは「Pro版」→「料金」（`nav.pricing`）。
 

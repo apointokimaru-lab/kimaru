@@ -87,7 +87,7 @@ erDiagram
 
 ## 打ち合わせ反映に伴うスキーマ変更（進捗）
 
-- ✅ **複数の予約ページ**（[features/24](./features/24-multiple-booking-pages.md)）: `slug` グローバル一意維持・オーナー複数行・保存数上限（無料2/Pro5、frozen は上限カウント除外・#174）。
+- ✅ **複数の予約ページ**（[features/24](./features/24-multiple-booking-pages.md)）: `slug` グローバル一意維持・オーナー複数行・保存数上限（無料1/Pro2/プレミアム5・決定27、frozen は上限カウント除外・#174）。
 - ✅ **受付期間 無料2ヶ月化**（[features/05](./features/05-booking-range.md)）: `booking_range_months` CHECK は `(1〜6)`、無料は2ヶ月にクランプ。
 - ✅ **会員同士の相互質問**（[features/20](./features/20-member-mutual-questions.md)）: `bookings.guest_message`（最小実装・#21）。本格的な相互アンケート交換は将来。
 - ✅ **議事録連携**（[features/23](./features/23-meeting-minutes.md)）: 汎用 inbound webhook（`meeting-notes-webhook`）→ `appointment_logs` 保存（#24・env-gate）。専用議事録テーブルは将来。

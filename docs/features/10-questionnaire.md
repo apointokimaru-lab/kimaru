@@ -2,13 +2,19 @@
 
 [← 機能一覧に戻る](./README.md)
 
-- ステータス: ✅ 実装済（設定・保存＋ゲスト動的表示・回答保存を配線。無料2問/有料5問）
-- 対象プラン: 共通（質問数がプランで異なる）
+- ステータス: ✅ 実装済（設定・保存＋ゲスト動的表示・回答保存。無料2問/有料5問）／✅ **選択式回答 実装済**（決定27・2026-06-19・Pro+。要DB列 `answer_type`/`options` 適用）
+- 対象プラン: 共通（質問数・回答形式がプランで異なる）
 - 仕様: [`../spec.md`](../spec.md) 主要機能 6
 
 ## 概要
 
-予約時にゲストへ事前質問を提示し、回答を保存する。質問数や編集可否はプランで変わる。
+予約時にゲストへ事前質問を提示し、回答を保存する。質問数・編集可否・回答形式はプランで変わる。
+
+### 回答形式のプラン差（決定27・2026-06-19・✅実装済）
+
+- **無料＝回答者は自由入力のみ**。
+- **Pro・プレミアム＝発行者が選択式回答（プルダウン／チェックボックス等）も設定できる**（自由入力との併用可）。
+- 実装: `questionnaire_questions.answer_type`(text/select/checkbox)＋`options`(jsonb)。設定UI＝`app.js`（`questionRowHtml`/型selectの`change`で選択肢欄を出し分け・Pro+のみ表示）、保存＝`booking-page-save.js`（`normalizeQuestion` でプラン検証＝無料は text 固定・選択肢空なら text に降格）、配信＝`availability.js`/`booking-pages.js`（answer_type/options を返す）、ゲスト＝`booking-week.js`（`renderQuestions` が select/checkbox/textarea を出し分け、`readQuestionField` がチェックボックスを「, 」連結）。**未マイグレーション環境では型情報を落として自由入力にフォールバック**（booking-page-save / booking-pages に try/catch）。
 
 ## 仕様詳細
 
@@ -31,7 +37,7 @@
 ## 現状の実装（できていること）
 
 - 予約設定画面（`booking-settings.html`）に質問1〜5の入力 UI。質問3〜5は `pro-question` クラスで有料時のみ表示。
-- `booking-page-save` がプラン別の質問数上限（無料2/有料5）を検証し、`questionnaire_questions`（`question_text` / `is_required` / `sort_order`）を全削除→再投入。先頭2問を必須として保存。
+- `booking-page-save` がプラン別の質問数上限（無料2/Pro・プレミアム5・`_lib/plan-limits.js`）を検証し、`questionnaire_questions`（`question_text` / `is_required` / `sort_order`）を全削除→再投入。先頭2問を必須として保存。
 
 ## 未実装（できていないこと）
 

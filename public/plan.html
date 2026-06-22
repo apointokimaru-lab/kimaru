@@ -4,124 +4,144 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>キマル - 料金・プラン</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body>
+<body data-page="plan" data-i18n-title="pricing.pageTitle">
   <!-- site-header -->
 
-  <main class="shell">
-    <section class="panel profile-card">
-      <p class="eyebrow" data-i18n="pricing.eyebrow">料金・プラン</p>
-      <h1 data-i18n="pricing.heading">日程がキマル。関係づくりとAIで、その先までキマる。</h1>
-      <p class="lead" data-i18n="pricing.lead">無料版で「予約が決まる」まで。Proで予約の前後（事前理解・フォロー・相手管理）まで。プレミアムでAIが次の一手まで提案します。</p>
-      <div class="actions">
-        <a class="button primary guest-only" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
-        <a class="button primary app-only plan-free-only" href="/square.html" data-i18n="pricing.startPro">Proを始める</a>
-        <a class="button primary app-only plan-paid-only" href="/dashboard.html" data-i18n="pricing.toHome">ホームへ</a>
-        <a class="button secondary" href="#compare" data-i18n="pricing.compareCta">プランを比較する</a>
-      </div>
-    </section>
+  <main>
+    <section class="section">
+      <div class="shell">
+        <div class="pagehead">
+          <span class="eyebrow" data-i18n="pricing.eyebrow">料金・プラン</span>
+          <h1 data-i18n="pricing.heading">日程がキマる。その先までキマる。</h1>
+          <p class="sub" data-i18n="pricing.lead">無料版で「予約が決まる」まで。Proで予約の前後（事前理解・フォロー・相手管理）まで。プレミアムでAIが次の一手まで提案します。</p>
+        </div>
 
-    <section class="section" id="premium">
-      <p class="eyebrow" data-i18n="pricing.cards.eyebrow">3つのプラン</p>
-      <h2 data-i18n="pricing.cards.heading">使い方に合わせて選ぶ</h2>
-      <div class="plan-cards">
-        <article class="plan-card">
-          <span class="plan-tag" data-i18n="pricing.free.tag">無料</span>
-          <p class="plan-name" data-i18n="pricing.free.name">無料版</p>
-          <p class="plan-price"><span class="price">0<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></p>
-          <p class="plan-desc" data-i18n="pricing.free.desc">まず日程調整を無料で。「予約が決まる」まではこれで完結します。</p>
-          <ul>
-            <li data-i18n="pricing.free.f1">予約ページ 2つ・受付2ヶ月先まで</li>
-            <li data-i18n="pricing.free.f2">事前アンケート 最大2問</li>
-            <li data-i18n="pricing.free.f3">Google Meet 自動発行・22分前リマインド</li>
-            <li data-i18n="pricing.free.f4">予約のキャンセル / 日程変更</li>
-            <li data-i18n="pricing.free.f5">予約履歴の閲覧</li>
-          </ul>
-          <a class="button secondary guest-only" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
-          <a class="button secondary app-only" href="/dashboard.html" data-i18n="pricing.toHome">ホームへ</a>
-        </article>
-
-        <article class="plan-card is-pro">
-          <span class="plan-tag" data-i18n="pricing.pro.tag">人気</span>
-          <p class="plan-name" data-i18n="pricing.pro.name">Pro</p>
-          <p class="plan-price"><span class="price">980<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></p>
-          <p class="plan-desc" data-i18n="pricing.pro.desc">予約の前後（事前理解・フォロー・相手管理）まで強くする。月額¥980（登録時に課金）。</p>
-          <ul>
-            <li data-i18n="pricing.pro.f1">予約ページ 5つ・受付6ヶ月先まで</li>
-            <li data-i18n="pricing.pro.f2">事前アンケート 最大5問・自由編集</li>
-            <li data-i18n="pricing.pro.f3">相手管理（面談メモ・印象スコア）</li>
-            <li data-i18n="pricing.pro.f4">高度プロフィール＋公開ページ</li>
-            <li data-i18n="pricing.pro.f5">占いベース相手分析（算命学＋数秘術）</li>
-          </ul>
+        <div class="actions">
           <a class="button primary guest-only" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
           <a class="button primary app-only plan-free-only" href="/square.html" data-i18n="pricing.startPro">Proを始める</a>
           <a class="button primary app-only plan-paid-only" href="/dashboard.html" data-i18n="pricing.toHome">ホームへ</a>
-        </article>
-
-        <article class="plan-card is-premium">
-          <span class="coming-soon-tag" data-i18n="pricing.premium.comingSoon">近日公開（フェーズ2）</span>
-          <p class="plan-name" data-i18n="pricing.premium.name">プレミアム</p>
-          <p class="plan-price"><span class="price">2,200<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></p>
-          <p class="plan-desc" data-i18n="pricing.premium.desc">Proの全機能＋AIアシスト。相手データから次回アポの戦略まで提案します。無料お試しなし（登録＝即時課金）。</p>
-          <ul>
-            <li data-i18n="pricing.premium.f1">Pro の全機能</li>
-            <li data-i18n="pricing.premium.f2">AIアシスト（GPT-5.4 Mini・月300回）</li>
-            <li data-i18n="pricing.premium.f3">相手データから次回アポの戦略提案</li>
-            <li data-i18n="pricing.premium.f4">AI要約 / AI検索（将来）</li>
-          </ul>
-          <a class="button secondary guest-only" href="/signup.html" data-i18n="pricing.premium.ctaGuest">まず無料登録</a>
-          <a class="button secondary app-only" href="/ai-assist.html" data-i18n="pricing.premium.ctaApp">AIアシストを見る</a>
-        </article>
-      </div>
-      <p class="muted" data-i18n="pricing.note">プレミアムは ¥980 会員が増えたフェーズ2で開放予定です。AIアシスト画面では、今もルールベースの提案をお試しいただけます。</p>
-    </section>
-
-    <section id="compare" class="section">
-      <p class="eyebrow" data-i18n="pricing.compare.eyebrow">Compare</p>
-      <h2 data-i18n="pricing.compare.heading">機能をくわしく比較</h2>
-      <div class="panel plan-table-card">
-        <div class="comparison-table-wrap">
-          <table class="comparison-table">
-            <thead><tr><th data-i18n="home.plan.th.feature">機能</th><th data-i18n="home.plan.th.free">無料版</th><th class="is-pro-col" data-i18n="home.plan.th.pro">Pro</th><th class="is-premium-col" data-i18n="home.plan.th.premium">プレミアム</th></tr></thead>
-            <tbody>
-              <tr><td data-i18n="home.plan.price.label">料金</td><td><span class="price">0<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></td><td><span class="price">980<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></td><td class="is-premium-col"><span class="price">2,200<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></td></tr>
-              <tr><td data-i18n="pricing.cmp.trial.label">無料お試し</td><td>—</td><td data-i18n="pricing.cmp.trial.pro">なし（登録＝即時課金）</td><td class="is-premium-col" data-i18n="pricing.cmp.trial.premium">なし（登録＝即時課金）</td></tr>
-              <tr><td data-i18n="pricing.cmp.pages.label">予約ページ（保存数）</td><td data-i18n="pricing.cmp.pages.free">2つまで</td><td data-i18n="pricing.cmp.pages.pro">5つまで</td><td class="is-premium-col" data-i18n="pricing.cmp.pages.premium">5つまで</td></tr>
-              <tr><td data-i18n="pricing.cmp.range.label">予約受付期間</td><td data-i18n="pricing.cmp.range.free">2ヶ月先まで</td><td data-i18n="pricing.cmp.range.pro">6ヶ月先まで</td><td class="is-premium-col" data-i18n="pricing.cmp.range.premium">6ヶ月先まで</td></tr>
-              <tr><td data-i18n="pricing.cmp.survey.label">事前アンケート</td><td data-i18n="pricing.cmp.survey.free">最大2問</td><td data-i18n="pricing.cmp.survey.pro">最大5問・自由編集</td><td class="is-premium-col" data-i18n="pricing.cmp.survey.premium">最大5問・自由編集</td></tr>
-              <tr><td data-i18n="pricing.cmp.meet.label">Google Meet・リマインダー</td><td>✓</td><td data-i18n="pricing.cmp.meet.pro">✓（プロフィール付き）</td><td class="is-premium-col" data-i18n="pricing.cmp.meet.premium">✓（プロフィール付き）</td></tr>
-              <tr><td data-i18n="pricing.cmp.contacts.label">相手管理（面談メモ・印象スコア）</td><td data-i18n="pricing.cmp.contacts.free">閲覧のみ</td><td>✓</td><td class="is-premium-col">✓</td></tr>
-              <tr><td data-i18n="pricing.cmp.profile.label">高度プロフィール＋公開ページ</td><td>—</td><td>✓</td><td class="is-premium-col">✓</td></tr>
-              <tr><td data-i18n="pricing.cmp.fortune.label">占いベース相手分析（算命学＋数秘術）</td><td>—</td><td>✓</td><td class="is-premium-col">✓</td></tr>
-              <tr><td data-i18n="pricing.cmp.ai.label">AIアシスト（次回アポの戦略提案）</td><td>—</td><td>—</td><td class="is-premium-col" data-i18n="pricing.cmp.ai.premium">GPT-5.4 Mini・月300回（近日公開）</td></tr>
-            </tbody>
-          </table>
+          <a class="button secondary" href="#compare" data-i18n="pricing.compareCta">プランを比較する</a>
         </div>
-        <p class="plan-note" data-i18n="pricing.cmp.note">Cat Keyをお持ちの方は、下の欄で入力するとProを無料で利用できます（運営の承認制）。通常のPro利用はSquare決済から進められます。プレミアムはフェーズ2で開放予定です。</p>
-      </div>
-      <div class="actions">
-        <a class="button primary guest-only" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
-        <a class="button primary app-only plan-free-only" href="/square.html" data-i18n="pricing.startPro">Proを始める</a>
-        <a class="button primary app-only plan-paid-only" href="/dashboard.html" data-i18n="pricing.toHome">ホームへ</a>
-        <a class="button secondary app-only" href="#cat-key" data-i18n="pricing.catkeyCta">Cat Keyを入力する</a>
+
+        <!-- 3プラン -->
+        <div class="plans">
+          <article class="plan">
+            <span class="plan-tag" data-i18n="pricing.free.tag">無料</span>
+            <div class="plan-name" data-i18n="pricing.free.name">無料版</div>
+            <div class="plan-price">¥0<span data-i18n="pricing.priceUnit"> /月</span></div>
+            <p class="muted plan-sub" data-i18n="pricing.free.subdesc">まずは予約が「決まる」まで。クレカ不要。</p>
+            <ul>
+              <li data-i18n="pricing.free.f1">予約ページ 1つ・受付2ヶ月先まで</li>
+              <li data-i18n="pricing.free.f2">事前アンケート 最大2問</li>
+              <li data-i18n="pricing.free.f3">Google Meet 自動発行・22分前リマインド</li>
+              <li data-i18n="pricing.free.f4">予約のキャンセル / 日程変更</li>
+              <li data-i18n="pricing.free.f5">予約履歴の閲覧</li>
+            </ul>
+            <a class="button secondary guest-only" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
+            <a class="button secondary app-only" href="/dashboard.html" data-i18n="pricing.toHome">ホームへ</a>
+          </article>
+
+          <article class="plan is-pop">
+            <span class="plan-tag" data-i18n="pricing.pro.tag">人気</span>
+            <div class="plan-name" data-i18n="pricing.pro.name">Pro</div>
+            <div class="plan-price">¥980<span data-i18n="pricing.priceUnit"> /月</span></div>
+            <p class="muted plan-sub" data-i18n="pricing.pro.subdesc">会う前後の準備まで。多くの方がこれを選択。</p>
+            <ul>
+              <li data-i18n="pricing.pro.f1">予約ページ 2つ・受付6ヶ月先まで</li>
+              <li data-i18n="pricing.pro.f2">事前アンケート 最大5問・自由編集／選択式回答</li>
+              <li data-i18n="pricing.pro.f3">相手管理（面談メモ・印象スコア）</li>
+              <li data-i18n="pricing.pro.f4">高度プロフィール＋公開ページ</li>
+              <li data-i18n="pricing.pro.f5">占いベース相手分析（算命学＋数秘術）</li>
+            </ul>
+            <a class="button primary guest-only" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
+            <a class="button primary app-only plan-free-only" href="/square.html" data-i18n="pricing.startPro">Proを始める</a>
+            <a class="button primary app-only plan-paid-only" href="/dashboard.html" data-i18n="pricing.toHome">ホームへ</a>
+          </article>
+
+          <article class="plan is-ai">
+            <span class="plan-tag" data-i18n="pricing.premium.comingSoon">近日公開（フェーズ2）</span>
+            <div class="plan-name" data-i18n="pricing.premium.name">プレミアム</div>
+            <div class="plan-price">¥2,200<span data-i18n="pricing.priceUnit"> /月</span></div>
+            <p class="plan-sub plan-sub-ai" data-i18n="pricing.premium.subdesc">AIが次の一手まで。関係づくりを自動で。</p>
+            <ul>
+              <li data-i18n="pricing.premium.f1">Pro の全機能＋予約ページ5つ</li>
+              <li data-i18n="pricing.premium.f2">AIアシスト（GPT-5.4 Mini・月300回）</li>
+              <li data-i18n="pricing.premium.f3">相手データから次回アポの戦略提案</li>
+              <li data-i18n="pricing.premium.f4">AI要約 / AI検索（将来）</li>
+            </ul>
+            <a class="button btn-aurora guest-only" href="/signup.html" data-i18n="pricing.premium.ctaGuest">まず無料登録</a>
+            <a class="button btn-aurora app-only" href="/ai-assist.html" data-i18n="pricing.premium.ctaApp">AIアシストを見る</a>
+          </article>
+        </div>
+        <p class="muted plan-allnote" data-i18n="pricing.allplans.note">いつでも解約OK・隠れた追加料金なし。有料プランは Square による安全な決済です。</p>
+        <p class="muted plan-allnote" data-i18n="pricing.note">プレミアムは ¥980 会員が増えたフェーズ2で開放予定です。AIアシスト画面では、今もルールベースの提案をお試しいただけます。</p>
       </div>
     </section>
 
-    <section id="cat-key" class="section">
-      <div class="panel">
-        <p class="eyebrow" data-i18n="pricing.catkey.eyebrow">猫の鍵 / Cat Key</p>
-        <h2 data-i18n="pricing.catkey.heading">Cat KeyでProを解放する</h2>
-        <p class="muted" data-i18n="pricing.catkey.desc">猫の集会メンバーさんは、Cat Keyを入力するとProを無料で利用できます。入力内容は公開ページには表示されません。</p>
-        <p class="message guest-only">Cat Keyの入力には<strong>ログインが必要</strong>です。<a href="/signup.html">無料登録</a>または<a href="/login.html">ログイン</a>後に、こちらで入力してください。</p>
-        <form id="pro-cat-key-form" class="inline-form app-only">
-          <input name="code" placeholder="Neko20240222" autocomplete="off" />
-          <button class="primary" type="submit" data-i18n="pricing.catkey.apply">適用</button>
-        </form>
-        <p id="pro-cat-key-message" class="message" role="status"></p>
+    <!-- 比較表 -->
+    <section class="section" id="compare" style="padding-top:0">
+      <div class="shell">
+        <div class="sec-head">
+          <span class="eyebrow" data-i18n="pricing.compare.eyebrow">Compare</span>
+          <h2 data-i18n="pricing.compare.heading">機能をくわしく比較</h2>
+        </div>
+        <div class="panel" style="margin-top:24px">
+          <div class="table-wrap" style="box-shadow:none;border:0">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th data-i18n="home.plan.th.feature">機能</th>
+                  <th data-i18n="home.plan.th.free">無料版</th>
+                  <th data-i18n="home.plan.th.pro">Pro</th>
+                  <th data-i18n="home.plan.th.premium">プレミアム</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td data-i18n="home.plan.price.label">料金</td><td>¥0</td><td>¥980</td><td>¥2,200</td></tr>
+                <tr><td data-i18n="pricing.cmp.pages.label">予約ページ（保存数）</td><td data-i18n="pricing.cmp.pages.free">1つまで</td><td data-i18n="pricing.cmp.pages.pro">2つまで</td><td data-i18n="pricing.cmp.pages.premium">5つまで</td></tr>
+                <tr><td data-i18n="pricing.cmp.range.label">予約受付期間</td><td data-i18n="pricing.cmp.range.free">2ヶ月先まで</td><td data-i18n="pricing.cmp.range.pro">6ヶ月先まで</td><td data-i18n="pricing.cmp.range.premium">6ヶ月先まで</td></tr>
+                <tr><td data-i18n="pricing.cmp.survey.label">事前アンケート</td><td data-i18n="pricing.cmp.survey.free">最大2問</td><td data-i18n="pricing.cmp.survey.pro">最大5問・自由編集＋選択式</td><td data-i18n="pricing.cmp.survey.premium">最大5問・自由編集＋選択式</td></tr>
+                <tr><td data-i18n="pricing.cmp.meet.label">Google Meet・リマインダー</td><td>✓</td><td data-i18n="pricing.cmp.meet.pro">✓（プロフィール付き）</td><td data-i18n="pricing.cmp.meet.premium">✓（プロフィール付き）</td></tr>
+                <tr><td data-i18n="pricing.cmp.contacts.label">相手管理（面談メモ・印象スコア）</td><td data-i18n="pricing.cmp.contacts.free">閲覧のみ</td><td data-i18n="pricing.cmp.contacts.pro">会った人のみ</td><td data-i18n="pricing.cmp.contacts.premium">手動追加も可</td></tr>
+                <tr><td data-i18n="pricing.cmp.profile.label">高度プロフィール＋公開ページ</td><td>—</td><td>✓</td><td>✓</td></tr>
+                <tr><td data-i18n="pricing.cmp.fortune.label">占いベース相手分析（算命学＋数秘術）</td><td>—</td><td>✓</td><td>✓</td></tr>
+                <tr><td data-i18n="pricing.cmp.ai.label">AIアシスト（次回アポの戦略提案）</td><td>—</td><td>—</td><td data-i18n="pricing.cmp.ai.premium">GPT-5.4 Mini・月300回（近日公開）</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="muted plan-allnote" data-i18n="pricing.cmp.note">Cat Keyをお持ちの方は、下の欄で入力するとProを無料で利用できます（運営の承認制）。通常のPro利用はSquare決済から進められます。プレミアムはフェーズ2で開放予定です。</p>
+        </div>
+        <div class="actions">
+          <a class="button primary guest-only" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
+          <a class="button primary app-only plan-free-only" href="/square.html" data-i18n="pricing.startPro">Proを始める</a>
+          <a class="button primary app-only plan-paid-only" href="/dashboard.html" data-i18n="pricing.toHome">ホームへ</a>
+          <a class="button secondary app-only" href="#cat-key" data-i18n="pricing.catkeyCta">Cat Keyを入力する</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cat Key -->
+    <section class="section" id="cat-key" style="padding-top:0">
+      <div class="shell">
+        <div class="panel">
+          <span class="eyebrow" data-i18n="pricing.catkey.eyebrow">猫の鍵 / Cat Key</span>
+          <h2 data-i18n="pricing.catkey.heading">Cat KeyでProを解放する</h2>
+          <p class="muted" data-i18n="pricing.catkey.desc">猫の集会メンバーさんは、Cat Keyを入力するとProを無料で利用できます。入力内容は公開ページには表示されません。</p>
+          <p class="message guest-only">
+            <span data-i18n="pricing.catkey.loginNote">Cat Keyの入力にはログインが必要です。</span>
+            <a href="/signup.html" data-i18n="pricing.catkey.signupLink">無料登録</a>
+            <span data-i18n="pricing.catkey.or"> または </span>
+            <a href="/login.html" data-i18n="pricing.catkey.loginLink">ログイン</a>
+            <span data-i18n="pricing.catkey.afterLogin"> 後に、こちらで入力してください。</span>
+          </p>
+          <form id="pro-cat-key-form" class="inline-form app-only">
+            <input name="code" placeholder="Neko20240222" autocomplete="off" />
+            <button class="button primary" type="submit" data-i18n="pricing.catkey.apply">適用</button>
+          </form>
+          <p id="pro-cat-key-message" class="message" role="status"></p>
+        </div>
       </div>
     </section>
   </main>

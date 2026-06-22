@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mock - キマル 週間スケジュール（新ルック）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/mock.css" />
+</head>
+<body data-auth="authed">
+<!-- mock: プレースホルダ内容のみ（mock/README.md のルール参照）。 -->
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="/dashboard.html"><span class="brand-dot"></span>キマル</a>
+    <nav class="nav-links">
+      <a href="/dashboard.html" aria-current="page" style="color:var(--ink);background:var(--surface-2)">ホーム</a>
+      <a href="/booking-settings.html">予約設定</a>
+      <a href="/contacts.html">相手管理</a>
+      <a href="/ai-assist.html">AIアシスト</a>
+      <a href="/settings.html">設定</a>
+    </nav>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="badge badge-pro">Pro</span>
+      <span class="avatar">田</span>
+    </div>
+  </div>
+</header>
+
+<main class="shell" style="padding-bottom:64px">
+  <div class="pagehead">
+    <span class="eyebrow">ホーム / スケジュール</span>
+    <h1>週間スケジュール</h1>
+    <p class="sub">あなたの予約を1週間でまとめて確認できます。Googleカレンダーの予定と合わせて表示します。</p>
+  </div>
+
+  <div class="week-bar">
+    <div class="week-range">2026年 6月16日 — 22日</div>
+    <div class="week-nav">
+      <button class="btn btn-ghost btn-sm" type="button">◀ 前週</button>
+      <button class="btn btn-ghost btn-sm" type="button">今日</button>
+      <button class="btn btn-ghost btn-sm" type="button">次週 ▶</button>
+      <a class="btn btn-ghost btn-sm" href="/dashboard.html">今日の予定へ</a>
+    </div>
+  </div>
+
+  <div class="week-grid">
+    <!-- 月 6/16 -->
+    <div class="week-col">
+      <div class="week-colhead"><div class="week-dow">月</div><div class="week-date">16</div></div>
+      <div class="week-body">
+        <a class="wk-appt" href="#"><div class="wk-time">13:00</div><div class="wk-name">田中 さくら</div><div class="wk-meta">Google Meet ・ 30分</div></a>
+      </div>
+    </div>
+
+    <!-- 火 6/17 -->
+    <div class="week-col">
+      <div class="week-colhead"><div class="week-dow">火</div><div class="week-date">17</div></div>
+      <div class="week-body">
+        <a class="wk-appt" href="#"><div class="wk-time">10:30</div><div class="wk-name">佐藤 健</div><div class="wk-meta">対面 ・ 本町オフィス</div></a>
+      </div>
+    </div>
+
+    <!-- 水 6/18 -->
+    <div class="week-col">
+      <div class="week-colhead"><div class="week-dow">水</div><div class="week-date">18</div></div>
+      <div class="week-body">
+        <div class="week-empty">予定なし</div>
+      </div>
+    </div>
+
+    <!-- 木 6/19（今日） -->
+    <div class="week-col is-today">
+      <div class="week-colhead"><div class="week-dow">木・今日</div><div class="week-date">19</div></div>
+      <div class="week-body">
+        <a class="wk-appt" href="#"><div class="wk-time">14:00</div><div class="wk-name">佐藤 りく</div><div class="wk-meta">Google Meet ・ 30分</div></a>
+        <a class="wk-appt" href="#"><div class="wk-time">16:30</div><div class="wk-name">山田 はな</div><div class="wk-meta">対面 ・ 西本町オフィス</div></a>
+        <a class="wk-appt" href="#"><div class="wk-time">18:00</div><div class="wk-name">鈴木 みなと</div><div class="wk-meta">Zoom ・ 30分</div></a>
+      </div>
+    </div>
+
+    <!-- 金 6/20 -->
+    <div class="week-col">
+      <div class="week-colhead"><div class="week-dow">金</div><div class="week-date">20</div></div>
+      <div class="week-body">
+        <a class="wk-appt" href="#"><div class="wk-time">11:00</div><div class="wk-name">高橋 あおい</div><div class="wk-meta">Google Meet ・ 45分</div></a>
+      </div>
+    </div>
+
+    <!-- 土 6/21 -->
+    <div class="week-col">
+      <div class="week-colhead"><div class="week-dow">土</div><div class="week-date">21</div></div>
+      <div class="week-body">
+        <div class="week-empty">予定なし</div>
+      </div>
+    </div>
+
+    <!-- 日 6/22（休み） -->
+    <div class="week-col is-off">
+      <div class="week-colhead"><div class="week-dow">日</div><div class="week-date">22</div></div>
+      <div class="week-body">
+        <div class="week-empty">休み</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="shell foot-in">
+    <div><a href="/">キマル</a><a href="/plan.html">料金</a><a href="#">利用規約</a><a href="#">プライバシー</a></div>
+    <div>© 2026 Kimaru — 日程が、キマる。</div>
+  </div>
+</footer>
+<script src="/mock-plan.js" defer></script>
+</body>
+</html>

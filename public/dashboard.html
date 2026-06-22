@@ -4,74 +4,152 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="dash.pageTitle">キマル - ホーム</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-page="dashboard" data-i18n-title="dash.pageTitle">
   <!-- site-header -->
 
-  <main class="shell dashboard">
-    <!-- 上部: 挨拶・プラン状態・ログアウト -->
-    <section class="dash-hero">
+  <main class="shell" style="padding-bottom:64px">
+    <!-- 挨拶バンド -->
+    <div class="greet" style="border-bottom:0;padding-bottom:4px">
       <div class="dash-hero-text">
         <p class="eyebrow" data-i18n="dash.eyebrow">マイページ</p>
-        <h1 data-i18n="dash.heading">ホーム</h1>
+        <h1 data-i18n="dash.greet.hello">こんにちは</h1>
         <p id="owner-status" class="muted" data-i18n="dash.checking">ログイン状態を確認しています...</p>
       </div>
-      <div class="dash-account">
+      <div class="dash-account" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <div id="owner-card" class="plan-chip"></div>
-        <button id="logout-button" class="button secondary" type="button" data-i18n="dash.logout">ログアウト</button>
+        <button id="logout-button" class="button secondary btn-sm" type="button" data-i18n="dash.logout">ログアウト</button>
       </div>
-    </section>
+    </div>
 
-    <!-- STEP 1-3: 予約を受け付けるまで（無料でできる核） -->
-    <section class="dash-section">
-      <p class="eyebrow" data-i18n="dash.free.eyebrow">無料で完結</p>
-      <h2 data-i18n="dash.free.heading">3ステップで予約を受け付ける</h2>
-      <div class="step-grid">
-        <a class="step-card" href="/booking-settings.html" style="--i:0">
-          <span class="step-num">1</span>
-          <h3 data-i18n="dash.step1.title">予約ページを設定</h3>
-          <p class="muted" data-i18n="dash.step1.desc">時間・開催方法・受付時間・事前アンケートを設定します。</p>
-          <span class="step-go" data-i18n="dash.step1.go">設定する</span>
-        </a>
-        <a class="step-card" href="/profile.html" style="--i:1">
-          <span class="step-num">2</span>
-          <h3 data-i18n="dash.step2.title">プロフィールを整える</h3>
-          <p class="muted" data-i18n="dash.step2.desc">リマインドやAIアシストに渡す自己紹介を用意します。</p>
-          <span class="step-go" data-i18n="dash.step2.go">編集する</span>
-        </a>
-        <a class="step-card" href="/booking-settings.html" style="--i:2">
-          <span class="step-num">3</span>
-          <h3 data-i18n="dash.step3.title">URLを共有して予約を受ける</h3>
-          <p class="muted" data-i18n="dash.step3.desc">予約設定で各ページの「開く / URLをコピー」から共有します。</p>
-          <span class="step-go" data-i18n="dash.step3.go">予約ページへ</span>
-        </a>
-      </div>
-    </section>
+    <div class="dash-grid">
+      <!-- 左：今日/これからの予定（静的プレースホルダ） -->
+      <section>
+        <div class="dash-sub">
+          <h2 data-i18n="dash.today.heading">今日の予定</h2>
+          <a href="/schedule.html" data-i18n="dash.today.open">週表示 →</a>
+        </div>
+        <div class="appt-list">
+          <div class="appt appt-now">
+            <div class="appt-time">14:00<small data-i18n="dash.appt.dur30">30分</small></div>
+            <div class="appt-body"><b data-i18n="dash.appt.name1">佐藤 りく さん</b><span data-i18n="dash.appt.meet1">Google Meet ・ あと約2時間</span></div>
+            <div class="appt-actions">
+              <a class="button primary btn-sm" href="#" data-i18n="dash.appt.join">参加する</a>
+              <div class="appt-menu">
+                <button class="icon-btn menu-btn" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="dash.appt.more" title="その他の操作">⋯</button>
+                <div class="menu-pop" role="menu" hidden>
+                  <a class="menu-item" role="menuitem" href="/manage-booking.html" data-i18n="dash.appt.reschedule">日程を変更</a>
+                  <button class="menu-item danger" type="button" role="menuitem" data-i18n="dash.appt.cancel">予約をキャンセル</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="appt">
+            <div class="appt-time">16:30<small data-i18n="dash.appt.dur45">45分</small></div>
+            <div class="appt-body"><b data-i18n="dash.appt.name2">山田 はな さん</b><span data-i18n="dash.appt.meet2">対面 ・ 西本町オフィス</span></div>
+            <div class="appt-actions">
+              <div class="appt-menu">
+                <button class="icon-btn menu-btn" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="dash.appt.more" title="その他の操作">⋯</button>
+                <div class="menu-pop" role="menu" hidden>
+                  <a class="menu-item" role="menuitem" href="/manage-booking.html" data-i18n="dash.appt.reschedule">日程を変更</a>
+                  <button class="menu-item danger" type="button" role="menuitem" data-i18n="dash.appt.cancel">予約をキャンセル</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-    <!-- 会ったあとに活かす（相手管理は無料で履歴閲覧／メモ・スコアはPro） -->
-    <section class="dash-section">
-      <p class="eyebrow"><span data-i18n="dash.after.eyebrow">会ったあとに活かす</span></p>
-      <h2 data-i18n="dash.pro.heading">会ったあとに、関係を続ける</h2>
-      <div class="feature-grid">
-        <a class="feature-card" href="/contacts.html" style="--i:0">
-          <h3><span data-i18n="dash.contacts.title">相手管理</span> <span class="free-tag" data-i18n="dash.contacts.tag">履歴は無料</span></h3>
-          <p class="muted" data-i18n="dash.contacts.desc">予約履歴の閲覧は無料。面談メモ・印象スコア（5段階）・検索は Pro。</p>
-          <span class="step-go" data-i18n="dash.open">ひらく</span>
-        </a>
-        <a class="feature-card" href="/profile.html" style="--i:1">
-          <h3><span data-i18n="dash.profile.title">高度プロフィール</span> <span class="pro-badge">Pro</span></h3>
-          <p class="muted" data-i18n="dash.profile.desc">色・見出しで魅せるプロフィールと公開ページ。占いベース相手分析も。</p>
-          <span class="step-go" data-i18n="dash.open">ひらく</span>
-        </a>
-      </div>
-    </section>
+        <div class="dash-sub" style="margin-top:26px">
+          <h2 data-i18n="dash.upcoming.heading">これから</h2>
+          <a href="/contacts.html" data-i18n="dash.upcoming.all">すべての予約 →</a>
+        </div>
+        <div class="appt-list">
+          <div class="appt">
+            <div class="appt-time" style="font-size:15px">6/20<small data-i18n="dash.appt.dayFri">金</small></div>
+            <div class="appt-body"><b data-i18n="dash.appt.name3">高橋 あおい さん</b><span data-i18n="dash.appt.meet3">11:00 ・ Google Meet</span></div>
+            <div class="appt-actions">
+              <div class="appt-menu">
+                <button class="icon-btn menu-btn" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="dash.appt.more" title="その他の操作">⋯</button>
+                <div class="menu-pop" role="menu" hidden>
+                  <a class="menu-item" role="menuitem" href="/manage-booking.html" data-i18n="dash.appt.reschedule">日程を変更</a>
+                  <button class="menu-item danger" type="button" role="menuitem" data-i18n="dash.appt.cancel">予約をキャンセル</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="appt">
+            <div class="appt-time" style="font-size:15px">6/23<small data-i18n="dash.appt.dayMon">月</small></div>
+            <div class="appt-body"><b data-i18n="dash.appt.name4">田中 さくら さん</b><span data-i18n="dash.appt.meet4">14:00 ・ 対面</span></div>
+            <div class="appt-actions">
+              <div class="appt-menu">
+                <button class="icon-btn menu-btn" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="dash.appt.more" title="その他の操作">⋯</button>
+                <div class="menu-pop" role="menu" hidden>
+                  <a class="menu-item" role="menuitem" href="/manage-booking.html" data-i18n="dash.appt.reschedule">日程を変更</a>
+                  <button class="menu-item danger" type="button" role="menuitem" data-i18n="dash.appt.cancel">予約をキャンセル</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 右：共有・要対応・AI -->
+      <aside>
+        <!-- 予約ページを共有（静的プレースホルダ） -->
+        <div class="side-card">
+          <h3 data-i18n="dash.share.heading">予約ページを共有</h3>
+          <div class="share">
+            <code>kimaru-co.jp/b/tanaka</code>
+            <button class="button primary btn-sm" type="button" data-i18n="dash.share.copy">コピー</button>
+          </div>
+          <div class="form-actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+            <a class="button secondary btn-sm" href="/booking.html" data-i18n="dash.share.preview">プレビュー</a>
+            <a class="button secondary btn-sm" href="/booking-settings.html" data-i18n="dash.share.new">＋ 新しい予約ページ</a>
+          </div>
+        </div>
+
+        <!-- 要対応（静的プレースホルダ） -->
+        <div class="side-card">
+          <h3 data-i18n="dash.todo.heading">要対応</h3>
+          <div class="todo">
+            <a class="has" href="/answers.html">
+              <span class="ico"></span>
+              <span class="tx"><b data-i18n="dash.todo.answers">未読のアンケート回答</b><small data-i18n="dash.todo.answersDesc">面談前に相手の回答を確認</small></span>
+              <span class="cnt">2</span>
+            </a>
+            <a class="has" href="/profile.html">
+              <span class="ico"></span>
+              <span class="tx"><b data-i18n="dash.todo.profile">プロフィール未設定の項目</b><small data-i18n="dash.todo.profileDesc">リマインダーに載る項目が空です</small></span>
+              <span class="cnt">1</span>
+            </a>
+            <a class="has" href="/schedule.html">
+              <span class="ico"></span>
+              <span class="tx"><b data-i18n="dash.todo.schedule">今週の予約</b><small data-i18n="dash.todo.scheduleDesc">6/16〜6/22 の面談</small></span>
+              <span class="cnt">4</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- プレミアム: AIアシスト（プレミアムのみ表示） -->
+        <div class="aipanel premium-feature" style="padding:20px">
+          <span class="eyebrow" data-i18n="dash.ai.eyebrow">AI Assist</span>
+          <h2 style="font-size:18px;margin:8px 0 6px" data-i18n="dash.ai.heading">次の一手を提案</h2>
+          <p style="color:rgba(255,255,255,.9);font-size:13.5px;margin:0 0 14px" data-i18n="dash.ai.desc">相手データから、AIが刺さる話題と次の一手をまとめます。</p>
+          <a class="button btn-sm" href="/ai-assist.html" style="background:#fff;color:var(--aurora-ink,#3a2f6e)" data-i18n="dash.ai.cta">提案を見る →</a>
+        </div>
+
+        <!-- 無料/Pro: プレミアムAIの案内（free+pro に表示） -->
+        <div class="side-card premium-lock">
+          <h3 data-i18n="dash.lock.heading">プレミアムでAIが次の一手を提案</h3>
+          <p class="muted" style="margin:0 0 14px;font-size:14px" data-i18n="dash.lock.desc">面談前に刺さる話題と次の一手を、AIが相手ごとにまとめます。</p>
+          <a class="button premium btn-sm" href="/plan.html" data-i18n="dash.lock.cta">プレミアムを見る</a>
+        </div>
+      </aside>
+    </div>
 
     <!-- アップグレード（無料ユーザーのみ。Pro/プレミアムなら下のスクリプトで削除） -->
-    <section id="upgrade-panel" class="upgrade-banner">
+    <section id="upgrade-panel" class="upgrade-banner" style="margin-top:24px">
       <div class="upgrade-banner-text">
         <p class="eyebrow" data-i18n="dash.upgrade.eyebrow">Pro版</p>
         <h2 data-i18n="dash.upgrade.heading">「会う前後」まで強くする</h2>
@@ -79,23 +157,24 @@
       </div>
       <a class="button primary" href="/square.html" data-i18n="dash.upgrade.cta">Proを始める / Cat Key</a>
     </section>
-
-    <!-- プレミアムでAI（フェーズ2で開放・近日公開） -->
-    <section class="dash-section">
-      <p class="eyebrow"><span data-i18n="dash.premium.eyebrow">プレミアムでAI</span> <span class="premium-badge" data-i18n="plan.premium">プレミアム</span></p>
-      <h2 data-i18n="dash.premium.heading">AIが次の一手まで提案する</h2>
-      <section class="upgrade-banner is-premium aurora">
-        <div class="upgrade-banner-text">
-          <p class="eyebrow"><span class="coming-soon-tag" data-i18n="pricing.premium.comingSoon">近日公開（フェーズ2）</span></p>
-          <h2 data-i18n="dash.premium.cardHeading">AIアシスト</h2>
-          <p class="muted" data-i18n="dash.premium.desc">相手データから、最初の入り方・刺さる話題・次の一手を提案。プレミアム（¥2,200/月・GPT-5.4 Mini・月300回）。今もルールベースの提案を試せます。</p>
-        </div>
-        <a class="button primary" href="/ai-assist.html" data-i18n="pricing.premium.ctaApp">AIアシストを見る</a>
-      </section>
-    </section>
   </main>
 
   <!-- site-footer -->
+
+  <!-- 予定メニュー（⋯）のトグル。mock-menu.js の代替の最小実装。 -->
+  <script>
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".menu-btn");
+      document.querySelectorAll(".menu-pop").forEach((pop) => {
+        const own = btn && btn.parentElement.contains(pop);
+        if (!own) { pop.hidden = true; pop.previousElementSibling?.setAttribute("aria-expanded", "false"); }
+      });
+      if (btn) {
+        const pop = btn.nextElementSibling;
+        if (pop) { const show = pop.hidden; pop.hidden = !show; btn.setAttribute("aria-expanded", String(show)); }
+      }
+    });
+  </script>
 
   <!-- プラン判定（body に plan-* 付与＋プレミアム帯の出し分け） -->
   <script src="/plan.js" defer></script>

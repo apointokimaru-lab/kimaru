@@ -3,47 +3,60 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>キマル - ログイン / 登録</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <title>ログイン - キマル</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body>
+<body data-page="login" data-i18n-title="auth.title">
   <!-- site-header -->
 
-  <main class="shell narrow">
-    <section class="panel">
-      <p class="eyebrow" data-i18n="auth.eyebrow">Login / Register</p>
-      <h1 id="auth-heading">ログイン</h1>
-      <p class="lead" data-i18n="auth.lead">メールアドレスとパスワード、または Google アカウントでログインできます。</p>
+  <main>
+    <div class="authwrap">
+      <div class="authcard">
+        <p class="eyebrow" data-i18n="auth.eyebrow">Login / Register</p>
+        <h1 id="auth-heading">ログイン</h1>
+        <p class="sub" data-i18n="auth.lead">メールアドレスとパスワード、または Google アカウントでログインできます。</p>
 
-      <a class="google-btn" href="/api/google-auth-start">
-        <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
-          <path fill="#4285F4" d="M17.64 9.2045c0-.6381-.0573-1.2518-.1636-1.8409H9v3.4814h4.8436c-.2086 1.125-.8427 2.0782-1.7955 2.7164v2.2581h2.9087c1.7018-1.5668 2.6832-3.874 2.6832-6.615z"/>
-          <path fill="#34A853" d="M9 18c2.43 0 4.4673-.806 5.9564-2.1818l-2.9087-2.2581c-.8059.54-1.8368.859-3.0477.859-2.344 0-4.3282-1.5831-5.036-3.7104H.9573v2.3318C2.4382 15.9832 5.4818 18 9 18z"/>
-          <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.2823-1.1168-.2823-1.71s.1023-1.17.2823-1.71V4.9582H.9573C.3477 6.1732 0 7.5477 0 9s.3477 2.8268.9573 4.0418L3.964 10.71z"/>
-          <path fill="#EA4335" d="M9 3.5795c1.3214 0 2.5077.4541 3.4405 1.346l2.5813-2.5814C13.4632.8918 11.426 0 9 0 5.4818 0 2.4382 2.0168.9573 4.9582L3.964 7.29C4.6718 5.1627 6.656 3.5795 9 3.5795z"/>
-        </svg>
-        <span data-i18n="auth.google">Googleでログイン</span>
-      </a>
-      <div class="auth-divider"><span data-i18n="auth.or">または</span></div>
+        <a class="google-btn" href="/api/google-auth-start">
+          <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
+            <path fill="#4285F4" d="M17.64 9.2045c0-.6381-.0573-1.2518-.1636-1.8409H9v3.4814h4.8436c-.2086 1.125-.8427 2.0782-1.7955 2.7164v2.2581h2.9087c1.7018-1.5668 2.6832-3.874 2.6832-6.615z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.4673-.806 5.9564-2.1818l-2.9087-2.2581c-.8059.54-1.8368.859-3.0477.859-2.344 0-4.3282-1.5831-5.036-3.7104H.9573v2.3318C2.4382 15.9832 5.4818 18 9 18z"/>
+            <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.2823-1.1168-.2823-1.71s.1023-1.17.2823-1.71V4.9582H.9573C.3477 6.1732 0 7.5477 0 9s.3477 2.8268.9573 4.0418L3.964 10.71z"/>
+            <path fill="#EA4335" d="M9 3.5795c1.3214 0 2.5077.4541 3.4405 1.346l2.5813-2.5814C13.4632.8918 11.426 0 9 0 5.4818 0 2.4382 2.0168.9573 4.9582L3.964 7.29C4.6718 5.1627 6.656 3.5795 9 3.5795z"/>
+          </svg>
+          <span data-i18n="auth.google">Googleでログイン</span>
+        </a>
 
-      <form id="auth-form" class="form-grid">
-        <label id="name-label" class="hidden"><span data-i18n="signup.name">名前</span><input name="name" autocomplete="name" /></label>
-        <label><span data-i18n="signup.email">メールアドレス</span><input name="email" type="email" autocomplete="email" required /></label>
-        <label><span data-i18n="signup.password">パスワード</span><input name="password" type="password" autocomplete="current-password" minlength="8" required /></label>
-        <button class="primary" type="submit" id="auth-submit">ログイン</button>
-      </form>
-      <p id="auth-message" class="message" role="status"></p>
-      <p class="form-note muted">
-        <span id="auth-toggle-text">アカウントをお持ちでないですか？</span>
-        <a href="#" id="auth-toggle">新規登録する</a>
-      </p>
-      <p class="form-note muted" id="forgot-note"><a href="/reset-password.html" data-i18n="auth.forgot">パスワードをお忘れですか？</a></p>
-    </section>
+        <div class="divider"><span data-i18n="auth.orEmail">または メールアドレスで</span></div>
+
+        <form id="auth-form">
+          <div class="field" id="name-label">
+            <label><span data-i18n="signup.name">名前</span></label>
+            <input name="name" autocomplete="name" />
+          </div>
+          <div class="field">
+            <label data-i18n="signup.email">メールアドレス</label>
+            <input name="email" type="email" placeholder="you@example.com" data-i18n-placeholder="auth.emailPh" autocomplete="email" required />
+          </div>
+          <div class="field">
+            <div class="row-between" style="gap:8px">
+              <label data-i18n="signup.password">パスワード</label>
+              <a href="/reset-password.html" id="forgot-note" data-i18n="auth.forgot" style="font-size:12.5px;font-weight:700;color:var(--accent-ink)">パスワードをお忘れですか？</a>
+            </div>
+            <input name="password" type="password" placeholder="••••••••" autocomplete="current-password" minlength="8" required />
+          </div>
+          <button class="btn btn-primary" type="submit" id="auth-submit">ログイン</button>
+        </form>
+
+        <p id="auth-message" class="message" role="status"></p>
+
+        <p class="auth-foot">
+          <span id="auth-toggle-text">アカウントをお持ちでないですか？</span>
+          <a href="#" id="auth-toggle">新規登録する</a>
+        </p>
+        <p class="auth-foot muted" style="font-size:12px;margin-top:10px" data-i18n="auth.secure">🔒 通信は暗号化され、安全に保護されています。</p>
+      </div>
+    </div>
   </main>
-
 
   <!-- site-footer -->
 

@@ -4,98 +4,106 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="st.pageTitle">キマル - 設定</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-page="settings" data-i18n-title="st.pageTitle">
   <!-- site-header -->
 
-  <main class="shell settings-page">
-    <section class="dash-hero">
-      <div class="dash-hero-text">
-        <p class="eyebrow" data-i18n="st.hero.eyebrow">設定</p>
+  <main>
+    <section class="section shell" style="padding-top:0">
+      <div class="pagehead">
+        <span class="eyebrow" data-i18n="st.hero.eyebrow">設定</span>
         <h1 data-i18n="st.hero.heading">アカウント設定</h1>
-        <p id="settings-status" class="muted">読み込んでいます...</p>
-      </div>
-      <div class="dash-account">
-        <div id="plan-chip" class="plan-chip"></div>
-        <button id="logout-button" class="button secondary" type="button">ログアウト</button>
-      </div>
-    </section>
-
-    <!-- アカウント -->
-    <section class="panel settings-section">
-      <div class="settings-head">
-        <div>
-          <p class="eyebrow" data-i18n="st.account.eyebrow">アカウント</p>
-          <h2 data-i18n="st.account.heading">ログイン情報</h2>
-        </div>
-      </div>
-      <p class="muted" data-i18n="st.account.intro">キマルへのログインに使う情報です。</p>
-      <dl class="settings-rows">
-        <div><dt data-i18n="st.account.emailLabel">メールアドレス</dt><dd id="current-email">—</dd></div>
-      </dl>
-
-      <button type="button" id="email-edit-toggle" class="button secondary" style="display:none" data-i18n="st.account.editButton">メールアドレスを変更</button>
-      <form id="email-form" class="form-grid" hidden>
-        <label><span data-i18n="st.account.newEmailLabel">新しいメールアドレス</span><input name="email" type="email" autocomplete="email" required /></label>
-        <label><span data-i18n="st.account.passwordLabel">現在のパスワード（確認用）</span><input name="password" type="password" autocomplete="current-password" required /></label>
-        <div class="form-actions-row">
-          <button type="button" id="email-cancel" class="button secondary" data-i18n="st.account.cancel">キャンセル</button>
-          <button class="primary" type="submit" data-i18n="st.account.save">変更を保存</button>
-        </div>
-      </form>
-      <p id="email-google-note" class="form-note muted" style="display:none" data-i18n="st.account.googleNote">Googleログインのアカウントは、メールアドレスをGoogle側で管理しています。このページからは変更できません。</p>
-      <p id="email-message" class="message"></p>
-    </section>
-
-    <!-- 外部連携 -->
-    <section id="integrations" class="panel settings-section">
-      <div class="settings-head">
-        <div>
-          <p class="eyebrow" data-i18n="st.integrations.eyebrow">外部連携</p>
-          <h2 data-i18n="st.integrations.heading">カレンダー連携</h2>
-        </div>
-        <span id="calendar-badge" class="conn-badge">確認中…</span>
-      </div>
-      <p class="muted" data-i18n="st.integrations.intro">Googleカレンダーと連携すると、予定と重ならない空き枠だけを公開し、予約時に予定＋Google Meet を自動作成します。</p>
-      <p id="calendar-status" class="message">連携状態を確認しています...</p>
-      <div class="actions">
-        <a id="calendar-connect" class="button primary" href="/api/google-auth-start" data-i18n="st.integrations.connect">Googleカレンダーと連携する</a>
-        <a id="calendar-reconnect" class="button secondary" href="/api/google-auth-start" data-i18n="st.integrations.reconnect">別アカウントで再連携</a>
-        <button id="calendar-disconnect" class="button secondary" type="button" data-i18n="st.integrations.disconnect">連携を解除する</button>
-      </div>
-      <p class="form-note muted" data-i18n="st.integrations.zoomNote">Zoom連携・議事録アプリ連携は今後対応予定です。</p>
-    </section>
-
-    <!-- プラン -->
-    <section class="panel settings-section">
-      <div class="settings-head">
-        <div>
-          <p class="eyebrow" data-i18n="st.plan.eyebrow">プラン</p>
-          <h2 data-i18n="st.plan.heading">ご利用プラン</h2>
-        </div>
-        <span id="plan-badge" class="plan-badge">—</span>
-      </div>
-      <p class="settings-hidden-anchor" hidden>現在のプラン： <strong id="current-plan">—</strong></p>
-
-      <div id="plan-free-box" style="display:none">
-        <p class="muted" data-i18n="st.plan.freeIntro">Proにアップグレードすると、相手管理（面談メモ・印象スコア）・受付6ヶ月先まで・予約ページ5つ・高度プロフィールなどが使えます。AIアシストはプレミアムプラン。猫の鍵 / Cat Key もこちらから。</p>
-        <div class="plan-perks">
-          <span data-i18n="st.plan.perk1">相手管理</span><span data-i18n="st.plan.perk2">高度プロフィール</span><span data-i18n="st.plan.perk3">受付6ヶ月</span><span data-i18n="st.plan.perk4">予約ページ5つ</span><span data-i18n="st.plan.perk5">事前アンケート5問</span>
-        </div>
-        <p><a class="button primary" href="/square.html" data-i18n="st.plan.freeCta">Proを始める / Cat Key</a></p>
+        <p id="settings-status" class="sub" data-i18n="st.js.loading">読み込んでいます...</p>
       </div>
 
-      <div id="plan-pro-box" style="display:none">
-        <p class="muted" data-i18n="st.plan.proIntro">Pro版をご利用中です。いつもありがとうございます。</p>
-        <div class="soft-box">
-          <p class="eyebrow" data-i18n="st.plan.cancelEyebrow">解約について</p>
-          <p class="muted" data-i18n="st.plan.cancelDesc">課金はSquareで管理されています。解約は、Squareから届いた決済確認メールの「サブスクリプションの管理」、またはSquareの請求管理画面から行えます。手続き後、次回更新日以降は課金されません。ご不明な場合は運営までご連絡ください。</p>
-          <p><a class="button secondary" href="https://squareup.com/" target="_blank" rel="noopener noreferrer" data-i18n="st.plan.squareButton">Squareを開く</a></p>
+      <div class="stack" style="margin-top:28px">
+
+        <!-- アカウント -->
+        <div class="panel">
+          <span class="eyebrow" data-i18n="st.account.eyebrow">アカウント</span>
+          <h2 style="font-family:var(--display);font-size:18px;margin:8px 0 16px" data-i18n="st.account.heading">ログイン情報</h2>
+          <dl class="rows">
+            <div class="r">
+              <dt data-i18n="st.account.emailLabel">メールアドレス</dt>
+              <dd id="current-email">—</dd>
+              <button type="button" id="email-edit-toggle" class="btn btn-ghost" style="display:none;min-height:38px;padding:0 16px" data-i18n="st.account.editButton">変更</button>
+            </div>
+            <div class="r">
+              <dt data-i18n="st.plan.eyebrow">プラン</dt>
+              <dd><span id="plan-badge" class="plan-badge">—</span></dd>
+              <a class="btn btn-ghost" href="/plan.html" style="min-height:38px;padding:0 16px" data-i18n="st.account.upgrade">アップグレード</a>
+            </div>
+            <div class="r">
+              <dt data-i18n="st.integrations.eyebrow">Google連携</dt>
+              <dd><span id="calendar-badge" class="conn" data-i18n="st.js.checking">確認中…</span></dd>
+              <button id="calendar-disconnect" class="btn btn-ghost" type="button" style="min-height:38px;padding:0 16px" data-i18n="st.integrations.disconnectShort">解除</button>
+            </div>
+          </dl>
+
+          <!-- メール変更フォーム -->
+          <form id="email-form" class="form-grid" hidden style="margin-top:16px">
+            <label><span data-i18n="st.account.newEmailLabel">新しいメールアドレス</span><input name="email" type="email" autocomplete="email" required /></label>
+            <label><span data-i18n="st.account.passwordLabel">現在のパスワード（確認用）</span><input name="password" type="password" autocomplete="current-password" required /></label>
+            <div class="form-actions-row">
+              <button type="button" id="email-cancel" class="btn btn-ghost" data-i18n="st.account.cancel">キャンセル</button>
+              <button class="btn btn-primary" type="submit" data-i18n="st.account.save">変更を保存</button>
+            </div>
+          </form>
+          <p id="email-google-note" class="field-note muted" style="display:none;margin-top:12px" data-i18n="st.account.googleNote">Googleログインのアカウントは、メールアドレスをGoogle側で管理しています。このページからは変更できません。</p>
+          <p id="email-message" class="message"></p>
         </div>
+
+        <!-- カレンダー連携 -->
+        <div id="integrations" class="panel">
+          <span class="eyebrow" data-i18n="st.integrations.eyebrow2">外部連携</span>
+          <h2 style="font-family:var(--display);font-size:18px;margin:8px 0 12px" data-i18n="st.integrations.heading">カレンダー連携</h2>
+          <p class="muted" style="font-size:13.5px" data-i18n="st.integrations.intro">Googleカレンダーと連携すると、予定と重ならない空き枠だけを公開し、予約時に予定＋Google Meet を自動作成します。</p>
+          <p id="calendar-status" class="message" data-i18n="st.js.calendarChecking">連携状態を確認しています...</p>
+          <div class="actions">
+            <a id="calendar-connect" class="btn btn-primary" href="/api/google-auth-start" data-i18n="st.integrations.connect">Googleカレンダーと連携する</a>
+            <a id="calendar-reconnect" class="btn btn-ghost" href="/api/google-auth-start" data-i18n="st.integrations.reconnect">別アカウントで再連携</a>
+          </div>
+          <p class="field-note muted" style="margin-top:10px" data-i18n="st.integrations.zoomNote">Zoom連携・議事録アプリ連携は今後対応予定です。</p>
+        </div>
+
+        <!-- プラン -->
+        <div class="panel">
+          <span class="eyebrow" data-i18n="st.plan.eyebrow">プラン</span>
+          <h2 style="font-family:var(--display);font-size:18px;margin:8px 0 16px" data-i18n="st.plan.heading">ご利用プラン</h2>
+          <p class="settings-hidden-anchor" hidden>現在のプラン： <strong id="current-plan">—</strong></p>
+
+          <div id="plan-free-box" style="display:none">
+            <p class="muted" data-i18n="st.plan.freeIntro">Proにアップグレードすると、相手管理（面談メモ・印象スコア）・受付6ヶ月先まで・予約ページ2つ・高度プロフィールなどが使えます。AIアシストはプレミアムプラン（予約ページ5つ）。猫の鍵 / Cat Key もこちらから。</p>
+            <div class="plan-perks">
+              <span data-i18n="st.plan.perk1">相手管理</span><span data-i18n="st.plan.perk2">高度プロフィール</span><span data-i18n="st.plan.perk3">受付6ヶ月</span><span data-i18n="st.plan.perk4">予約ページ2つ</span><span data-i18n="st.plan.perk5">事前アンケート5問</span>
+            </div>
+            <p style="margin-top:16px"><a class="btn btn-primary" href="/square.html" data-i18n="st.plan.freeCta">Proを始める / Cat Key</a></p>
+          </div>
+
+          <div id="plan-pro-box" style="display:none">
+            <p class="muted" data-i18n="st.plan.proIntro">Pro版をご利用中です。いつもありがとうございます。</p>
+            <div class="soft-box">
+              <p class="eyebrow" data-i18n="st.plan.cancelEyebrow">解約について</p>
+              <p class="muted" data-i18n="st.plan.cancelDesc">課金はSquareで管理されています。解約は、Squareから届いた決済確認メールの「サブスクリプションの管理」、またはSquareの請求管理画面から行えます。手続き後、次回更新日以降は課金されません。ご不明な場合は運営までご連絡ください。</p>
+              <p style="margin-top:16px"><a class="btn btn-ghost" href="https://squareup.com/" target="_blank" rel="noopener noreferrer" data-i18n="st.plan.squareButton">Squareを開く</a></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- アカウント操作 -->
+        <div class="panel">
+          <h2 style="font-family:var(--display);font-size:18px;margin:0 0 16px" data-i18n="st.logout.heading">アカウント操作</h2>
+          <div class="row-between">
+            <div>
+              <b data-i18n="st.logout.title">このデバイスからログアウト</b>
+              <p class="muted" style="margin:2px 0 0;font-size:13.5px" data-i18n="st.logout.desc">再ログインには登録済みのアカウント情報が必要です。データは保持されます。</p>
+            </div>
+            <button id="logout-button" class="btn btn-ghost" type="button" data-i18n="st.logout.button">ログアウト</button>
+          </div>
+          <div id="plan-chip" hidden></div>
+        </div>
+
       </div>
     </section>
   </main>
@@ -163,6 +171,7 @@
       statusEl.className = 'message ' + (connected ? 'success' : '');
       const badge = $('#calendar-badge');
       badge.textContent = connected ? T("st.js.badgeConnected", "連携済み") : T("st.js.badgeDisconnected", "未連携");
+      badge.classList.toggle('on', connected);
       badge.classList.toggle('is-on', connected);
       show($('#calendar-connect'), !connected);
       show($('#calendar-reconnect'), connected);

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mock - キマル（新ルック探索）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/mock.css" />
+</head>
+<body>
+<!-- mock: プレースホルダ内容のみ（mock/README.md のルール参照）。 -->
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="/"><span class="brand-dot"></span>キマル</a>
+    <nav class="nav-links">
+      <a href="/plan.html">料金</a>
+      <a href="/#lifecycle">特長</a>
+      <a href="#">使い方</a>
+    </nav>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a class="btn btn-ghost" href="#" style="min-height:40px;padding:0 16px">ログイン</a>
+      <a class="btn btn-primary" href="#" style="min-height:40px;padding:0 18px">無料で始める</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="section">
+    <div class="shell">
+      <div class="pagehead">
+        <span class="eyebrow">Plan</span>
+        <h1>料金・プラン</h1>
+        <p class="sub">無料で『予約が決まる』まで。Proで前後の準備まで。プレミアムでAIが次の一手まで。</p>
+      </div>
+
+      <!-- 3プラン -->
+      <div class="plans">
+        <div class="plan">
+          <span class="plan-tag">無料</span>
+          <div class="plan-name">無料版 <span class="tag f-free">ご利用中</span></div>
+          <div class="plan-price">¥0<span> /月</span></div>
+          <p class="muted" style="font-size:13px;margin:-2px 0 4px">まずは予約が「決まる」まで。クレカ不要。</p>
+          <ul>
+            <li>予約ページ 1つ</li>
+            <li>受付 2ヶ月先まで</li>
+            <li>アンケート 2問（自由入力）</li>
+            <li>22分前リマインド</li>
+            <li>予約履歴の閲覧</li>
+          </ul>
+          <span class="muted f-free">ご利用中</span>
+          <a class="btn btn-ghost" href="#">無料で始める</a>
+        </div>
+        <div class="plan is-pop">
+          <span class="plan-tag">人気</span>
+          <div class="plan-name">Pro <span class="tag f-only-pro">ご利用中</span></div>
+          <div class="plan-price">¥980<span> /月</span></div>
+          <p class="muted" style="font-size:13px;margin:-2px 0 4px">会う前後の準備まで。多くの方がこれを選択。</p>
+          <ul>
+            <li>予約ページ 2つ・受付6ヶ月</li>
+            <li>アンケート 5問・選択式も</li>
+            <li>相手管理（メモ・印象スコア）</li>
+            <li>高度プロフィール</li>
+            <li>占いベース相手分析</li>
+          </ul>
+          <a class="btn btn-primary" href="#">Proを始める</a>
+        </div>
+        <div class="plan is-ai">
+          <span class="plan-tag">近日</span>
+          <div class="plan-name">プレミアム <span class="tag f-premium">ご利用中</span></div>
+          <div class="plan-price">¥2,200<span> /月</span></div>
+          <p style="font-size:13px;margin:-2px 0 4px;color:rgba(255,255,255,.82)">AIが次の一手まで。関係づくりを自動で。</p>
+          <ul>
+            <li>Pro 全機能＋予約ページ5つ</li>
+            <li>AIアシスト（月300回）</li>
+            <li>相手の手動追加</li>
+            <li>AI要約 / 検索（将来）</li>
+          </ul>
+          <a class="btn btn-aurora" href="#">AIアシストを見る</a>
+        </div>
+      </div>
+      <p class="muted" style="text-align:center;margin-top:18px;font-size:13.5px">いつでも解約OK・隠れた追加料金なし。有料プランは Square による安全な決済です。</p>
+    </div>
+  </section>
+
+  <!-- 比較表 -->
+  <section class="section" style="padding-top:0">
+    <div class="shell">
+      <div class="sec-head"><span class="eyebrow">Compare</span><h2>プランを比べる</h2></div>
+      <div class="panel" style="margin-top:24px">
+        <div class="table-wrap" style="box-shadow:none;border:0">
+          <table class="table">
+            <thead>
+              <tr><th>機能</th><th>無料</th><th style="color:var(--accent-ink)">Pro · 人気</th><th>プレミアム</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><b>料金</b></td><td>¥0</td><td>¥980</td><td>¥2,200</td></tr>
+              <tr><td><b>予約ページ</b></td><td>1つ</td><td>2つ</td><td>5つ</td></tr>
+              <tr><td><b>予約受付</b></td><td>2ヶ月</td><td>6ヶ月</td><td>6ヶ月</td></tr>
+              <tr><td><b>事前アンケート</b></td><td>最大2問・自由入力</td><td>最大5問・自由編集＋選択式</td><td>同</td></tr>
+              <tr><td><b>相手管理</b></td><td>閲覧のみ</td><td>会った人のみ</td><td>手動追加も可</td></tr>
+              <tr><td><b>占いベース相手分析</b></td><td>−</td><td>✓</td><td>✓</td></tr>
+              <tr><td><b>AIアシスト</b></td><td>−</td><td>−</td><td><span class="badge badge-premium">近日</span> 月300回</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="shell foot-in">
+    <div><a href="/">キマル</a><a href="/plan.html">料金</a><a href="#">利用規約</a><a href="#">プライバシー</a></div>
+    <div>© 2026 Kimaru — 日程が、キマる。</div>
+  </div>
+</footer>
+<script src="/mock-plan.js" defer></script>
+</body>
+</html>

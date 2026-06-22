@@ -4,9 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="bs.pageTitle">キマル - 予約設定</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-page="admin" data-booking-settings="true" data-i18n-title="bs.pageTitle">
@@ -39,7 +36,7 @@
       <div class="section-head">
         <div>
           <h2 data-i18n="bs.list.heading">予約ページ</h2>
-          <p class="muted" data-i18n="bs.list.desc">設定違いのページを使い分けられます（無料2つ／有料・猫5つまで）。各ページの「開く / URLをコピー / 編集」で操作できます。曜日ごとの受付時間とカレンダーの予定から、空いている枠だけが表示されます。</p>
+          <p class="muted" data-i18n="bs.list.desc">設定違いのページを使い分けられます（無料1つ／Pro2つ／プレミアム・猫5つまで）。各ページの「開く / URLをコピー / 編集」で操作できます。曜日ごとの受付時間とカレンダーの予定から、空いている枠だけが表示されます。</p>
         </div>
         <button type="button" id="booking-page-new" class="button primary" data-i18n="bs.list.new">＋ アポイント設定を作成</button>
       </div>
@@ -65,7 +62,7 @@
           <label><span data-i18n="bs.basic.title">アポイント名（タイトル）</span><input name="title" value="〇〇との面談" required /></label>
           <p class="form-note muted" data-i18n="bs.basic.titleNote">※◯◯の所はご自身の名前を入力して下さい。</p>
           <label><span data-i18n="bs.basic.slug">公開URL（slug）</span><input name="slug" id="booking-page-slug" placeholder="例: taro-1on1（空欄なら自動生成）" data-i18n-placeholder="bs.basic.slugPlaceholder" pattern="[a-z0-9-]{3,40}" /></label>
-          <p class="form-note muted">公開ページは <code>/b/（slug）</code> で開けます。無料2つ・有料5つまで保存できます。</p>
+          <p class="form-note muted">公開ページは <code>/b/（slug）</code> で開けます。無料1つ・Pro2つ・プレミアム5つまで保存できます。</p>
           <label><span data-i18n="bs.basic.description">説明文</span><textarea name="description" rows="3" placeholder="予約ページに表示する案内文を入力します。例：初回相談、面談、オンライン打ち合わせなど" data-i18n-placeholder="bs.basic.descriptionPlaceholder"></textarea></label>
           <label><span data-i18n="bs.basic.status">受付状態</span>
             <select name="is_active">

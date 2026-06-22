@@ -379,9 +379,10 @@ function renderBookings(bookings) {
     const when = booking.start_at || booking.start_time ? escapeHtml(formatSlot(booking.start_at || booking.start_time)) : "";
     // インサイト（生年月日）は任意・行が膨らむので details に畳む。textContent には残るので検索は効く。
     const insightCell = insight ? `<details class="insight-toggle"><summary>${t("admin.contacts.insightToggle")}</summary>${insight}</details>` : "";
+    const manualTag = booking.manual ? ` <span class="free-tag">${escapeHtml(t("admin.contacts.manualTag"))}</span>` : "";
     return `
       <tr class="list-item">
-        <td data-label="${t("admin.contacts.colName")}"><strong>${name}</strong></td>
+        <td data-label="${t("admin.contacts.colName")}"><strong>${name}</strong>${manualTag}</td>
         <td data-label="${t("admin.contacts.colEmail")}" class="cell-email">${email || "—"}</td>
         <td data-label="${t("admin.contacts.colTopic")}">${topic || (insightCell ? "" : "—")}${insightCell}</td>
         <td data-label="${t("admin.contacts.colDate")}" class="cell-date">${when || "—"}</td>
@@ -516,22 +517,51 @@ function updateBookingPageControls() {
 // 新規作成時の事前アンケートは初期質問なし（空から始める）。
 const DEFAULT_QUESTIONS = [];
 
-function questionRowHtml(value) {
-  return `<div class="q-row"><input class="question-input" placeholder="${escapeHtml(t("bs.questionnaire.placeholder"))}" value="${escapeHtml(value || "")}" /><button type="button" class="button secondary question-remove">${escapeHtml(t("bs.delete"))}</button></div>`;
+const ANSWER_TYPES = ["text", "select", "checkbox"];
+
+function questionRowHtml(q) {
+  const obj = (typeof q === "string") ? { question_text: q } : (q || {});
+  const isPro = isProPlan(currentOwner?.plan);
+  const type = ANSWER_TYPES.includes(obj.answer_type) ? obj.answer_type : "text";
+  const options = Array.isArray(obj.options) ? obj.options : [];
+  const placeholder = escapeHtml(t("bs.questionnaire.placeholder"));
+  const del = escapeHtml(t("bs.delete"));
+  const textVal = escapeHtml(obj.question_text || "");
+  // 無料は自由入力のみ。Pro・プレミアムは回答形式（自由入力/プルダウン/チェックボックス）＋選択肢を設定できる（決定27）。
+  const choiceUi = isPro ? `
+    <div class="q-row-choice">
+      <select class="question-type" aria-label="${escapeHtml(t("bs.q.type.label"))}">
+        <option value="text"${type === "text" ? " selected" : ""}>${escapeHtml(t("bs.q.type.text"))}</option>
+        <option value="select"${type === "select" ? " selected" : ""}>${escapeHtml(t("bs.q.type.select"))}</option>
+        <option value="checkbox"${type === "checkbox" ? " selected" : ""}>${escapeHtml(t("bs.q.type.checkbox"))}</option>
+      </select>
+      <textarea class="question-options${type === "text" ? " hidden" : ""}" rows="2" placeholder="${escapeHtml(t("bs.q.optionsPlaceholder"))}">${escapeHtml(options.join("\n"))}</textarea>
+    </div>` : "";
+  return `<div class="q-row" data-answer-type="${type}">
+    <div class="q-row-main"><input class="question-input" placeholder="${placeholder}" value="${textVal}" /><button type="button" class="button secondary question-remove">${del}</button></div>${choiceUi}
+  </div>`;
 }
 
 function renderQuestionRows(questions) {
   const list = $("#question-list");
   if (!list) return;
   const items = (questions && questions.length) ? questions : [""];
-  list.innerHTML = items.map((q) => questionRowHtml(typeof q === "string" ? q : (q.question_text || ""))).join("");
+  list.innerHTML = items.map((q) => questionRowHtml(q)).join("");
   updateBookingPageControls();
 }
 
 function collectQuestions() {
-  return [...document.querySelectorAll("#question-list .question-input")]
-    .map((el) => el.value.trim())
-    .filter(Boolean);
+  return [...document.querySelectorAll("#question-list .q-row")]
+    .map((row) => {
+      const question_text = (row.querySelector(".question-input")?.value || "").trim();
+      const typeEl = row.querySelector(".question-type");
+      let answer_type = typeEl ? typeEl.value : "text";
+      if (!ANSWER_TYPES.includes(answer_type)) answer_type = "text";
+      const optionsRaw = row.querySelector(".question-options")?.value || "";
+      const options = answer_type === "text" ? [] : optionsRaw.split("\n").map((s) => s.trim()).filter(Boolean);
+      return { question_text, answer_type, options };
+    })
+    .filter((q) => q.question_text);
 }
 
 function addQuestionRow() {
@@ -549,7 +579,7 @@ function collectBookingPagePayload(form) {
   const maxQuestions = isPro ? 5 : 2;
   const questions = collectQuestions()
     .slice(0, maxQuestions)
-    .map((question_text, index) => ({ question_text, is_required: index < 2 }));
+    .map((q, index) => ({ ...q, is_required: index < 2 }));
   const range = parseRangeToken(data.booking_range);
   return {
     id: data.page_id || undefined,
@@ -665,7 +695,7 @@ function fillBookingPageForm(page) {
   // 事前アンケート（ページ単位・sort_order 順）を可変行で表示
   const questions = [...(page.questionnaire_questions || [])]
     .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-    .map((q) => q.question_text);
+    .map((q) => ({ question_text: q.question_text, answer_type: q.answer_type || "text", options: Array.isArray(q.options) ? q.options : [] }));
   renderQuestionRows(questions);
   // 受付時間（オーナー単位）
   applyAvailability(form, ownerAvailability);
@@ -739,6 +769,15 @@ async function initAdmin() {
       updateBookingPageControls();
     }
   });
+  // 回答形式の変更：選択肢入力欄（プルダウン/チェックボックス時のみ）の表示を切替。
+  $("#question-list")?.addEventListener("change", (event) => {
+    const typeEl = event.target.closest(".question-type");
+    if (!typeEl) return;
+    const row = typeEl.closest(".q-row");
+    if (row) row.dataset.answerType = typeEl.value;
+    const opts = row?.querySelector(".question-options");
+    if (opts) opts.classList.toggle("hidden", typeEl.value === "text");
+  });
   $("#page-editor-close")?.addEventListener("click", closePageEditor);
   $("#booking-pages-list")?.addEventListener("click", async (event) => {
     const button = event.target.closest("button[data-page-action]");
@@ -796,6 +835,19 @@ async function initAdmin() {
       await refreshAdmin();
     } catch (error) {
       setMessage("#log-message", error.message, "error");
+    }
+  });
+  // 手動の相手追加（プレミアム限定・決定27）。成功後に相手一覧を再読込。
+  $("#manual-contact-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    setMessage("#manual-contact-message", t("admin.manual.saving"));
+    try {
+      await api("manual-contact", { method: "POST", body: JSON.stringify(formData(event.currentTarget)) });
+      event.currentTarget.reset();
+      setMessage("#manual-contact-message", t("admin.manual.added"), "success");
+      await refreshAdmin();
+    } catch (error) {
+      setMessage("#manual-contact-message", error.message, "error");
     }
   });
 }

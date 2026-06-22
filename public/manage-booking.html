@@ -4,34 +4,32 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>キマル | 予約の確認・変更</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/booking-redesign.css" />
 </head>
 <body data-page="booking" data-i18n-title="mb.pageTitle">
-  <header class="site-header booking-header">
-    <a class="brand" href="/" data-i18n="common.brand">キマル</a>
-    <select class="lang-select" data-language-select aria-label="Language"></select>
-  </header>
+  <!-- site-header -->
 
   <main class="shell narrow">
-    <section class="panel">
-      <p class="eyebrow" data-i18n="mb.eyebrow">予約の確認・変更</p>
+    <div class="pagehead">
+      <span class="eyebrow" data-i18n="mb.eyebrow">予約の確認・変更</span>
       <h1 id="manage-title" data-i18n="mb.loading">予約を読み込み中...</h1>
-      <p class="muted" id="manage-sub"></p>
-      <dl class="confirm-list" id="manage-summary"></dl>
-      <div class="flow-actions" id="manage-actions" hidden>
-        <button type="button" class="button secondary" id="btn-reschedule" data-i18n="mb.btn.reschedule">日程を変更する</button>
-        <button type="button" class="button danger" id="btn-cancel" data-i18n="mb.btn.cancel">予約をキャンセル</button>
+      <p class="sub muted" id="manage-sub"></p>
+    </div>
+
+    <section class="panel" style="margin-top:22px">
+      <dl class="summary" id="manage-summary"></dl>
+      <div class="form-actions" id="manage-actions" style="margin-top:20px" hidden>
+        <button type="button" class="button primary" id="btn-reschedule" data-i18n="mb.btn.reschedule">日程を変更する</button>
+        <button type="button" class="button secondary danger" id="btn-cancel" data-i18n="mb.btn.cancel">予約をキャンセル</button>
       </div>
+      <p class="note" style="margin-top:18px" data-i18n="mb.foot">キャンセル無料・ログイン不要・手続き後すぐ確認メールをお送りします。</p>
       <p id="manage-message" class="message" role="status"></p>
     </section>
 
     <!-- 日程変更 -->
-    <section class="panel" id="reschedule-card" hidden>
-      <p class="eyebrow" data-i18n="mb.rs.eyebrow">日程変更</p>
+    <section class="panel" id="reschedule-card" style="margin-top:18px" hidden>
+      <span class="eyebrow" data-i18n="mb.rs.eyebrow">日程変更</span>
       <h2 data-i18n="mb.rs.heading">新しい日時を選ぶ</h2>
       <p class="muted" data-i18n="mb.rs.note">変更後の空き枠から選んでください。確定すると元の日程は解放されます。</p>
       <div id="rs-week-nav" class="week-nav" style="display:none">
@@ -40,7 +38,7 @@
         <button type="button" id="rs-next" class="button secondary" data-i18n="booking.week.next">次の週 →</button>
       </div>
       <div id="rs-slots" class="rs-slots"></div>
-      <div class="flow-actions">
+      <div class="form-actions" style="margin-top:18px">
         <button type="button" class="button secondary" id="rs-back" data-i18n="mb.rs.back">← 戻る</button>
       </div>
       <p id="rs-message" class="message"></p>

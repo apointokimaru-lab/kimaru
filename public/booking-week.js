@@ -73,15 +73,43 @@ function renderQuestions(questions) {
   bookingQuestions = Array.isArray(questions) ? questions : [];
   const list = bookingQuestions.length
     ? bookingQuestions
-    : [{ id: null, question_text: t("booking.form.topic", "今回お話したい内容"), is_required: true }];
+    : [{ id: null, question_text: t("booking.form.topic", "今回お話したい内容"), is_required: true, answer_type: "text", options: [] }];
   container.innerHTML = list
     .map((question, index) => {
-      const required = question.is_required ? " required" : "";
-      const mark = question.is_required ? " *" : t("booking.form.optionalMark", "（任意）");
-      const rows = index === 0 ? 4 : 3;
-      return `<label><span>${escapeHtml(question.question_text)}${escapeHtml(mark)}</span><textarea data-question-id="${escapeHtml(question.id || "")}" data-question-text="${escapeHtml(question.question_text)}" rows="${rows}"${required}></textarea></label>`;
+      const required = Boolean(question.is_required);
+      const mark = required ? " *" : t("booking.form.optionalMark", "（任意）");
+      const options = (Array.isArray(question.options) ? question.options : []).filter(Boolean);
+      let type = ["select", "checkbox"].includes(question.answer_type) ? question.answer_type : "text";
+      if (type !== "text" && !options.length) type = "text"; // 選択肢が無ければ自由入力にフォールバック
+      const idAttr = escapeHtml(question.id || "");
+      const textAttr = escapeHtml(question.question_text);
+      const labelSpan = `<span>${textAttr}${escapeHtml(mark)}</span>`;
+      let body;
+      if (type === "select") {
+        const tags = `<option value="">${escapeHtml(t("booking.form.choose", "選択してください"))}</option>` +
+          options.map((opt) => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join("");
+        body = `<label>${labelSpan}<select class="q-input"${required ? " required" : ""}>${tags}</select></label>`;
+      } else if (type === "checkbox") {
+        const boxes = options
+          .map((opt) => `<label class="q-check"><input type="checkbox" value="${escapeHtml(opt)}" /><span>${escapeHtml(opt)}</span></label>`)
+          .join("");
+        body = `<span class="q-field-label">${textAttr}${escapeHtml(mark)}</span><div class="q-checks">${boxes}</div>`;
+      } else {
+        const rows = index === 0 ? 4 : 3;
+        body = `<label>${labelSpan}<textarea class="q-input" rows="${rows}"${required ? " required" : ""}></textarea></label>`;
+      }
+      return `<div class="q-field" data-question-id="${idAttr}" data-question-text="${textAttr}" data-answer-type="${type}" data-required="${required ? "1" : ""}">${body}</div>`;
     })
     .join("");
+}
+
+// 質問フィールドから回答文字列を取り出す（text/select=値、checkbox=チェック済みを「, 」連結）。
+function readQuestionField(field) {
+  if (field.dataset.answerType === "checkbox") {
+    return [...field.querySelectorAll("input[type=checkbox]:checked")].map((c) => c.value).join(", ");
+  }
+  const el = field.querySelector(".q-input");
+  return el ? el.value.trim() : "";
 }
 
 function pad2(value) {
@@ -299,11 +327,12 @@ function buildBookingPayload(form) {
     birthday_message_opt_in: Boolean(data.birth_date),
     profile,
   }) : "none";
-  const answers = [...document.querySelectorAll("#questionnaire-fields textarea")]
-    .map((el) => {
-      const questionText = el.dataset.questionText || "";
-      return { question_id: el.dataset.questionId || null, question_text: questionText, answer_text: el.value.trim() };
-    })
+  const answers = [...document.querySelectorAll("#questionnaire-fields .q-field")]
+    .map((field) => ({
+      question_id: field.dataset.questionId || null,
+      question_text: field.dataset.questionText || "",
+      answer_text: readQuestionField(field),
+    }))
     .filter((answer) => answer.answer_text);
   data.answers = answers;
   data.topic = answers[0]?.answer_text || "";
@@ -399,11 +428,8 @@ function goToStep(step) {
 }
 
 function collectAnswers() {
-  return [...document.querySelectorAll("#questionnaire-fields textarea")]
-    .map((el) => {
-      const question = el.dataset.questionText || "";
-      return { question, answer: el.value.trim() };
-    })
+  return [...document.querySelectorAll("#questionnaire-fields .q-field")]
+    .map((field) => ({ question: field.dataset.questionText || "", answer: readQuestionField(field) }))
     .filter((item) => item.answer);
 }
 
@@ -446,7 +472,8 @@ function proceedToConfirm(form) {
     setMessage("#booking-message", t("booking.err.selectSlot", "日程を選択してください。"), "error");
     return;
   }
-  const missingRequired = [...document.querySelectorAll("#questionnaire-fields textarea[required]")].some((el) => !el.value.trim());
+  const missingRequired = [...document.querySelectorAll("#questionnaire-fields .q-field")]
+    .some((field) => field.dataset.required && !readQuestionField(field));
   if (missingRequired) {
     setMessage("#booking-message", t("booking.err.requiredQuestions", "必須の質問にご回答ください。"), "error");
     return;

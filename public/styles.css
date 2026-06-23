@@ -214,6 +214,12 @@ h3{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:-.01
 .hero{padding:clamp(40px,7vw,84px) 0 clamp(40px,6vw,72px)}
 .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(28px,5vw,64px);align-items:center}
 .hero h1{font-size:clamp(40px,6.4vw,84px);line-height:1.08;margin:18px 0}
+/* ヒーロー見出しは行ごとに block 化（"。" が次行頭に回り込むのを防ぐ）。空行(en/zhのh1b2)は畳む。 */
+.hero h1 .hero-line{display:block}
+.hero h1 .hero-line:empty{display:none}
+/* 料金比較表：Pro 列を強調（mock 準拠の視覚回帰修正）。Pro は3列目。 */
+#compare table th:nth-child(3),#compare table td:nth-child(3){background:var(--accent-soft)}
+#compare table th:nth-child(3){color:var(--accent-ink)}
 .hero .lead{max-width:46ch;color:var(--ink-2);font-size:clamp(16px,1.4vw,18px);line-height:1.85}
 .hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
 .hero-meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:20px;color:var(--muted);font-size:13px;font-weight:600}

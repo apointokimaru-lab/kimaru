@@ -75,6 +75,9 @@
           ${p.profile_headline ? `<p class="lead">${escapeHtml(p.profile_headline)}</p>` : ''}
         </div>
       </div>`);
+      // 予約導線（mock 準拠・/b/<slug> へ）。公開プロフィールに予約CTAが無いのは集客機会の損失。
+      const bookSlug = resolveSlug();
+      if (bookSlug) blocks.push(`<div class="form-actions pp-book" style="margin:2px 0 18px"><a class="button primary" href="/b/${encodeURIComponent(bookSlug)}">${escapeHtml(T('pp.bookCta', 'この人に予約する →'))}</a></div>`);
       if (p.profile_bio_rich) blocks.push(`<section class="assist-block pp-bio">${formatRich(p.profile_bio_rich)}</section>`);
       if (p.profile_strengths) blocks.push(`<section class="assist-block"><h3 class="pp-heading"${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(T('pp.strengths', '強み・得意なこと'))}</h3><p>${escapeHtml(p.profile_strengths)}</p></section>`);
       if (p.profile_offer) blocks.push(`<section class="assist-block"><h3 class="pp-heading"${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(T('pp.offer', '提供できる価値'))}</h3><p>${escapeHtml(p.profile_offer)}</p></section>`);

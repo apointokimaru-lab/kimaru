@@ -113,6 +113,11 @@
         <div class="side-card">
           <h3 data-i18n="dash.todo.heading">要対応</h3>
           <div class="todo">
+            <a class="has" href="/pending-questions.html" id="todo-pending" style="display:none">
+              <span class="ico"></span>
+              <span class="tx"><b data-i18n="dash.todo.pending">回答待ちの質問</b><small data-i18n="dash.todo.pendingDesc">相手（会員）からの質問に回答</small></span>
+              <span class="cnt" id="todo-pending-count">0</span>
+            </a>
             <a class="has" href="/answers.html">
               <span class="ico"></span>
               <span class="tx"><b data-i18n="dash.todo.answers">未読のアンケート回答</b><small data-i18n="dash.todo.answersDesc">面談前に相手の回答を確認</small></span>
@@ -185,6 +190,16 @@
         document.getElementById('upgrade-panel')?.remove();
       }
     });
+    // 回答待ちの相互質問（#20）が1件以上あれば「要対応」に件数つきで表示。
+    fetch('/api/pending-answers').then((r) => (r.ok ? r.json() : null)).then((d) => {
+      const n = (d && d.count) || 0;
+      if (n > 0) {
+        const cnt = document.getElementById('todo-pending-count');
+        if (cnt) cnt.textContent = String(n);
+        const el = document.getElementById('todo-pending');
+        if (el) el.style.display = '';
+      }
+    }).catch(() => {});
   </script>
   <script src="/i18n.js" defer></script>
   <script src="/app.js" defer></script>

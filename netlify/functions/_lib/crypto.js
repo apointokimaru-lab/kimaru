@@ -156,6 +156,17 @@ function verifyBookingToken(bookingId, token) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+// 会員同士の相互質問（#20）: ホストが予約者の質問に回答する管理リンク用トークン。
+// 予約 id から HMAC で導出。manage トークン（"booking:"）とは別 namespace なので、
+// 予約者が持つ manage リンクでは回答ページにアクセスできない（ホスト宛メールにだけ載る）。
+function hostAnswerToken(bookingId) {
+  return sign(`hostanswer:${bookingId}`);
+}
+function verifyHostAnswerToken(bookingId, token) {
+  if (!bookingId || !token) return false;
+  return timingEqual(token, sign(`hostanswer:${bookingId}`));
+}
+
 // 営業メールのワンクリック解除リンク用の署名トークン。メールアドレスから HMAC で導出（DB列不要・期限なし）。
 function mailUnsubToken(email) {
   return sign(`unsub:${String(email || "").trim().toLowerCase()}`);
@@ -186,4 +197,4 @@ function verifyTimedToken(purpose, id, ts, token, maxAgeMs) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-module.exports = { sessionCookie, clearSessionCookie, verifySession, adminSessionCookie, clearAdminSessionCookie, verifyAdminSession, encrypt, decrypt, hashPassword, verifyPassword, bookingToken, verifyBookingToken, mailUnsubToken, verifyMailUnsubToken, timedToken, verifyTimedToken, timingEqual, hmacBase64, oauthStateCookie, clearOauthStateCookie, verifyOauthState };
+module.exports = { sessionCookie, clearSessionCookie, verifySession, adminSessionCookie, clearAdminSessionCookie, verifyAdminSession, encrypt, decrypt, hashPassword, verifyPassword, bookingToken, verifyBookingToken, hostAnswerToken, verifyHostAnswerToken, mailUnsubToken, verifyMailUnsubToken, timedToken, verifyTimedToken, timingEqual, hmacBase64, oauthStateCookie, clearOauthStateCookie, verifyOauthState };

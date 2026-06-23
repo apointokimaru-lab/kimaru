@@ -68,10 +68,26 @@ OAuth コールバック。`code` をトークン交換し、`owners` を upsert
 - body: `{ visitor_name*, visitor_email*, start*, end*, topic?, guest_message?, answers?, filter_request?, birth_date_private?, location_type? }`
   - `filter_request` は `kind: "relationship_context"` の JSON（生年月日インサイト＝算命学＋数秘術）を許容。`birth_date_private="yes"` で生年月日を「非公開」にマスク。`guest_message` はゲスト→ホストへの質問・メッセージ（相互質問・#21）。
   - 検証: email 形式、`start < end`、`now ≤ start ≤ now+6ヶ月`。
-- 処理: `bookings` 作成 → 事前アンケート回答を `questionnaire_answers` へ保存 → `location_type=zoom` かつ Zoom設定時は Zoom 自動発行（`_lib/zoom.js`）→ `createCalendarEvent` → `google_event_id`・`meeting_url` 更新。ホスト通知に `guest_message` を反映。
+- 処理: `bookings` 作成 → 事前アンケート回答を `questionnaire_answers` へ保存 → `location_type=zoom` かつ Zoom設定時は Zoom 自動発行（`_lib/zoom.js`）→ `createCalendarEvent` → `google_event_id`・`meeting_url` 更新。ホスト通知に `guest_message` を反映。**予約者がキマル会員（`visitor_email`↔`owners`・自己予約除く）かつ `guest_message` ありなら、ホスト通知メールに回答ページ導線を付与（#20）**。
 - 応答: `{ ok: true, booking, google, manage_url }`
 - DB: `bookings`, `questionnaire_answers`
 - 外部: Google Calendar events、（設定時）Zoom API
+
+---
+
+### `GET|POST /api/booking-answer` — 認証不要（`hostAnswerToken` で保護）
+会員同士の相互質問（#20）。ホストが予約者の質問(`guest_message`)に回答する。トークンは `sign("hostanswer:"+id)`＝**ホスト宛メールにのみ載る**（予約者の manage トークンとは別 namespace のため、予約者は回答ページにアクセス不可）。
+- GET `?id&t`: 回答ページ初期表示 → `{ question, visitor_name, start_at, answered, host_answer }`。`guest_message` 無しは 404。
+- POST `{ id, t, answer* }`: `bookings.host_answer`(+`host_answer_at`) を保存し、予約者へ「回答が届きました」メール送信。`{ ok: true }`。
+- DB: `bookings`（`host_answer` 列が未マイグレーションでも try/catch でメール送信は継続）
+
+---
+
+### `GET /api/pending-answers` — 要ログイン（`requireOwner`）
+会員同士の相互質問（#20）の「回答待ち」一覧。自分の予約で **相手がキマル会員（`visitor_email`↔`owners`・自分以外）かつ `guest_message` あり かつ 未回答(`host_answer` 空)** のものを返す。各件に回答ページ用 `hostAnswerToken` を同梱。
+- 応答: `{ count, items: [{ id, visitor_name, start_at, question, t }] }`
+- 利用: `pending-questions.html`（一覧→各件 `answer-question.html?id&t` へ）、ダッシュボード「要対応」の件数表示。
+- DB: `bookings`, `owners`（`host_answer` 列が未適用の環境では全件を未回答として扱う＝劣化動作）
 
 ---
 

@@ -21,6 +21,7 @@ const PROTECTED_PATHS = [
   "/schedule.html",
   "/answers.html",
   "/meeting.html",
+  "/pending-questions.html",
 ];
 
 // 運営向け画面：運営セッション（kimaru_admin_session）が必須。ユーザーログインとは無関係。

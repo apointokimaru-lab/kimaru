@@ -1,5 +1,5 @@
 const { appBaseUrl } = require("./config");
-const { bookingToken } = require("./crypto");
+const { bookingToken, hostAnswerToken } = require("./crypto");
 
 // 予約メール・管理リンクで共通利用する書式ヘルパ。
 const LOCATION_LABELS = {
@@ -26,6 +26,11 @@ function manageUrl(bookingId) {
   return `${appBaseUrl()}/manage-booking.html?id=${encodeURIComponent(bookingId)}&t=${encodeURIComponent(bookingToken(bookingId))}`;
 }
 
+// 会員同士の相互質問（#20）: ホストが予約者の質問に回答する回答ページの絶対URL（ホスト宛トークン付き）。
+function answerUrl(bookingId) {
+  return `${appBaseUrl()}/answer-question.html?id=${encodeURIComponent(bookingId)}&t=${encodeURIComponent(hostAnswerToken(bookingId))}`;
+}
+
 // 事前アンケート回答の要約（メール本文用）。
 function answersSummary(answers) {
   return (Array.isArray(answers) ? answers : [])
@@ -34,4 +39,4 @@ function answersSummary(answers) {
     .join("\n\n");
 }
 
-module.exports = { LOCATION_LABELS, formatJst, manageUrl, answersSummary };
+module.exports = { LOCATION_LABELS, formatJst, manageUrl, answerUrl, answersSummary };

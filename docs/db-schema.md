@@ -47,7 +47,7 @@ erDiagram
 | **google_connections** | Google カレンダー連携トークン（現行） | `owner_id`(uniq), `calendar_id`, `access_token`, `refresh_token`, `expires_at` |
 | **booking_pages** | 予約ページ設定 | `owner_id`, `slug`(uniq), `duration_minutes`(30〜120), `buffer_before/after_minutes`(0〜60), `booking_range_months`(1〜6), `location_type`, `location_value`, `timezone`, `is_active`, `frozen`(降格時凍結・#174) |
 | **availability_settings** | 受付可能時間（曜日・時間帯） | `owner_id`, `day_of_week`(0-6), `start_time`, `end_time` |
-| **bookings** | 予約 | `owner_id`, `booking_page_id`, `visitor_name/email`, `topic`, `guest_message`(相互質問・#21), `visitor_birth_date`(+`_private`), `relationship_profile`(jsonb), `start_at/end_at`, `meeting_url`, `location_type`, `google_event_id`, `status`。※`birthday_message_opt_in` は廃止機能の遺物（#180） |
+| **bookings** | 予約 | `owner_id`, `booking_page_id`, `visitor_name/email`, `topic`, `guest_message`(相互質問・#21), `host_answer`(+`host_answer_at`／会員同士の相互質問へのホスト回答・#20), `visitor_birth_date`(+`_private`), `relationship_profile`(jsonb), `start_at/end_at`, `meeting_url`, `location_type`, `google_event_id`, `status`。※`birthday_message_opt_in` は廃止機能の遺物（#180） |
 | **questionnaire_questions** | 事前アンケート質問 | `booking_page_id`, `question_text`, `is_required`, `sort_order` |
 | **questionnaire_answers** | 事前アンケート回答 | `booking_id`, `question_id`, `answer_text` |
 | **appointment_logs** | 面談ログ（相手管理） | `owner_id`, `visitor_email`, `keywords`, `notes`, `next_action`, `scores`(jsonb・印象スコア構造化・#175) |
@@ -58,7 +58,7 @@ erDiagram
 | **invite_codes** | 招待コード（Cat Key）マスタ | `code`(uniq), `plan_grant`(free/pro), `is_active`。初期値 `NEKO20240222`=pro |
 | **cat_key_events** | Cat Key 適用・取消・無効の監査 | `owner_id`, `email`, `action`, `code`, `ip_address`, `user_agent`, `metadata`(jsonb) |
 | **payment_events** | Square 等の決済イベント記録 | `owner_id`, `provider`, `provider_event_id`, `event_type`, `raw_payload`(jsonb) |
-| **operators** | 運営者アカウント（**`owners` とは別管理**）。運営者管理画面（`/operators.html`）で追加・削除・一覧 | `id`, `email`(uniq), `name`, `is_active`, `created_at`、（将来）`password_hash`。※ ログインは `/operator-login.html` → 運営セッション `kimaru_admin_session`（ユーザーと別系統）。認証は当面 共有管理キー `CAT_KEY_ADMIN_SECRET`、本表は運営者ロスター・監査の実行者表示用。将来は運営者ごとのメール+パスワード認証へ |
+| **operators** | 運営者アカウント（**`owners` とは別管理**）。運営者管理画面（`/operators.html`）で追加・削除・一覧 | `id`, `email`(uniq), `name`, `is_active`, `created_at`、（将来）`password_hash`。※ ログインは `/operator-login.html` → 運営セッション `kimaru_admin_session`（ユーザーと別系統）。認証は当面 共有管理キー `ADMIN_SECRET`、本表は運営者ロスター・監査の実行者表示用。将来は運営者ごとのメール+パスワード認証へ |
 | **free_signups** | 無料登録フォームの申請 | `name`, `email`, `purpose`, `invite_code`, `language` |
 | **users** | ⚠️ レガシーのアカウント表（旧設計） | `email`(uniq), `name`, `plan`, `invite_code` |
 | **google_calendar_tokens** | ⚠️ レガシーのトークン表（旧設計） | `user_id`/`owner_id`, `access_token`, `refresh_token`, `expiry_date` |
@@ -87,7 +87,7 @@ erDiagram
 
 ## 打ち合わせ反映に伴うスキーマ変更（進捗）
 
-- ✅ **複数の予約ページ**（[features/24](./features/24-multiple-booking-pages.md)）: `slug` グローバル一意維持・オーナー複数行・保存数上限（無料2/Pro5、frozen は上限カウント除外・#174）。
+- ✅ **複数の予約ページ**（[features/24](./features/24-multiple-booking-pages.md)）: `slug` グローバル一意維持・オーナー複数行・保存数上限（無料1/Pro2/プレミアム5・決定27、frozen は上限カウント除外・#174）。
 - ✅ **受付期間 無料2ヶ月化**（[features/05](./features/05-booking-range.md)）: `booking_range_months` CHECK は `(1〜6)`、無料は2ヶ月にクランプ。
 - ✅ **会員同士の相互質問**（[features/20](./features/20-member-mutual-questions.md)）: `bookings.guest_message`（最小実装・#21）。本格的な相互アンケート交換は将来。
 - ✅ **議事録連携**（[features/23](./features/23-meeting-minutes.md)）: 汎用 inbound webhook（`meeting-notes-webhook`）→ `appointment_logs` 保存（#24・env-gate）。専用議事録テーブルは将来。
@@ -99,4 +99,4 @@ erDiagram
 - 🔜 **事前アンケート選択式**（[features/10](./features/10-questionnaire.md)）: `questionnaire_questions` に回答形式・選択肢カラム。
 - 🔜 **高度プロフィールの画像**（[features/17](./features/17-profile.md)）: 画像保存先（Supabase Storage 等）が未決のため見送り（#176はテキスト装飾＋公開ページのみ実装）。
 - 🔜 **算命学の日柱精密化**（[features/16](./features/16-birthday.md)）: 現状は年柱五行＋数秘ライフパス（#20）。日柱は暦データが必要。
-- **運営者の分離**（[features/22](./features/22-admin-console.md)、決定 2026-06-04）: 運営者を `owners` と別テーブル `operators`（`email` uniq, `name`, `is_active`、将来 `password_hash`）で管理。運営ログイン `/operator-login.html` ＋ **運営専用セッション `kimaru_admin_session`**（ユーザーの `kimaru_session` と別系統）を新設。運営者管理（一覧/追加/削除）UI・API を追加。認証は共有管理キー `CAT_KEY_ADMIN_SECRET` を継続（将来 運営者ごとのメール+パスワードへ）。
+- **運営者の分離**（[features/22](./features/22-admin-console.md)、決定 2026-06-04）: 運営者を `owners` と別テーブル `operators`（`email` uniq, `name`, `is_active`、将来 `password_hash`）で管理。運営ログイン `/operator-login.html` ＋ **運営専用セッション `kimaru_admin_session`**（ユーザーの `kimaru_session` と別系統）を新設。運営者管理（一覧/追加/削除）UI・API を追加。認証は共有管理キー `ADMIN_SECRET` を継続（将来 運営者ごとのメール+パスワードへ）。

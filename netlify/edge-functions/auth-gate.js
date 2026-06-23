@@ -18,6 +18,10 @@ const PROTECTED_PATHS = [
   "/ai-assist.html",
   "/settings.html",
   "/square.html",
+  "/schedule.html",
+  "/answers.html",
+  "/meeting.html",
+  "/pending-questions.html",
 ];
 
 // 運営向け画面：運営セッション（kimaru_admin_session）が必須。ユーザーログインとは無関係。
@@ -28,8 +32,12 @@ const OPERATOR_PATHS = [
 
 // 共通ヘッダー（単一ソース）。各ページの目印 <!-- site-header --> をこれで置換する。
 // 表示の出し分けは body[data-auth] + CSS（.app-only / .guest-only）が担当。
+// 朱印ヘッダー。ナビ表示は body[data-auth]（.app-only/.guest-only）が担当。
+// <900px は CSS のみのハンバーガー（#km-nav-toggle チェックボックスハック）で開閉する（JSなし）。
 const SITE_HEADER = `<header class="site-header">
-    <a class="brand" href="/" data-i18n="common.brand">キマル</a>
+    <a class="brand" href="/" data-i18n="common.brand"><span class="brand-dot"></span>キマル</a>
+    <input type="checkbox" id="km-nav-toggle">
+    <label class="nav-burger" for="km-nav-toggle" aria-label="Menu"><span></span><span></span><span></span></label>
     <nav>
       <a class="guest-only" href="/plan.html" data-i18n="nav.pricing">料金</a>
       <a class="guest-only" href="/signup.html" data-i18n="nav.signup">無料登録</a>
@@ -41,17 +49,20 @@ const SITE_HEADER = `<header class="site-header">
       <a class="app-only" href="/ai-assist.html" data-i18n="nav.aiAssist">AIアシスト</a>
       <a class="app-only" href="/settings.html" data-i18n="nav.settings">設定</a>
       <select class="lang-select" data-language-select aria-label="Language"></select>
+      <a class="app-only nav-avatar" href="/settings.html" aria-hidden="true">キ</a>
     </nav>
   </header>`;
 
 // 共通フッター（法務リンク・全ページ共通）。目印 <!-- site-footer --> を置換。
-const SITE_FOOTER = `<footer class="footer">
-    <nav class="footer-nav">
-      <a href="/terms.html" data-i18n="footer.terms">利用規約</a>
-      <a href="/privacy.html" data-i18n="footer.privacy">プライバシーポリシー</a>
-      <a href="/tokushoho.html" data-i18n="footer.tokushoho">特定商取引法に基づく表記</a>
-    </nav>
-    <p class="footer-copy" data-i18n="footer.copy">© 2026 キマル</p>
+const SITE_FOOTER = `<footer class="foot footer">
+    <div class="foot-in">
+      <nav class="footer-nav">
+        <a href="/terms.html" data-i18n="footer.terms">利用規約</a>
+        <a href="/privacy.html" data-i18n="footer.privacy">プライバシーポリシー</a>
+        <a href="/tokushoho.html" data-i18n="footer.tokushoho">特定商取引法に基づく表記</a>
+      </nav>
+      <p class="footer-copy" data-i18n="footer.copy">© 2026 キマル</p>
+    </div>
   </footer>`;
 
 const SESSION_MAX_AGE_MS = 2592000 * 1000; // 30日（Cookie の Max-Age と一致）

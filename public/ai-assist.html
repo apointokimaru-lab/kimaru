@@ -4,41 +4,55 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="aa.pageTitle">キマル - AIアシスト</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-i18n-title="aa.pageTitle">
   <!-- site-header -->
 
-  <main class="shell admin-grid">
-    <section class="panel wide premium-surface">
+  <main class="shell">
+    <!-- ページヘッダ -->
+    <div class="pagehead">
+      <span class="eyebrow" data-i18n="aa.intro.eyebrow">AIアシスト（ルールベース）</span>
+      <div class="row-between" style="margin:12px 0 6px">
+        <h1 style="margin:0" data-i18n="aa.hero.title">AIアシスト</h1>
+        <span class="premium-badge badge-premium" data-i18n="plan.premium">プレミアム</span>
+      </div>
+      <p class="sub"><span data-i18n="aa.hero.descLead">相手データから、最初の入り方・刺さる話題・次の一手まで。</span><strong data-i18n="aa.hero.descStrong">本物のAI提案（GPT-5.4 Mini）はプレミアム（¥2,200/月）で近日公開</strong><span data-i18n="aa.hero.descTail">します。今は Pro 以上でルールベースの提案を今すぐお試しいただけます。</span></p>
+    </div>
+
+    <!-- 近日公開アナウンス（プレミアム面） -->
+    <section class="panel wide premium-surface" style="margin-top:24px">
       <span class="coming-soon-tag" data-i18n="pricing.premium.comingSoon">近日公開（フェーズ2）</span>
-      <h1 data-i18n="aa.hero.title">AIアシスト</h1>
-      <p><span data-i18n="aa.hero.descLead">相手データから、最初の入り方・刺さる話題・次の一手まで。</span><strong data-i18n="aa.hero.descStrong">本物のAI提案（GPT-5.4 Mini）はプレミアム（¥2,200/月）で近日公開</strong><span data-i18n="aa.hero.descTail">します。今は Pro 以上でルールベースの提案を今すぐお試しいただけます。</span></p>
-    </section>
-    <section class="panel wide pro-feature">
-      <p class="eyebrow" data-i18n="aa.intro.eyebrow">AIアシスト（ルールベース）</p>
-      <h2 data-i18n="aa.intro.title">プロフィールと相手データから、関係構築の最適解</h2>
-      <p class="muted" data-i18n="aa.intro.desc">相手管理に保存した予約内容、面談メモ、印象スコアを使って、最初の入り方・刺さりやすい話題・次の一手を整理します。プレミアム公開後は、同じ入力で本物のAIが提案を生成します。</p>
-      <p id="ai-assist-status" class="message" data-i18n="aa.status.loading">データを読み込んでいます...</p>
+      <h2 data-i18n="aa.aurora.title">相手データから次回アポの戦略を提案</h2>
+      <p data-i18n="aa.aurora.desc">蓄積した相手データから、最初の入り方・刺さる話題・次の一手をAIがまとめます。プレミアムで月300回まで利用できます。</p>
     </section>
 
-    <section id="ai-pro-lock" class="panel wide">
-      <p class="eyebrow" data-i18n="aa.lock.eyebrow">Pro限定</p>
-      <h1 data-i18n="aa.lock.title">AIアシストはPro版の機能です</h1>
-      <p class="muted" data-i18n="aa.lock.desc">あなたのプロフィールと、相手管理に貯めたデータ（予約・面談メモ・印象スコア）を照合し、会う前後の打ち手を提案します。Pro版（または猫の鍵で承認されたアカウント）でご利用いただけます。</p>
+    <!-- アップグレード案内（無料・Pro → アップセル） -->
+    <section id="ai-pro-lock" class="panel wide lockcard premium-lock" style="margin-top:18px">
+      <p class="eyebrow"><span data-i18n="aa.lock.eyebrow">AIアシスト</span> <span class="premium-badge badge-premium" data-i18n="plan.premium">プレミアム</span></p>
+      <h2 data-i18n="aa.lock.title">AIアシストはプレミアムプランの機能です</h2>
+      <p class="muted" data-i18n="aa.lock.desc">本物のAIが、あなたのプロフィールと相手管理のデータ（予約・面談メモ・印象スコア）から、会う前後の打ち手を提案します。AIアシストはプレミアムプラン（¥2,200/月）の機能で、¥980会員が増えたフェーズ2で開放予定です。Pro以上ならルールベースの提案を今すぐお試しいただけます。</p>
       <ul class="feature-list">
         <li><strong data-i18n="aa.lock.li1Term">最初の入り方</strong><span data-i18n="aa.lock.li1Desc">：相手のタイプに合わせた会話の始め方を提案。</span></li>
         <li><strong data-i18n="aa.lock.li2Term">刺さりやすい話題</strong><span data-i18n="aa.lock.li2Desc">：目標・関心・印象スコアから話題を抽出。</span></li>
         <li><strong data-i18n="aa.lock.li3Term">避けた方がいい入り方</strong><span data-i18n="aa.lock.li3Desc">：相手に合わない進め方を回避。</span></li>
         <li><strong data-i18n="aa.lock.li4Term">次の一手</strong><span data-i18n="aa.lock.li4Desc">：次回日程・提案・紹介など、関係を進める行動を提示。</span></li>
       </ul>
-      <p><a class="button primary" href="/square.html" data-i18n="aa.lock.cta">1ヶ月無料でProを始める / Cat Key</a></p>
+      <div class="actions">
+        <a class="button premium" href="/plan.html#premium" data-i18n="aa.lock.ctaPremium">プレミアムの詳細を見る</a>
+        <a class="button secondary" href="/square.html" data-i18n="aa.lock.cta">Proでルールベースを試す / Cat Key</a>
+      </div>
     </section>
 
-    <section class="panel wide pro-feature">
+    <!-- 概要＋ステータス（Pro以上） -->
+    <section class="panel wide pro-feature" style="margin-top:18px">
+      <h2 data-i18n="aa.intro.title">プロフィールと相手データから、関係構築の最適解</h2>
+      <p class="muted" data-i18n="aa.intro.desc">相手管理に保存した予約内容、面談メモ、印象スコアを使って、最初の入り方・刺さりやすい話題・次の一手を整理します。プレミアム公開後は、同じ入力で本物のAIが提案を生成します。</p>
+      <p id="ai-assist-status" class="message" data-i18n="aa.status.loading">データを読み込んでいます...</p>
+    </section>
+
+    <!-- プロフィールシート（Pro以上） -->
+    <section class="panel wide pro-feature" style="margin-top:18px">
       <p class="eyebrow" data-i18n="aa.profile.eyebrow">プロフィールシート</p>
       <h2 data-i18n="aa.profile.title">こちら側のプロフィールを反映する</h2>
       <p id="owner-profile-source" class="message" data-i18n="aa.profile.sourceChecking">ログイン中のプロフィールを確認しています...</p>
@@ -72,7 +86,8 @@
       <p id="profile-sheet-message" class="message"></p>
     </section>
 
-    <section class="panel wide pro-feature">
+    <!-- 相手データ照合（Pro以上） -->
+    <section class="panel wide pro-feature" style="margin-top:18px">
       <p class="eyebrow" data-i18n="aa.match.eyebrow">相手データ照合</p>
       <h2 data-i18n="aa.match.title">相手を選んで提案を作る</h2>
       <form id="ai-assist-form" class="inline-form">
@@ -83,7 +98,8 @@
       <div id="ai-assist-candidates" class="list"></div>
     </section>
 
-    <section class="panel wide pro-feature">
+    <!-- 提案結果（Pro以上） -->
+    <section class="panel wide pro-feature" style="margin-top:18px">
       <p class="eyebrow" data-i18n="aa.result.eyebrow">提案結果</p>
       <h2 data-i18n="aa.result.title">関係構築の最適解</h2>
       <div id="ai-assist-result" class="soft-box">
@@ -91,7 +107,6 @@
       </div>
     </section>
   </main>
-
 
   <!-- site-footer -->
 
@@ -382,7 +397,7 @@
         // チラ見え防止：Pro機能は CSS で既定非表示。判定後に body クラスで出し分ける。
         if (!['pro', 'premium'].includes(currentOwner.plan)) {
           document.body.classList.add('plan-free');
-          status.textContent = 'この機能はPro版でご利用いただけます。';
+          status.textContent = 'AIアシストはプレミアムプランの機能です。Pro以上でルールベースの提案をお試しいただけます。';
           return;
         }
         isPremium = currentOwner.plan === 'premium';
@@ -438,6 +453,7 @@
       loadRecords();
     });
   </script>
+  <script src="/plan.js" defer></script>
   <script src="/i18n.js" defer></script>
 </body>
 </html>

@@ -4,7 +4,7 @@ const { optional } = require("./_lib/config");
 const { adminSessionCookie, clearAdminSessionCookie } = require("./_lib/crypto");
 
 // 運営ログイン（ユーザーの /api/auth-login とは完全に別系統）。
-// 共有管理キー CAT_KEY_ADMIN_SECRET を検証し、運営専用セッション kimaru_admin_session を発行する。
+// 共有管理キー ADMIN_SECRET を検証し、運営専用セッション kimaru_admin_session を発行する。
 function timingEqual(a, b) {
   const x = Buffer.from(String(a));
   const y = Buffer.from(String(b));
@@ -19,8 +19,8 @@ exports.handler = async (event) => {
     return json(200, { ok: true }, { "Set-Cookie": clearAdminSessionCookie() });
   }
 
-  const secret = optional("CAT_KEY_ADMIN_SECRET", optional("ADMIN_SECRET", ""));
-  if (!secret) return json(500, { error: "運営ログインが未設定です（CAT_KEY_ADMIN_SECRET 未設定）。" });
+  const secret = optional("ADMIN_SECRET", "");
+  if (!secret) return json(500, { error: "運営ログインが未設定です（ADMIN_SECRET 未設定）。" });
 
   const key = String(body.key || "");
   if (!timingEqual(key, secret)) return json(401, { error: "管理者キーが違います。" });

@@ -42,3 +42,11 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    # HTTPS 強制（1年・サブドメイン含む）。preload は不可逆なので付けない（必要なら追加）。
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    # 使わない強力機能を無効化。
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()"
+    # CSP: ノービルドでインラインscriptが多いため script/style は 'unsafe-inline'（nonce化はビルド導入時に）。
+    # それでも frame-ancestors/object-src/base-uri/form-action と外部オリジン制限で防御を強化。
+    # 外部許可: Google Fonts(style/font)、画像は https 全般（Googleアバター等）。fetch は同一オリジンのみ。
+    Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; upgrade-insecure-requests"

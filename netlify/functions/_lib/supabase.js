@@ -7,7 +7,11 @@ function headers() {
 
 async function sb(path, options = {}) {
   const url = `${required("SUPABASE_URL").replace(/\/$/, "")}/rest/v1/${path}`;
-  const response = await fetch(url, { headers: { ...headers(), Prefer: "return=representation", ...(options.headers || {}) }, ...options });
+  // headers は options から分離して合成する。`...options` を後に展開すると
+  // options.headers がマージ済みヘッダ（apikey/Authorization 含む）を丸ごと上書きして
+  // 「No API key found」になるため（addEmailSuppression 等の Prefer 指定呼び出しが該当）。
+  const { headers: extraHeaders, ...rest } = options;
+  const response = await fetch(url, { headers: { ...headers(), Prefer: "return=representation", ...(extraHeaders || {}) }, ...rest });
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
   if (!response.ok) throw new Error(data?.message || data?.hint || "データの取得・保存に失敗しました");

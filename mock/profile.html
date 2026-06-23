@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mock - キマル（新ルック探索）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/mock.css" />
+</head>
+<body>
+<!-- mock: プレースホルダ内容のみ（mock/README.md のルール参照）。 -->
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="/"><span class="brand-dot"></span>キマル</a>
+    <nav class="nav-links">
+      <a href="/dashboard.html">ホーム</a>
+      <a href="/booking-settings.html">予約設定</a>
+      <a href="/contacts.html">相手管理</a>
+      <a href="/ai-assist.html">AIアシスト</a>
+      <a href="/settings.html">設定</a>
+    </nav>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="badge badge-pro">Pro</span>
+      <span class="avatar">田</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="shell">
+    <div class="pagehead">
+      <span class="eyebrow">プロフィール</span>
+      <h1>プロフィール設定</h1>
+      <p class="sub">リマインドや公開ページに表示される情報です。</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;margin-top:26px">
+
+      <!-- LEFT: 編集フォーム -->
+      <section class="panel">
+        <h2 style="font-family:var(--display);font-size:20px;margin-bottom:4px">編集</h2>
+        <p class="field-note" style="margin-bottom:16px">入力内容は右のプレビューにそのまま反映されます。</p>
+        <div class="field">
+          <label for="pf-name">表示名</label>
+          <input id="pf-name" type="text" value="田中さくら" />
+          <span class="field-note">リマインドメールや公開ページに表示されます。</span>
+        </div>
+        <div class="field">
+          <label for="pf-title">肩書き</label>
+          <input id="pf-title" type="text" value="キャリアコンサルタント" />
+        </div>
+        <div class="field">
+          <label for="pf-bio">自己紹介</label>
+          <textarea id="pf-bio">はじめまして。これまで300名以上のキャリア面談を担当してきました。等身大で話せる時間にしましょう。</textarea>
+          <span class="field-note">120字程度までが読みやすい目安です。</span>
+        </div>
+        <div class="field">
+          <label for="pf-keywords">関心・キーワード</label>
+          <input id="pf-keywords" type="text" value="キャリア, 副業, 1on1" />
+          <span class="field-note">カンマ区切りでタグとして表示されます。</span>
+        </div>
+        <div class="field">
+          <label for="pf-slug">公開URL（slug）</label>
+          <input id="pf-slug" type="text" value="tanaka-sakura" />
+          <span class="field-note">公開URL：kimaru.app/<b style="color:var(--accent-ink)">tanaka-sakura</b></span>
+        </div>
+      </section>
+
+      <!-- RIGHT: プレビュー -->
+      <section class="panel">
+        <div class="row-between" style="margin-bottom:16px">
+          <h2 style="font-family:var(--display);font-size:20px">プレビュー</h2>
+          <span class="tag">公開ページの見え方</span>
+        </div>
+        <div class="profile-hero">
+          <div class="profile-av">田</div>
+          <div>
+            <div style="font-family:var(--display);font-weight:700;font-size:24px">田中さくら</div>
+            <div class="muted">キャリアコンサルタント</div>
+          </div>
+        </div>
+        <p style="color:var(--ink-2);margin-top:16px">はじめまして。これまで300名以上のキャリア面談を担当してきました。等身大で話せる時間にしましょう。</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+          <span class="tag">キャリア</span>
+          <span class="tag">副業</span>
+          <span class="tag">1on1</span>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="panel row-between" style="margin-top:18px">
+      <span class="field-note">変更は保存するまで公開ページに反映されません。</span>
+      <button class="btn btn-primary" style="margin-top:0">保存する</button>
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="shell foot-in">
+    <div><a href="/">キマル</a><a href="/plan.html">料金</a><a href="#">利用規約</a><a href="#">プライバシー</a></div>
+    <div>© 2026 Kimaru — 日程が、キマる。</div>
+  </div>
+</footer>
+</body>
+</html>

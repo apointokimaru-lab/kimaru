@@ -161,6 +161,9 @@ create table if not exists questionnaire_questions (
   booking_page_id uuid not null references booking_pages(id) on delete cascade,
   question_text text not null,
   is_required boolean not null default false,
+  -- 回答形式（決定27）: 無料=text のみ / Pro・プレミアム=select(プルダウン)・checkbox も可。
+  answer_type text not null default 'text' check (answer_type in ('text','select','checkbox')),
+  options jsonb not null default '[]'::jsonb, -- select/checkbox の選択肢（文字列配列）
   sort_order int not null default 0,
   created_at timestamptz not null default now()
 );
@@ -185,6 +188,17 @@ create table if not exists appointment_logs (
 );
 -- 印象スコアの構造化保存（#175）。相手ごとの集約・平均算出に使う。
 alter table appointment_logs add column if not exists scores jsonb not null default '{}'::jsonb;
+
+-- 手動で追加した相手（決定27・2026-06-19）。プレミアム限定。予約していない相手も相手一覧に登録できる。
+create table if not exists manual_contacts (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references owners(id) on delete cascade,
+  name text not null default '',
+  email text not null default '',
+  topic text not null default '',
+  note text not null default '',
+  created_at timestamptz not null default now()
+);
 
 create table if not exists free_signups (
   id uuid primary key default gen_random_uuid(),
@@ -254,7 +268,7 @@ create table if not exists payment_events (
 );
 
 -- 運営者アカウント（owners=ユーザーとは完全に分離）。運営者管理画面（/operators.html）で一覧・追加・削除。
--- 認証は当面 共有管理キー CAT_KEY_ADMIN_SECRET。password_hash は将来の運営者ごとログイン用（現状は未使用・NULL可）。
+-- 認証は当面 共有管理キー ADMIN_SECRET。password_hash は将来の運営者ごとログイン用（現状は未使用・NULL可）。
 create table if not exists operators (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
@@ -301,6 +315,9 @@ alter table booking_pages add column if not exists slot_interval_minutes int;
 -- 無料降格時の超過ページ凍結フラグ（決定15・#174）。再昇格で復元。
 alter table booking_pages add column if not exists frozen boolean not null default false;
 alter table questionnaire_questions add column if not exists frozen boolean not null default false;
+-- 事前アンケートの選択式回答（決定27・2026-06-19）。無料=text 固定、Pro・プレミアムで select/checkbox 可。
+alter table questionnaire_questions add column if not exists answer_type text not null default 'text';
+alter table questionnaire_questions add column if not exists options jsonb not null default '[]'::jsonb;
 alter table bookings add column if not exists user_id uuid references users(id) on delete cascade;
 alter table bookings add column if not exists guest_name text not null default '';
 alter table bookings add column if not exists guest_email text not null default '';
@@ -314,6 +331,20 @@ alter table bookings add column if not exists meeting_url text not null default 
 alter table bookings add column if not exists location_type text not null default 'google_meet';
 -- ゲスト→ホストへの質問・メッセージ（会員同士の相互質問・#21）。
 alter table bookings add column if not exists guest_message text not null default '';
+-- 会員同士の相互質問・双方向（#20）: ホスト→予約者への回答。コード側は列欠如時 try/catch で劣化。
+alter table bookings add column if not exists host_answer text not null default '';
+alter table bookings add column if not exists host_answer_at timestamptz;
 alter table profiles add column if not exists data jsonb not null default '{}'::jsonb;
 alter table free_signups add column if not exists invite_code text not null default '';
 alter table free_signups add column if not exists language text not null default 'ja';
+
+-- レート制限（ブルートフォース/スパム抑止・セキュリティ強化 2026-06）。
+-- _lib/rate-limit.js が key="<bucket>:<ident>" 単位でウィンドウ内件数を数える。
+-- テーブル未適用時はコード側で fail-open（許可）にデグレードするので、未適用でも機能は壊れない。
+-- ※ 行は溜まるので、運用で定期的に古い行を削除するか、Supabase の cron/pg_cron で掃除すること。
+create table if not exists rate_limit_hits (
+  id uuid primary key default gen_random_uuid(),
+  key text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists rate_limit_hits_key_created_idx on rate_limit_hits (key, created_at desc);

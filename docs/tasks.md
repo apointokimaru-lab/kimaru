@@ -1,6 +1,6 @@
 # キマル タスク一覧（人間タスク / 実装タスク）
 
-最終更新: 2026-06-09
+最終更新: 2026-06-18
 
 タスクを **👤 人間が行うタスク**（外部アカウント・購入・審査・法務・認証情報など、コードでは完結しないもの）と **💻 実装タスク**（コードで行う開発作業）に分けて管理する。
 決定の根拠は [open-decisions.md](./open-decisions.md)、機能詳細は [features/README.md](./features/README.md)。
@@ -14,7 +14,8 @@
 コード化できない／人間の判断・外部操作・契約が必要なもの。
 
 ## A. インフラ・ドメイン
-- [ ] **独自ドメインを取得**し、Netlify に接続。`APP_BASE_URL` を確定。
+- [x] **独自ドメインを取得** → 〔2026-06-18〕**`kimaru-co.jp` をお名前.comで取得**（メール用途・サーバー無し／名義 一般社団法人ぴんころ）。
+- [ ] `kimaru-co.jp` を Netlify に接続し `APP_BASE_URL` を確定（DNS は Cloudflare 管理へ）。
 - [ ] **Netlify 本番プロジェクト**の設定（デプロイ、Scheduled Functions 有効化）。
 - [ ] **Supabase プロジェクト**を用意し、[`../supabase-schema.sql`](../supabase-schema.sql) を本番に適用（マイグレーション実行）。
 
@@ -39,16 +40,17 @@
 ## E. 環境変数（Netlify に設定）
 - [ ] `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `APP_BASE_URL`
 - [ ] `SESSION_SECRET` / `TOKEN_ENCRYPTION_KEY`（セッション署名・トークン暗号化）
-- [ ] `CAT_KEY_ADMIN_SECRET`（運営コンソール用）
+- [ ] `ADMIN_SECRET`（運営コンソール用）
 - [ ] メール: `RESEND_API_KEY` / `TRANSACTIONAL_EMAIL_FROM`(notify) / `MARKETING_EMAIL_FROM`(news) / `RESEND_WEBHOOK_SECRET` / `THANKYOU_CRON_SECRET`（or `CRON_SECRET`）
 - [ ] Square: アクセストークン・署名鍵・`SQUARE_WEBHOOK_SHARED_SECRET`・¥980プランID・`SQUARE_PREMIUM_PLAN_ID`
 - [ ] AIアシスト: `OPENAI_API_KEY` / `OPENAI_MODEL`(=gpt-5.4-mini) / `AI_ASSIST_MONTHLY_LIMIT`(=300)
 - [ ] （任意）Zoom: `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET`、議事録: `MEETING_NOTES_WEBHOOK_SECRET`
 
 ## F. 法務・運用
-- [ ] [legal/](./legal/) ドラフトの**差し込み情報を確定**（運営者名・責任者・所在地・連絡先・管轄裁判所・制定日）。
-- [ ] 利用規約・プライバシーポリシー・特商法表記の**法務レビュー**と**公開ページ掲載**。
-- [ ] **Cat Key の運用ルール**（最新コード管理・承認の判断基準・承認者）を決める。
+- [x] [legal/](./legal/) ドラフトの**差し込み情報を確定**（一般社団法人ぴんころ／代表理事 内山 文雄／西本町 fabbit／インボイス T1030005019164／電話 080-6882-9783）。
+- [ ] **法務3ページの最終確認（内山さん）** → 公開OK。※塩尻の修正（下記 💻 2026-06-18 フォローアップ）後に再確認。ChatGPT/Gemini 等でのセルフチェック含む。
+- [x] 連絡先メールを確定 → **`info@kimaru-co.jp`**（法務3ページ反映済み）。⚠️ **要 Cloudflare Email Routing で `info@kimaru-co.jp` → 既存Gmail へ受信転送設定**（未設定だと受信できない）。
+- [ ] **Cat Key の運用ルール**（最新コード管理・承認の判断基準・承認者）を決める。**Cat Key 2種（プロキー/マスターキー）**を誰に渡すかは内山さん判断。
 
 ## G. デザイン・コンテンツ（保留含む）
 - [ ] デザイン最終決定（青構成ベース＋タケダ氏相談）・ロゴ（保留9）。
@@ -90,6 +92,23 @@
 - [x] DBレガシー整理（非破壊・ドキュメント明示）（#25・[db-schema.md](./db-schema.md)）
 
 > 未着手の実装タスクは現状なし。新規要望が出たら本セクションに追加する。
+
+## 💻 2026-06-18 フォローアップ（実装・小修正）
+
+打ち合わせ [`mtg/2026-06-18.md`](./mtg/2026-06-18.md) で出た塩尻側の修正・調査タスク。
+
+- [x] **法務3ページの修正**〔2026-06-18〕: 特商法/規約から「¥2,200プラン」削除・連絡先メールを `info@kimaru-co.jp` へ・更新日を6/18に（`public/*.html` ＋ `docs/legal/*.md`）。
+- [x] **サービスURL表記揺れ**: 「Appoint」綴り揺れは Netlify サブドメイン `apointkimaru.netlify.app` のこと。本番 `kimaru-co.jp` 接続で解消（`docs/legal/README.md` 反映）。公開法務HTMLにURL直書きは無し。
+- [ ] **（運用）Netlify サイト/カスタムドメイン接続時**にサービスURLを `kimaru-co.jp` で確定（旧 netlify.app 表記は不要に）。
+- [ ] **Zoom 連携の実装時**にプライバシーポリシー外部連携欄へ追記（現状は Google 連携のみ）。
+- [ ] **OpenAI API 無料枠の調査・繋ぎ込みテスト**（実装段階で内山さんにカード登録依頼）。
+- [ ] 全体デザインの仕上げ＋告知用チラシ（AI生成）作成。
+- [x] **プラン段階 予約ページ 1/2/5 を確定・コード反映**（決定27）: `_lib/plan-limits.js`（PLAN_LIMITS集約）・`booking-page-save.js`・`_lib/plan-freeze.js`（3段階 `applyPlanLimits`）・`square-webhook.js`/`invite-apply.js`・`public/i18n.js`(ja/en/zh)・`booking-settings.html`。アンケートは2/5/5で従来どおり（変更なし）。
+- [ ] **（運用/移行）既存Proの2ページ超の扱い**: 現状は grandfather（新規作成のみ上限2・プラン変更時に新上限へ凍結）。全Proを即時に2ページへ強制縮小したい場合は手動リコンサイル（SQL or 管理操作）が必要。要方針確定。
+- [ ] **Cat Key 2種（プロキー=Pro / マスターキー=プレミアム）の実装**（現状は単一キー=Pro付与）。
+- [x] **事前アンケートの選択式回答（決定27・2026-06-19・実装済）**: 無料=自由入力のみ／Pro・プレミアム=選択式（プルダウン/チェックボックス）も設定可。`questionnaire_questions.answer_type/options`＋`app.js`設定UI＋`booking-page-save.js`プラン検証＋`availability.js`/`booking-pages.js`配信＋`booking-week.js`ゲスト表示。
+- [x] **相手の手動追加（決定27・2026-06-19・実装済）**: プレミアムのみ。`manual_contacts`＋`manual-contact.js`(`requirePremiumOwner`)＋`contacts.html`(`#manual-contact-form`/`.premium-feature`)、`owner-bookings.js` が相手一覧へマージ。
+- [ ] 👤 **DB適用**: `supabase-schema.sql` の `questionnaire_questions.answer_type`/`options` と `manual_contacts` テーブルを dev/本番の両Supabaseに手動適用（未適用でも自由入力/空配列にフォールバック）。
 
 ---
 

@@ -4,17 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="pp.pageTitle">キマル - プロフィール</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-i18n-title="pp.pageTitle">
   <!-- site-header -->
-  <main class="shell narrow">
-    <section class="panel profile-card" id="public-profile">
-      <p id="pp-status" class="message" data-i18n="pp.loading">プロフィールを読み込んでいます...</p>
-    </section>
+  <main class="section">
+    <div class="shell narrow">
+      <section class="panel profile-card" id="public-profile">
+        <p id="pp-status" class="message" data-i18n="pp.loading">プロフィールを読み込んでいます...</p>
+      </section>
+    </div>
   </main>
   <!-- site-footer -->
 
@@ -24,6 +23,10 @@
     const T = (k, fb) => (window.KimaruI18n ? window.KimaruI18n.t(k) : fb);
     function escapeHtml(v) {
       return String(v || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+    }
+    function initialOf(name) {
+      const s = String(name || '').trim();
+      return s ? escapeHtml(s.slice(0, 1)) : '·';
     }
     // 安全なリッチ整形: まずHTMLエスケープ→ 見出し(# )・太字(**)・改行のみ許可。
     function formatRich(text) {
@@ -62,11 +65,15 @@
 
     function render(p) {
       const accent = /^#[0-9a-fA-F]{6}$/.test(p.profile_accent_color || '') ? p.profile_accent_color : '';
+      const name = p.profile_name || T('pp.nameFallback', 'プロフィール');
       const blocks = [];
-      blocks.push(`<div class="assist-summary">
-        <h1${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(p.profile_name || T('pp.nameFallback', 'プロフィール'))}</h1>
-        ${p.profile_title ? `<p class="muted">${escapeHtml(p.profile_title)}</p>` : ''}
-        ${p.profile_headline ? `<p class="lead">${escapeHtml(p.profile_headline)}</p>` : ''}
+      blocks.push(`<div class="profile-hero">
+        <div class="profile-av"${accent ? ` style="background:${accent}1f;color:${accent}"` : ''}>${initialOf(p.profile_name)}</div>
+        <div class="assist-summary">
+          <h1${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(name)}</h1>
+          ${p.profile_title ? `<p class="muted">${escapeHtml(p.profile_title)}</p>` : ''}
+          ${p.profile_headline ? `<p class="lead">${escapeHtml(p.profile_headline)}</p>` : ''}
+        </div>
       </div>`);
       if (p.profile_bio_rich) blocks.push(`<section class="assist-block pp-bio">${formatRich(p.profile_bio_rich)}</section>`);
       if (p.profile_strengths) blocks.push(`<section class="assist-block"><h3 class="pp-heading"${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(T('pp.strengths', '強み・得意なこと'))}</h3><p>${escapeHtml(p.profile_strengths)}</p></section>`);

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mock - キマル（新ルック探索）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/mock.css" />
+</head>
+<body>
+<!-- mock: プレースホルダ内容のみ（mock/README.md のルール参照）。 -->
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="/"><span class="brand-dot"></span>キマル</a>
+    <nav class="nav-links">
+      <a href="/dashboard.html">ホーム</a>
+      <a href="/booking-settings.html">予約設定</a>
+      <a href="/contacts.html">相手管理</a>
+      <a href="/ai-assist.html" aria-current="page" style="color:var(--ink);background:var(--surface-2)">AIアシスト</a>
+      <a href="/settings.html">設定</a>
+    </nav>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="badge badge-premium">Premium</span>
+      <span class="avatar">ね</span>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+  <!-- ページヘッダ -->
+  <div class="pagehead">
+    <span class="eyebrow">AIアシスト</span>
+    <div class="row-between" style="margin:12px 0 6px">
+      <h1 style="margin:0">次の一手を、AIが提案</h1>
+      <span class="badge badge-premium">Premium</span>
+    </div>
+    <p class="sub">蓄積した相手データから、次回アポの戦略をAIがまとめます。</p>
+  </div>
+
+  <!-- アップグレード案内（無料・Pro） -->
+  <section class="panel lockcard f-lock" style="margin-top:28px">
+    <h2>AIアシストはプレミアムの機能です（近日公開）</h2>
+    <p class="note" style="margin-top:8px">無料・Proではルールベースの簡易提案をお試しいただけます</p>
+    <a class="btn btn-aurora" href="/plan.html" style="margin-top:14px">プレミアムを見る</a>
+  </section>
+
+  <!-- AIパネル（オーロラ面・プレミアムのみ） -->
+  <section class="aipanel f-premium" style="margin-top:28px">
+    <span class="eyebrow">AI Assist</span>
+    <h2>相手データから次回アポの戦略を提案</h2>
+    <div class="row-between" style="margin-top:16px;align-items:flex-end;gap:12px">
+      <div class="field" style="margin:0;flex:1;min-width:220px">
+        <span style="color:rgba(255,255,255,.9)">相手を選ぶ</span>
+        <select>
+          <option>田中さくら</option>
+          <option>佐藤健</option>
+          <option>鈴木みなと</option>
+          <option>高橋あおい</option>
+        </select>
+      </div>
+      <button class="btn" type="button" style="background:#fff;color:var(--aurora-ink)">✨ 提案を生成</button>
+    </div>
+
+    <p style="margin:14px 0 0;color:rgba(255,255,255,.82);font-size:13px">田中さくら さんの3件の予約メモから生成しました</p>
+
+    <div class="suggest">
+      <div class="row-between" style="margin-bottom:4px">
+        <b style="margin:0">🤝 アプローチ</b>
+        <button class="btn" type="button" style="min-height:30px;padding:0 12px;font-size:12px;background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.28)">コピー</button>
+      </div>
+      落ち着いた傾聴タイプ。結論を急がず、相手の話に十分な相づちを返してから本題に入ると信頼が深まります。
+    </div>
+    <div class="suggest">
+      <div class="row-between" style="margin-bottom:4px">
+        <b style="margin:0">💬 刺さる話題</b>
+        <button class="btn" type="button" style="min-height:30px;padding:0 12px;font-size:12px;background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.28)">コピー</button>
+      </div>
+      前回好反応だった「業務の自動化」を起点に。共通の知人（猫の集会つながり）の近況を軽く挟むと距離が縮まります。
+    </div>
+    <div class="suggest">
+      <div class="row-between" style="margin-bottom:4px">
+        <b style="margin:0">🎯 次の一手</b>
+        <button class="btn" type="button" style="min-height:30px;padding:0 12px;font-size:12px;background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.28)">コピー</button>
+      </div>
+      提案資料を事前共有し、来月前半で30分の再面談を打診。日程候補は火・水の午後を2枠提示すると決まりやすいです。
+    </div>
+  </section>
+
+  <p class="note f-premium" style="margin-top:18px">プレミアムで月300回まで。無料・Proではルールベースの簡易提案をお試しいただけます。</p>
+</main>
+
+<footer class="foot">
+  <div class="shell foot-in">
+    <div><a href="/">キマル</a><a href="/plan.html">料金</a><a href="#">利用規約</a><a href="#">プライバシー</a></div>
+    <div>© 2026 Kimaru — 日程が、キマる。</div>
+  </div>
+</footer>
+<script src="/mock-plan.js" defer></script>
+</body>
+</html>

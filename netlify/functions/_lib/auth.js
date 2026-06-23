@@ -4,7 +4,10 @@ const { findOwnerById } = require("./supabase");
 async function currentOwner(event) {
   const session = verifySession(event);
   if (!session?.ownerId) return null;
-  return findOwnerById(session.ownerId);
+  const owner = await findOwnerById(session.ownerId);
+  // 利用停止（cat_key_disabled）アカウントは未認証として扱う＝ログイン状態を無効化し、保護APIを全て拒否する。
+  if (owner && owner.cat_key_disabled) return null;
+  return owner;
 }
 
 async function requireOwner(event) {

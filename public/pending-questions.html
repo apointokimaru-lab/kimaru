@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>キマル | 回答待ちの質問</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body data-page="pending-questions" data-i18n-title="pq.pageTitle">
+  <!-- site-header -->
+
+  <main class="shell narrow">
+    <div class="pagehead">
+      <span class="eyebrow" data-i18n="pq.eyebrow">相互質問</span>
+      <h1 data-i18n="pq.heading">回答待ちの質問</h1>
+      <p class="sub muted" data-i18n="pq.sub">予約してくれた相手（キマル会員）からの質問で、まだ回答していないものです。各質問は「回答する」から回答できます。</p>
+    </div>
+
+    <p id="pq-status" class="muted" style="margin-top:20px" data-i18n="pq.loading">読み込み中...</p>
+    <div id="pq-list" style="margin-top:20px"></div>
+  </main>
+
+  <!-- site-footer -->
+
+  <script src="/i18n.js" defer></script>
+  <script>
+    (function () {
+      const T = (k, d) => { try { return (window.KimaruI18n && window.KimaruI18n.t(k)) || d; } catch (_) { return d; } };
+      const escapeHtml = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      const $ = (s) => document.querySelector(s);
+
+      function lang() { try { return (window.KimaruI18n && window.KimaruI18n.getLanguage && window.KimaruI18n.getLanguage()) || "ja"; } catch (_) { return "ja"; } }
+      function when(iso) {
+        if (!iso) return "";
+        try { return new Date(iso).toLocaleString(lang(), { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" }); }
+        catch (_) { return ""; }
+      }
+      function initial(name) { const s = String(name || "").trim(); return s ? s[0] : "?"; }
+
+      async function load() {
+        try {
+          const res = await fetch("/api/pending-answers");
+          if (res.status === 401) { $("#pq-status").textContent = T("pq.needLogin", "ログインが必要です。"); return; }
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "load failed");
+          const items = data.items || [];
+          $("#pq-status").hidden = true;
+          if (!items.length) {
+            $("#pq-list").innerHTML = `<div class="empty"><p class="muted">${escapeHtml(T("pq.empty", "回答待ちの質問はありません。"))}</p></div>`;
+            return;
+          }
+          const cards = items.map((it) => {
+            const url = `/answer-question.html?id=${encodeURIComponent(it.id)}&t=${encodeURIComponent(it.t)}`;
+            const meta = [escapeHtml(when(it.start_at))].filter(Boolean).join("");
+            return `<article class="ans-card">
+              <div class="ans-head">
+                <span class="avatar">${escapeHtml(initial(it.visitor_name))}</span>
+                <span class="nm">${escapeHtml(it.visitor_name || "")}</span>
+                <span class="mt">${meta}</span>
+                <span class="badge badge-unread">${escapeHtml(T("pq.badge", "未回答"))}</span>
+              </div>
+              <p class="q-field-label">${escapeHtml(T("pq.questionLabel", "相手からの質問"))}</p>
+              <p style="white-space:pre-wrap;margin:0 0 14px">${escapeHtml(it.question || "")}</p>
+              <a class="button primary btn-sm" href="${url}">${escapeHtml(T("pq.answerCta", "回答する →"))}</a>
+            </article>`;
+          }).join("");
+          $("#pq-list").innerHTML = cards;
+        } catch (_) {
+          $("#pq-status").textContent = T("pq.loadError", "読み込みに失敗しました。再読み込みするか、再度ログインしてください。");
+        }
+      }
+      load();
+      document.addEventListener("kimaru:languagechange", load);
+    })();
+  </script>
+</body>
+</html>

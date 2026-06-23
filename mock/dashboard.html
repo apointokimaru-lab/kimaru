@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mock - キマル ホーム（新ルック）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/mock.css" />
+</head>
+<body data-auth="authed">
+<!-- mock: プレースホルダ内容のみ（mock/README.md のルール参照）。 -->
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="/dashboard.html"><span class="brand-dot"></span>キマル</a>
+    <nav class="nav-links">
+      <a href="/dashboard.html">ホーム</a>
+      <a href="/booking-settings.html">予約設定</a>
+      <a href="/contacts.html">相手管理</a>
+      <a href="/ai-assist.html">AIアシスト</a>
+      <a href="/settings.html">設定</a>
+    </nav>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="badge badge-pro">Pro</span>
+      <span class="avatar">田</span>
+    </div>
+  </div>
+</header>
+
+<main class="shell" style="padding-bottom:64px">
+  <div class="greet" style="border-bottom:0;padding:clamp(28px,4vw,44px) 0 4px">
+    <div>
+      <span class="eyebrow">ホーム</span>
+      <h1>こんにちは、田中さん</h1>
+      <p class="muted" style="margin:0">今日は <b style="color:var(--ink)">3件</b> の面談があります。次は <b style="color:var(--ink)">14:00 佐藤りくさん</b>。</p>
+    </div>
+    <a class="btn btn-primary" href="/schedule.html">週間スケジュール →</a>
+  </div>
+
+  <div class="dash-grid">
+    <!-- 左：スケジュール（ここで操作する） -->
+    <section>
+      <div class="dash-sub"><h2>今日の予定 <span class="muted" style="font-weight:400">6/19(木)</span></h2><a href="/schedule.html">週表示 →</a></div>
+      <div class="appt-list">
+        <div class="appt appt-now">
+          <div class="appt-time">14:00<small>30分</small></div>
+          <div class="appt-body"><b>佐藤 りく さん</b><span>Google Meet ・ あと約2時間</span></div>
+          <div class="appt-actions"><a class="btn btn-primary btn-sm" href="#">Meet に参加</a><div class="appt-menu"><button class="icon-btn menu-btn" title="その他の操作" aria-haspopup="true" aria-expanded="false">⋯</button><div class="menu-pop" role="menu" hidden><a class="menu-item" role="menuitem" href="/manage-booking.html">日程を変更</a><button class="menu-item" type="button" role="menuitem">会議リンクをコピー</button><button class="menu-item danger" type="button" role="menuitem">予約をキャンセル</button></div></div></div>
+        </div>
+        <div class="appt">
+          <div class="appt-time">16:30<small>45分</small></div>
+          <div class="appt-body"><b>山田 はな さん</b><span>対面 ・ 西本町オフィス</span></div>
+          <div class="appt-actions"><div class="appt-menu"><button class="icon-btn menu-btn" title="その他の操作" aria-haspopup="true" aria-expanded="false">⋯</button><div class="menu-pop" role="menu" hidden><a class="menu-item" role="menuitem" href="/manage-booking.html">日程を変更</a><button class="menu-item danger" type="button" role="menuitem">予約をキャンセル</button></div></div></div>
+        </div>
+        <div class="appt">
+          <div class="appt-time">18:00<small>30分</small></div>
+          <div class="appt-body"><b>鈴木 みなと さん</b><span>Zoom</span></div>
+          <div class="appt-actions"><a class="btn btn-ghost btn-sm" href="#">Zoom に参加</a><div class="appt-menu"><button class="icon-btn menu-btn" title="その他の操作" aria-haspopup="true" aria-expanded="false">⋯</button><div class="menu-pop" role="menu" hidden><a class="menu-item" role="menuitem" href="/manage-booking.html">日程を変更</a><button class="menu-item" type="button" role="menuitem">会議リンクをコピー</button><button class="menu-item danger" type="button" role="menuitem">予約をキャンセル</button></div></div></div>
+        </div>
+      </div>
+
+      <div class="dash-sub" style="margin-top:26px"><h2>これから</h2><a href="/contacts.html">すべての予約 →</a></div>
+      <div class="appt-list">
+        <div class="appt">
+          <div class="appt-time" style="font-size:15px">6/20<small>金</small></div>
+          <div class="appt-body"><b>高橋 あおい さん</b><span>11:00 ・ Google Meet</span></div>
+          <div class="appt-actions"><div class="appt-menu"><button class="icon-btn menu-btn" title="その他の操作" aria-haspopup="true" aria-expanded="false">⋯</button><div class="menu-pop" role="menu" hidden><a class="menu-item" role="menuitem" href="/manage-booking.html">日程を変更</a><button class="menu-item danger" type="button" role="menuitem">予約をキャンセル</button></div></div></div>
+        </div>
+        <div class="appt">
+          <div class="appt-time" style="font-size:15px">6/23<small>月</small></div>
+          <div class="appt-body"><b>田中 さくら さん</b><span>14:00 ・ 対面</span></div>
+          <div class="appt-actions"><div class="appt-menu"><button class="icon-btn menu-btn" title="その他の操作" aria-haspopup="true" aria-expanded="false">⋯</button><div class="menu-pop" role="menu" hidden><a class="menu-item" role="menuitem" href="/manage-booking.html">日程を変更</a><button class="menu-item danger" type="button" role="menuitem">予約をキャンセル</button></div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右：共有・要対応・AI -->
+    <aside>
+      <div class="side-card">
+        <h3>予約ページを共有</h3>
+        <div class="share"><code>kimaru-co.jp/b/tanaka</code><button class="btn btn-primary btn-sm">コピー</button></div>
+        <div class="form-actions" style="margin-top:12px">
+          <a class="btn btn-ghost btn-sm" href="/booking.html">プレビュー</a>
+          <a class="btn btn-ghost btn-sm" href="/booking-settings.html">＋ 新しい予約ページ</a>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h3>要対応 <span class="muted" style="font-weight:400;font-size:12px;font-family:var(--mono)">3件</span></h3>
+        <div class="todo">
+          <a class="has" href="/answers.html"><span class="ico"></span><span class="tx"><b>未読のアンケート回答</b><small>面談前に相手の回答を確認</small></span><span class="cnt">2</span></a>
+          <a class="has" href="/profile.html"><span class="ico"></span><span class="tx"><b>プロフィール未設定の項目</b><small>リマインダーに載る項目が空です</small></span><span class="cnt">1</span></a>
+          <a class="has" href="/schedule.html"><span class="ico"></span><span class="tx"><b>今週の予約</b><small>6/16〜6/22 の面談</small></span><span class="cnt">4</span></a>
+        </div>
+      </div>
+
+      <!-- プレミアム: AIアシスト（プレミアムのみ表示） -->
+      <div class="aipanel f-premium" style="padding:20px">
+        <span class="eyebrow">AI Assist</span>
+        <h2 style="font-family:var(--display);font-size:18px;margin:8px 0 6px">次の一手を提案</h2>
+        <p style="color:rgba(255,255,255,.9);font-size:13.5px;margin:0 0 14px">佐藤さんとの面談前に、AIが刺さる話題と次の一手をまとめます。</p>
+        <a class="btn btn-sm" href="/ai-assist.html" style="background:#fff;color:var(--aurora-ink)">提案を見る →</a>
+      </div>
+
+      <!-- 無料/Pro: プレミアムAIの案内（無料・Proに表示） -->
+      <div class="side-card f-lock">
+        <h3>プレミアムでAIが次の一手を提案</h3>
+        <p class="muted" style="margin:0 0 14px;font-size:14px">面談前に刺さる話題と次の一手を、AIが相手ごとにまとめます。</p>
+        <a class="btn btn-aurora btn-sm" href="/plan.html">プレミアムを見る</a>
+      </div>
+    </aside>
+  </div>
+</main>
+<script src="/mock-plan.js" defer></script>
+<script src="/mock-menu.js" defer></script>
+</body>
+</html>

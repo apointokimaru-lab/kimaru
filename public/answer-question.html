@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>キマル | 相手の質問に回答</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body data-page="answer-question" data-i18n-title="aq.pageTitle">
+  <!-- site-header -->
+
+  <main class="shell narrow">
+    <div class="pagehead">
+      <span class="eyebrow" data-i18n="aq.eyebrow">相互質問</span>
+      <h1 data-i18n="aq.heading">相手からの質問に回答</h1>
+      <p class="sub muted" data-i18n="aq.sub">予約してくれた相手（キマル会員）からの質問です。回答すると、相手にメールで届きます。</p>
+    </div>
+
+    <section class="panel" id="aq-card" style="margin-top:22px" hidden>
+      <p class="muted" id="aq-meta" style="margin-bottom:12px"></p>
+
+      <div class="soft-box" style="margin-bottom:18px">
+        <span class="eyebrow" data-i18n="aq.questionLabel">相手からの質問</span>
+        <p id="aq-question" style="white-space:pre-wrap;margin:0"></p>
+      </div>
+
+      <p class="note" id="aq-answered-note" style="margin-bottom:14px" hidden data-i18n="aq.answeredNote">すでに回答済みです。内容を更新して再送信できます。</p>
+
+      <form id="aq-form">
+        <label class="field">
+          <span data-i18n="aq.answerLabel">あなたの回答</span>
+          <textarea id="aq-answer" name="answer" rows="5" data-i18n-placeholder="aq.answerPlaceholder" placeholder="回答を入力してください"></textarea>
+        </label>
+        <div class="form-actions" style="margin-top:16px">
+          <button type="submit" class="button primary" id="aq-submit" data-i18n="aq.submit">回答を送信</button>
+        </div>
+      </form>
+      <p id="aq-message" class="message" role="status"></p>
+    </section>
+
+    <p id="aq-status" class="muted" data-i18n="aq.loading">読み込み中...</p>
+  </main>
+
+  <!-- site-footer -->
+
+  <script src="/i18n.js" defer></script>
+  <script>
+    (function () {
+      const T = (k, d) => { try { return (window.KimaruI18n && window.KimaruI18n.t(k)) || d; } catch (_) { return d; } };
+      function escapeHtml(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+      const $ = (s) => document.querySelector(s);
+      const params = new URLSearchParams(location.search);
+      const id = params.get("id") || "";
+      const t = params.get("t") || "";
+
+      function setMsg(text, kind) { const el = $("#aq-message"); if (!el) return; el.textContent = text; el.className = `message ${kind || ""}`.trim(); }
+
+      async function load() {
+        if (!id || !t) { $("#aq-status").textContent = T("aq.loadError", "ページを読み込めませんでした。リンクが無効か期限切れの可能性があります。"); return; }
+        try {
+          const res = await fetch(`/api/booking-answer?id=${encodeURIComponent(id)}&t=${encodeURIComponent(t)}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "load failed");
+          // 質問は相手由来の入力なので textContent で安全に表示。
+          $("#aq-question").textContent = data.question || "";
+          const metaName = (data.visitor_name || "").trim();
+          const meta = [];
+          if (metaName) meta.push(T("aq.metaFrom", "{name} さんからの質問").replace("{name}", metaName));
+          $("#aq-meta").textContent = meta.join(" ・ ");
+          if (data.answered) {
+            $("#aq-answered-note").hidden = false;
+            $("#aq-answer").value = data.host_answer || "";
+          }
+          $("#aq-status").hidden = true;
+          $("#aq-card").hidden = false;
+        } catch (_) {
+          $("#aq-status").textContent = T("aq.loadError", "ページを読み込めませんでした。リンクが無効か期限切れの可能性があります。");
+        }
+      }
+
+      $("#aq-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const answer = $("#aq-answer").value.trim();
+        if (!answer) { setMsg(T("aq.empty", "回答を入力してください。"), "error"); return; }
+        const btn = $("#aq-submit");
+        btn.disabled = true;
+        setMsg(T("aq.sending", "送信しています..."), "");
+        try {
+          const res = await fetch("/api/booking-answer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, t, answer }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "send failed");
+          setMsg(T("aq.sent", "回答を送信しました。相手にメールで届きます。ありがとうございました。"), "success");
+        } catch (err) {
+          setMsg(err.message || T("aq.loadError", "送信に失敗しました。"), "error");
+          btn.disabled = false;
+        }
+      });
+
+      load();
+      document.addEventListener("kimaru:languagechange", load);
+    })();
+  </script>
+</body>
+</html>

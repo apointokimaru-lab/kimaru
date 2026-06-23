@@ -33,7 +33,7 @@
 5. **運営者管理**（決定 2026-06-04・独立画面 `/operators.html`）
    - 運営者アカウントの **一覧・追加・削除** を専用画面（`/operators.html`）で行う。
    - 運営者は **ユーザー（`owners`）とは別テーブル `operators`** で管理する（メール・名前・有効フラグ）。一般ユーザー登録を持つ必要はない。
-   - **認証は共有管理キー（`CAT_KEY_ADMIN_SECRET`）を継続**するが、入力は **専用ログイン画面 `/operator-login.html`（画面#11）** で行い、**運営専用セッション `kimaru_admin_session`** を発行する。`operators` は運営者の登録情報・監査ログの実行者表示に用いる（将来、運営者ごとのメール+パスワード `operators.password_hash` ログインへ拡張）。
+   - **認証は共有管理キー（`ADMIN_SECRET`）を継続**するが、入力は **専用ログイン画面 `/operator-login.html`（画面#11）** で行い、**運営専用セッション `kimaru_admin_session`** を発行する。`operators` は運営者の登録情報・監査ログの実行者表示に用いる（将来、運営者ごとのメール+パスワード `operators.password_hash` ログインへ拡張）。
    - **ユーザー認証（`/login.html`・`kimaru_session`）とは完全分離**。運営画面は `kimaru_admin_session` で保護し、無ければ `/operator-login.html` へ（[screen-flow.md](../screen-flow.md) §6）。
 6. **将来**
    - Cat Key の定期更新（自動ローテーション）と猫の集会グループチャット連携。
@@ -43,7 +43,7 @@
 
 - `cat-key-admin.html` ＋ `invite-apply.js`（`?admin=cat-key`）で **Cat Key の一覧・revoke・restore・監査** は実装済み（[19](./19-cat-key-admin.md)）。
 - revoke は `plan=free` / `invite_code=''` / `cat_key_disabled=true` を設定する。**Cat Key 利用者を前提とした降格**になっている。
-- 認証は `CAT_KEY_ADMIN_SECRET`（or `ADMIN_SECRET`）。
+- 認証は `ADMIN_SECRET`。
 
 ## 未実装（抜けている運営機能）
 

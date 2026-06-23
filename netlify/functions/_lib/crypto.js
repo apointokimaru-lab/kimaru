@@ -36,7 +36,9 @@ function parseCookies(header = "") {
   }).filter(([key]) => key));
 }
 
-function verifyCookieToken(event, cookieName) {
+const SESSION_MAX_AGE_MS = 2592000000; // 30日（cookie の Max-Age と一致）
+
+function verifyCookieToken(event, cookieName, maxAgeMs = SESSION_MAX_AGE_MS) {
   const cookies = parseCookies(event.headers.cookie || event.headers.Cookie || "");
   const raw = cookies[cookieName];
   if (!raw || !raw.includes(".")) return null;
@@ -45,11 +47,19 @@ function verifyCookieToken(event, cookieName) {
   const a = Buffer.from(signature);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  let data;
   try {
-    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
   } catch (error) {
     return null;
   }
+  // ts による期限判定：署名が有効でも、30日超過・未来すぎる ts のセッションは無効化する
+  // （盗まれた/古い Cookie 値のリプレイを防ぐ。edge 側と同じ TTL を API 側でも強制）。
+  if (maxAgeMs) {
+    const ts = Number(data && data.ts);
+    if (!Number.isFinite(ts) || Date.now() - ts > maxAgeMs || ts - Date.now() > 60000) return null;
+  }
+  return data;
 }
 
 function verifySession(event) {
@@ -59,6 +69,36 @@ function verifySession(event) {
 function verifyAdminSession(event) {
   const session = verifyCookieToken(event, "kimaru_admin_session");
   return session && session.admin ? session : null;
+}
+
+// 汎用の定数時間比較（共有シークレット照合などに使用）。
+function timingEqual(a, b) {
+  const x = Buffer.from(String(a == null ? "" : a));
+  const y = Buffer.from(String(b == null ? "" : b));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
+// Webhook 署名検証用 HMAC-SHA256（base64）。
+function hmacBase64(secret, data) {
+  return crypto.createHmac("sha256", secret).update(data).digest("base64");
+}
+
+// OAuth ログインCSRF対策：ランダム state を署名付き短命 cookie に保持し、callback で照合する。
+// SameSite=Lax は Google からのトップレベル GET リダイレクトでも送出されるため callback で参照可能。
+function oauthStateCookie(state) {
+  return `kimaru_oauth_state=${state}.${sign(state)}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=600`;
+}
+function clearOauthStateCookie() {
+  return "kimaru_oauth_state=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0";
+}
+function verifyOauthState(event, stateFromQuery) {
+  if (!stateFromQuery) return false;
+  const cookies = parseCookies(event.headers.cookie || event.headers.Cookie || "");
+  const raw = cookies.kimaru_oauth_state;
+  if (!raw || !raw.includes(".")) return false;
+  const [value, signature] = raw.split(".");
+  if (!timingEqual(signature, sign(value))) return false;
+  return timingEqual(value, String(stateFromQuery));
 }
 
 function encryptionKey() {
@@ -116,6 +156,17 @@ function verifyBookingToken(bookingId, token) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+// 会員同士の相互質問（#20）: ホストが予約者の質問に回答する管理リンク用トークン。
+// 予約 id から HMAC で導出。manage トークン（"booking:"）とは別 namespace なので、
+// 予約者が持つ manage リンクでは回答ページにアクセスできない（ホスト宛メールにだけ載る）。
+function hostAnswerToken(bookingId) {
+  return sign(`hostanswer:${bookingId}`);
+}
+function verifyHostAnswerToken(bookingId, token) {
+  if (!bookingId || !token) return false;
+  return timingEqual(token, sign(`hostanswer:${bookingId}`));
+}
+
 // 営業メールのワンクリック解除リンク用の署名トークン。メールアドレスから HMAC で導出（DB列不要・期限なし）。
 function mailUnsubToken(email) {
   return sign(`unsub:${String(email || "").trim().toLowerCase()}`);
@@ -146,4 +197,4 @@ function verifyTimedToken(purpose, id, ts, token, maxAgeMs) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-module.exports = { sessionCookie, clearSessionCookie, verifySession, adminSessionCookie, clearAdminSessionCookie, verifyAdminSession, encrypt, decrypt, hashPassword, verifyPassword, bookingToken, verifyBookingToken, mailUnsubToken, verifyMailUnsubToken, timedToken, verifyTimedToken };
+module.exports = { sessionCookie, clearSessionCookie, verifySession, adminSessionCookie, clearAdminSessionCookie, verifyAdminSession, encrypt, decrypt, hashPassword, verifyPassword, bookingToken, verifyBookingToken, hostAnswerToken, verifyHostAnswerToken, mailUnsubToken, verifyMailUnsubToken, timedToken, verifyTimedToken, timingEqual, hmacBase64, oauthStateCookie, clearOauthStateCookie, verifyOauthState };

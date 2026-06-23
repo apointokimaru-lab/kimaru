@@ -18,7 +18,7 @@
 ## 現状の実装
 
 - `dashboard.html` の Cat Key パネルにコード入力 UI。`invite-apply` が大文字化して照合。
-- 有効コード: `JF7YAIN40EQL`, `NEKO20240222`（= Cat Key `Neko20240222`、大文字化して比較）。
+- 有効コード: `NEKO20240222`（= Cat Key `Neko20240222`、大文字化して比較）。
 - 適用で `owners.plan='pro'` ＋ `invite_code` 更新。`cat_key_events` に監査ログ（成功/無効/形式不正/ブロック）。
 - `cat_key_disabled` のアカウントは適用不可（403）。
 - 運営向けに Cat Key 管理モードあり（[19](./19-cat-key-admin.md)）。

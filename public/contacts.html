@@ -4,9 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>キマル - 相手管理</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-page="contacts" data-i18n-title="admin.pageTitle">
@@ -14,13 +11,11 @@
 
   <main class="shell">
     <!-- ページ共通ヘッダー（常時表示・他のアプリ画面と統一） -->
-    <section class="dash-hero">
-      <div class="dash-hero-text">
-        <p class="eyebrow" data-i18n="admin.contacts.eyebrow">相手管理</p>
-        <h1 data-i18n="admin.contacts.heading">日程調整した相手</h1>
-        <p class="muted" data-i18n="admin.contacts.desc">予約した人の情報を一覧で確認し、名前・メール・話題・目標・誕生日メモから探せます。</p>
-        <p id="owner-status" class="message" data-i18n="admin.account.checking">ログイン状態を確認しています...</p>
-      </div>
+    <section class="pagehead">
+      <p class="eyebrow" data-i18n="admin.contacts.eyebrow">相手管理</p>
+      <h1 data-i18n="admin.contacts.heading">日程調整した相手</h1>
+      <p class="sub" data-i18n="admin.contacts.desc">予約した人の情報を一覧で確認し、名前・メール・話題・目標・誕生日メモから探せます。</p>
+      <p id="owner-status" class="message" data-i18n="admin.account.checking">ログイン状態を確認しています...</p>
     </section>
 
     <!-- 予約履歴（全員・無料でも閲覧可。まず価値を見せる） -->
@@ -28,13 +23,45 @@
       <p class="eyebrow" data-i18n="admin.history.eyebrow">予約履歴</p>
       <h2 data-i18n="admin.history.heading">会った相手の一覧</h2>
       <p class="muted" data-i18n="admin.history.desc">名前・メール・話題・目標・誕生日メモから探せます。閲覧は無料です。</p>
-      <label class="search-field"><span data-i18n="admin.contacts.search">検索キーワード</span><input id="booking-search" type="search" data-i18n-placeholder="admin.contacts.searchPlaceholder" placeholder="名前、メール、話題、目標、誕生日メモで検索" /></label>
-      <p id="booking-search-count" class="message"></p>
-      <div id="booking-list" class="list searchable-list"></div>
+
+      <div class="crm-toolbar" style="margin-top:20px">
+        <div class="field search">
+          <input id="booking-search" type="search" data-i18n-placeholder="admin.contacts.searchPlaceholder" placeholder="名前、メール、話題、目標、誕生日メモで検索" aria-label="相手を検索" />
+        </div>
+        <p id="booking-search-count" class="crm-count message"></p>
+      </div>
+
+      <div class="data-table-wrap" style="margin-top:14px">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th data-i18n="admin.contacts.colName">名前</th>
+              <th data-i18n="admin.contacts.colEmail">メール</th>
+              <th data-i18n="admin.contacts.colTopic">話題</th>
+              <th data-i18n="admin.contacts.colDate">日時</th>
+            </tr>
+          </thead>
+          <tbody id="booking-list" class="searchable-list"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 相手を手動で追加（プレミアム限定・決定27）。予約していない相手も相手一覧に登録できる。 -->
+    <section class="panel wide premium-feature">
+      <p class="eyebrow" data-i18n="admin.manual.eyebrow">相手を追加</p>
+      <h2 data-i18n="admin.manual.heading">予約していない相手も登録できる</h2>
+      <p class="muted" data-i18n="admin.manual.desc">見込み客など、まだ予約していない相手を相手一覧に手動で追加できます（プレミアム限定）。</p>
+      <form id="manual-contact-form" class="form-grid">
+        <label><span data-i18n="admin.manual.name">名前</span><input name="name" autocomplete="name" /></label>
+        <label><span data-i18n="admin.manual.email">メールアドレス</span><input name="email" type="email" autocomplete="email" /></label>
+        <label class="wide"><span data-i18n="admin.manual.topic">話題・メモ</span><input name="topic" data-i18n-placeholder="admin.manual.topicPlaceholder" placeholder="例：紹介で知り合い／商談予定" /></label>
+        <button class="primary" type="submit" data-i18n="admin.manual.save">相手を追加する</button>
+      </form>
+      <p id="manual-contact-message" class="message"></p>
     </section>
 
     <!-- Pro案内（無料のみ）。履歴の下にスリムに表示 -->
-    <section id="contacts-pro-lock" class="panel wide">
+    <section id="contacts-pro-lock" class="panel wide lockcard">
       <p class="eyebrow" data-i18n="admin.lock.eyebrow">Pro限定の機能があります</p>
       <h2 data-i18n="admin.lock.heading">面談メモ・印象スコアはPro版の機能です</h2>
       <p class="muted" data-i18n="admin.lock.intro">予約履歴（相手レコード）の閲覧は無料でもご利用いただけます。会った後に関係を育てる「面談メモ」「印象スコア」はPro版（または猫の鍵で承認されたアカウント）の機能です。</p>
@@ -45,8 +72,8 @@
       </ul>
       <p class="muted" data-i18n="admin.lock.note">無料版は「予約が決まる」までと予約履歴の閲覧まで。メモ・スコアは会った後の関係づくり（Pro）です。</p>
       <div class="actions">
-        <a class="button primary" href="/square.html" data-i18n="admin.lock.cta">1ヶ月無料でProを始める / Cat Key</a>
-        <a class="button secondary" href="/plan.html#premium" data-i18n="admin.lock.ctaPremium">AIアシスト（プレミアム）を見る</a>
+        <a class="button primary" href="/square.html" data-i18n="admin.lock.cta">Proを始める / Cat Key</a>
+        <a class="button premium" href="/ai-assist.html" data-i18n="admin.lock.ctaPremium">AIアシスト（プレミアム）を見る</a>
       </div>
     </section>
 
@@ -56,10 +83,10 @@
       <h2 data-i18n="admin.memo.heading">会った後に、関係を育てる</h2>
       <p class="muted" data-i18n="admin.memo.desc">話した内容、次のアクション、相手の印象スコアを残して、次の連絡につなげます。</p>
       <form id="log-form" class="form-grid">
-        <label><span data-i18n="admin.memo.email">相手のメールアドレス</span><input name="visitor_email" type="email" required /></label>
-        <label><span data-i18n="admin.memo.keywords">キーワード</span><input name="keywords" data-i18n-placeholder="admin.memo.keywordsPlaceholder" placeholder="夢, 仕事, 紹介したい人" /></label>
-        <label><span data-i18n="admin.memo.notes">メモ</span><textarea name="notes" rows="4" required></textarea></label>
-        <label><span data-i18n="admin.memo.next">次にできること</span><textarea name="next_action" rows="3"></textarea></label>
+        <label class="wide"><span data-i18n="admin.memo.email">相手のメールアドレス</span><input name="visitor_email" type="email" required /></label>
+        <label class="wide"><span data-i18n="admin.memo.keywords">キーワード</span><input name="keywords" data-i18n-placeholder="admin.memo.keywordsPlaceholder" placeholder="夢, 仕事, 紹介したい人" /></label>
+        <label class="wide"><span data-i18n="admin.memo.notes">メモ</span><textarea name="notes" rows="4" required></textarea></label>
+        <label class="wide"><span data-i18n="admin.memo.next">次にできること</span><textarea name="next_action" rows="3"></textarea></label>
         <div class="questionnaire-box conversation-rating-box">
           <p class="eyebrow" data-i18n="admin.memo.ratingEyebrow">相手の印象メモ</p>
           <h3 data-i18n="admin.memo.ratingHeading">会話以外の情報を5段階で残す</h3>
@@ -80,9 +107,13 @@
         <button class="primary" type="submit" data-i18n="admin.memo.save">メモを保存する</button>
       </form>
       <p id="log-message" class="message"></p>
-      <label class="search-field"><span data-i18n="admin.memo.searchLabel">メモ検索</span><input id="log-search" type="search" data-i18n-placeholder="admin.memo.searchPlaceholder" placeholder="メール、キーワード、メモ、印象、次のアクションで検索" /></label>
-      <p id="log-search-count" class="message"></p>
-      <div id="log-list" class="list searchable-list"></div>
+      <div class="crm-toolbar" style="margin-top:18px">
+        <div class="field search">
+          <input id="log-search" type="search" data-i18n-placeholder="admin.memo.searchPlaceholder" placeholder="メール、キーワード、メモ、印象、次のアクションで検索" aria-label="メモを検索" />
+        </div>
+        <p id="log-search-count" class="crm-count message"></p>
+      </div>
+      <div id="log-list" class="list searchable-list" style="margin-top:14px"></div>
     </section>
 
     <!-- 顧客集約（Pro） -->
@@ -90,12 +121,15 @@
       <p class="eyebrow" data-i18n="admin.agg.eyebrow">顧客集約</p>
       <h2 data-i18n="admin.agg.heading">相手ごとのまとめ（面談回数・印象スコア平均）</h2>
       <p class="muted" data-i18n="admin.agg.desc">同じ相手の面談メモを集計し、面談回数と印象スコアの平均を相手ごとに表示します。</p>
-      <label class="search-field"><span data-i18n="admin.agg.search">相手検索</span><input id="aggregate-search" type="search" data-i18n-placeholder="admin.agg.searchPh" placeholder="メールで検索" /></label>
-      <p id="aggregate-search-count" class="message"></p>
-      <div id="log-aggregate" class="list searchable-list"></div>
+      <div class="crm-toolbar" style="margin-top:18px">
+        <div class="field search">
+          <input id="aggregate-search" type="search" data-i18n-placeholder="admin.agg.searchPh" placeholder="メールで検索" aria-label="相手を検索" />
+        </div>
+        <p id="aggregate-search-count" class="crm-count message"></p>
+      </div>
+      <div id="log-aggregate" class="list searchable-list" style="margin-top:14px"></div>
     </section>
   </main>
-
 
   <!-- site-footer -->
 

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>無料で始める - キマル（新ルック探索）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/mock.css" />
+</head>
+<body>
+<!-- mock: プレースホルダ内容のみ（mock/README.md のルール参照）。 -->
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="/"><span class="brand-dot"></span>キマル</a>
+    <nav class="nav-links">
+      <a href="/plan.html">料金</a>
+      <a href="#">特長</a>
+      <a href="#">使い方</a>
+    </nav>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a class="btn btn-ghost" href="/login.html" style="min-height:40px;padding:0 16px">ログイン</a>
+      <a class="btn btn-primary" href="/signup.html" style="min-height:40px;padding:0 18px">無料で始める</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="authwrap">
+    <div class="authcard">
+      <h1>無料で始める</h1>
+      <p class="sub">30秒でアカウント作成。クレカ不要。</p>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px">
+        <span class="tag">無料</span><span class="tag">クレカ不要</span><span class="tag">30秒で完了</span>
+      </div>
+
+      <button class="google-btn" type="button">Googleで登録</button>
+      <p class="field-note" style="text-align:center;margin-top:8px">Googleカレンダー連携がそのまま使えるので、いちばんスムーズです。</p>
+
+      <div class="divider">またはメールで登録</div>
+
+      <form>
+        <div class="field">
+          <label for="name">お名前</label>
+          <input id="name" type="text" placeholder="猫村 おじろ" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="email">メールアドレス</label>
+          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="password">パスワード</label>
+          <input id="password" type="password" placeholder="8文字以上" autocomplete="new-password" />
+          <span class="field-note">英字と数字を含む8文字以上で設定してください。</span>
+        </div>
+        <div class="field">
+          <label for="password-confirm">パスワード（確認用）</label>
+          <input id="password-confirm" type="password" placeholder="もう一度入力" autocomplete="new-password" />
+          <span class="field-note">確認のため、同じパスワードをもう一度入力してください。</span>
+        </div>
+        <label class="checkrow">
+          <input type="checkbox" />
+          <span><a href="#">利用規約</a>・<a href="#">プライバシー</a>に同意する</span>
+        </label>
+        <button class="btn btn-primary" type="submit" style="margin-top:16px">無料で登録</button>
+        <p class="field-note" style="margin-top:10px">招待コード（Cat Key）をお持ちの方は登録後に入力できます</p>
+      </form>
+
+      <p class="auth-foot">すでにアカウントをお持ちの方は <a href="/login.html">ログイン</a></p>
+      <p class="field-note" style="text-align:center;margin-top:14px">登録は無料です。営業メールは送りません。いつでも退会できます。</p>
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="shell foot-in">
+    <div><a href="/">キマル</a><a href="/plan.html">料金</a><a href="#">利用規約</a><a href="#">プライバシー</a></div>
+    <div>© 2026 Kimaru — 日程が、キマる。</div>
+  </div>
+</footer>
+</body>
+</html>

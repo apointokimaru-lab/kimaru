@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mock - キマル（新ルック探索）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/mock.css" />
+</head>
+<body>
+<!-- mock: プレースホルダ内容のみ（mock/README.md のルール参照）。 -->
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="/"><span class="brand-dot"></span>キマル</a>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a class="btn btn-ghost" href="#" style="min-height:40px;padding:0 16px">ログイン</a>
+      <a class="btn btn-primary" href="#" style="min-height:40px;padding:0 18px">無料で始める</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="section">
+    <div class="shell" style="max-width:680px">
+      <div class="pagehead">
+        <span class="eyebrow">Manage</span>
+        <h1>予約の管理</h1>
+        <p class="sub muted">この予約はまだ有効です。日程変更・キャンセルは下からどうぞ。</p>
+      </div>
+
+      <div class="panel" style="margin-top:22px">
+        <div class="row-between" style="margin-bottom:6px">
+          <h2 class="plan-name" style="margin:0">ご予約の内容</h2>
+          <span class="badge badge-free">確定済み</span>
+        </div>
+        <dl class="summary">
+          <div><dt>日時</dt><dd>6/25(木) 14:00–14:30 <span class="muted">（JST）</span></dd></div>
+          <div><dt>相手</dt><dd>田中さくら さん</dd></div>
+          <div><dt>開催方法</dt><dd>Google Meet</dd></div>
+        </dl>
+
+        <!-- 会議リンク（コピー・参加） -->
+        <div class="field" style="margin-top:18px">
+          <label>会議リンク（Google Meet）</label>
+          <div class="share">
+            <code id="meet-url">https://meet.google.com/abc-defg-hij</code>
+            <a class="btn btn-ghost btn-sm" href="https://meet.google.com/abc-defg-hij" target="_blank" rel="noopener">参加</a>
+            <button class="btn btn-primary btn-sm" type="button" data-copy="meet-url">コピー</button>
+          </div>
+          <span class="field-note">開始時刻になったら「参加」から入室できます。日程を変更すると新しいリンクが再発行されます。</span>
+        </div>
+
+        <div class="form-actions" style="margin-top:20px">
+          <a class="btn btn-primary" href="#">日程を変更 →</a>
+        </div>
+        <p class="field-note" style="margin-top:10px">変更しても同じ予約として引き継がれます。新しい空き枠を選べます。</p>
+
+        <hr style="border:0;border-top:1px solid var(--line);margin:22px 0" />
+
+        <div class="row-between">
+          <div>
+            <b style="font-family:var(--display)">この予約をキャンセル</b>
+            <p class="field-note" style="margin-top:2px">キャンセルは取り消せません。枠は他の方に開放されます。</p>
+          </div>
+          <a class="btn btn-ghost" href="#">キャンセルする</a>
+        </div>
+
+        <p class="note" style="margin-top:20px">キャンセル無料 ・ ログイン不要 ・ 手続き後すぐ確認メールをお送りします。</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="shell foot-in">
+    <div><a href="/">キマル</a><a href="/plan.html">料金</a><a href="#">利用規約</a><a href="#">プライバシー</a></div>
+    <div>© 2026 Kimaru — 日程が、キマる。</div>
+  </div>
+</footer>
+<script>
+  // mock: 会議リンクのコピー（コピー後にボタン表示を一時的に切り替え）
+  document.querySelectorAll('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var src = document.getElementById(btn.dataset.copy);
+      var text = src ? src.textContent.trim() : '';
+      var done = function () {
+        var label = btn.textContent;
+        btn.textContent = 'コピーしました';
+        btn.disabled = true;
+        setTimeout(function () { btn.textContent = label; btn.disabled = false; }, 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(done);
+      } else {
+        var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta); done();
+      }
+    });
+  });
+</script>
+</body>
+</html>

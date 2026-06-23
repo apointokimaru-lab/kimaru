@@ -68,10 +68,26 @@ OAuth コールバック。`code` をトークン交換し、`owners` を upsert
 - body: `{ visitor_name*, visitor_email*, start*, end*, topic?, guest_message?, answers?, filter_request?, birth_date_private?, location_type? }`
   - `filter_request` は `kind: "relationship_context"` の JSON（生年月日インサイト＝算命学＋数秘術）を許容。`birth_date_private="yes"` で生年月日を「非公開」にマスク。`guest_message` はゲスト→ホストへの質問・メッセージ（相互質問・#21）。
   - 検証: email 形式、`start < end`、`now ≤ start ≤ now+6ヶ月`。
-- 処理: `bookings` 作成 → 事前アンケート回答を `questionnaire_answers` へ保存 → `location_type=zoom` かつ Zoom設定時は Zoom 自動発行（`_lib/zoom.js`）→ `createCalendarEvent` → `google_event_id`・`meeting_url` 更新。ホスト通知に `guest_message` を反映。
+- 処理: `bookings` 作成 → 事前アンケート回答を `questionnaire_answers` へ保存 → `location_type=zoom` かつ Zoom設定時は Zoom 自動発行（`_lib/zoom.js`）→ `createCalendarEvent` → `google_event_id`・`meeting_url` 更新。ホスト通知に `guest_message` を反映。**予約者がキマル会員（`visitor_email`↔`owners`・自己予約除く）かつ `guest_message` ありなら、ホスト通知メールに回答ページ導線を付与（#20）**。
 - 応答: `{ ok: true, booking, google, manage_url }`
 - DB: `bookings`, `questionnaire_answers`
 - 外部: Google Calendar events、（設定時）Zoom API
+
+---
+
+### `GET|POST /api/booking-answer` — 認証不要（`hostAnswerToken` で保護）
+会員同士の相互質問（#20）。ホストが予約者の質問(`guest_message`)に回答する。トークンは `sign("hostanswer:"+id)`＝**ホスト宛メールにのみ載る**（予約者の manage トークンとは別 namespace のため、予約者は回答ページにアクセス不可）。
+- GET `?id&t`: 回答ページ初期表示 → `{ question, visitor_name, start_at, answered, host_answer }`。`guest_message` 無しは 404。
+- POST `{ id, t, answer* }`: `bookings.host_answer`(+`host_answer_at`) を保存し、予約者へ「回答が届きました」メール送信。`{ ok: true }`。
+- DB: `bookings`（`host_answer` 列が未マイグレーションでも try/catch でメール送信は継続）
+
+---
+
+### `GET /api/pending-answers` — 要ログイン（`requireOwner`）
+会員同士の相互質問（#20）の「回答待ち」一覧。自分の予約で **相手がキマル会員（`visitor_email`↔`owners`・自分以外）かつ `guest_message` あり かつ 未回答(`host_answer` 空)** のものを返す。各件に回答ページ用 `hostAnswerToken` を同梱。
+- 応答: `{ count, items: [{ id, visitor_name, start_at, question, t }] }`
+- 利用: `pending-questions.html`（一覧→各件 `answer-question.html?id&t` へ）、ダッシュボード「要対応」の件数表示。
+- DB: `bookings`, `owners`（`host_answer` 列が未適用の環境では全件を未回答として扱う＝劣化動作）
 
 ---
 
@@ -83,8 +99,8 @@ OAuth コールバック。`code` をトークン交換し、`owners` を upsert
 - 検証/プラン制限（premium は pro 扱い）:
   - duration ∈ 30〜120（10分刻み）、buffer ∈ 0〜60、range ∈ 1〜6（日数指定 7/14/21 も可）
   - location_type ∈ {in_person, google_meet, zoom, phone, custom_url, later}
-  - **無料は range 最大2ヶ月**（超過は 403）、質問は無料2問/有料5問（超過は 403）
-  - **保存数上限**: 無料2 / 有料5（凍結ページは上限カウント除外・#174）
+  - **無料は range 最大2ヶ月**（超過は 403）、質問は無料2問/Pro・プレミアム5問（超過は 403）
+  - **保存数上限**: 無料1 / Pro2 / プレミアム5（凍結ページは上限カウント除外・#174 / 決定27。`_lib/plan-limits.js`）
   - 受付時間（availability）が0件なら 400
 - 処理: `booking_pages` を upsert → `questionnaire_questions` を全削除して再投入 → `availability_settings` を全削除して再投入
 - 応答: `{ ok: true, booking_page, availability_settings, question_limit }`
@@ -104,16 +120,16 @@ OAuth コールバック。`code` をトークン交換し、`owners` を upsert
 ### `POST /api/invite-apply` — 要
 招待コード（Cat Key）を適用して Pro へ昇格。
 - body: `{ code* }`（大文字化して照合。形式 `^[A-Z0-9_-]{6,40}$`）
-- 有効コード: `JF7YAIN40EQL`, `NEKO20240222`（= Cat Key `Neko20240222`）
+- 有効コード: `NEKO20240222`（= Cat Key `Neko20240222`）
 - `cat_key_disabled` のアカウントは 403。無効コードは 400。
 - 処理: **承認制** — 即時付与せず `cat_key_pending=true`（運営が承認すると `pro`）。`cat_key_events` に監査ログ。
 - 応答: `{ ok: true, pending: true, owner }`
 - DB: `owners`, `cat_key_events`
 
 ### Cat Key 管理モード（運営用・シークレット）
-同じ `invite-apply` 関数が `?admin=cat-key` で管理APIを兼ねる。運営セッション or `CAT_KEY_ADMIN_SECRET`（Bearer / `?secret=` / body.secret）。
+同じ `invite-apply` 関数が `?admin=cat-key` で管理APIを兼ねる。運営セッション or `ADMIN_SECRET`（Bearer / `?secret=` / body.secret）。
 - `GET /api/invite-apply?admin=cat-key`: オーナー一覧＋Cat Key イベント。応答 `{ owners, events }`
-- `POST /api/invite-apply?admin=cat-key`: body `{ owner_id*, action: "approve"|"reject"|"revoke"|"restore", secret }`。**approve で `plan=pro`（凍結データ復元）**、revoke で `plan=free`（超過データ凍結）。応答 `{ ok: true, owner }`
+- `POST /api/invite-apply?admin=cat-key`: body `{ owner_id*, action, secret }`。action は `approve`（申請承認→`plan=pro`）/ `reject`（申請却下→`invite_code=''`）/ `suspend`（利用停止）/ `resume`（利用再開）/ `demote`（無料降格→`plan=free`・`invite_code` 保持で退会済）。`suspend`/`resume` はメンバー（`invite_code` 有）のみ `plan` を `free`⇄`pro` 切替し、非メンバーは `cat_key_disabled` だけ切替（課金者の誤降格・非メンバーの誤昇格を防止）。Pro 昇格で凍結データ復元、無料降格で超過データ凍結。応答 `{ ok: true, owner }`
 - DB: `owners`, `cat_key_events`, `booking_pages`
 
 ---
@@ -176,7 +192,7 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 | `SESSION_SECRET` | セッション Cookie 署名 |
 | `TOKEN_ENCRYPTION_KEY` | Google トークン暗号化（無ければ SESSION_SECRET 代用） |
 | `SQUARE_WEBHOOK_SHARED_SECRET` | Square Webhook 検証 |
-| `CAT_KEY_ADMIN_SECRET`（or `ADMIN_SECRET`） | Cat Key 管理モード認証 |
+| `ADMIN_SECRET` | Cat Key 管理モード認証 |
 | `REMINDER_CRON_SECRET` / `THANKYOU_CRON_SECRET`（or `CRON_SECRET`） | リマインダー/サンキュー・ジョブ認証 |
 | `RESEND_API_KEY` / `TRANSACTIONAL_EMAIL_FROM`(notify) / `MARKETING_EMAIL_FROM`(news) / `RESEND_WEBHOOK_SECRET` | メール送信（経路分離）・配信イベント |
 | `SQUARE_PREMIUM_PLAN_ID` | プレミアム（¥2,200）の付与判定 |

@@ -1,9 +1,10 @@
 const { json, readJson } = require("./_lib/response");
-const { sb, eq, defaultOwner, findOwnerById } = require("./_lib/supabase");
+const { sb, eq, defaultOwner, findOwnerById, findOwnerByEmail } = require("./_lib/supabase");
 const { createCalendarEvent } = require("./_lib/google");
+const { checkRateLimit, clientIp, RATE_LIMIT_MESSAGE } = require("./_lib/rate-limit");
 const zoom = require("./_lib/zoom");
 const { sendMail } = require("./_lib/mail");
-const { LOCATION_LABELS, formatJst, manageUrl, answersSummary } = require("./_lib/booking-format");
+const { LOCATION_LABELS, formatJst, manageUrl, answerUrl, answersSummary } = require("./_lib/booking-format");
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -26,7 +27,7 @@ async function sendBookingConfirmation({ booking, owner, meetingUrl, locationVal
 }
 
 // 新規予約のホスト（主催者）宛通知メール（任意・非致命）。無料版でも予約に気づける。
-async function sendHostNotification({ booking, owner, meetingUrl, locationValue, answers }) {
+async function sendHostNotification({ booking, owner, meetingUrl, locationValue, answers, booker }) {
   if (!owner?.email) return { skipped: true };
   const when = formatJst(booking.start_at || booking.start_time);
   const qa = answersSummary(answers);
@@ -42,7 +43,16 @@ async function sendHostNotification({ booking, owner, meetingUrl, locationValue,
   if (meetingUrl) lines.push(`ミーティング: ${meetingUrl}`);
   if (locationValue) lines.push(`場所/案内: ${locationValue}`);
   if (qa) lines.push("", "― 事前アンケート ―", qa);
-  if (booking.guest_message) lines.push("", `― ${booking.visitor_name || "相手"}さんからの質問・メッセージ ―`, booking.guest_message);
+  if (booking.guest_message) {
+    // 会員同士（予約者が別のキマル会員）なら、回答ページへの導線つきで「回答お願いします」と促す（#20）。
+    const memberToMember = booker && owner && booker.id !== owner.id;
+    if (memberToMember) {
+      lines.push("", `― ${booking.visitor_name || "相手"}さん（キマル会員）からの質問 ―`, booking.guest_message);
+      lines.push("", "▼ 相手からも質問があります。回答をお願いします（下記から回答できます）", answerUrl(booking.id));
+    } else {
+      lines.push("", `― ${booking.visitor_name || "相手"}さんからの質問・メッセージ ―`, booking.guest_message);
+    }
+  }
   lines.push("", "▼ この予約の変更・キャンセル", manageUrl(booking.id));
   return sendMail({ to: owner.email, subject: `新しい予約: ${when} / ${booking.visitor_name || ""}さん`, text: lines.join("\n") });
 }
@@ -100,6 +110,10 @@ exports.handler = async (event) => {
     maxFuture.setMonth(maxFuture.getMonth() + 6);
     if (start < now || start > maxFuture) return json(400, { error: "予約できる期間外の日時です" });
 
+    // 予約スパム/カレンダー・メール濫用の抑止（IP別）。
+    const rl = await checkRateLimit({ bucket: "book_ip", ident: clientIp(event), limit: 20, windowSec: 3600 });
+    if (!rl.allowed) return json(429, { error: RATE_LIMIT_MESSAGE });
+
     // owner_slug で予約ページ＋オーナーを解決（無ければ既定オーナー）。
     const slug = String(body.owner_slug || "").trim().toLowerCase();
     let owner = null;
@@ -111,6 +125,8 @@ exports.handler = async (event) => {
     }
     if (!owner) owner = await defaultOwner();
     if (!owner) return json(400, { error: "予約先が設定されていません。発行者がGoogleでログインしているかご確認ください" });
+    // 利用停止（cat_key_disabled）アカウントの予約ページは予約不可。
+    if (owner.cat_key_disabled) return json(403, { error: "このページは現在ご利用いただけません。" });
     if (bookingPage && bookingPage.is_active === false) return json(400, { error: "このページは現在、予約の受付を停止しています" });
     const relationshipContext = parseRelationshipContext(body.filter_request);
     const birthDatePrivate = body.birth_date_private === "yes" || body.birth_date_private === true;
@@ -195,8 +211,10 @@ exports.handler = async (event) => {
     // 予約完了メール（ゲスト）＋ホスト通知（いずれも任意・非致命）。
     const meetingUrl = eventResult?.hangoutLink || zoomUrl || booking.meeting_url || "";
     const locationValue = clean(body.location_value, 500);
+    // 予約者がキマル会員か判定（会員同士なら相互質問の回答導線を有効化・#20）。
+    const booker = await findOwnerByEmail(visitorEmail).catch(() => null);
     await sendBookingConfirmation({ booking, owner, meetingUrl, locationValue }).catch(() => {});
-    await sendHostNotification({ booking, owner, meetingUrl, locationValue, answers }).catch(() => {});
+    await sendHostNotification({ booking, owner, meetingUrl, locationValue, answers, booker }).catch(() => {});
 
     return json(200, { ok: true, booking, google: eventResult, manage_url: manageUrl(booking.id) });
   } catch (error) {

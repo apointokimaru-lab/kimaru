@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mock - キマル（新ルック探索）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/mock.css" />
+</head>
+<body>
+<!-- mock: プレースホルダ内容のみ（mock/README.md のルール参照）。 -->
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="/"><span class="brand-dot"></span>キマル</a>
+    <nav class="nav-links">
+      <a href="/dashboard.html">ホーム</a>
+      <a href="/booking-settings.html" aria-current="page">予約設定</a>
+      <a href="/contacts.html">相手管理</a>
+      <a href="/ai-assist.html">AIアシスト</a>
+      <a href="/settings.html">設定</a>
+    </nav>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="badge badge-pro">Pro</span>
+      <span class="avatar">田</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="shell">
+    <div class="pagehead">
+      <span class="eyebrow">予約設定</span>
+      <h1>予約ページを設定</h1>
+      <p class="sub">設定の異なる予約ページを作成・編集できます（無料1つ / Pro2つ / プレミアム5つ）。</p>
+      <span class="note f-free" style="margin-top:14px">無料：予約ページ 1つ・事前アンケート 2問（自由入力のみ）</span>
+      <span class="note f-pro" style="margin-top:14px">Pro：予約ページ 2つ・アンケート 5問・選択式回答も設定可</span>
+      <span class="note f-premium" style="margin-top:14px">プレミアム：予約ページ 5つ・アンケート 5問・選択式回答も設定可</span>
+    </div>
+
+    <div class="stack" style="margin-top:26px">
+
+      <!-- 基本 -->
+      <section class="panel">
+        <h2 style="font-family:var(--display);font-size:20px;margin-bottom:4px">基本</h2>
+        <p class="field-note" style="margin-bottom:16px">予約ページのタイトル・URL・所要時間。前後のバッファで連続予約を防げます。</p>
+        <div class="form-grid">
+          <div class="field wide">
+            <label for="bs-status">受付ステータス</label>
+            <select id="bs-status">
+              <option selected>受付中（公開して予約を受け付ける）</option>
+              <option>受付停止中（ページは残すが予約を受け付けない）</option>
+            </select>
+          </div>
+          <div class="field wide">
+            <label for="bs-title">タイトル</label>
+            <input id="bs-title" type="text" value="田中さくらとの面談" />
+          </div>
+          <div class="field">
+            <label for="bs-slug">公開URL（slug）</label>
+            <input id="bs-slug" type="text" value="tanaka-meeting" />
+            <span class="field-note">公開URL：kimaru.app/b/<b style="color:var(--accent-ink)">tanaka-meeting</b></span>
+          </div>
+          <div class="field">
+            <label for="bs-duration">予約時間</label>
+            <select id="bs-duration">
+              <option>30分</option>
+              <option>40分</option>
+              <option>50分</option>
+              <option selected>60分</option>
+              <option>70分</option>
+              <option>80分</option>
+              <option>90分</option>
+              <option>100分</option>
+              <option>110分</option>
+              <option>120分</option>
+            </select>
+          </div>
+          <div class="field wide">
+            <label for="bs-desc">説明</label>
+            <textarea id="bs-desc">面談の目的や持ち物など、事前に伝えたいことを記載します。</textarea>
+          </div>
+          <div class="field">
+            <label for="bs-buffer-before">前バッファ</label>
+            <select id="bs-buffer-before">
+              <option>なし</option>
+              <option selected>10分</option>
+              <option>20分</option>
+              <option>30分</option>
+              <option>40分</option>
+              <option>50分</option>
+              <option>60分</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="bs-buffer-after">後バッファ</label>
+            <select id="bs-buffer-after">
+              <option>なし</option>
+              <option selected>10分</option>
+              <option>20分</option>
+              <option>30分</option>
+              <option>40分</option>
+              <option>50分</option>
+              <option>60分</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="bs-range">予約枠の公開範囲</label>
+            <select id="bs-range">
+              <option>今日から7日先まで公開</option>
+              <option>今日から14日先まで公開</option>
+              <option>今日から21日先まで公開</option>
+              <option>今日から1ヶ月先まで公開</option>
+              <option selected>今日から2ヶ月先まで公開（無料はここまで）</option>
+              <option>今日から3ヶ月先まで公開（Pro）</option>
+              <option>今日から4ヶ月先まで公開（Pro）</option>
+              <option>今日から5ヶ月先まで公開（Pro）</option>
+              <option>今日から6ヶ月先まで公開（Pro）</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="bs-interval">日程候補の表示間隔</label>
+            <select id="bs-interval">
+              <option selected>自動（所要＋前後バッファ）</option>
+              <option>15分ごと</option>
+              <option>30分ごと</option>
+              <option>45分ごと</option>
+              <option>60分ごと</option>
+              <option>90分ごと</option>
+              <option>120分ごと</option>
+            </select>
+            <span class="field-note">予約枠の開始時刻の間隔です。「自動」は所要時間＋前後バッファで詰めて表示します。</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 開催方法 -->
+      <section class="panel">
+        <h2 style="font-family:var(--display);font-size:20px;margin-bottom:4px">開催方法</h2>
+        <p class="field-note" style="margin-bottom:16px">面談の実施方法を1つ選びます。選んだ方法に応じて、必要な入力だけが表示されます。</p>
+        <div class="method-grid" id="bs-method">
+          <label class="method-opt sel"><input type="radio" name="method" value="meet" checked hidden /><span class="mdot"></span>Google Meet</label>
+          <label class="method-opt"><input type="radio" name="method" value="zoom" hidden /><span class="mdot"></span>Zoom</label>
+          <label class="method-opt"><input type="radio" name="method" value="inperson" hidden /><span class="mdot"></span>対面</label>
+          <label class="method-opt"><input type="radio" name="method" value="phone" hidden /><span class="mdot"></span>電話</label>
+          <label class="method-opt"><input type="radio" name="method" value="custom" hidden /><span class="mdot"></span>カスタムURL</label>
+          <label class="method-opt"><input type="radio" name="method" value="later" hidden /><span class="mdot"></span>後で連絡</label>
+        </div>
+        <div class="method-detail" id="bs-method-detail">
+          <div class="method-connect">
+            <div>
+              <b>Google連携が必要です</b>
+              <p>Google Meet で実施するには Google との連携が必要です。連携すると、会議URLが予約確定時に自動発行され、確認メールに記載されます。</p>
+            </div>
+            <a class="btn btn-primary btn-sm" href="/settings.html">設定で連携する</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- 受付時間 -->
+      <section class="panel">
+        <h2 style="font-family:var(--display);font-size:20px;margin-bottom:4px">受付時間</h2>
+        <p class="field-note" style="margin-bottom:16px">曜日ごとに受付可能な時間帯を設定します。チェックを外すとその曜日は休みになります。</p>
+        <div class="avail">
+          <div class="avail-row">
+            <label class="avail-day"><input type="checkbox" checked />月曜日</label>
+            <div class="time-range">
+              <input type="text" value="10:00" /><span class="tilde">〜</span><input type="text" value="18:00" />
+              <span class="avail-rest">休み</span>
+            </div>
+          </div>
+          <div class="avail-row">
+            <label class="avail-day"><input type="checkbox" checked />火曜日</label>
+            <div class="time-range">
+              <input type="text" value="10:00" /><span class="tilde">〜</span><input type="text" value="18:00" />
+              <span class="avail-rest">休み</span>
+            </div>
+          </div>
+          <div class="avail-row">
+            <label class="avail-day"><input type="checkbox" checked />水曜日</label>
+            <div class="time-range">
+              <input type="text" value="13:00" /><span class="tilde">〜</span><input type="text" value="18:00" />
+              <span class="avail-rest">休み</span>
+            </div>
+          </div>
+          <div class="avail-row">
+            <label class="avail-day"><input type="checkbox" checked />木曜日</label>
+            <div class="time-range">
+              <input type="text" value="10:00" /><span class="tilde">〜</span><input type="text" value="18:00" />
+              <span class="avail-rest">休み</span>
+            </div>
+          </div>
+          <div class="avail-row">
+            <label class="avail-day"><input type="checkbox" checked />金曜日</label>
+            <div class="time-range">
+              <input type="text" value="10:00" /><span class="tilde">〜</span><input type="text" value="16:00" />
+              <span class="avail-rest">休み</span>
+            </div>
+          </div>
+          <div class="avail-row">
+            <label class="avail-day"><input type="checkbox" checked />土曜日</label>
+            <div class="time-range">
+              <input type="text" value="11:00" /><span class="tilde">〜</span><input type="text" value="15:00" />
+              <span class="avail-rest">休み</span>
+            </div>
+          </div>
+          <div class="avail-row off">
+            <label class="avail-day"><input type="checkbox" />日曜日</label>
+            <div class="time-range">
+              <input type="text" value="10:00" /><span class="tilde">〜</span><input type="text" value="16:00" />
+              <span class="avail-rest">休み</span>
+            </div>
+          </div>
+        </div>
+        <label class="checkrow" style="margin-top:16px"><input type="checkbox" />日本の祝日は受付しない</label>
+        <span class="field-note" style="display:block;margin-top:6px">チェックすると、祝日は曜日設定にかかわらず終日休みになります（既定は受け付ける）。</span>
+
+        <div class="form-grid" style="margin-top:22px">
+          <div class="field">
+            <label for="bs-lead">直前予約の防止</label>
+            <select id="bs-lead">
+              <option selected>今すぐ（制限なし）</option>
+              <option>12時間後から</option>
+              <option>18時間後から</option>
+              <option>24時間後から</option>
+              <option>48時間後から</option>
+            </select>
+            <span class="field-note">予約開始の何時間前まで受け付けるか。直前の予約を防げます。</span>
+          </div>
+          <div class="field">
+            <label for="bs-tz">タイムゾーン</label>
+            <select id="bs-tz" disabled>
+              <option selected>アジア/東京（UTC+9）</option>
+            </select>
+            <span class="field-note">現在は日本時間（Asia/Tokyo）に固定です。</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 事前アンケート -->
+      <section class="panel">
+        <h2 style="font-family:var(--display);font-size:20px;margin-bottom:8px">事前アンケート</h2>
+        <p class="field-note" style="margin-bottom:18px">無料2問 / Pro・プレミアム5問。選択式回答はPro以上。</p>
+
+        <div class="stack qstack">
+          <div class="panel qcard" style="box-shadow:none;background:var(--surface-2)">
+            <div class="form-grid">
+              <div class="field wide">
+                <label>質問文</label>
+                <input type="text" value="本日の相談テーマを教えてください" />
+              </div>
+              <div class="field f-pro">
+                <label>回答形式</label>
+                <select class="answer-type">
+                  <option value="text" selected>自由入力</option>
+                  <option value="select">プルダウン（1つ選択）</option>
+                  <option value="checkbox">チェックボックス（複数選択）</option>
+                </select>
+              </div>
+              <div class="field wide f-pro opt-block">
+                <label>選択肢</label>
+                <div class="opt-list">
+                  <div class="opt-row is-radio"><span class="opt-mark"></span><input type="text" value="キャリア相談" /><button type="button" class="opt-rm" title="この選択肢を削除">×</button></div>
+                  <div class="opt-row is-radio"><span class="opt-mark"></span><input type="text" value="副業について" /><button type="button" class="opt-rm" title="この選択肢を削除">×</button></div>
+                  <div class="opt-row is-radio"><span class="opt-mark"></span><input type="text" value="その他" /><button type="button" class="opt-rm" title="この選択肢を削除">×</button></div>
+                </div>
+                <button type="button" class="btn btn-ghost opt-add">＋ 選択肢を追加</button>
+              </div>
+              <div class="field wide f-free">
+                <span class="field-note">選択式回答（プルダウン・チェックボックス）は Pro 以上で設定できます。</span>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-ghost q-del" style="min-height:38px;padding:0 14px">この質問を削除</button>
+            </div>
+          </div>
+
+          <div class="panel qcard" style="box-shadow:none;background:var(--surface-2)">
+            <div class="form-grid">
+              <div class="field wide">
+                <label>質問文</label>
+                <input type="text" value="ご希望の進め方はありますか？" />
+              </div>
+              <div class="field f-pro">
+                <label>回答形式</label>
+                <select class="answer-type">
+                  <option value="text">自由入力</option>
+                  <option value="select" selected>プルダウン（1つ選択）</option>
+                  <option value="checkbox">チェックボックス（複数選択）</option>
+                </select>
+              </div>
+              <div class="field wide f-pro opt-block">
+                <label>選択肢</label>
+                <div class="opt-list">
+                  <div class="opt-row is-radio"><span class="opt-mark"></span><input type="text" value="じっくり話したい" /><button type="button" class="opt-rm" title="この選択肢を削除">×</button></div>
+                  <div class="opt-row is-radio"><span class="opt-mark"></span><input type="text" value="要点だけ手短に" /><button type="button" class="opt-rm" title="この選択肢を削除">×</button></div>
+                  <div class="opt-row is-radio"><span class="opt-mark"></span><input type="text" value="おまかせ" /><button type="button" class="opt-rm" title="この選択肢を削除">×</button></div>
+                </div>
+                <button type="button" class="btn btn-ghost opt-add">＋ 選択肢を追加</button>
+              </div>
+              <div class="field wide f-free">
+                <span class="field-note">選択式回答（プルダウン・チェックボックス）は Pro 以上で設定できます。</span>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-ghost q-del" style="min-height:38px;padding:0 14px">この質問を削除</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions" style="margin-top:16px">
+          <button type="button" class="btn btn-ghost q-add">＋ 質問を追加</button>
+        </div>
+        <script src="/mock-survey.js" defer></script>
+      </section>
+
+      <div class="panel row-between" style="position:sticky;bottom:18px">
+        <span class="field-note">変更は保存するまで公開されません。</span>
+        <div class="form-actions" style="margin-top:0">
+          <button class="btn btn-ghost">プレビュー</button>
+          <button class="btn btn-primary">保存して公開する</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="shell foot-in">
+    <div><a href="/">キマル</a><a href="/plan.html">料金</a><a href="#">利用規約</a><a href="#">プライバシー</a></div>
+    <div>© 2026 Kimaru — 日程が、キマる。</div>
+  </div>
+</footer>
+<script src="/mock-plan.js" defer></script>
+</body>
+</html>

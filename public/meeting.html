@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>キマル - 面談ブリーフィング</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body data-page="meeting" data-i18n-title="meeting.pageTitle">
+<!-- site-header -->
+
+<main class="shell">
+  <button class="backlink" type="button" onclick="(history.length>1)?history.back():location.href='/answers.html'" data-i18n="meeting.back">← 戻る</button>
+
+  <div class="pagehead" style="margin-top:8px">
+    <span class="eyebrow" data-i18n="meeting.eyebrow">面談ブリーフィング</span>
+    <h1 data-i18n="meeting.title">佐藤 りく さんとの面談</h1>
+    <p class="sub" data-i18n="meeting.sub">打ち合わせの直前に、相手のプロフィール・事前アンケート・占いベースの相性まで、まとめて確認できます。</p>
+  </div>
+
+  <!-- 面談カード（日時・会議リンク・操作） -->
+  <div class="panel" style="margin-top:24px">
+    <div class="crm-dhead">
+      <span class="avatar">佐</span>
+      <div style="min-width:0"><h2 id="meeting-name" data-i18n="meeting.guestName">佐藤 りく さん</h2><div class="mail" id="meeting-when" data-i18n="meeting.when">本日 6/19（木）14:00–14:30 ・ Google Meet</div></div>
+      <span class="sc" id="meeting-countdown" data-i18n="meeting.countdown">あと約2時間</span>
+    </div>
+    <div class="field" style="margin:0">
+      <label data-i18n="meeting.meetLink">会議リンク（Google Meet）</label>
+      <div class="share">
+        <code id="meet-url">https://meet.google.com/abc-defg-hij</code>
+        <a class="btn btn-ghost btn-sm" id="meet-join" href="https://meet.google.com/abc-defg-hij" target="_blank" rel="noopener" data-i18n="meeting.join">参加</a>
+        <button class="btn btn-primary btn-sm" type="button" data-copy="meet-url" data-i18n="meeting.copy">リンクをコピー</button>
+      </div>
+    </div>
+    <div class="form-actions" style="margin-top:16px">
+      <a class="btn btn-ghost btn-sm" href="/manage-booking.html" data-i18n="meeting.reschedule">日程を変更</a>
+      <a class="btn btn-ghost btn-sm" href="/manage-booking.html" data-i18n="meeting.cancel">予約をキャンセル</a>
+    </div>
+  </div>
+
+  <!-- 占いベース相手分析（Pro+） -->
+  <div class="panel pro-feature" style="margin-top:18px">
+    <h3 style="font-family:var(--display);font-size:16px;font-weight:700;margin:0 0 10px"><span data-i18n="meeting.fortuneTitle">占いベース相手分析</span> <span class="badge badge-pro" style="vertical-align:middle" data-i18n="meeting.todayBadge">本日</span></h3>
+    <div class="insight" id="meeting-fortune" data-i18n="meeting.fortuneBody">本日は「行動力が高まる日」。結論から、要点を絞って伝えると刺さります。細部の確認は後半に回し、テンポよく進めるのが◎。</div>
+    <p class="field-note" style="margin-top:10px" data-i18n="meeting.fortuneNote">生年月日（算命学＋数秘術）から、当日の接し方・注意点を提案します。</p>
+  </div>
+
+  <!-- 相手プロフィール（Pro+） -->
+  <div class="panel pro-feature" style="margin-top:18px">
+    <div class="row-between" style="margin-bottom:12px">
+      <h3 style="font-family:var(--display);font-size:16px;font-weight:700;margin:0" data-i18n="meeting.profileTitle">相手プロフィール</h3>
+      <a class="btn btn-ghost btn-sm" href="/contacts.html" data-i18n="meeting.openInContacts">相手管理で開く</a>
+    </div>
+    <dl class="summary" id="meeting-profile">
+      <div><dt data-i18n="meeting.profGender">性別</dt><dd>男性</dd></div>
+      <div><dt data-i18n="meeting.profLocation">住まい</dt><dd>大阪・北区</dd></div>
+      <div><dt data-i18n="meeting.profMbti">MBTI</dt><dd>ENTP</dd></div>
+      <div><dt data-i18n="meeting.profHobby">趣味</dt><dd>サウナ / 登山</dd></div>
+      <div><dt data-i18n="meeting.profWants">求めていること</dt><dd>新サービスの導入を検討中</dd></div>
+      <div><dt data-i18n="meeting.profOffers">提供できること</dt><dd>飲食店の現場知見</dd></div>
+    </dl>
+  </div>
+
+  <!-- 事前アンケート回答（全プラン） -->
+  <div class="panel" style="margin-top:18px">
+    <div class="row-between" style="margin-bottom:12px">
+      <h3 style="font-family:var(--display);font-size:16px;font-weight:700;margin:0" data-i18n="meeting.surveyTitle">事前アンケート回答</h3>
+      <span class="badge badge-unread" data-i18n="meeting.unread">未読</span>
+    </div>
+    <dl class="summary" id="meeting-survey">
+      <div><dt>今回お話したい内容</dt><dd>新サービスについて初めて相談したい</dd></div>
+      <div><dt>現在の状況</dt><dd>個人事業で、来月の立ち上げに向けて準備中です。</dd></div>
+      <div><dt>気になっている点</dt><dd>料金プランと、他社との違いを知りたい。</dd></div>
+    </dl>
+    <div class="form-actions" style="margin-top:16px"><button class="btn btn-ghost btn-sm" type="button" id="mark-read" data-i18n="meeting.markRead">確認済みにする</button></div>
+  </div>
+
+  <!-- これまでの面談メモ（Pro+） -->
+  <div class="panel pro-feature" style="margin-top:18px">
+    <div class="row-between" style="margin-bottom:12px">
+      <h3 style="font-family:var(--display);font-size:16px;font-weight:700;margin:0"><span data-i18n="meeting.memoTitle">これまでの面談メモ</span> <span class="muted" style="font-size:13px;font-weight:600" data-i18n="meeting.memoCount">（1件）</span></h3>
+      <a class="btn btn-ghost btn-sm" href="/contacts.html" data-i18n="meeting.addMemo">メモを追加</a>
+    </div>
+    <div class="memo-card" id="meeting-memos">
+      <div class="memo-head"><span class="memo-date">6/2（月）</span><span class="memo-topic" data-i18n="meeting.memoTopic">問い合わせ対応</span></div>
+      <p class="readtext" data-i18n="meeting.memoBody">Webフォームから問い合わせ。丁寧な文面で本気度が高そう。</p>
+      <div class="memo-next"><b data-i18n="meeting.memoNextLabel">次にできること</b><span data-i18n="meeting.memoNext">体験の日程を案内する。</span></div>
+    </div>
+  </div>
+
+  <!-- プレミアム: AIが次の一手 -->
+  <div class="aipanel premium-feature" style="margin-top:18px;padding:22px">
+    <span class="eyebrow" data-i18n="meeting.aiEyebrow">AI Assist</span>
+    <h2 style="font-family:var(--display);font-size:18px;margin:8px 0 6px" data-i18n="meeting.aiTitle">この面談の次の一手</h2>
+    <p style="color:rgba(255,255,255,.9);font-size:13.5px;margin:0 0 14px" data-i18n="meeting.aiBody">アンケート・プロフィール・占い分析から、刺さる話題と当日の進め方をAIがまとめます。</p>
+    <a class="btn btn-sm" href="/ai-assist.html" style="background:#fff;color:var(--aurora-ink)" data-i18n="meeting.aiCta">提案を見る →</a>
+  </div>
+
+  <!-- 無料/Pro: プレミアムAIの案内 -->
+  <div class="side-card premium-lock" style="margin-top:18px">
+    <h3 data-i18n="meeting.lockAiTitle">プレミアムでAIが次の一手を提案</h3>
+    <p class="muted" style="margin:0 0 14px;font-size:14px" data-i18n="meeting.lockAiBody">この面談に合わせて、刺さる話題と当日の進め方をAIがまとめます。</p>
+    <a class="btn btn-aurora btn-sm" href="/plan.html" data-i18n="meeting.lockAiCta">プレミアムを見る</a>
+  </div>
+
+  <!-- 無料: 占い・プロフィール・メモは Pro の案内 -->
+  <section class="panel lockcard plan-free-only" style="margin-top:18px">
+    <span class="eyebrow" data-i18n="meeting.freeLockEyebrow">Pro限定</span>
+    <h2 style="font-family:var(--display);font-size:19px;margin:8px 0 6px" data-i18n="meeting.freeLockTitle">相手プロフィール・占いベース分析・面談メモは Pro の機能です</h2>
+    <p class="muted" style="margin:0 0 16px" data-i18n="meeting.freeLockBody">面談日時・会議リンク・事前アンケート回答は無料でも確認できます。相手の理解を深める分析や記録は Pro（または猫の鍵）でご利用いただけます。</p>
+    <div class="form-actions"><a class="btn btn-primary" href="/plan.html" data-i18n="meeting.freeLockCta">Proを始める</a><a class="btn btn-ghost" href="/plan.html" data-i18n="meeting.freeLockCompare">違いを見る</a></div>
+  </section>
+
+</main>
+
+<!-- site-footer -->
+
+<script>
+  // 会議リンクのコピー（押下後に一時表示切替）
+  document.querySelectorAll('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var src = document.getElementById(btn.dataset.copy);
+      var text = src ? src.textContent.trim() : '';
+      var done = function () {
+        var i18n = window.KimaruI18n;
+        var doneLabel = (i18n && i18n.t) ? i18n.t('meeting.copied') : 'コピーしました';
+        var label = btn.textContent;
+        btn.textContent = doneLabel; btn.disabled = true;
+        setTimeout(function () { btn.textContent = label; btn.disabled = false; }, 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done).catch(done); }
+      else { var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} document.body.removeChild(ta); done(); }
+    });
+  });
+</script>
+<script src="/i18n.js"></script>
+<script src="/plan.js" defer></script>
+</body>
+</html>

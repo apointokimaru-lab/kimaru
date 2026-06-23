@@ -3,6 +3,7 @@ const { findOwnerByEmail } = require("./_lib/supabase");
 const { timedToken } = require("./_lib/crypto");
 const { appBaseUrl } = require("./_lib/config");
 const { sendMail } = require("./_lib/mail");
+const { checkRateLimit, clientIp } = require("./_lib/rate-limit");
 
 // パスワード再設定の申請（#72）。メール列挙対策として、存在有無に関わらず常に 200 を返す。
 exports.handler = async (event) => {
@@ -11,7 +12,10 @@ exports.handler = async (event) => {
     const body = readJson(event);
     const email = String(body.email || "").trim().toLowerCase();
     if (email) {
-      const owner = await findOwnerByEmail(email).catch(() => null);
+      // メールボム対策：レート超過時は送信を抑止しつつ、列挙対策のため常に 200 を返す（429 にしない）。
+      const perEmail = await checkRateLimit({ bucket: "pwreset", ident: email, limit: 5, windowSec: 3600 });
+      const perIp = await checkRateLimit({ bucket: "pwreset_ip", ident: clientIp(event), limit: 20, windowSec: 3600 });
+      const owner = (perEmail.allowed && perIp.allowed) ? await findOwnerByEmail(email).catch(() => null) : null;
       // パスワード未設定（Googleのみ）アカウントには送らない。
       if (owner && owner.password_hash) {
         const ts = Date.now();

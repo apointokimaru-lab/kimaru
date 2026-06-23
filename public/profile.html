@@ -4,23 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>キマル | プロフィール設定</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-i18n-title="pf.pageTitle">
   <!-- site-header -->
 
   <main class="shell">
-    <section class="dash-hero">
-      <div class="dash-hero-text">
-        <p class="eyebrow" data-i18n="pf.hero.eyebrow">プロフィール設定</p>
-        <h1 data-i18n="pf.hero.heading">あなたのプロフィール</h1>
-        <p class="muted" data-i18n="pf.hero.lead">ここで整えた自己紹介は、相手に合わせた提案を作る「AIアシスト」に渡されます。右のプレビューが、AIアシストが見るあなたの姿です。</p>
-        <p id="profile-status" class="message" data-i18n="pf.status.checking">ログイン中のプロフィールを確認しています...</p>
-      </div>
-    </section>
+    <div class="pagehead">
+      <p class="eyebrow" data-i18n="pf.hero.eyebrow">プロフィール設定</p>
+      <h1 data-i18n="pf.hero.heading">あなたのプロフィール</h1>
+      <p class="sub" data-i18n="pf.hero.lead">ここで整えた自己紹介は、相手に合わせた提案を作る「AIアシスト」に渡されます。右のプレビューが、AIアシストが見るあなたの姿です。</p>
+      <p id="profile-status" class="message" data-i18n="pf.status.checking">ログイン中のプロフィールを確認しています...</p>
+    </div>
 
     <div class="profile-grid">
       <section class="panel settings-section">
@@ -86,6 +81,20 @@
             <p class="muted" id="public-url-note"></p>
           </div>
 
+          <!-- 無料会員向け：高度プロフィール欄の代わりに「できること」＋アップグレード導線を表示（編集画面にいきなり飛ばさない）。 -->
+          <div id="advanced-profile-lock" class="hidden soft-box">
+            <p class="form-group"><span data-i18n="pf.lock.title">高度プロフィール</span> <span class="pro-badge">Pro</span></p>
+            <p class="muted" data-i18n="pf.lock.lead">公開プロフィールページを、色・見出し・太字で魅せられます。次の機能はProで開放されます。</p>
+            <ul class="feature-list">
+              <li><strong data-i18n="pf.lock.f1Term">キャッチコピー</strong><span data-i18n="pf.lock.f1Desc">：1行で伝わる見出し。</span></li>
+              <li><strong data-i18n="pf.lock.f2Term">装飾できる自己紹介</strong><span data-i18n="pf.lock.f2Desc">：見出し（行頭「# 」）と太字（**）で読みやすく。</span></li>
+              <li><strong data-i18n="pf.lock.f3Term">アクセント色</strong><span data-i18n="pf.lock.f3Desc">：公開ページの見出し色を指定。</span></li>
+              <li><strong data-i18n="pf.lock.f4Term">リンク集</strong><span data-i18n="pf.lock.f4Desc">：SNS・サイトなどをまとめて掲載。</span></li>
+              <li><strong data-i18n="pf.lock.f5Term">公開ページ</strong><span data-i18n="pf.lock.f5Desc">：あなた専用URL（/u/…）で共有。</span></li>
+            </ul>
+            <p><a class="button primary" href="/square.html" data-i18n="pf.lock.cta">Proを始める / Cat Key</a></p>
+          </div>
+
           <button class="primary" type="submit" data-i18n="pf.submit">プロフィールを保存</button>
         </form>
         <p id="profile-message" class="message"></p>
@@ -93,13 +102,16 @@
 
       <div class="profile-preview-col">
         <section class="panel settings-section">
-          <p class="eyebrow" data-i18n="pf.preview.eyebrow">プレビュー</p>
-          <h2 data-i18n="pf.preview.heading">AIアシストに渡すプロフィール</h2>
+          <div class="row-between" style="margin-bottom:6px;">
+            <p class="eyebrow" style="margin:0;" data-i18n="pf.preview.eyebrow">プレビュー</p>
+            <span class="tag" data-i18n="pf.preview.tag">AIアシストが見る姿</span>
+          </div>
+          <h2 data-i18n="pf.preview.heading">プロフィールのプレビュー</h2>
           <p class="muted" style="margin-bottom:14px;" data-i18n="pf.preview.lead">入力するとリアルタイムで反映されます。</p>
           <div id="profile-preview" class="soft-box profile-card">
             <p class="muted" data-i18n="pf.preview.empty">プロフィールを入力するとプレビューが表示されます。</p>
           </div>
-          <p style="margin-top:14px;"><a class="button secondary" href="/ai-assist.html" data-i18n="pf.preview.useInAi">AIアシストで使う</a></p>
+          <p id="preview-ai-cta" class="hidden" style="margin-top:14px;"><a class="button secondary" href="/ai-assist.html" data-i18n="pf.preview.useInAi">AIアシストで使う</a></p>
         </section>
       </div>
     </div>
@@ -212,6 +224,15 @@
               const note = $('#public-url-note');
               if (note) note.innerHTML = `${escapeHtml(T("pf.publicUrl", '公開URL'))}: <a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`;
             }
+          } else {
+            // 無料会員：高度プロフィール欄の代わりに「できること」＋アップグレード導線を出す。
+            const advLock = document.getElementById('advanced-profile-lock');
+            if (advLock) advLock.classList.remove('hidden');
+          }
+          // AIアシストはプレミアム機能。プレビューの「AIアシストで使う」導線はプレミアムのみ表示。
+          if (data.owner.plan === 'premium') {
+            const aiCta = document.getElementById('preview-ai-cta');
+            if (aiCta) aiCta.classList.remove('hidden');
           }
         } else {
           $('#profile-status').textContent = T("pf.status.guest", 'ログインすると、名前・メールなどのプロフィール情報を自動反映できます。');

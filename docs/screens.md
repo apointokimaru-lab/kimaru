@@ -44,7 +44,7 @@
 | 12 | 運営コンソール（Cat Key・ユーザー管理） | `/cat-key-admin.html` | 運営者 | 運営セッション | 運営専用（最小） |
 | 13 | 運営者管理 | `/operators.html` | 運営者 | 運営セッション | 運営専用（最小） |
 
-- **#11 運営ログイン**: 共有管理キー（`CAT_KEY_ADMIN_SECRET`）を入力 → **運営専用セッション `kimaru_admin_session`** を発行。**ユーザーの `/login.html`・`kimaru_session` とは完全に別系統**。
+- **#11 運営ログイン**: 共有管理キー（`ADMIN_SECRET`）を入力 → **運営専用セッション `kimaru_admin_session`** を発行。**ユーザーの `/login.html`・`kimaru_session` とは完全に別系統**。
 - **#12 運営コンソール**: Cat Key の承認/却下/降格/復元・監査・全ユーザー一覧（[features/22](./features/22-admin-console.md)）。
 - **#13 運営者管理**: 運営者アカウントの一覧・追加・削除。運営者は **ユーザー（`owners`）とは別テーブル `operators`** で管理する（[db-schema.md](./db-schema.md)）。
 - **認証（共通）**: 運営画面（#12/#13）は **運営セッション**で保護。未ログインなら `/operator-login.html` へ。運営者は一般ユーザー登録を持たなくてよく、**ユーザー認証とは完全分離**。将来、共有キー → 運営者ごとのメール+パスワード（`operators.password_hash`）へ拡張可能。

@@ -1,50 +1,43 @@
 const { sb, eq } = require("./supabase");
+const { planLimits } = require("./plan-limits");
 
-// 無料降格時に上限超過データを「削除せず凍結」、再昇格(pro/premium)で復元する（決定15・#174）。
+// プラン変更時に上限超過データを「削除せず凍結」、上限内に戻ったら復元する（決定15・#174、決定27・3段階対応）。
 // 凍結: 予約ページ frozen=true / is_active=false（公開停止＝予約不可）、質問 frozen=true（ゲストに出さない）。
 // frozen 列が未マイグレーションの環境では各処理を握りつぶす（降格/昇格自体は plan 更新で完了済み）。
-
-const FREE_PAGE_LIMIT = 2;
-const FREE_QUESTION_LIMIT = 2;
 
 async function ownerPageIds(ownerId, order = "updated_at.desc") {
   const pages = await sb(`booking_pages?owner_id=${eq(ownerId)}&select=id&order=${order}`);
   return (pages || []).map((p) => p.id);
 }
 
-// 無料降格: 直近更新の2ページだけ残し、超過ページと各ページの3問目以降を凍結。
-async function freezeExcess(ownerId) {
+// 変更後プランの上限に合わせて凍結／復元を一括適用（冪等）。
+// - 予約ページ: 直近更新の上限数だけ残し、超過は凍結。上限内に戻った凍結ページは復元。
+// - 質問: 残すページの上限超過設問を凍結、上限内の凍結設問を復元。
+// free 1 / pro 2 / premium 5 ページ、質問は free 2 / pro・premium 5。
+async function applyPlanLimits(ownerId, plan) {
+  const { pages: pageLimit, questions: questionLimit } = planLimits(plan);
   try {
     const ids = await ownerPageIds(ownerId, "updated_at.desc");
-    const excess = ids.slice(FREE_PAGE_LIMIT);
+    const keep = ids.slice(0, pageLimit);
+    const excess = ids.slice(pageLimit);
     if (excess.length) {
       await sb(`booking_pages?id=in.(${excess.join(",")})`, {
         method: "PATCH",
         body: JSON.stringify({ frozen: true, is_active: false, active: false }),
       });
     }
-    const keep = ids.slice(0, FREE_PAGE_LIMIT);
     if (keep.length) {
-      await sb(`questionnaire_questions?booking_page_id=in.(${keep.join(",")})&sort_order=gt.${FREE_QUESTION_LIMIT}`, {
+      // 上限内に戻った凍結ページのみ復元（ユーザーが手動で受付停止したページ frozen=false は触らない）。
+      await sb(`booking_pages?id=in.(${keep.join(",")})&frozen=is.true`, {
+        method: "PATCH",
+        body: JSON.stringify({ frozen: false, is_active: true, active: true }),
+      });
+      // 質問: 上限超過を凍結、上限内の凍結分を復元。
+      await sb(`questionnaire_questions?booking_page_id=in.(${keep.join(",")})&sort_order=gt.${questionLimit}`, {
         method: "PATCH",
         body: JSON.stringify({ frozen: true }),
       });
-    }
-  } catch (_) {
-    // frozen 列未マイグレーション等では何もしない。
-  }
-}
-
-// 再昇格: 凍結した予約ページ・質問をすべて復元。
-async function restoreFrozen(ownerId) {
-  try {
-    await sb(`booking_pages?owner_id=${eq(ownerId)}&frozen=is.true`, {
-      method: "PATCH",
-      body: JSON.stringify({ frozen: false, is_active: true, active: true }),
-    });
-    const ids = await ownerPageIds(ownerId, "created_at.asc");
-    if (ids.length) {
-      await sb(`questionnaire_questions?booking_page_id=in.(${ids.join(",")})&frozen=is.true`, {
+      await sb(`questionnaire_questions?booking_page_id=in.(${keep.join(",")})&sort_order=lte.${questionLimit}&frozen=is.true`, {
         method: "PATCH",
         body: JSON.stringify({ frozen: false }),
       });
@@ -54,4 +47,4 @@ async function restoreFrozen(ownerId) {
   }
 }
 
-module.exports = { freezeExcess, restoreFrozen, FREE_PAGE_LIMIT, FREE_QUESTION_LIMIT };
+module.exports = { applyPlanLimits };

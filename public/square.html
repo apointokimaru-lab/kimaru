@@ -4,19 +4,30 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="sq.pageTitle">キマル - Pro版決済</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-i18n-title="sq.pageTitle">
   <!-- site-header -->
 
-  <main class="shell narrow">
-    <section class="panel profile-card">
+  <main class="shell checkout">
+    <section class="panel profile-card" style="max-width:560px;margin:0 auto">
       <p class="eyebrow" data-i18n="sq.eyebrow">Square Checkout</p>
-      <h1 data-i18n="sq.heading">Pro版（1ヶ月無料お試し）を始める</h1>
-      <p class="lead" data-i18n="sq.lead">登録時にカード登録のうえ 1ヶ月無料 でお試しいただけます。期間終了後は自動で月額 ¥980 に移行します（期間中の解約で課金はありません）。猫の鍵 / Cat Keyをお持ちの方は、決済せず下の Cat Key 欄から入力してください。</p>
+      <h1 data-i18n="sq.heading">Pro版を始める</h1>
+      <p class="lead" data-i18n="sq.lead">月額 ¥980 でPro版の全機能をご利用いただけます。登録時に課金されます（無料お試しはありません）。</p>
+
+      <div class="row-between" style="margin:18px 0;padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-2)">
+        <div>
+          <b data-i18n="sq.summary.label">Pro プラン</b>
+          <p class="muted" style="margin:2px 0 0;font-size:13px" data-i18n="sq.summary.cycle">月額・自動更新</p>
+        </div>
+        <div style="text-align:right"><span class="price" style="font-size:24px;color:var(--ink)">980<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></div>
+      </div>
+
+      <ul class="feature-list">
+        <li data-i18n="sq.feat1">相手管理（面談メモ・印象スコア）で関係構築を強化</li>
+        <li data-i18n="sq.feat2">高度プロフィール＋公開ページ・占いベース相手分析</li>
+        <li data-i18n="sq.feat3">月額 ¥980（登録時に課金・税込）・いつでも解約できます</li>
+      </ul>
 
       <p id="square-status" class="message" data-i18n="sq.js.checking">ログイン状態を確認しています...</p>
 
@@ -28,13 +39,21 @@
       <p class="message guest-only" data-i18n="sq.guestMsg">Pro版のお申し込みにはログインが必要です。先に無料登録（またはログイン）してから、同じメールアドレスでお支払いください。</p>
 
       <!-- ログイン後：決済へ -->
-      <div class="actions app-only">
-        <a id="square-payment-link" class="button primary" href="https://square.link/u/sKdZIsyS?src=embed" target="_blank" rel="noopener noreferrer" data-i18n="sq.payCta">1ヶ月無料で始める（Square）</a>
+      <div class="app-only" style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px">
+        <span class="tag" data-i18n="sq.tag.secure">Square 安全決済</span>
+        <span class="tag" data-i18n="sq.tag.cancel">いつでも解約OK</span>
+        <span class="tag" data-i18n="sq.tag.charge">登録時に¥980課金</span>
       </div>
-      <p class="message app-only"><span data-i18n="sq.payMsgPre">お支払いは登録メール </span><strong id="pay-email">（確認中）</strong><span data-i18n="sq.payMsgPost"> で行ってください。このメールとSquareの支払者メールが一致すると、Pro版が自動で有効化されます。決済は新しいタブで開きます。</span></p>
+      <div class="actions app-only">
+        <a id="square-payment-link" class="button primary" href="https://square.link/u/sKdZIsyS?src=embed" target="_blank" rel="noopener noreferrer" data-i18n="sq.payCta">Pro（¥980/月）を始める（Square）</a>
+      </div>
+      <div class="soft-box app-only" style="margin-top:14px;">
+        <p class="muted" style="margin:0;"><span data-i18n="sq.payMsgPre">お支払いは登録メール </span><strong id="pay-email">（確認中）</strong><span data-i18n="sq.payMsgPost"> で行ってください。このメールとSquareの支払者メールが一致すると、Pro版が自動で有効化されます。決済は新しいタブで開きます。</span></p>
+      </div>
+      <p class="field-note app-only" style="margin-top:12px;text-align:center" data-i18n="sq.payNote">決済は Square が処理します。カード情報はキマルに保存されません。</p>
     </section>
 
-    <section class="panel app-only" id="catkey-box">
+    <section class="panel app-only" id="catkey-box" style="max-width:560px;margin:0 auto">
       <p class="eyebrow" data-i18n="sq.catkey.eyebrow">猫の鍵 / Cat Key</p>
       <h2 data-i18n="sq.catkey.heading">Cat Key で無料で解放する</h2>
       <p class="muted" data-i18n="sq.catkey.desc">猫の集会メンバーさんは、決済せずに Cat Key を入力すると Pro版を無料で利用できます（運営の承認後に有効化）。入力内容は公開ページには表示されません。</p>
@@ -46,7 +65,7 @@
     </section>
 
     <!-- プレミアム（¥2,200）はフェーズ2で開放。今は案内のみ・購入導線なし。 -->
-    <section class="panel premium-surface">
+    <section class="panel premium-surface" style="max-width:560px;margin:0 auto">
       <span class="coming-soon-tag" data-i18n="pricing.premium.comingSoon">近日公開（フェーズ2）</span>
       <h2><span data-i18n="sq.premium.name">プレミアムプラン</span> <span class="price">2,200<span class="unit" data-i18n="home.plan.price.unit">円/月</span></span></h2>
       <p data-i18n="sq.premium.desc">Proの全機能に AIアシスト（相手データから次回アポの戦略提案・GPT-5.4 Mini・月300回）を加えた上位プラン。無料お試しはなし（登録＝即時課金）です。¥980会員が増えたフェーズ2で開放します。</p>
@@ -76,7 +95,7 @@
             ? T('sq.js.premiumActive', 'すでにプレミアムプランをご利用中です。')
             : owner.plan === 'pro'
               ? T('sq.js.proActive', 'すでにPro版をご利用中です。')
-              : T('sq.js.loggedIn', 'ログイン中です。下のボタンから1ヶ月無料お試しを開始できます。');
+              : T('sq.js.loggedIn', 'ログイン中です。下のボタンからPro（¥980/月）を申し込めます。');
           status.className = 'message ' + (isPaid ? 'success' : '');
           // すでに有料（またはCat Key承認済み）なら Cat Key 入力欄は不要
           if (isPaid) document.getElementById('catkey-box')?.remove();

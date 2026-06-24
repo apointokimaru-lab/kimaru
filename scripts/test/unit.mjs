@@ -68,6 +68,8 @@ function makeRenderer() {
   const ctx = {
     console,
     t: (k) => T[k] || k,
+    URL,
+    location: { origin: "https://example.com" },
     window: { KimaruI18n: { getLanguage: () => "ja" } },
     document: { getElementById: (id) => store[id] || null },
   };
@@ -118,6 +120,13 @@ ok("upcoming capped at 5", cardCount(upMany.upcoming) === 5);
 section("XSS escaping");
 const xss = render([{ visitor_name: '<img src=x onerror=alert(1)>', start_at: at(0, 12, 0), end_at: at(0, 12, 30), status: "confirmed" }]);
 ok("dangerous name is escaped", xss.today.includes("&lt;img") && !xss.today.includes("<img src=x"));
+
+// ---------- 4) href スキーム許可リスト ----------
+section("href scheme allowlist (safeHref)");
+const jsUrl = render([{ visitor_name: "悪意", start_at: at(0, 13, 0), end_at: at(0, 13, 30), status: "confirmed", meeting_url: "javascript:alert(1)" }]);
+ok("javascript: meeting_url rejected (no join button, no js href)", !jsUrl.today.includes("javascript:") && !jsUrl.today.includes("参加する"));
+const okUrl = render([{ visitor_name: "正常", start_at: at(0, 13, 0), end_at: at(0, 13, 30), status: "confirmed", meeting_url: "https://meet.google.com/x" }]);
+ok("https: meeting_url allowed (join button present)", okUrl.today.includes("参加する") && okUrl.today.includes("https://meet.google.com/x"));
 
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);

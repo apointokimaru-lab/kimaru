@@ -413,6 +413,17 @@ function renderDashboardSchedule(allBookings) {
   }
 }
 
+// href に入れる URL は http/https のみ許可（javascript: 等のスキームを弾く・相対パスは現オリジンで解決）。
+function safeHref(u) {
+  if (!u) return "";
+  try {
+    const p = new URL(String(u), location.origin);
+    return p.protocol === "https:" || p.protocol === "http:" ? p.href : "";
+  } catch (_) {
+    return "";
+  }
+}
+
 function renderTodayAppt(b, now, locale) {
   const hm = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(b._start);
   const name = escapeHtml(b.visitor_name || b.guest_name || t("admin.guest"));
@@ -421,7 +432,7 @@ function renderTodayAppt(b, now, locale) {
   const durMin = endIso ? Math.round((new Date(endIso) - b._start) / 60000) : 0;
   const dur = durMin > 0 ? `<small>${durMin}分</small>` : "";
   const isNow = endIso ? now >= b._start && now < new Date(endIso) : false;
-  const url = b.meeting_url ? escapeHtml(b.meeting_url) : "";
+  const url = escapeHtml(safeHref(b.meeting_url));
   const join = url
     ? `<div class="appt-actions"><a class="button primary btn-sm" href="${url}" target="_blank" rel="noopener">${escapeHtml(t("dash.appt.join"))}</a></div>`
     : "";
@@ -1163,17 +1174,21 @@ async function initMeeting() {
 
     // 会議リンク
     const meetUrl = booking.meeting_url || "";
+    const safeMeet = safeHref(meetUrl);
     const meetCode = document.getElementById("meet-url");
     const meetJoin = document.getElementById("meet-join");
     if (meetUrl) {
       if (meetCode) meetCode.textContent = meetUrl;
-      if (meetJoin) meetJoin.setAttribute("href", meetUrl);
+      if (meetJoin) {
+        if (safeMeet) { meetJoin.setAttribute("href", safeMeet); meetJoin.style.display = ""; }
+        else { meetJoin.style.display = "none"; }
+      }
     } else {
       if (meetCode) meetCode.textContent = dashLocationLabel(booking.location_type);
       if (meetJoin) meetJoin.style.display = "none";
     }
     // 日程変更・キャンセル（署名付き管理リンク）
-    const mgr = booking.manage_url || "";
+    const mgr = safeHref(booking.manage_url);
     document.querySelectorAll('[data-meeting-manage]').forEach((a) => { if (mgr) a.setAttribute("href", mgr); else a.style.display = "none"; });
 
     // 事前アンケート

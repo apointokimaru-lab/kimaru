@@ -559,7 +559,8 @@ function renderBookings(bookings) {
     const topic = escapeHtml(booking.topic || "");
     const when = booking.start_at || booking.start_time ? escapeHtml(formatSlot(booking.start_at || booking.start_time)) : "";
     // インサイト（生年月日）は任意・行が膨らむので details に畳む。textContent には残るので検索は効く。
-    const insightCell = insight ? `<details class="insight-toggle"><summary>${t("admin.contacts.insightToggle")}</summary>${insight}</details>` : "";
+    // 生年月日インサイト（占いベース相手分析）は Pro/Premium 限定（無料には出さない）。
+    const insightCell = insight && isProPlan(currentOwner?.plan) ? `<details class="insight-toggle"><summary>${t("admin.contacts.insightToggle")}</summary>${insight}</details>` : "";
     const manualTag = booking.manual ? ` <span class="free-tag">${escapeHtml(t("admin.contacts.manualTag"))}</span>` : "";
     return `
       <tr class="list-item">

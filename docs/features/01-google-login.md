@@ -18,7 +18,7 @@
 ## 現状の実装
 
 - OAuth2 認可フロー（`access_type=offline` / `prompt=consent`）実装済。
-- 取得スコープ: `openid email profile https://www.googleapis.com/auth/calendar`
+- 取得スコープ（最小権限）: `openid email profile https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.freebusy`（空き確認＝freebusy／予定の作成・更新・削除＝events。フルの calendar は要求しない）
 - ログイン後 `owners` テーブルへ upsert、デフォルト予約ページ作成、トークンを暗号化保存。
 - セッションは HMAC 署名 Cookie（30日）。
 

@@ -52,7 +52,7 @@ premium coming-soon は既定状態（コードに組込み済み）なので、
 ## 3. Google OAuth（本番・最重要／リードタイム長）
 
 - OAuthクライアントの「承認済みリダイレクトURI」に **`https://<本番>/api/google-auth-callback`** を追加。
-- 同意画面を **「公開」**＋**検証**。スコープに `.../auth/calendar`（機微スコープ）があるため一般公開には Google の審査が必要。
+- 同意画面を **「公開」**＋**検証**。スコープに `.../auth/calendar.events`＋`.../auth/calendar.freebusy`（いずれも機微スコープ・最小権限）があるため一般公開には Google の審査が必要。制限付き（restricted）スコープは無いので CASA セキュリティ評価は不要。
 - 検証完了まではアプリは「テスト」状態で、**登録テストユーザーのみ**ログイン可＋「未確認アプリ」警告。
 
 ## 4. 課金（Pro を Square で売る場合）

@@ -286,7 +286,7 @@ h3{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:-.01
 .field{display:grid;gap:7px;margin-bottom:14px}
 .field label,.field>span{font-size:13px;font-weight:700;color:var(--ink-2)}
 label{display:grid;gap:7px;color:var(--ink-2);font-size:13px;font-weight:700}
-.input,input[type=text],input[type=email],input[type=password],input[type=date],input[type=search],input[type=tel],input[type=url],input[type=number],input[type=time],textarea,select{
+.input,input:not([type]),input[type=text],input[type=email],input[type=password],input[type=date],input[type=search],input[type=tel],input[type=url],input[type=number],input[type=time],textarea,select{
   width:100%;min-height:48px;padding:12px 14px;font:inherit;line-height:1.4;color:var(--ink);background:var(--surface);
   border:1.5px solid var(--line-2);border-radius:var(--radius-sm);outline:none;transition:border-color .15s,box-shadow .15s}
 textarea{min-height:96px;resize:vertical}

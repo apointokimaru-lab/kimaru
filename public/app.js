@@ -363,6 +363,187 @@ function renderRelationshipContext(context) {
   `;
 }
 
+// ダッシュボードの「今日の予定」「これから」を owner-bookings の実データで描画する。
+// 該当コンテナが無いページ（相手管理・予約設定）では何もしない。手動追加の相手・キャンセル済みは除外。
+const DASH_LOCATION_LABELS = {
+  google_meet: "Google Meet",
+  zoom: "Zoom",
+  in_person: "対面",
+  phone: "電話",
+  custom_url: "オンライン",
+  later: "後日連絡",
+};
+
+function dashLocationLabel(type) {
+  return DASH_LOCATION_LABELS[type] || "オンライン";
+}
+
+function renderDashboardSchedule(allBookings) {
+  const todayList = document.getElementById("today-list");
+  const upcomingList = document.getElementById("upcoming-list");
+  if (!todayList && !upcomingList) return;
+
+  const locale = window.KimaruI18n?.getLanguage() || "ja";
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfTomorrow = new Date(startOfToday.getTime() + 86400000);
+
+  const real = (allBookings || [])
+    .filter((b) => !b.manual && (b.start_at || b.start_time) && (!b.status || b.status === "confirmed"))
+    .map((b) => ({ ...b, _start: new Date(b.start_at || b.start_time) }))
+    .filter((b) => !Number.isNaN(b._start.getTime()));
+
+  const todays = real
+    .filter((b) => b._start >= startOfToday && b._start < startOfTomorrow)
+    .sort((a, b) => a._start - b._start);
+  const upcoming = real
+    .filter((b) => b._start >= startOfTomorrow)
+    .sort((a, b) => a._start - b._start)
+    .slice(0, 5);
+
+  if (todayList) {
+    todayList.innerHTML = todays.length
+      ? todays.map((b) => renderTodayAppt(b, now, locale)).join("")
+      : `<p class="muted" style="padding:8px 2px">${escapeHtml(t("dash.today.empty"))}</p>`;
+  }
+  if (upcomingList) {
+    upcomingList.innerHTML = upcoming.length
+      ? upcoming.map((b) => renderUpcomingAppt(b, locale)).join("")
+      : `<p class="muted" style="padding:8px 2px">${escapeHtml(t("dash.upcoming.empty"))}</p>`;
+  }
+}
+
+// href に入れる URL は http/https のみ許可（javascript: 等のスキームを弾く・相対パスは現オリジンで解決）。
+function safeHref(u) {
+  if (!u) return "";
+  try {
+    const p = new URL(String(u), location.origin);
+    return p.protocol === "https:" || p.protocol === "http:" ? p.href : "";
+  } catch (_) {
+    return "";
+  }
+}
+
+function renderTodayAppt(b, now, locale) {
+  const hm = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(b._start);
+  const name = escapeHtml(b.visitor_name || b.guest_name || t("admin.guest"));
+  const loc = escapeHtml(dashLocationLabel(b.location_type));
+  const endIso = b.end_at || b.end_time;
+  const durMin = endIso ? Math.round((new Date(endIso) - b._start) / 60000) : 0;
+  const dur = durMin > 0 ? `<small>${durMin}分</small>` : "";
+  const isNow = endIso ? now >= b._start && now < new Date(endIso) : false;
+  const url = escapeHtml(safeHref(b.meeting_url));
+  const join = url
+    ? `<div class="appt-actions"><a class="button primary btn-sm" href="${url}" target="_blank" rel="noopener">${escapeHtml(t("dash.appt.join"))}</a></div>`
+    : "";
+  return `
+    <div class="appt${isNow ? " appt-now" : ""}">
+      <div class="appt-time">${hm}${dur}</div>
+      <div class="appt-body"><b>${name} さん</b><span>${loc}</span></div>
+      ${join}
+    </div>`;
+}
+
+function renderUpcomingAppt(b, locale) {
+  const md = new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric" }).format(b._start);
+  const wd = new Intl.DateTimeFormat(locale, { weekday: "short" }).format(b._start);
+  const hm = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(b._start);
+  const name = escapeHtml(b.visitor_name || b.guest_name || t("admin.guest"));
+  const loc = escapeHtml(dashLocationLabel(b.location_type));
+  return `
+    <div class="appt">
+      <div class="appt-time" style="font-size:15px">${md}<small>${wd}</small></div>
+      <div class="appt-body"><b>${name} さん</b><span>${hm} ・ ${loc}</span></div>
+    </div>`;
+}
+
+// 予約アンケートの既読状態。バックエンド列が無いためブラウザ localStorage で保持（answers.html と共有）。
+const ANSWERS_READ_KEY = "kimaru.answersRead";
+function answersReadSet() {
+  try { return new Set(JSON.parse(localStorage.getItem(ANSWERS_READ_KEY) || "[]")); } catch (_) { return new Set(); }
+}
+function markAnswerRead(id, read) {
+  const s = answersReadSet();
+  if (read) s.add(String(id)); else s.delete(String(id));
+  try { localStorage.setItem(ANSWERS_READ_KEY, JSON.stringify([...s])); } catch (_) {}
+}
+function bookingHasAnswer(b) {
+  return !b.manual && (!b.status || b.status === "confirmed") &&
+    Boolean(String(b.topic || "").trim() || String(b.guest_message || "").trim());
+}
+
+// ダッシュボード「要対応」を実データで更新（今週の予約件数＋範囲・未読アンケート件数）。
+function renderDashboardTodos(allBookings) {
+  const weekRow = document.getElementById("todo-week");
+  if (!weekRow) return;
+  const now = new Date();
+  const dow = (now.getDay() + 6) % 7; // 月曜=0
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+  const weekEnd = new Date(weekStart.getTime() + 7 * 86400000);
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const confirmed = (allBookings || []).filter((b) => !b.manual && (b.start_at || b.start_time) && (!b.status || b.status === "confirmed"));
+
+  const weekCount = confirmed.filter((b) => { const d = new Date(b.start_at || b.start_time); return d >= weekStart && d < weekEnd; }).length;
+  const weekCnt = document.getElementById("todo-week-count");
+  if (weekCnt) weekCnt.textContent = String(weekCount);
+  const locale = window.KimaruI18n?.getLanguage() || "ja";
+  const fmt = (d) => new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric" }).format(d);
+  const desc = document.getElementById("todo-week-desc");
+  if (desc) desc.textContent = `${fmt(weekStart)} – ${fmt(new Date(weekEnd.getTime() - 86400000))}`;
+
+  const read = answersReadSet();
+  const unread = confirmed.filter((b) => bookingHasAnswer(b) && new Date(b.start_at || b.start_time) >= startOfToday && !read.has(String(b.id))).length;
+  const aRow = document.getElementById("todo-answers");
+  const aCnt = document.getElementById("todo-answers-count");
+  if (aCnt) aCnt.textContent = String(unread);
+  if (aRow) aRow.style.display = unread > 0 ? "" : "none";
+}
+
+// ダッシュボード「予約ページを共有」カード：先頭の予約ページURL＋動作するコピー。
+async function loadDashboardShare() {
+  const urlEl = document.getElementById("share-url");
+  if (!urlEl) return;
+  const copyBtn = document.getElementById("share-copy");
+  try {
+    const data = await api("booking-pages");
+    const slug = (data.pages || [])[0]?.slug;
+    if (slug) {
+      urlEl.textContent = bookingPageUrl(slug);
+      if (copyBtn) {
+        copyBtn.style.display = "";
+        if (!copyBtn.dataset.wired) {
+          copyBtn.dataset.wired = "1";
+          copyBtn.addEventListener("click", () => {
+            navigator.clipboard?.writeText(urlEl.textContent).then(() => {
+              const orig = t("dash.share.copy");
+              copyBtn.textContent = t("dash.share.copied");
+              setTimeout(() => { copyBtn.textContent = orig; }, 1500);
+            }).catch(() => {});
+          });
+        }
+      }
+    } else {
+      urlEl.textContent = t("dash.share.none");
+      if (copyBtn) copyBtn.style.display = "none";
+    }
+  } catch (_) { /* 非致命 */ }
+}
+
+// ダッシュボード「プロフィール未設定の項目」：空の基本プロフィール項目数（0なら非表示）。
+const DASH_PROFILE_FIELDS = ["profile_name", "profile_title", "profile_strengths", "profile_style", "profile_offer", "profile_values", "profile_goal"];
+async function loadDashboardProfileTodo() {
+  const row = document.getElementById("todo-profile");
+  if (!row) return;
+  try {
+    const data = await api("profile");
+    const p = data.profile || {};
+    const missing = DASH_PROFILE_FIELDS.filter((f) => !String(p[f] || "").trim()).length;
+    const cnt = document.getElementById("todo-profile-count");
+    if (cnt) cnt.textContent = String(missing);
+    row.style.display = missing > 0 ? "" : "none";
+  } catch (_) { /* 非致命 */ }
+}
+
 function renderBookings(bookings) {
   const list = $("#booking-list");
   if (!list) return;
@@ -733,7 +914,7 @@ async function refreshAdmin() {
     updateBookingPageControls();
     if (me.owner) {
       // 予約履歴（相手レコード）の閲覧は無料にも開放（決定19）。失敗しても致命にしない。
-      try { const bookings = await api("owner-bookings"); renderBookings(bookings.bookings || []); } catch (_) { /* 非致命 */ }
+      try { const bookings = await api("owner-bookings"); renderBookings(bookings.bookings || []); renderDashboardSchedule(bookings.bookings || []); renderDashboardTodos(bookings.bookings || []); } catch (_) { /* 非致命 */ }
       // 面談メモ・印象スコア（appointment-log）は Pro/Premium 限定。
       if (isProPlan(me.owner.plan)) {
         try { const logs = await api("appointment-log"); renderLogs(logs.logs || []); renderLogAggregate(logs.logs || []); } catch (_) { /* 非致命 */ }
@@ -754,6 +935,7 @@ async function refreshAdmin() {
 
 async function initAdmin() {
   await refreshAdmin();
+  if (page === "dashboard") { loadDashboardShare(); loadDashboardProfileTodo(); }
   document.addEventListener("kimaru:languagechange", () => { refreshAdmin(); });
   $("#logout-button")?.addEventListener("click", async () => {
     await api("logout", { method: "POST", body: "{}" }).catch(() => null);
@@ -853,6 +1035,198 @@ async function initAdmin() {
 }
 
 window.KimaruI18n?.init();
+// ===== 週間スケジュール（schedule.html）: owner-bookings を実データ源に週グリッドを描画 =====
+async function initSchedule() {
+  const grid = document.getElementById("week-grid");
+  if (!grid) return;
+  let offset = 0;
+  let bookings = [];
+  try {
+    const data = await api("owner-bookings");
+    bookings = (data.bookings || [])
+      .filter((b) => !b.manual && (b.start_at || b.start_time) && (!b.status || b.status === "confirmed"))
+      .map((b) => ({ ...b, _start: new Date(b.start_at || b.start_time) }))
+      .filter((b) => !Number.isNaN(b._start.getTime()));
+  } catch (_) { /* 非致命 */ }
+
+  const mondayOf = (d) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const dow = (x.getDay() + 6) % 7; return new Date(x.getFullYear(), x.getMonth(), x.getDate() - dow); };
+  function render() {
+    const locale = window.KimaruI18n?.getLanguage() || "ja";
+    const now = new Date();
+    const todayKey = now.toDateString();
+    const start = mondayOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset * 7));
+    const dowFmt = new Intl.DateTimeFormat(locale, { weekday: "short" });
+    const mdFmt = new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric" });
+    const hmFmt = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
+    const rangeEl = document.getElementById("weekRange");
+    const end = new Date(start.getTime() + 6 * 86400000);
+    if (rangeEl) rangeEl.textContent = `${mdFmt.format(start)} – ${mdFmt.format(end)}`;
+    let cols = "";
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      const dayEnd = new Date(day.getTime() + 86400000);
+      const isToday = day.toDateString() === todayKey;
+      const items = bookings.filter((b) => b._start >= day && b._start < dayEnd).sort((a, b) => a._start - b._start);
+      const body = items.length
+        ? items.map((b) => `<a class="wk-appt" href="/meeting.html?id=${encodeURIComponent(b.id)}"><div class="wk-time">${hmFmt.format(b._start)}</div><div class="wk-name">${escapeHtml(b.visitor_name || b.guest_name || t("admin.guest"))}</div><div class="wk-meta">${escapeHtml(dashLocationLabel(b.location_type))}</div></a>`).join("")
+        : `<div class="week-empty">${escapeHtml(t("sched.empty"))}</div>`;
+      cols += `<div class="week-col${isToday ? " is-today" : ""}"><div class="week-colhead"><div class="week-dow">${escapeHtml(dowFmt.format(day))}${isToday ? "・" + escapeHtml(t("sched.todayTag")) : ""}</div><div class="week-date">${day.getDate()}</div></div><div class="week-body">${body}</div></div>`;
+    }
+    grid.innerHTML = cols;
+  }
+  document.getElementById("weekPrev")?.addEventListener("click", () => { offset--; render(); });
+  document.getElementById("weekNext")?.addEventListener("click", () => { offset++; render(); });
+  document.getElementById("weekToday")?.addEventListener("click", () => { offset = 0; render(); });
+  document.addEventListener("kimaru:languagechange", render);
+  render();
+}
+
+// 予約から「事前アンケート回答」行を作る（topic ＋ 質問回答 ＋ メッセージ）。
+function answerRows(b) {
+  const rows = [];
+  if (String(b.topic || "").trim()) rows.push([t("ans.q.topic"), b.topic]);
+  (b.answers || []).forEach((a) => { if (a && String(a.answer_text || "").trim()) rows.push([a.question_text || t("ans.q.topic"), a.answer_text]); });
+  if (String(b.guest_message || "").trim()) rows.push([t("meeting.guestMessageLabel"), b.guest_message]);
+  return rows;
+}
+
+// ===== 事前アンケート回答一覧（answers.html）=====
+async function initAnswers() {
+  const list = document.getElementById("ans-list");
+  if (!list) return;
+  const countEl = document.getElementById("unread-count");
+  const totalEl = document.getElementById("total-count");
+  const emptyNote = document.getElementById("empty-note");
+  let filter = "all";
+  let items = [];
+  try {
+    const data = await api("owner-bookings");
+    items = (data.bookings || [])
+      .filter((b) => !b.manual && (b.start_at || b.start_time) && (!b.status || b.status === "confirmed") && answerRows(b).length)
+      .map((b) => ({ ...b, _start: new Date(b.start_at || b.start_time) }))
+      .sort((a, b) => b._start - a._start);
+  } catch (_) { /* 非致命 */ }
+
+  function card(b, isRead) {
+    const name = escapeHtml(b.visitor_name || b.guest_name || t("admin.guest"));
+    const avatar = escapeHtml((String(b.visitor_name || "").trim().charAt(0)) || "?");
+    const when = escapeHtml(formatSlot(b.start_at || b.start_time));
+    const loc = escapeHtml(dashLocationLabel(b.location_type));
+    const summary = answerRows(b).map(([q, a]) => `<div><dt>${escapeHtml(q)}</dt><dd>${escapeHtml(a)}</dd></div>`).join("");
+    const badge = isRead ? `<span class="badge badge-read">${escapeHtml(t("ans.badgeRead"))}</span>` : `<span class="badge badge-unread">${escapeHtml(t("ans.badgeUnread"))}</span>`;
+    const markBtn = isRead ? "" : `<button class="btn btn-primary btn-sm" type="button" data-mark-read="${escapeHtml(String(b.id))}">${escapeHtml(t("ans.markRead"))}</button>`;
+    return `<section class="panel ans-card${isRead ? " is-read" : ""}" data-read="${isRead ? 1 : 0}">
+      <div class="ans-head"><span class="avatar">${avatar}</span><div style="min-width:0"><div class="nm">${name}</div><div class="mt">${when} ・ ${loc}</div></div><span class="st">${badge}</span></div>
+      <dl class="summary">${summary}</dl>
+      <div class="form-actions" style="margin-top:16px">${markBtn}<a class="btn btn-ghost btn-sm" href="/meeting.html?id=${encodeURIComponent(b.id)}">${escapeHtml(t("ans.detail"))}</a></div>
+    </section>`;
+  }
+  function render() {
+    const read = answersReadSet();
+    const visible = items.filter((b) => filter !== "unread" || !read.has(String(b.id)));
+    list.innerHTML = visible.map((b) => card(b, read.has(String(b.id)))).join("");
+    if (countEl) countEl.textContent = String(items.filter((b) => !read.has(String(b.id))).length);
+    if (totalEl) totalEl.textContent = String(items.length);
+    if (emptyNote) emptyNote.style.display = visible.length ? "none" : "block";
+    list.querySelectorAll("[data-mark-read]").forEach((btn) => btn.addEventListener("click", () => { markAnswerRead(btn.dataset.markRead, true); render(); }));
+  }
+  document.querySelectorAll(".filter-btn").forEach((b) => b.addEventListener("click", () => {
+    filter = b.dataset.filter;
+    document.querySelectorAll(".filter-btn").forEach((x) => x.classList.toggle("on", x === b));
+    render();
+  }));
+  document.addEventListener("kimaru:languagechange", render);
+  render();
+}
+
+// ===== 面談ブリーフィング（meeting.html）: ?id の予約を owner-bookings から取得して描画 =====
+async function initMeeting() {
+  const h1 = document.getElementById("meeting-h1");
+  if (!h1) return;
+  const id = new URLSearchParams(location.search).get("id");
+  let booking = null;
+  let logs = [];
+  if (id) {
+    try {
+      const data = await api("owner-bookings");
+      booking = (data.bookings || []).find((b) => String(b.id) === String(id)) || null;
+    } catch (_) { /* 非致命 */ }
+    try { const lg = await api("appointment-log"); logs = lg.logs || []; } catch (_) { /* free/未連携は空 */ }
+  }
+  const setText = (elId, text) => { const el = document.getElementById(elId); if (el) el.textContent = text; };
+  const setHtml = (elId, html) => { const el = document.getElementById(elId); if (el) el.innerHTML = html; };
+
+  if (!booking) {
+    setText("meeting-h1", t("meeting.notFound"));
+    setText("meeting-name", t("meeting.notFound"));
+    setText("meeting-when", "");
+    document.getElementById("meeting-countdown")?.style.setProperty("display", "none");
+    return;
+  }
+
+  function render() {
+    const name = booking.visitor_name || booking.guest_name || t("admin.guest");
+    setText("meeting-h1", `${name}${t("meeting.titleSuffix")}`);
+    setText("meeting-name", name);
+    setText("meeting-when", `${formatSlot(booking.start_at || booking.start_time)} ・ ${dashLocationLabel(booking.location_type)}`);
+    const cd = document.getElementById("meeting-countdown"); if (cd) cd.style.display = "none";
+    const av = document.querySelector(".crm-dhead .avatar"); if (av) av.textContent = (String(name).trim().charAt(0)) || "?";
+
+    // 会議リンク
+    const meetUrl = booking.meeting_url || "";
+    const safeMeet = safeHref(meetUrl);
+    const meetCode = document.getElementById("meet-url");
+    const meetJoin = document.getElementById("meet-join");
+    if (meetUrl) {
+      if (meetCode) meetCode.textContent = meetUrl;
+      if (meetJoin) {
+        if (safeMeet) { meetJoin.setAttribute("href", safeMeet); meetJoin.style.display = ""; }
+        else { meetJoin.style.display = "none"; }
+      }
+    } else {
+      if (meetCode) meetCode.textContent = dashLocationLabel(booking.location_type);
+      if (meetJoin) meetJoin.style.display = "none";
+    }
+    // 日程変更・キャンセル（署名付き管理リンク）
+    const mgr = safeHref(booking.manage_url);
+    document.querySelectorAll('[data-meeting-manage]').forEach((a) => { if (mgr) a.setAttribute("href", mgr); else a.style.display = "none"; });
+
+    // 事前アンケート
+    const rows = answerRows(booking);
+    setHtml("meeting-survey", rows.length ? rows.map(([q, a]) => `<div><dt>${escapeHtml(q)}</dt><dd>${escapeHtml(a)}</dd></div>`).join("") : `<div><dd>${escapeHtml(t("meeting.surveyNone"))}</dd></div>`);
+    // 未読バッジ＋確認済みボタン
+    const isRead = answersReadSet().has(String(booking.id));
+    const sbadge = document.getElementById("meeting-survey-badge");
+    if (sbadge) { sbadge.className = isRead ? "badge badge-read" : "badge badge-unread"; sbadge.textContent = isRead ? t("ans.badgeRead") : t("ans.badgeUnread"); }
+    const markBtn = document.getElementById("mark-read");
+    if (markBtn) markBtn.style.display = isRead ? "none" : "";
+
+    // 占いベース分析（生年月日機能は準備中）
+    setText("meeting-fortune", t("meeting.fortunePending"));
+
+    // 相手プロフィール（保有している実データのみ：メール／生年月日）
+    const pRows = [];
+    if (booking.visitor_email) pRows.push([t("meeting.emailLabel"), booking.visitor_email]);
+    if (booking.visitor_birth_date) pRows.push([t("meeting.birthdayLabel"), booking.visitor_birth_date]);
+    setHtml("meeting-profile", pRows.length ? pRows.map(([q, a]) => `<div><dt>${escapeHtml(q)}</dt><dd>${escapeHtml(a)}</dd></div>`).join("") : `<div><dd>${escapeHtml(t("meeting.profileNone"))}</dd></div>`);
+
+    // 面談メモ（appointment-log の同一相手）
+    const email = String(booking.visitor_email || "").toLowerCase();
+    const myLogs = logs.filter((l) => String(l.visitor_email || "").toLowerCase() === email && (l.notes || l.keywords || l.next_action));
+    const memoCount = document.getElementById("meeting-memo-count");
+    if (memoCount) memoCount.textContent = `（${myLogs.length}）`;
+    setHtml("meeting-memos", myLogs.length
+      ? myLogs.map((l) => `<div class="memo-head"><span class="memo-topic">${escapeHtml(l.keywords || "")}</span></div><p class="readtext">${escapeHtml(l.notes || "")}</p>${l.next_action ? `<div class="memo-next"><b>${escapeHtml(t("meeting.memoNextLabel"))}</b><span>${escapeHtml(l.next_action)}</span></div>` : ""}`).join("<hr>")
+      : `<p class="readtext">${escapeHtml(t("meeting.memoNone"))}</p>`);
+  }
+  document.getElementById("mark-read")?.addEventListener("click", () => { markAnswerRead(booking.id, true); render(); });
+  document.addEventListener("kimaru:languagechange", render);
+  render();
+}
+
+if (page === "schedule") initSchedule();
+if (page === "answers") initAnswers();
+if (page === "meeting") initMeeting();
 if (page === "signup") initSignup();
 if (page === "booking") initBooking();
 if (["dashboard", "contacts", "booking-settings", "admin"].includes(page)) initAdmin();

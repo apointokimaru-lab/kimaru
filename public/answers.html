@@ -21,136 +21,23 @@
   <div class="crm-toolbar" style="margin-top:24px">
     <span class="crm-count">
       <span data-i18n="ans.countUnread">未読</span>
-      <b id="unread-count" style="color:var(--accent)">2</b>
-      <span data-i18n="ans.countUnit">件</span>
-      <span data-i18n="ans.countTotal">・ 全 3 件</span>
+      <b id="unread-count" style="color:var(--accent)">0</b><span data-i18n="ans.countUnit">件</span>
+      <span class="muted"> / <b id="total-count">0</b><span data-i18n="ans.countUnit">件</span></span>
     </span>
     <span style="flex:1"></span>
     <button class="btn btn-ghost btn-sm filter-btn on" type="button" data-filter="all" data-i18n="ans.filterAll">すべて</button>
     <button class="btn btn-ghost btn-sm filter-btn" type="button" data-filter="unread" data-i18n="ans.filterUnread">未読のみ</button>
   </div>
 
-  <div id="ans-list" style="margin-top:18px">
-
-    <!-- 未読 -->
-    <section class="panel ans-card" data-read="0">
-      <div class="ans-head">
-        <span class="avatar">佐</span>
-        <div style="min-width:0">
-          <div class="nm">佐藤 りく さん</div>
-          <div class="mt">6/19（木）14:00 ・ Google Meet</div>
-        </div>
-        <span class="st"><span class="badge badge-unread" data-i18n="ans.badgeUnread">未読</span></span>
-      </div>
-      <dl class="summary">
-        <div><dt data-i18n="ans.q.topic">今回お話したい内容</dt><dd>新サービスについて初めて相談したい</dd></div>
-        <div><dt data-i18n="ans.q.status">現在の状況</dt><dd>個人事業で、来月の立ち上げに向けて準備中です。</dd></div>
-        <div><dt data-i18n="ans.q.concern">気になっている点</dt><dd>料金プランと、他社との違いを知りたい。</dd></div>
-      </dl>
-      <div class="form-actions" style="margin-top:16px">
-        <button class="btn btn-primary btn-sm" type="button" data-mark-read data-i18n="ans.markRead">確認済みにする</button>
-        <a class="btn btn-ghost btn-sm" href="/meeting.html" data-i18n="ans.detail">面談の詳細</a>
-      </div>
-    </section>
-
-    <!-- 未読 -->
-    <section class="panel ans-card" data-read="0">
-      <div class="ans-head">
-        <span class="avatar">山</span>
-        <div style="min-width:0">
-          <div class="nm">山田 はな さん</div>
-          <div class="mt">6/19（木）16:30 ・ 対面（西本町オフィス）</div>
-        </div>
-        <span class="st"><span class="badge badge-unread" data-i18n="ans.badgeUnread">未読</span></span>
-      </div>
-      <dl class="summary">
-        <div><dt data-i18n="ans.q.topic">今回お話したい内容</dt><dd>採用について相談したい</dd></div>
-        <div><dt data-i18n="ans.q.budget">ご予算感</dt><dd>未定（まず話を聞いてから決めたい）</dd></div>
-      </dl>
-      <div class="form-actions" style="margin-top:16px">
-        <button class="btn btn-primary btn-sm" type="button" data-mark-read data-i18n="ans.markRead">確認済みにする</button>
-        <a class="btn btn-ghost btn-sm" href="/meeting.html" data-i18n="ans.detail">面談の詳細</a>
-      </div>
-    </section>
-
-    <!-- 既読 -->
-    <section class="panel ans-card is-read" data-read="1">
-      <div class="ans-head">
-        <span class="avatar">高</span>
-        <div style="min-width:0">
-          <div class="nm">高橋 あおい さん</div>
-          <div class="mt">6/20（金）11:00 ・ Google Meet</div>
-        </div>
-        <span class="st"><span class="badge badge-read" data-i18n="ans.badgeRead">確認済み</span></span>
-      </div>
-      <dl class="summary">
-        <div><dt data-i18n="ans.q.topic">今回お話したい内容</dt><dd>共同制作の打ち合わせ</dd></div>
-        <div><dt data-i18n="ans.q.free">ご自由記入</dt><dd>当日はラフ案を持参します。よろしくお願いします。</dd></div>
-      </dl>
-      <div class="form-actions" style="margin-top:16px">
-        <a class="btn btn-ghost btn-sm" href="/meeting.html" data-i18n="ans.detail">面談の詳細</a>
-      </div>
-    </section>
-
-  </div>
+  <div id="ans-list" style="margin-top:18px"></div>
 
   <p class="field-note" id="empty-note" style="margin-top:18px;display:none" data-i18n="ans.empty">未読のアンケート回答はありません。</p>
 </main>
 
 <!-- site-footer -->
 
-<script src="/i18n.js"></script>
+<script src="/i18n.js" defer></script>
 <script src="/plan.js" defer></script>
-<script>
-  // 「確認済みにする」で既読化＋未読カウント更新／すべて・未読のみ フィルタ
-  (function () {
-    var countEl = document.getElementById('unread-count');
-    var emptyNote = document.getElementById('empty-note');
-    var filter = 'all';
-
-    function readText(key, fallback) {
-      try { if (window.KimaruI18n && window.KimaruI18n.t) return window.KimaruI18n.t(key); } catch (e) {}
-      return fallback;
-    }
-
-    function unreadCards() { return document.querySelectorAll('.ans-card[data-read="0"]'); }
-    function refresh() {
-      countEl.textContent = unreadCards().length;
-      // フィルタ適用
-      document.querySelectorAll('.ans-card').forEach(function (c) {
-        c.style.display = (filter === 'unread' && c.dataset.read === '1') ? 'none' : '';
-      });
-      var visible = Array.prototype.filter.call(document.querySelectorAll('.ans-card'), function (c) { return c.style.display !== 'none'; });
-      emptyNote.style.display = visible.length ? 'none' : 'block';
-    }
-
-    document.querySelectorAll('[data-mark-read]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var card = btn.closest('.ans-card');
-        card.dataset.read = '1';
-        card.classList.add('is-read');
-        var badge = document.createElement('span');
-        badge.className = 'badge badge-read';
-        badge.setAttribute('data-i18n', 'ans.badgeRead');
-        badge.textContent = readText('ans.badgeRead', '確認済み');
-        var st = card.querySelector('.st');
-        st.innerHTML = '';
-        st.appendChild(badge);
-        btn.remove();
-        refresh();
-      });
-    });
-
-    document.querySelectorAll('.filter-btn').forEach(function (b) {
-      b.addEventListener('click', function () {
-        filter = b.dataset.filter;
-        document.querySelectorAll('.filter-btn').forEach(function (x) { x.classList.toggle('on', x === b); });
-        refresh();
-      });
-    });
-
-    refresh();
-  })();
-</script>
+<script src="/app.js" defer></script>
 </body>
 </html>

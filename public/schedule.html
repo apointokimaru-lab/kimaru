@@ -26,91 +26,13 @@
       </div>
     </div>
 
-    <div class="week-grid">
-      <!-- 月 6/16 -->
-      <div class="week-col">
-        <div class="week-colhead"><div class="week-dow" data-i18n="sched.dow.mon">月</div><div class="week-date">16</div></div>
-        <div class="week-body">
-          <a class="wk-appt" href="#"><div class="wk-time">13:00</div><div class="wk-name">田中 さくら</div><div class="wk-meta">Google Meet ・ 30分</div></a>
-        </div>
-      </div>
-
-      <!-- 火 6/17 -->
-      <div class="week-col">
-        <div class="week-colhead"><div class="week-dow" data-i18n="sched.dow.tue">火</div><div class="week-date">17</div></div>
-        <div class="week-body">
-          <a class="wk-appt" href="#"><div class="wk-time">10:30</div><div class="wk-name">佐藤 健</div><div class="wk-meta">対面 ・ 本町オフィス</div></a>
-        </div>
-      </div>
-
-      <!-- 水 6/18 -->
-      <div class="week-col">
-        <div class="week-colhead"><div class="week-dow" data-i18n="sched.dow.wed">水</div><div class="week-date">18</div></div>
-        <div class="week-body">
-          <div class="week-empty" data-i18n="sched.empty">予定なし</div>
-        </div>
-      </div>
-
-      <!-- 木 6/19（今日） -->
-      <div class="week-col is-today">
-        <div class="week-colhead"><div class="week-dow"><span data-i18n="sched.dow.thu">木</span>・<span data-i18n="sched.todayTag">今日</span></div><div class="week-date">19</div></div>
-        <div class="week-body">
-          <a class="wk-appt" href="#"><div class="wk-time">14:00</div><div class="wk-name">佐藤 りく</div><div class="wk-meta">Google Meet ・ 30分</div></a>
-          <a class="wk-appt" href="#"><div class="wk-time">16:30</div><div class="wk-name">山田 はな</div><div class="wk-meta">対面 ・ 西本町オフィス</div></a>
-          <a class="wk-appt" href="#"><div class="wk-time">18:00</div><div class="wk-name">鈴木 みなと</div><div class="wk-meta">Zoom ・ 30分</div></a>
-        </div>
-      </div>
-
-      <!-- 金 6/20 -->
-      <div class="week-col">
-        <div class="week-colhead"><div class="week-dow" data-i18n="sched.dow.fri">金</div><div class="week-date">20</div></div>
-        <div class="week-body">
-          <a class="wk-appt" href="#"><div class="wk-time">11:00</div><div class="wk-name">高橋 あおい</div><div class="wk-meta">Google Meet ・ 45分</div></a>
-        </div>
-      </div>
-
-      <!-- 土 6/21 -->
-      <div class="week-col">
-        <div class="week-colhead"><div class="week-dow" data-i18n="sched.dow.sat">土</div><div class="week-date">21</div></div>
-        <div class="week-body">
-          <div class="week-empty" data-i18n="sched.empty">予定なし</div>
-        </div>
-      </div>
-
-      <!-- 日 6/22（休み） -->
-      <div class="week-col is-off">
-        <div class="week-colhead"><div class="week-dow" data-i18n="sched.dow.sun">日</div><div class="week-date">22</div></div>
-        <div class="week-body">
-          <div class="week-empty" data-i18n="sched.off">休み</div>
-        </div>
-      </div>
-    </div>
+    <div class="week-grid" id="week-grid"></div>
   </main>
 
   <!-- site-footer -->
 
-  <script>
-    // 週ラベルの簡易ナビゲーション（静的プレースホルダ：appointment は固定）
-    (function () {
-      var base = new Date(2026, 5, 16); // 表示中の週の月曜（6/16）
-      var offsetWeeks = 0;
-      var rangeEl = document.getElementById('weekRange');
-      function fmt(d) { return (d.getMonth() + 1) + '月' + d.getDate() + '日'; }
-      function render() {
-        var start = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offsetWeeks * 7);
-        var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
-        if (rangeEl) rangeEl.textContent = start.getFullYear() + '年 ' + fmt(start) + ' — ' + (end.getMonth() + 1 === start.getMonth() + 1 ? end.getDate() + '日' : fmt(end));
-      }
-      var prev = document.getElementById('weekPrev');
-      var next = document.getElementById('weekNext');
-      var today = document.getElementById('weekToday');
-      if (prev) prev.addEventListener('click', function () { offsetWeeks--; render(); });
-      if (next) next.addEventListener('click', function () { offsetWeeks++; render(); });
-      if (today) today.addEventListener('click', function () { offsetWeeks = 0; render(); });
-      render();
-    })();
-  </script>
   <script src="/plan.js" defer></script>
   <script src="/i18n.js" defer></script>
+  <script src="/app.js" defer></script>
 </body>
 </html>

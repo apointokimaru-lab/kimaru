@@ -12,9 +12,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev      # netlify dev → http://localhost:8888 (serves public/ + functions at /api/*)
 npm run deploy   # netlify deploy --prod
 npm run mock     # static server for the mock/ design sandbox → http://localhost:8889 (public/ asset fallback)
+npm test         # 軽量テスト: unit(Node) + e2e(Playwright)。CI/外部依存なし
+npm run test:unit # i18n対称性・ダッシュ描画ロジック・XSSエスケープ（vmでapp.js/i18n.jsを評価）
+npm run test:e2e  # public/ を静的配信し各ページをPlaywrightでロードしAPIをrouteでmock。実データ描画/ボタン/残ダミー無し/JS例外無しを検証
 ```
 
-- There are **no tests, no lint, no build**. Don't invent them.
+- **No lint, no build.** Tests are **lightweight, framework-free** (`scripts/test/unit.mjs` = Node + `node:vm`, `scripts/test/e2e.mjs` = Playwright with `page.route` API mocking). Don't add a heavy test framework/CI; extend these scripts. Run `npm test` after frontend changes.
 - DB changes: apply `supabase-schema.sql` manually in the Supabase SQL editor (no migration tool) — to **both** the dev and prod databases. Because migrations lag, new columns are added with idempotent `alter table ... add column if not exists`, **and** code that reads/writes them **degrades gracefully when the column is missing** (try/catch → fallback). See the `scores`, `answer_type`/`options`, `frozen`, and `manual_contacts` paths for the pattern; preserve it when adding columns.
 - Visual check (the only tooling beyond netlify — not a test runner): `node scripts/shoot.mjs <page> <lang>` (e.g. `index ja`) serves `public/` headless via **Playwright** (a devDependency) and writes desktop+mobile screenshots to `/tmp/kimaru-shots/`. Add `mock` first (`node scripts/shoot.mjs mock <page> <lang>`) to shoot the `mock/` sandbox instead. It does not inject the edge header, so both guest- and authed-only sections render.
 - Reminder-mail dry run: `GET /api/reminder-mails?dry_run=1` (returns targets/message without sending). (Birthday-mail auto-send was removed — decision 17 / #180.)

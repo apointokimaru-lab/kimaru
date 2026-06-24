@@ -1,6 +1,12 @@
 const { json } = require("./_lib/response");
 const { requireOwner } = require("./_lib/auth");
 const { sb, eq } = require("./_lib/supabase");
+const { manageUrl } = require("./_lib/booking-format");
+
+// 管理リンク生成は env 未設定で throw しうるので保護（失敗時 null）。
+function safeManageUrl(id) {
+  try { return id ? manageUrl(id) : null; } catch (_) { return null; }
+}
 
 function hidePrivateBirthDate(booking) {
   if (!booking.visitor_birth_date_private) return booking;
@@ -38,7 +44,21 @@ exports.handler = async (event) => {
     const owner = await requireOwner(event);
     const bookings = await sb(`bookings?owner_id=${eq(owner.id)}&order=start_at.desc&limit=50`);
     const manual = await sb(`manual_contacts?owner_id=${eq(owner.id)}&order=created_at.desc&limit=50`).catch(() => []);
-    const list = [...(manual || []).map(manualToBooking), ...(bookings || []).map(hidePrivateBirthDate)];
+
+    // 事前アンケート回答（questionnaire_answers）を各予約に添付。未マイグレーション環境では空配列にフォールバック。
+    const ids = (bookings || []).map((b) => b.id).filter(Boolean);
+    const answersByBooking = {};
+    if (ids.length) {
+      try {
+        const rows = await sb(`questionnaire_answers?booking_id=in.(${ids.join(",")})&select=booking_id,question_text,answer_text`);
+        for (const r of rows || []) {
+          (answersByBooking[r.booking_id] = answersByBooking[r.booking_id] || []).push({ question_text: r.question_text, answer_text: r.answer_text });
+        }
+      } catch (_) { /* 列/テーブル未作成: 回答なし扱い */ }
+    }
+
+    const enrich = (b) => ({ ...hidePrivateBirthDate(b), answers: answersByBooking[b.id] || [], manage_url: safeManageUrl(b.id) });
+    const list = [...(manual || []).map(manualToBooking), ...(bookings || []).map(enrich)];
     return json(200, { bookings: list });
   } catch (error) {
     return json(error.statusCode || 500, { error: error.statusCode ? error.message : "サーバーでエラーが発生しました。時間をおいて再度お試しください。" });

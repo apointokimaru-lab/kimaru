@@ -24,84 +24,29 @@
     </div>
 
     <div class="dash-grid">
-      <!-- 左：今日/これからの予定（静的プレースホルダ） -->
+      <!-- 左：今日/これからの予定（owner-bookings 実データ：app.js renderDashboardSchedule） -->
       <section>
         <div class="dash-sub">
           <h2 data-i18n="dash.today.heading">今日の予定</h2>
           <a href="/schedule.html" data-i18n="dash.today.open">週表示 →</a>
         </div>
-        <div class="appt-list">
-          <div class="appt appt-now">
-            <div class="appt-time">14:00<small data-i18n="dash.appt.dur30">30分</small></div>
-            <div class="appt-body"><b data-i18n="dash.appt.name1">佐藤 りく さん</b><span data-i18n="dash.appt.meet1">Google Meet ・ あと約2時間</span></div>
-            <div class="appt-actions">
-              <a class="button primary btn-sm" href="#" data-i18n="dash.appt.join">参加する</a>
-              <div class="appt-menu">
-                <button class="icon-btn menu-btn" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="dash.appt.more" title="その他の操作">⋯</button>
-                <div class="menu-pop" role="menu" hidden>
-                  <a class="menu-item" role="menuitem" href="/manage-booking.html" data-i18n="dash.appt.reschedule">日程を変更</a>
-                  <button class="menu-item danger" type="button" role="menuitem" data-i18n="dash.appt.cancel">予約をキャンセル</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="appt">
-            <div class="appt-time">16:30<small data-i18n="dash.appt.dur45">45分</small></div>
-            <div class="appt-body"><b data-i18n="dash.appt.name2">山田 はな さん</b><span data-i18n="dash.appt.meet2">対面 ・ 西本町オフィス</span></div>
-            <div class="appt-actions">
-              <div class="appt-menu">
-                <button class="icon-btn menu-btn" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="dash.appt.more" title="その他の操作">⋯</button>
-                <div class="menu-pop" role="menu" hidden>
-                  <a class="menu-item" role="menuitem" href="/manage-booking.html" data-i18n="dash.appt.reschedule">日程を変更</a>
-                  <button class="menu-item danger" type="button" role="menuitem" data-i18n="dash.appt.cancel">予約をキャンセル</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div class="appt-list" id="today-list"></div>
 
         <div class="dash-sub" style="margin-top:26px">
           <h2 data-i18n="dash.upcoming.heading">これから</h2>
           <a href="/contacts.html" data-i18n="dash.upcoming.all">すべての予約 →</a>
         </div>
-        <div class="appt-list">
-          <div class="appt">
-            <div class="appt-time" style="font-size:15px">6/20<small data-i18n="dash.appt.dayFri">金</small></div>
-            <div class="appt-body"><b data-i18n="dash.appt.name3">高橋 あおい さん</b><span data-i18n="dash.appt.meet3">11:00 ・ Google Meet</span></div>
-            <div class="appt-actions">
-              <div class="appt-menu">
-                <button class="icon-btn menu-btn" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="dash.appt.more" title="その他の操作">⋯</button>
-                <div class="menu-pop" role="menu" hidden>
-                  <a class="menu-item" role="menuitem" href="/manage-booking.html" data-i18n="dash.appt.reschedule">日程を変更</a>
-                  <button class="menu-item danger" type="button" role="menuitem" data-i18n="dash.appt.cancel">予約をキャンセル</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="appt">
-            <div class="appt-time" style="font-size:15px">6/23<small data-i18n="dash.appt.dayMon">月</small></div>
-            <div class="appt-body"><b data-i18n="dash.appt.name4">田中 さくら さん</b><span data-i18n="dash.appt.meet4">14:00 ・ 対面</span></div>
-            <div class="appt-actions">
-              <div class="appt-menu">
-                <button class="icon-btn menu-btn" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="dash.appt.more" title="その他の操作">⋯</button>
-                <div class="menu-pop" role="menu" hidden>
-                  <a class="menu-item" role="menuitem" href="/manage-booking.html" data-i18n="dash.appt.reschedule">日程を変更</a>
-                  <button class="menu-item danger" type="button" role="menuitem" data-i18n="dash.appt.cancel">予約をキャンセル</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div class="appt-list" id="upcoming-list"></div>
       </section>
 
       <!-- 右：共有・要対応・AI -->
       <aside>
-        <!-- 予約ページを共有（静的プレースホルダ） -->
+        <!-- 予約ページを共有（booking-pages 実データ：app.js loadDashboardShare） -->
         <div class="side-card">
           <h3 data-i18n="dash.share.heading">予約ページを共有</h3>
           <div class="share">
-            <code>kimaru-co.jp/b/tanaka</code>
-            <button class="button primary btn-sm" type="button" data-i18n="dash.share.copy">コピー</button>
+            <code id="share-url">—</code>
+            <button id="share-copy" class="button primary btn-sm" type="button" data-i18n="dash.share.copy">コピー</button>
           </div>
           <div class="form-actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
             <a class="button secondary btn-sm" href="/booking.html" data-i18n="dash.share.preview">プレビュー</a>
@@ -109,7 +54,7 @@
           </div>
         </div>
 
-        <!-- 要対応（静的プレースホルダ） -->
+        <!-- 要対応（実データ：app.js renderDashboardTodos / loadDashboardProfileTodo / pending-answers） -->
         <div class="side-card">
           <h3 data-i18n="dash.todo.heading">要対応</h3>
           <div class="todo">
@@ -118,20 +63,20 @@
               <span class="tx"><b data-i18n="dash.todo.pending">回答待ちの質問</b><small data-i18n="dash.todo.pendingDesc">相手（会員）からの質問に回答</small></span>
               <span class="cnt" id="todo-pending-count">0</span>
             </a>
-            <a class="has" href="/answers.html">
+            <a class="has" href="/answers.html" id="todo-answers" style="display:none">
               <span class="ico"></span>
               <span class="tx"><b data-i18n="dash.todo.answers">未読のアンケート回答</b><small data-i18n="dash.todo.answersDesc">面談前に相手の回答を確認</small></span>
-              <span class="cnt">2</span>
+              <span class="cnt" id="todo-answers-count">0</span>
             </a>
-            <a class="has" href="/profile.html">
+            <a class="has" href="/profile.html" id="todo-profile" style="display:none">
               <span class="ico"></span>
               <span class="tx"><b data-i18n="dash.todo.profile">プロフィール未設定の項目</b><small data-i18n="dash.todo.profileDesc">リマインダーに載る項目が空です</small></span>
-              <span class="cnt">1</span>
+              <span class="cnt" id="todo-profile-count">0</span>
             </a>
-            <a class="has" href="/schedule.html">
+            <a class="has" href="/schedule.html" id="todo-week">
               <span class="ico"></span>
-              <span class="tx"><b data-i18n="dash.todo.schedule">今週の予約</b><small data-i18n="dash.todo.scheduleDesc">6/16〜6/22 の面談</small></span>
-              <span class="cnt">4</span>
+              <span class="tx"><b data-i18n="dash.todo.schedule">今週の予約</b><small id="todo-week-desc"></small></span>
+              <span class="cnt" id="todo-week-count">0</span>
             </a>
           </div>
         </div>

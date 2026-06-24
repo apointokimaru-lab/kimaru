@@ -19,7 +19,7 @@
 ## 認証・セッション
 
 ### `GET /api/google-auth-start` — 認証不要
-Google OAuth 認可画面へ 302 リダイレクト。スコープ: `openid email profile https://www.googleapis.com/auth/calendar`。
+Google OAuth 認可画面へ 302 リダイレクト。スコープ: `openid email profile https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.freebusy`（最小権限。空き確認＝freebusy／予定の作成・更新・削除＝events。フルの calendar は要求しない）。
 
 ### `GET /api/google-auth-callback?code=...` — 認証不要
 OAuth コールバック。`code` をトークン交換し、`owners` を upsert・デフォルト `booking_pages` 作成・`google_connections` にトークン暗号化保存。`kimaru_session` Cookie を発行し `/dashboard.html` へリダイレクト。

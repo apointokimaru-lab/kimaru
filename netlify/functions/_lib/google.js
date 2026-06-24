@@ -2,7 +2,14 @@ const { required, googleRedirectUri } = require("./config");
 const { encrypt, decrypt } = require("./crypto");
 const { sb, eq } = require("./supabase");
 
-const scope = ["openid", "email", "profile", "https://www.googleapis.com/auth/calendar"].join(" ");
+// 最小権限: 空き確認(freebusy)＋予定の作成/更新/削除(events) のみ。フルの calendar は要求しない（OAuth審査の最小スコープ要件）。
+const scope = [
+  "openid",
+  "email",
+  "profile",
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.freebusy",
+].join(" ");
 
 function googleAuthUrl(state = "") {
   const params = new URLSearchParams({

@@ -136,7 +136,7 @@ exports.handler = async (event) => {
 
         const before = formatJst(booking.start_at || booking.start_time);
         const updated = { ...booking, start_at: start.toISOString(), end_at: end.toISOString(), start_time: start.toISOString(), end_time: end.toISOString() };
-        updated.calendar_description = `${booking.topic ? `相談内容: ${booking.topic}\n\n` : ""}— キマルで予約された面談です（日程変更）。`;
+        updated.calendar_description = `${booking.topic ? `相談内容: ${booking.topic}\n\n` : ""}— キマルで予約された面談です（日程変更）。\n\n▼ 予約の変更・キャンセル\n${manageUrl(booking.id)}`;
         // 先に新しい時間で予定を作成し、成功時のみ旧予定を削除して差し替える（booking 行は同一＝管理リンク不変）。
         // 作成失敗時は旧 google_event_id / meeting_url を据え置き、旧イベントは削除しない（孤立イベント・ID喪失を防ぐ）。
         const eventResult = await createCalendarEvent(booking.owner_id, updated).catch(() => null);

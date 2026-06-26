@@ -200,6 +200,7 @@ exports.handler = async (event) => {
     booking.calendar_description = [
       qa ? `【事前アンケート】\n${qa}` : (booking.topic ? `相談内容: ${booking.topic}` : ""),
       "— キマルで予約された面談です。",
+      `▼ 予約の変更・キャンセル\n${manageUrl(booking.id)}`,
     ].filter(Boolean).join("\n\n");
 
     const eventResult = await createCalendarEvent(owner.id, booking).catch((error) => ({ error: error.message }));

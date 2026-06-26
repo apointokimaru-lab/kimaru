@@ -36,6 +36,15 @@ function displayName(from) {
   return m ? m[1].trim() : "";
 }
 
+// 表示名の無い送信元（例: notify@notify.kimaru-co.jp）に既定表示名を付与する。
+// これが無いと受信側（Gmail 等）が差出人名としてアドレスのローカル部/サブドメイン（"notify"）を表示してしまう。
+// 既に "名前 <addr>" 形式、または空文字のときはそのまま返す。
+function ensureFromName(from, fallbackName) {
+  const s = String(from || "").trim();
+  if (!s || /<[^>]+>/.test(s)) return s;
+  return `${fallbackName} <${s}>`;
+}
+
 // 営業メールの解除URL（ワンクリック）。SESSION_SECRET 未設定等で失敗したら空。
 function unsubscribeUrl(email) {
   try {
@@ -106,7 +115,8 @@ async function sendMail({ to, subject, text, from, replyTo, category = "transact
     }
   }
 
-  const fromAddr = from || categoryFrom(category);
+  // 送信元に表示名が無ければ「キマル」を付与（Resend 経由でも差出人名が "notify" 等にならないように）。
+  const fromAddr = ensureFromName(from || categoryFrom(category), "キマル");
   const reply = replyTo || defaultReplyTo();
 
   // 営業メールには List-Unsubscribe + ワンクリック解除（RFC 8058）を付与（Gmail/Yahoo 要件）。

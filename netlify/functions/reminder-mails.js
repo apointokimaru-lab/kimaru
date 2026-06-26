@@ -1,5 +1,5 @@
 const { json } = require("./_lib/response");
-const { optional } = require("./_lib/config");
+const { optional, appBaseUrl } = require("./_lib/config");
 const { sb, eq } = require("./_lib/supabase");
 const { sendMail } = require("./_lib/mail");
 const { timingEqual } = require("./_lib/crypto");
@@ -51,7 +51,8 @@ function formatJst(iso) {
 
 async function ownerMap() {
   try {
-    const rows = await sb("owners?select=id,name,email,plan&limit=10000");
+    // slug は Pro 以上の「詳しいプロフィール」リンク（/u/<slug>）生成に使う。
+    const rows = await sb("owners?select=id,name,email,plan,slug&limit=10000");
     return new Map((rows || []).map((owner) => [owner.id, owner]));
   } catch (_) {
     return new Map();
@@ -69,8 +70,32 @@ async function ownerProfile(ownerId) {
   }
 }
 
-// 無料版は基本リマインダー（相手名＋会議URL）。Pro はお相手プロフィール付き。
-function buildMessage(booking, owner, profile, isPro) {
+// 予約に紐づく事前アンケート（質問と回答）。question_text は非正規化で保存済み。
+// 未マイグレーション環境では空配列にフォールバックし、リマインダー送信自体は止めない。
+async function answersForBooking(bookingId) {
+  try {
+    const rows = await sb(`questionnaire_answers?booking_id=${eq(bookingId)}&select=question_text,answer_text`);
+    return (rows || []).filter((r) => r && r.answer_text);
+  } catch (_) {
+    return [];
+  }
+}
+
+// Pro 以上のみ：公開プロフィールページ（/u/<slug>）の絶対URL。非公開/slug無しなら空。
+function profileUrl(owner, profile) {
+  if (!owner?.slug || owner.slug === "demo") return "";
+  if (profile.profile_public === "off") return "";
+  try {
+    return `${appBaseUrl()}/u/${encodeURIComponent(owner.slug)}`;
+  } catch (_) {
+    return "";
+  }
+}
+
+// リマインダー本文。全プラン共通で「事前アンケート（質問と回答）＋お相手の基本プロフィール
+// （表示名・肩書き/活動内容・相手に提供できる価値）」を載せる。Pro 以上はさらに公開プロフィール
+// ページへの「詳しいプロフィールはこちら」リンクを追記する。
+function buildMessage(booking, owner, profile, answers, isPro) {
   const guestName = booking.visitor_name || booking.guest_name || "";
   const greeting = guestName ? `${guestName}さん` : "こんにちは";
   const ownerName = profile.profile_name || owner?.name || owner?.email || "お相手";
@@ -81,12 +106,25 @@ function buildMessage(booking, owner, profile, isPro) {
     `まもなく ${ownerName} との面談です（開始予定: ${when}）。`,
   ];
   if (booking.meeting_url) lines.push(`ミーティング: ${booking.meeting_url}`);
-  if (isPro) {
-    lines.push("", "― お相手のプロフィール ―", ownerName + (profile.profile_title ? ` / ${profile.profile_title}` : ""));
-    if (profile.profile_strengths) lines.push(`強み: ${profile.profile_strengths}`);
-    if (profile.profile_offer) lines.push(`提供できること: ${profile.profile_offer}`);
-    if (profile.profile_values) lines.push(`大切にしていること: ${profile.profile_values}`);
+
+  // 事前アンケート（質問と回答）— 全プラン
+  const qa = (answers || [])
+    .map((a) => `Q. ${a.question_text || "質問"}\nA. ${a.answer_text}`)
+    .join("\n\n");
+  if (qa) lines.push("", "― 事前アンケート ―", qa);
+
+  // お相手の基本プロフィール — 全プラン（肩書き/活動内容・相手に提供できる価値があるときのみ枠を出す）
+  if (profile.profile_title || profile.profile_offer) {
+    lines.push("", "― お相手のプロフィール ―", ownerName);
+    if (profile.profile_title) lines.push(`肩書き・活動内容: ${profile.profile_title}`);
+    if (profile.profile_offer) lines.push(`相手に提供できる価値: ${profile.profile_offer}`);
+    // Pro 以上：詳しい公開プロフィールページへのリンク
+    if (isPro) {
+      const url = profileUrl(owner, profile);
+      if (url) lines.push(`詳しいプロフィールはこちら: ${url}`);
+    }
   }
+
   lines.push("", "良い時間になりますように。");
   return { subject: `まもなく面談です（${when}）`, text: lines.join("\n") };
 }
@@ -129,6 +167,7 @@ async function run(dryRun) {
     `bookings?select=*&status=eq.confirmed&start_at=gte.${encodeURIComponent(from.toISOString())}&start_at=lte.${encodeURIComponent(to.toISOString())}&order=start_at.asc&limit=500`
   );
   const owners = await ownerMap();
+  const profileCache = new Map(); // owner_id -> profile data（同一オーナーの重複取得を避ける）
 
   const results = [];
   for (const booking of bookings || []) {
@@ -141,10 +180,14 @@ async function run(dryRun) {
       results.push({ booking_id: booking.id, to: recipient, status: "skipped", reason: "Already sent" });
       continue;
     }
-    const owner = owners.get(booking.owner_id || booking.user_id);
-    const isPro = owner?.plan === "pro";
-    const profile = isPro ? await ownerProfile(booking.owner_id || booking.user_id) : {};
-    const message = buildMessage(booking, owner, profile, isPro);
+    const ownerId = booking.owner_id || booking.user_id;
+    const owner = owners.get(ownerId);
+    const isPro = owner?.plan === "pro" || owner?.plan === "premium";
+    // プロフィール（基本項目）は全プランで本文に載せる。Pro 以上のみリンクも付与。
+    if (!profileCache.has(ownerId)) profileCache.set(ownerId, await ownerProfile(ownerId));
+    const profile = profileCache.get(ownerId) || {};
+    const answers = await answersForBooking(booking.id);
+    const message = buildMessage(booking, owner, profile, answers, isPro);
     if (dryRun) {
       results.push({ booking_id: booking.id, to: recipient, status: "dry_run", subject: message.subject, text: message.text });
       continue;

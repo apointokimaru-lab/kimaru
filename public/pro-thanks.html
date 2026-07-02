@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title data-i18n="pt.pageTitle">キマル - お支払い完了</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body data-page="pro-thanks" data-i18n-title="pt.pageTitle">
+  <!-- site-header -->
+
+  <main class="shell checkout">
+    <section class="panel" style="max-width:560px;margin:0 auto;text-align:center">
+      <p class="eyebrow" data-i18n="pt.eyebrow">お支払い</p>
+      <h1 data-i18n="pt.heading">ご購入ありがとうございます</h1>
+
+      <!-- 有効化中 -->
+      <div id="pt-activating">
+        <p class="lead" data-i18n="pt.activating">Pro版を有効化しています。少々お待ちください…</p>
+        <p class="message" id="pt-status">…</p>
+      </div>
+
+      <!-- 完了 -->
+      <div id="pt-done" hidden>
+        <p class="lead" data-i18n="pt.done">✓ Pro版が有効になりました。</p>
+        <p class="muted" data-i18n="pt.doneDesc">相手管理・高度プロフィールなど、すべてのPro機能をご利用いただけます。</p>
+        <div class="actions" style="justify-content:center;margin-top:18px">
+          <a class="button primary" href="/dashboard.html" data-i18n="pt.goDashboard">ダッシュボードへ</a>
+        </div>
+      </div>
+
+      <!-- 反映待ち（タイムアウト） -->
+      <div id="pt-timeout" hidden>
+        <p class="lead" data-i18n="pt.timeout">反映に少しお時間がかかっています。</p>
+        <p class="muted" data-i18n="pt.timeoutDesc">決済は完了しています。数分後に再読み込みするか、設定画面でプランをご確認ください。反映されない場合は運営までご連絡ください。</p>
+        <div class="actions" style="justify-content:center;gap:8px;margin-top:18px">
+          <a class="button secondary" href="/settings.html" data-i18n="pt.goSettings">設定を開く</a>
+          <a class="button primary" href="/dashboard.html" data-i18n="pt.goDashboard">ダッシュボードへ</a>
+        </div>
+      </div>
+
+      <!-- 未ログイン -->
+      <p id="pt-login" class="message" hidden data-i18n="pt.loginRequired">ログインが必要です。ログイン後、設定画面でプランをご確認ください。</p>
+    </section>
+  </main>
+
+  <!-- site-footer -->
+
+  <script src="/i18n.js" defer></script>
+  <script>
+    const T = (k, fb) => (window.KimaruI18n ? window.KimaruI18n.t(k) : fb);
+    const $ = (s) => document.querySelector(s);
+    const show = (el, on) => { if (el) el.hidden = !on; };
+
+    let tries = 0;
+    const MAX_TRIES = 16;   // 約40秒（2.5秒間隔）ポーリング
+    const INTERVAL = 2500;
+
+    async function checkPlan() {
+      tries += 1;
+      try {
+        const res = await fetch('/api/me', { credentials: 'include', cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        const owner = data.owner;
+        if (!owner) { show($('#pt-activating'), false); show($('#pt-login'), true); return; }
+        if (owner.plan === 'pro' || owner.plan === 'premium') {
+          show($('#pt-activating'), false); show($('#pt-done'), true); return;
+        }
+        const statusEl = $('#pt-status');
+        if (statusEl) statusEl.textContent = T('pt.checking', '確認中…') + ' (' + tries + '/' + MAX_TRIES + ')';
+        if (tries >= MAX_TRIES) { show($('#pt-activating'), false); show($('#pt-timeout'), true); return; }
+        setTimeout(checkPlan, INTERVAL);
+      } catch (_) {
+        if (tries >= MAX_TRIES) { show($('#pt-activating'), false); show($('#pt-timeout'), true); return; }
+        setTimeout(checkPlan, INTERVAL);
+      }
+    }
+    checkPlan();
+  </script>
+</body>
+</html>

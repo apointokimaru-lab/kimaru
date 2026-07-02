@@ -80,6 +80,25 @@
   <script src="/i18n.js" defer></script>
   <script>
     const T = (k, fb) => (window.KimaruI18n ? window.KimaruI18n.t(k) : fb);
+
+    // ユーザー専用の Square 決済リンクを取得してボタンに反映する。
+    async function prepareCheckout() {
+      const payLink = document.getElementById('square-payment-link');
+      if (!payLink) return;
+      try {
+        const r = await fetch('/api/square-checkout', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }, body: '{}',
+        });
+        const d = await r.json().catch(() => ({}));
+        if (d && d.url) {
+          payLink.href = d.url;
+          // 動的リンク（メールプリフィル＋決済後にキマルへ戻る）は同一タブで開く。
+          if (d.prefilled) { payLink.target = '_self'; payLink.removeAttribute('rel'); }
+        }
+      } catch (_) { /* 失敗時は静的リンクのまま */ }
+    }
+
     (async () => {
       const status = document.getElementById('square-status');
       try {
@@ -99,6 +118,9 @@
           status.className = 'message ' + (isPaid ? 'success' : '');
           // すでに有料（またはCat Key承認済み）なら Cat Key 入力欄は不要
           if (isPaid) document.getElementById('catkey-box')?.remove();
+          // 未加入なら、登録メールをプリフィルしたユーザー専用の決済リンクを用意する。
+          // 生成できれば決済後にキマルへ戻る（同一タブ）。失敗時は静的リンクのまま。
+          if (!isPaid) prepareCheckout();
         } else {
           status.textContent = '';
         }

@@ -6,7 +6,7 @@ const { createProCheckoutLink } = require("./_lib/square");
 // ログイン中ユーザー向けの Pro 決済リンクを返す。
 // - 設定が揃っていれば Square API でユーザー専用リンク（メールプリフィル＋戻りURL付き）を生成。
 // - 生成不可（env未設定 / API失敗）なら従来の静的共有リンクにフォールバック。
-const STATIC_PRO_LINK = "https://square.link/u/sKdZIsyS";
+const STATIC_PRO_LINK = "https://square.link/u/Q1aRiSST";
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST" && event.httpMethod !== "GET") return json(405, { error: "許可されていない操作です" });

@@ -104,6 +104,31 @@
           <div id="plan-chip" hidden></div>
         </div>
 
+        <!-- 退会（アカウント削除） -->
+        <div class="panel" id="danger-zone">
+          <span class="eyebrow" style="color:#b3261e" data-i18n="st.danger.eyebrow">退会</span>
+          <h2 style="font-family:var(--display);font-size:18px;margin:8px 0 12px" data-i18n="st.danger.heading">アカウントの退会</h2>
+          <p class="muted" style="font-size:13.5px" data-i18n="st.danger.desc">退会すると、予約・相手管理・カレンダー連携などのデータがすべて削除され、元に戻せません。</p>
+
+          <!-- 有料プランのユーザー：先にSquare解約が必要 -->
+          <p id="danger-paid-note" class="message" hidden data-i18n="st.danger.paidNote">有料プランをご利用中は退会できません。先に Square でサブスクリプションを解約し、無料プランに戻ってから退会してください。</p>
+
+          <div id="danger-actions" style="margin-top:16px">
+            <button type="button" id="delete-account-toggle" class="btn btn-ghost" style="color:#b3261e;border-color:#b3261e" data-i18n="st.danger.button">退会する</button>
+          </div>
+
+          <!-- 退会確認フォーム -->
+          <form id="delete-form" class="form-grid" hidden style="margin-top:16px">
+            <p class="field-note" data-i18n="st.danger.confirmIntro">確認のため、登録メールアドレスを入力してください。</p>
+            <label><span data-i18n="st.danger.emailLabel">登録メールアドレス</span><input name="confirm_email" type="email" autocomplete="off" required /></label>
+            <div class="form-actions-row">
+              <button type="button" id="delete-cancel" class="btn btn-ghost" data-i18n="st.account.cancel">キャンセル</button>
+              <button class="btn btn-primary" type="submit" style="background:#b3261e;border-color:#b3261e" data-i18n="st.danger.confirmButton">退会を確定する</button>
+            </div>
+          </form>
+          <p id="delete-message" class="message"></p>
+        </div>
+
       </div>
     </section>
   </main>
@@ -154,6 +179,12 @@
           const intro = $('#plan-pro-box').querySelector('p.muted');
           if (intro) intro.textContent = T("st.js.premiumIntro", "プレミアムプランをご利用中です。Proの全機能＋AIアシストが使えます。いつもありがとうございます。");
         }
+
+        // 退会ゾーン：Square課金中（有料かつCat Keyメンバーでない）は先に解約が必要。
+        const isPaidSquare = isPro && !owner.invite_code;
+        $('#danger-paid-note').hidden = !isPaidSquare;
+        show($('#danger-actions'), !isPaidSquare);
+        if (isPaidSquare) { $('#delete-form').hidden = true; }
 
         // 外部連携
         applyCalendar(connected);
@@ -227,6 +258,41 @@
     $('#logout-button').addEventListener('click', async () => {
       await fetch('/api/logout', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
       location.href = '/';
+    });
+
+    // 退会（アカウント削除）
+    $('#delete-account-toggle').addEventListener('click', () => {
+      $('#delete-form').hidden = false;
+      $('#delete-account-toggle').style.display = 'none';
+      setMsg($('#delete-message'), '');
+      $('#delete-form').elements.confirm_email.focus();
+    });
+    $('#delete-cancel').addEventListener('click', () => {
+      const form = $('#delete-form');
+      form.reset();
+      form.hidden = true;
+      $('#delete-account-toggle').style.display = '';
+      setMsg($('#delete-message'), '');
+    });
+    $('#delete-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      if (!confirm(T("st.danger.jsConfirm", "本当に退会しますか？すべてのデータが削除され、元に戻せません。"))) return;
+      setMsg($('#delete-message'), T("st.danger.jsDeleting", "退会処理をしています..."));
+      try {
+        const res = await fetch('/api/account-delete', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm_email: form.elements.confirm_email.value }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || T("st.danger.jsFailed", "退会に失敗しました"));
+        alert(T("st.danger.jsDone", "退会が完了しました。ご利用ありがとうございました。"));
+        location.href = '/';
+      } catch (error) {
+        setMsg($('#delete-message'), error.message, 'error');
+      }
     });
 
     // 連携判定が出るまでボタンは隠す

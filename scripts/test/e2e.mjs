@@ -67,7 +67,7 @@ const bodyText = (page) => page.evaluate(() => document.body.innerText);
 // ===== 1) 全ページ：JS例外なし＆ダミー文字列なし =====
 section("all pages: no JS exception, no dummy strings");
 const PAGES = [
-  "index", "landing3", "plan", "login", "signup", "reset-password", "square",
+  "index", "landing3", "plan", "login", "signup", "reset-password", "square", "pro-thanks",
   "dashboard", "contacts", "booking-settings", "profile", "settings", "schedule", "answers",
   "meeting?id=b-today", "booking?slug=taro", "public-profile?slug=taro", "manage-booking?id=b-today&t=tok",
   "answer-question?id=b-today&t=tok", "pending-questions", "ai-assist",

@@ -4,6 +4,7 @@ const { sb, eq } = require("./_lib/supabase");
 const { optional } = require("./_lib/config");
 const { verifyAdminSession, timingEqual } = require("./_lib/crypto");
 const { applyPlanLimits } = require("./_lib/plan-freeze");
+const { deleteOwnerCascade } = require("./_lib/account-delete");
 
 const proCodes = new Set([
   "NEKO20240222",
@@ -60,7 +61,14 @@ async function updateOwnerCatKey(event) {
   const ownerId = String(body.owner_id || "").trim();
   const action = String(body.action || "");
   if (!ownerId) return json(400, { error: "owner_id が指定されていません" });
-  if (!["approve", "reject", "suspend", "resume", "demote"].includes(action)) return json(400, { error: "操作が不正です" });
+  if (!["approve", "reject", "suspend", "resume", "demote", "delete"].includes(action)) return json(400, { error: "操作が不正です" });
+  // 退会（完全削除）: 予約・相手管理・連携などの関連データごと物理削除。元に戻せない。
+  if (action === "delete") {
+    const removed = await deleteOwnerCascade(ownerId);
+    if (!removed) return json(404, { error: "対象のユーザーが見つかりません" });
+    await auditCatKey(event, { owner_id: null, email: removed.email || "", action: "admin_delete", metadata: { source: "cat-key-admin" } });
+    return json(200, { ok: true, deleted: true });
+  }
   // メンバー判定: invite_code があれば Cat Key メンバー（過去含む）。停止/再開の plan 変更はメンバーのみ。
   // （非メンバーは凍結フラグだけ切替＝Square課金者を誤って降格せず、再開でも昇格しない）
   const cur = await sb(`owners?id=${eq(ownerId)}&select=invite_code`).catch(() => []);

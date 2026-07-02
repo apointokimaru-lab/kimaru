@@ -153,6 +153,16 @@
   border-color: var(--op-blue);
   background: var(--op-blue-soft);
 }
+.operator-console .button.danger {
+  color: var(--op-red);
+  background: #fff;
+  border: 1px solid var(--op-red);
+}
+.operator-console .button.danger:hover {
+  color: #fff;
+  background: var(--op-red);
+  border-color: var(--op-red);
+}
 
 /* ---- リスト（フォールバック・現在は主にテーブル使用） ---- */
 .operator-console .list-item {

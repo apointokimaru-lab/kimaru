@@ -31,7 +31,7 @@
       <header class="op-page-head">
         <p class="eyebrow">Admin / Cat Key</p>
         <h1>運営コンソール</h1>
-        <p class="lead">Cat Key メンバーの状態管理（利用停止・再開・無料プランへの降格）を行います。新規申請の承認・却下は「Cat Key認証」で行います。</p>
+        <p class="lead">Cat Key メンバーの状態管理（利用停止・再開・無料プランへの降格）や、アカウントの退会（完全削除）を行います。新規申請の承認・却下は「Cat Key認証」で行います。</p>
         <p id="admin-message" class="message"></p>
       </header>
 
@@ -234,16 +234,18 @@
       return `<span class="plan-pill ${cls}">${label}</span>`;
     }
 
-    // 操作は状態に応じて出し分け。利用停止/再開は全員、無料プランへ降格はメンバーのみ。退会済・申請中は操作なし。
+    // 操作は状態に応じて出し分け。利用停止/再開は全員、無料プランへ降格はメンバーのみ。
+    // 退会（完全削除）はどの状態でも可能（関連データごと物理削除・元に戻せない）。
     function ownerActions(owner, state, id) {
       const demoteBtn = owner.invite_code
         ? `<button class="button secondary" type="button" data-action="demote" data-owner-id="${id}" title="無料プランへ降格し退会扱いにする">無料プランへ降格</button>`
         : '';
+      const deleteBtn = `<button class="button danger" type="button" data-action="delete" data-owner-id="${id}" title="このユーザーを完全に削除（退会）する">削除</button>`;
       if (state === 'active') return `
-            <button class="button secondary" type="button" data-action="suspend" data-owner-id="${id}" title="利用を停止する（停止中にする）">利用停止</button>${demoteBtn}`;
+            <button class="button secondary" type="button" data-action="suspend" data-owner-id="${id}" title="利用を停止する（停止中にする）">利用停止</button>${demoteBtn}${deleteBtn}`;
       if (state === 'suspended') return `
-            <button class="button primary" type="button" data-action="resume" data-owner-id="${id}" title="利用を再開する">利用再開</button>${demoteBtn}`;
-      return '<span class="muted">—</span>';
+            <button class="button primary" type="button" data-action="resume" data-owner-id="${id}" title="利用を再開する">利用再開</button>${demoteBtn}${deleteBtn}`;
+      return deleteBtn;
     }
 
     function ownerRow(owner) {
@@ -335,6 +337,8 @@
       admin_suspend: '利用停止',
       admin_resume: '利用再開',
       admin_demote: '無料プランへ降格',
+      admin_delete: '退会（削除）',
+      self_delete: '本人退会',
       // 旧アクション（過去ログ互換）
       admin_revoke: '無料降格（旧）',
       admin_restore: '凍結解除（旧）',
@@ -386,15 +390,18 @@
       suspend: 'このユーザーの利用を停止します（停止中にします）。実行しますか？',
       resume: 'このユーザーの利用を再開します。実行しますか？',
       demote: 'このメンバーを無料プランへ降格し、退会扱いにします。実行しますか？',
+      delete: 'このユーザーを完全に削除（退会）します。予約・相手管理・カレンダー連携などの関連データもすべて削除され、元に戻せません。有料課金中の場合、Square側の解約は別途必要です。本当に実行しますか？',
     };
     async function doAction(action, ownerId) {
       if (!action || !ownerId) return;
       if (!confirm(confirmMap[action] || '実行しますか？')) return;
-      setMessage('更新中...');
+      // 削除は取り返しがつかないため、二段階で確認する。
+      if (action === 'delete' && !confirm('最終確認：このユーザーと全データを完全に削除します。よろしいですか？')) return;
+      setMessage(action === 'delete' ? '削除中...' : '更新中...');
       try {
         await adminApi({ method: 'POST', body: JSON.stringify({ action, owner_id: ownerId }) });
         await loadOwners();
-        setMessage('更新しました。', 'success');
+        setMessage(action === 'delete' ? 'ユーザーを削除しました。' : '更新しました。', 'success');
       } catch (error) {
         setMessage(error.message, 'error');
       }

@@ -762,16 +762,18 @@ select{height:48px;padding-block:0}
 .week-slot small{font-family:var(--jp);font-size:10px;font-weight:600;color:rgba(255,255,255,.88)}
 .week-slot:hover{filter:brightness(1.07)}
 .week-slot.selected{box-shadow:inset 0 0 0 3px #fff;background:var(--accent-ink)}
-/* 時間列を固定：横スクロール中も「何時の枠か」を見失わない */
+/* 時間列を固定：横スクロール中も「何時の枠か」を見失わない（デスクトップの狭幅時） */
 .week-table th:first-child{position:sticky;left:0;z-index:2;box-shadow:1px 0 0 var(--line)}
-.week-scroll-hint{display:none}
+/* スマホ: 横スクロール廃止。空きのある日を最大5日ずつ画面幅ぴったりで表示（JS側で5日ごとに分割） */
 @media(max-width:680px){
-  .week-table{min-width:520px}
-  .week-table th{padding:8px 5px;font-size:10px}
-  .week-table tbody th{font-size:11px}
-  .week-slot{font-size:11px;padding:3px 4px}
+  .week-schedule-card{border:0;border-radius:0;box-shadow:none;padding:0}
+  .week-table-wrap{overflow:visible}
+  .week-table{min-width:0;width:100%;table-layout:fixed}
+  .week-table thead th:first-child{width:42px}
+  .week-table th{padding:8px 2px;font-size:10px}
+  .week-table tbody th{font-size:10.5px;padding:8px 2px}
+  .week-slot{font-size:10.5px;padding:3px 2px}
   .week-slot small{font-size:9px}
-  .week-scroll-hint{display:block;margin:8px 0 0;text-align:center;color:var(--muted);font-size:12px}
 }
 /* レガシー：app.js の旧予約UI（防御的に維持） */
 .slot-grid{display:block}

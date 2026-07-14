@@ -180,35 +180,10 @@ function selectSlot(slot, button, form) {
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function renderWeeklyAvailability(container, rawSlots, form) {
-  const slots = [...rawSlots]
-    .map((slot) => ({ ...slot, startDate: new Date(slot.start), endDate: new Date(slot.end) }))
-    .filter((slot) => !Number.isNaN(slot.startDate.getTime()) && !Number.isNaN(slot.endDate.getTime()))
-    .sort((a, b) => a.startDate - b.startDate);
-
-  if (!slots.length) {
-    container.innerHTML = `<p class="muted">${escapeHtml(t("booking.week.empty", "この週は空き枠がありません。「次の週 →」もご確認ください。"))}</p>`;
-    return;
-  }
-
-  const days = buildWeekDays(slots);
+// 1グループ分（最大7日）の時間×曜日テーブルを描画する。
+function weekTableHtml(days, slots, byStart) {
   const rows = buildTimeRows(slots);
-  const byStart = new Map(slots.map((slot) => [slotKey(slot), slot]));
-  const duration = Math.round((slots[0].endDate - slots[0].startDate) / 60000);
-
-  container.innerHTML = `
-    <div class="week-schedule-card">
-      <div class="week-schedule-head">
-        <div>
-          <p class="eyebrow">${escapeHtml(t("booking.week.cardEyebrow", "1週間の空き枠"))}</p>
-          <h3>${escapeHtml(weekTitle(days))}</h3>
-        </div>
-        <div class="week-schedule-meta">
-          <span>${escapeHtml(t("booking.week.openTime", "空いている時間"))}</span>
-          <strong>${escapeHtml(t("booking.week.durationMeta", "所要時間 {min}分").replace("{min}", duration))}</strong>
-        </div>
-      </div>
-      <p class="muted">${escapeHtml(t("booking.week.note", "Googleカレンダーの予定と重なる時間は表示されません。空いている枠だけを選択できます。"))}</p>
+  return `
       <div class="week-table-wrap">
         <table class="week-table">
           <thead>
@@ -229,8 +204,57 @@ function renderWeeklyAvailability(container, rawSlots, form) {
               </tr>`).join("")}
           </tbody>
         </table>
+      </div>`;
+}
+
+// スマホ（<=680px）は横スクロールを使わず、空きがある日だけを最大5日ずつ縦に積んで表示する。
+const narrowMq = window.matchMedia("(max-width:680px)");
+let lastWeekRender = null;
+
+function renderWeeklyAvailability(container, rawSlots, form) {
+  lastWeekRender = [container, rawSlots, form];
+  const slots = [...rawSlots]
+    .map((slot) => ({ ...slot, startDate: new Date(slot.start), endDate: new Date(slot.end) }))
+    .filter((slot) => !Number.isNaN(slot.startDate.getTime()) && !Number.isNaN(slot.endDate.getTime()))
+    .sort((a, b) => a.startDate - b.startDate);
+
+  if (!slots.length) {
+    container.innerHTML = `<p class="muted">${escapeHtml(t("booking.week.empty", "この週は空き枠がありません。「次の週 →」もご確認ください。"))}</p>`;
+    return;
+  }
+
+  const allDays = buildWeekDays(slots);
+  const byStart = new Map(slots.map((slot) => [slotKey(slot), slot]));
+  const duration = Math.round((slots[0].endDate - slots[0].startDate) / 60000);
+
+  let dayGroups;
+  if (narrowMq.matches) {
+    const slotDays = allDays.filter((day) => slots.some((slot) => dateKey(slot.startDate) === dateKey(day)));
+    const base = slotDays.length ? slotDays : allDays.slice(0, 5);
+    dayGroups = [];
+    for (let i = 0; i < base.length; i += 5) dayGroups.push(base.slice(i, i + 5));
+  } else {
+    dayGroups = [allDays];
+  }
+  const tables = dayGroups.map((days) => {
+    const groupKeys = new Set(days.map(dateKey));
+    return weekTableHtml(days, slots.filter((slot) => groupKeys.has(dateKey(slot.startDate))), byStart);
+  }).join("");
+
+  container.innerHTML = `
+    <div class="week-schedule-card">
+      <div class="week-schedule-head">
+        <div>
+          <p class="eyebrow">${escapeHtml(t("booking.week.cardEyebrow", "1週間の空き枠"))}</p>
+          <h3>${escapeHtml(weekTitle(allDays))}</h3>
+        </div>
+        <div class="week-schedule-meta">
+          <span>${escapeHtml(t("booking.week.openTime", "空いている時間"))}</span>
+          <strong>${escapeHtml(t("booking.week.durationMeta", "所要時間 {min}分").replace("{min}", duration))}</strong>
+        </div>
       </div>
-      <p class="week-scroll-hint" aria-hidden="true">${escapeHtml(t("booking.week.scrollHint", "左右にスワイプして他の曜日を表示"))}</p>
+      <p class="muted">${escapeHtml(t("booking.week.note", "Googleカレンダーの予定と重なる時間は表示されません。空いている枠だけを選択できます。"))}</p>
+      ${tables}
     </div>
   `;
 
@@ -245,6 +269,11 @@ function renderWeeklyAvailability(container, rawSlots, form) {
     cell.replaceChildren(button);
   });
 }
+
+// 端末回転などで幅区分が変わったら組み直す（選択済みの日程はフォーム側に保持される）。
+narrowMq.addEventListener?.("change", () => {
+  if (lastWeekRender) renderWeeklyAvailability(...lastWeekRender);
+});
 
 function getBirthdayStatus(dateString) {
   if (!dateString) return "";

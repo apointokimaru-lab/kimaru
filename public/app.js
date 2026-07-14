@@ -504,11 +504,17 @@ async function loadDashboardShare() {
   const urlEl = document.getElementById("share-url");
   if (!urlEl) return;
   const copyBtn = document.getElementById("share-copy");
+  const previewBtn = document.getElementById("share-preview");
   try {
     const data = await api("booking-pages");
     const slug = (data.pages || [])[0]?.slug;
     if (slug) {
       urlEl.textContent = bookingPageUrl(slug);
+      // プレビュー＝実際のゲスト向けページを開く。ページが無い間は非表示。
+      if (previewBtn) {
+        previewBtn.href = bookingPageUrl(slug);
+        previewBtn.style.display = "";
+      }
       if (copyBtn) {
         copyBtn.style.display = "";
         if (!copyBtn.dataset.wired) {
@@ -525,6 +531,7 @@ async function loadDashboardShare() {
     } else {
       urlEl.textContent = t("dash.share.none");
       if (copyBtn) copyBtn.style.display = "none";
+      if (previewBtn) previewBtn.style.display = "none";
     }
   } catch (_) { /* 非致命 */ }
 }
@@ -937,6 +944,9 @@ async function refreshAdmin() {
 async function initAdmin() {
   await refreshAdmin();
   if (page === "dashboard") { loadDashboardShare(); loadDashboardProfileTodo(); }
+  // ダッシュボード「＋ 新しい予約ページ」からの直リンク（?new=1）で作成画面を直接開く。
+  // ※ booking-settings.html の data-page は legacy の "admin" のため、エディタ要素の有無で判定する。
+  if ($("#page-editor") && new URLSearchParams(location.search).has("new")) clearBookingPageForm();
   document.addEventListener("kimaru:languagechange", () => { refreshAdmin(); });
   $("#logout-button")?.addEventListener("click", async () => {
     await api("logout", { method: "POST", body: "{}" }).catch(() => null);

@@ -1008,6 +1008,19 @@ select{height:48px;padding-block:0}
   .rows .r{grid-template-columns:1fr;gap:6px}
   .legal dl,.legal-dl{grid-template-columns:1fr}
 }
+/* ===== モバイル：面のフラット化（2026-07-15決定） =====
+   白地では影の重なりがノイズになるため、スマホでは面の影を全廃し、
+   外枠パネルは画面幅いっぱい（フルブリード）＋左右ボーダー無しの区切り線方式に。
+   ボタン・朱スタンプ・選択リング等のアクセント影は操作の手がかりとして残す。 */
+@media(max-width:680px){
+  :root{--shadow:0 0 0 rgba(25,26,28,0);--shadow-lg:0 0 0 rgba(25,26,28,0)}
+  .panel{margin-inline:-20px;border-radius:0;border-left:0;border-right:0;padding:20px}
+  .panel+.panel{margin-top:12px}
+  .authwrap{display:block;min-height:0;padding:28px 0}
+  .authcard{width:auto;border-radius:0;border-left:0;border-right:0;padding:26px 20px}
+  .plan.is-pop{box-shadow:none}
+}
+
 @media(max-width:620px){
   .inline-form{grid-template-columns:1fr}
   .availability-row{grid-template-columns:24px 1fr;gap:8px}

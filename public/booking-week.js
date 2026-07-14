@@ -219,9 +219,11 @@ function renderWeeklyAvailability(container, rawSlots, form) {
     .sort((a, b) => a.startDate - b.startDate);
 
   if (!slots.length) {
+    container._slots = [];
     container.innerHTML = `<p class="muted">${escapeHtml(t("booking.week.empty", "この週は空き枠がありません。「次の週 →」もご確認ください。"))}</p>`;
     return;
   }
+  container._slots = slots;
 
   const allDays = buildWeekDays(slots);
   const byStart = new Map(slots.map((slot) => [slotKey(slot), slot]));
@@ -253,10 +255,22 @@ function renderWeeklyAvailability(container, rawSlots, form) {
           <strong>${escapeHtml(t("booking.week.durationMeta", "所要時間 {min}分").replace("{min}", duration))}</strong>
         </div>
       </div>
-      <p class="muted">${escapeHtml(t("booking.week.note", "Googleカレンダーの予定と重なる時間は表示されません。空いている枠だけを選択できます。"))}</p>
       ${tables}
     </div>
   `;
+
+  // 週移動ボタン＋直近ボタンをカレンダー（最初の表）の直上に配置する。
+  // 静的ノード #week-nav の移動なのでリスナーは維持される（書き換え前の退避は loadWeek 側）。
+  const nav = document.getElementById("week-nav");
+  const card = container.querySelector(".week-schedule-card");
+  const firstWrap = container.querySelector(".week-table-wrap");
+  if (nav && card && firstWrap) card.insertBefore(nav, firstWrap);
+  // ナビの範囲ラベルを実際に表示中の週（先頭スロット起点）に合わせる。
+  const label = document.getElementById("week-label");
+  if (label) {
+    const last = allDays[allDays.length - 1];
+    label.textContent = `${allDays[0].getMonth() + 1}/${allDays[0].getDate()} - ${last.getMonth() + 1}/${last.getDate()}`;
+  }
 
   container.querySelectorAll("td[data-slot-key]").forEach((cell) => {
     const slot = byStart.get(cell.dataset.slotKey);
@@ -404,6 +418,9 @@ async function loadWeek(week, full) {
   const grid = $("#slot-grid");
   const form = $("#booking-form");
   if (!grid || !form) return;
+  // カレンダー内に移動した週ナビを、グリッド書き換えで失わないよう退避する。
+  const weekNav = $("#week-nav");
+  if (weekNav && grid.contains(weekNav)) grid.parentElement.insertBefore(weekNav, grid);
   grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.week.loading", "空き枠を読み込み中..."))}</p>`;
   try {
     const data = await api(`availability?slug=${encodeURIComponent(bookingSlug)}&week=${week}`);
@@ -430,6 +447,29 @@ async function loadWeek(week, full) {
     updateWeekNav(Boolean(data.hasPrev), Boolean(data.hasNext));
   } catch (error) {
     setMessage("#booking-message", error.message, "error");
+  }
+}
+
+// 「直近の空き時間」: 現在の週から順に空き枠を探し、最も早い枠を自動選択する。
+async function jumpToNearestSlot() {
+  const grid = $("#slot-grid");
+  const form = $("#booking-form");
+  const btn = $("#nearest-slot");
+  if (!grid || !form) return;
+  if (btn) btn.disabled = true;
+  try {
+    // 今の週に空きが無ければ、次の週へ最大12週分たどる（hasNext が尽きたら打ち切り）。
+    for (let i = 0; i < 12 && !(grid._slots || []).length; i++) {
+      const next = $("#next-week");
+      if (!next || next.disabled) break;
+      await loadWeek(currentWeek + 1, false);
+    }
+    const slots = grid._slots || [];
+    if (!slots.length) return;
+    const target = grid.querySelector(`td[data-slot-key="${slotKey(slots[0])}"] .week-slot`);
+    if (target) target.click();
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -521,6 +561,7 @@ async function initBooking() {
   if (form.elements.owner_slug) form.elements.owner_slug.value = bookingSlug;
   $("#prev-week")?.addEventListener("click", () => { if (currentWeek > 0) loadWeek(currentWeek - 1, false); });
   $("#next-week")?.addEventListener("click", () => loadWeek(currentWeek + 1, false));
+  $("#nearest-slot")?.addEventListener("click", jumpToNearestSlot);
   await loadWeek(0, true);
 
   // STEP1: 入力 → 確認へ（お名前/メールはブラウザ標準バリデーション後に submit が発火）

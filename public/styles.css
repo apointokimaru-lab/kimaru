@@ -1,22 +1,22 @@
 /* ============================================================
    キマル 本番デザインシステム — 朱印（決まる）
    暖かい朱(vermilion)=人・決定 / オーロラ(寒色)=AI・プレミアム面のみ。
-   暖グレー地・白角丸カード・やわらかい陰影。
+   真っ白地（2026-07-14決定）・白角丸カード（線+影で分離）・やわらかい陰影。
    ※ mock/mock.css を視覚ソースとして public/ に移植。JSが生成/参照する
      全クラスの 朱印 等価スタイルを含む（互換エイリアスでレガシー変数も解決）。
    ============================================================ */
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap");
 
 :root{
-  --bg:#EDEBE4;            /* 一段深い暖かいグレー（白カードを際立たせる） */
+  --bg:#FFFFFF;            /* 真っ白（2026-07-14決定: 朱×真っ白）。カードの分離は線+影で担保 */
   --surface:#FFFFFF;
-  --surface-2:#E4E1D8;
+  --surface-2:#F2F2EF;
   --ink:#191A1C;
   --ink-2:#3C3E44;
   --muted:#73757C;
   --muted-2:#b9b6ac;       /* mock が参照するが宣言していない値を補う */
-  --line:#E2E0D6;
-  --line-2:#D2CFC4;
+  --line:#E7E7E2;
+  --line-2:#D8D8D2;
   --accent:#DE4A2E;        /* 朱 vermilion = 決まる/決定 */
   --accent-ink:#B23A22;
   --accent-soft:#FBEBE5;
@@ -27,8 +27,9 @@
   --radius:14px;
   --radius-sm:10px;
   --radius-pill:999px;
-  --shadow:0 1px 2px rgba(25,26,28,.06),0 14px 32px -16px rgba(25,26,28,.20);
-  --shadow-lg:0 2px 6px rgba(25,26,28,.07),0 34px 72px -28px rgba(25,26,28,.30);
+  /* 白地では影がカード分離の主役 → 旧暖灰地より一段強め */
+  --shadow:0 1px 2px rgba(25,26,28,.07),0 14px 32px -16px rgba(25,26,28,.24);
+  --shadow-lg:0 2px 6px rgba(25,26,28,.08),0 34px 72px -28px rgba(25,26,28,.34);
   --sans:"Inter","Zen Kaku Gothic New",sans-serif;
   --display:"Space Grotesk","Zen Kaku Gothic New",sans-serif;
   --jp:"Zen Kaku Gothic New",sans-serif;
@@ -66,7 +67,6 @@ body{
   line-height:1.75;-webkit-font-smoothing:antialiased;
   font-feature-settings:"palt" 1;
   overflow-wrap:anywhere;
-  background-image:radial-gradient(120% 80% at 100% -10%,rgba(222,74,46,.05),transparent 60%);
 }
 h1,h2,h3,p{margin:0}
 a{color:inherit;text-decoration:none}
@@ -101,7 +101,7 @@ h3{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:-.01
 /* ============================================================
    共通ヘッダー（Edge Function 注入：.site-header）＋ mock .nav 両対応
    ============================================================ */
-.site-header,.nav{position:sticky;top:0;z-index:30;backdrop-filter:blur(10px);background:rgba(237,235,228,.82);border-bottom:1px solid var(--line)}
+.site-header,.nav{position:sticky;top:0;z-index:30;backdrop-filter:blur(10px);background:rgba(255,255,255,.85);border-bottom:1px solid var(--line)}
 .nav-in,.site-header{display:flex;align-items:center;justify-content:space-between;gap:20px}
 .nav-in{width:min(var(--shell),calc(100% - 40px));margin:0 auto;height:68px}
 .site-header{width:min(var(--shell),calc(100% - 40px));margin:0 auto;height:68px;padding:0}

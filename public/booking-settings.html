@@ -38,7 +38,7 @@
           <h2 data-i18n="bs.list.heading">予約ページ</h2>
           <p class="muted" data-i18n="bs.list.desc">設定違いのページを使い分けられます（無料1つ／Pro2つ／プレミアム・猫5つまで）。各ページの「開く / URLをコピー / 編集」で操作できます。曜日ごとの受付時間とカレンダーの予定から、空いている枠だけが表示されます。</p>
         </div>
-        <button type="button" id="booking-page-new" class="button primary" data-i18n="bs.list.new">＋ アポイント設定を作成</button>
+        <button type="button" id="booking-page-new" class="button primary" data-i18n="bs.list.new">＋ 予約ページを作成</button>
       </div>
       <p id="booking-list-message" class="message" role="status"></p>
       <div id="booking-pages-list" class="list"><p class="muted" data-i18n="bs.list.loading">予約ページを読み込み中...</p></div>
@@ -49,8 +49,8 @@
     <section id="page-editor" class="panel settings-section editor-view" aria-labelledby="page-editor-title" hidden>
       <div class="section-head">
         <div>
-          <h2 id="page-editor-title" data-i18n="bs.editor.title">アポイント設定を作成</h2>
-          <p id="booking-page-editing" class="muted" data-i18n="bs.editor.editingNew">新しいアポイント設定</p>
+          <h2 id="page-editor-title" data-i18n="bs.editor.title">予約ページを作成</h2>
+          <p id="booking-page-editing" class="muted" data-i18n="bs.editor.editingNew">新しい予約ページ</p>
         </div>
         <button type="button" id="page-editor-close" class="button secondary" data-i18n="bs.editor.back">← 一覧に戻る</button>
       </div>
@@ -59,7 +59,7 @@
 
         <div class="editor-section">
           <p class="eyebrow" data-i18n="bs.basic.eyebrow">基本情報</p>
-          <label><span data-i18n="bs.basic.title">アポイント名（タイトル）</span><input name="title" value="〇〇との面談" required /></label>
+          <label><span data-i18n="bs.basic.title">予約ページ名（タイトル）</span><input name="title" value="〇〇との面談" required /></label>
           <p class="form-note muted" data-i18n="bs.basic.titleNote">※◯◯の所はご自身の名前を入力して下さい。</p>
           <label><span data-i18n="bs.basic.slug">公開URL（slug）</span><input name="slug" id="booking-page-slug" placeholder="例: taro-1on1（空欄なら自動生成）" data-i18n-placeholder="bs.basic.slugPlaceholder" pattern="[a-z0-9-]{3,40}" /></label>
           <p class="form-note muted">公開ページは <code>/b/（slug）</code> で開けます。無料1つ・Pro2つ・プレミアム5つまで保存できます。</p>

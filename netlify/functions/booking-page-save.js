@@ -121,10 +121,13 @@ exports.handler = async (event) => {
       if (activeCount >= limit) return json(403, { error: `現在のプランで保存できる予約ページは${limit}個までです（無料1つ／Pro2つ／プレミアム5つ）` });
     }
 
+    const title = String(body.title || "").trim();
+    if (!title) return json(400, { error: "予約ページ名（タイトル）を入力してください" });
+
     const payload = {
       owner_id: owner.id,
       slug,
-      title: String(body.title || "〇〇との面談").trim(),
+      title,
       description: String(body.description || "").trim(),
       duration_minutes: duration,
       buffer_before_minutes: bufferBefore,

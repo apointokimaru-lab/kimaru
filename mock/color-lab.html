@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>カラーラボ — アクセント×背景 比較 | キマル mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@400;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/mock.css">
+<style>
+/* ラボ専用チューニング（比較ツール。装飾は最小、被写体＝6バリアント） */
+.lab-head{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(237,235,228,.88);border-bottom:1px solid var(--line)}
+.lab-head-in{display:flex;align-items:center;gap:18px;flex-wrap:wrap;width:min(1200px,calc(100% - 40px));margin:0 auto;padding:14px 0}
+.lab-head h1{font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:-.01em;margin:0}
+.lab-head .eyebrow{margin:0}
+.lab-pick{display:flex;align-items:center;gap:9px;margin-left:auto}
+.lab-pick label{font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.lab-pick select{min-height:38px;height:38px;width:auto;padding:0 34px 0 12px;font-size:13.5px}
+.lab-wrap{width:min(1200px,calc(100% - 40px));margin:26px auto 60px}
+.lab-grid{display:grid;grid-template-columns:64px repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
+.lab-colh{display:flex;align-items:baseline;gap:8px;padding:2px 4px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.lab-colh code{color:var(--muted);text-transform:none;letter-spacing:0}
+.lab-rowh{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px 0}
+.lab-rowh .sw{width:26px;height:26px;border-radius:8px;transform:rotate(-6deg);box-shadow:var(--shadow)}
+.lab-rowh .nm{writing-mode:vertical-rl;font-weight:700;font-size:13.5px;letter-spacing:.14em;color:var(--ink)}
+.lab-rowh code{writing-mode:vertical-rl;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.cell{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.cell-cap{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink-2)}
+.cell-cap .bgv{color:var(--muted);font-weight:400}
+.cell-view{position:relative;overflow:hidden;background:#fff}
+.cell-view iframe{display:block;width:1280px;height:1500px;border:0;transform-origin:0 0;pointer-events:none}
+.lab-note{margin-top:18px;color:var(--muted);font-size:12.5px}
+@media (max-width:960px){
+  .lab-grid{grid-template-columns:minmax(0,1fr)}
+  .lab-colh{display:none}
+  .lab-rowh{flex-direction:row;justify-content:flex-start;padding:4px 2px}
+  .lab-rowh .nm,.lab-rowh code{writing-mode:horizontal-tb;letter-spacing:.04em}
+}
+</style>
+</head>
+<body>
+
+<header class="lab-head">
+  <div class="lab-head-in">
+    <span class="eyebrow">Color Lab</span>
+    <h1>アクセント × 背景 比較</h1>
+    <div class="lab-pick">
+      <label for="labPage">画面</label>
+      <select id="labPage">
+        <option value="dashboard">ダッシュボード</option>
+        <option value="index">ランディング</option>
+        <option value="booking">予約（ゲスト）</option>
+        <option value="contacts">相手管理</option>
+        <option value="settings">設定</option>
+        <option value="plan">プラン</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<div class="lab-wrap">
+  <div class="lab-grid" id="labGrid"></div>
+  <p class="lab-note">各フレームは実際の mock 画面に CSS 変数を注入したライブ表示（クリック不可）。朱色前提でハードコードされた影・地紋も各案の色で再現している。danger（削除系）の赤 #C0392B は全案共通。</p>
+</div>
+
+<script>
+(() => {
+  // アクセント3案: soft はどの地でもカード内で成立する薄色、ink は文字用の濃色（4.5:1以上）
+  const ACCENTS = [
+    { key: "shu",    name: "朱",   accent: "#DE4A2E", ink: "#B23A22", soft: "#FBEBE5" },
+    { key: "ai",     name: "藍",   accent: "#2B5AA0", ink: "#1E4076", soft: "#E8EEF7" },
+    { key: "midori", name: "深緑", accent: "#2F6B4F", ink: "#22523B", soft: "#E7F1EA" },
+  ];
+  // 背景3案: 真っ白=現行トークンそのまま（2026-07-14採用）/ 暖白・暖灰=旧案を明示再現
+  const OLD_SHADOWS = "--shadow:0 1px 2px rgba(25,26,28,.06),0 14px 32px -16px rgba(25,26,28,.20);--shadow-lg:0 2px 6px rgba(25,26,28,.07),0 34px 72px -28px rgba(25,26,28,.30);";
+  const GROUNDS = [
+    { key: "white", name: "真っ白（現行）", bg: "#FFFFFF", vars: "", nav: "", tint: false },
+    { key: "warmwhite", name: "暖白", bg: "#F7F6F2",
+      vars: "--bg:#F7F6F2;--surface-2:#EEECE6;--line:#E7E5DD;--line-2:#D8D5CC;" + OLD_SHADOWS,
+      nav: ".nav{background:rgba(247,246,242,.86)}", tint: true },
+    { key: "warm",  name: "暖灰（旧）", bg: "#EDEBE4",
+      vars: "--bg:#EDEBE4;--surface-2:#E4E1D8;--line:#E2E0D6;--line-2:#D2CFC4;" + OLD_SHADOWS,
+      nav: ".nav{background:rgba(237,235,228,.82)}", tint: true },
+  ];
+
+  const hexRgb = (h) => {
+    const n = parseInt(h.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(",");
+  };
+
+  // mock.css 内で朱の実値が焼き込まれている影・地紋を、案の色で上書きする
+  const overrideCss = (a, g) => {
+    const rgb = hexRgb(a.accent);
+    return `
+:root{--accent:${a.accent};--accent-ink:${a.ink};--accent-soft:${a.soft};${g.vars}}
+body{background-image:${g.tint ? `radial-gradient(120% 80% at 100% -10%,rgba(${rgb},.05),transparent 60%)` : "none"}}
+${g.nav}
+.btn-primary{box-shadow:0 8px 20px -10px rgba(${rgb},.7)}
+.stamp{box-shadow:0 10px 24px -12px rgba(${rgb},.6)}
+.done-stamp{box-shadow:0 14px 30px -12px rgba(${rgb},.6)}
+.wk-slot{box-shadow:0 8px 16px -10px rgba(${rgb},.75)}
+.wk-slot.sel{box-shadow:0 0 0 3px var(--surface),0 0 0 6px rgba(${rgb},.5)}
+.plan.is-pop{box-shadow:0 18px 50px -24px rgba(${rgb},.5)}
+.mock-plan-switch{display:none!important}
+`;
+  };
+
+  const grid = document.getElementById("labGrid");
+  const pick = document.getElementById("labPage");
+  const params = new URLSearchParams(location.search);
+  if (params.get("page")) pick.value = params.get("page");
+
+  const build = () => {
+    const page = pick.value;
+    grid.innerHTML = "";
+
+    grid.insertAdjacentHTML("beforeend", '<div></div>');
+    for (const g of GROUNDS) {
+      grid.insertAdjacentHTML("beforeend",
+        `<div class="lab-colh">${g.name} <code>${g.bg}</code></div>`);
+    }
+
+    for (const a of ACCENTS) {
+      grid.insertAdjacentHTML("beforeend", `
+        <div class="lab-rowh">
+          <span class="sw" style="background:${a.accent}"></span>
+          <span class="nm">${a.name}</span>
+          <code>${a.accent}</code>
+        </div>`);
+      for (const g of GROUNDS) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.innerHTML = `
+          <div class="cell-cap"><span>${a.name} × ${g.name}</span><span class="bgv">${g.bg}</span></div>
+          <div class="cell-view"></div>`;
+        const view = cell.querySelector(".cell-view");
+        const fr = document.createElement("iframe");
+        fr.src = `/${page}.html`;
+        fr.setAttribute("tabindex", "-1");
+        fr.addEventListener("load", () => {
+          const doc = fr.contentDocument;
+          if (!doc) return;
+          const st = doc.createElement("style");
+          st.textContent = overrideCss(a, g);
+          doc.head.appendChild(st);
+        });
+        view.appendChild(fr);
+        grid.appendChild(cell);
+        fit(view, fr);
+      }
+    }
+  };
+
+  // セル幅に合わせて 1280px の画面を縮小表示
+  const fit = (view, fr) => {
+    const apply = () => {
+      const s = view.clientWidth / 1280;
+      if (!s) return;
+      fr.style.transform = `scale(${s})`;
+      view.style.height = `${Math.round(1500 * s)}px`;
+    };
+    new ResizeObserver(apply).observe(view);
+    apply();
+  };
+
+  pick.addEventListener("change", () => {
+    const u = new URL(location.href);
+    u.searchParams.set("page", pick.value);
+    history.replaceState(null, "", u);
+    build();
+  });
+  build();
+})();
+</script>
+</body>
+</html>

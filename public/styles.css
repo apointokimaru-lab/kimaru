@@ -140,6 +140,16 @@ h3{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:-.01
   .nav-avatar{align-self:flex-start}
 }
 
+/* モバイル下部タブナビ（Edge Function 注入・ログイン中のみ）。
+   ハンバーガー2タップの主要導線を親指圏の1タップに。ゲストは .app-only で非表示。 */
+.bottom-nav{display:none}
+@media(max-width:900px){
+  [data-auth="authed"] .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:6px max(10px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-right))}
+  .bottom-nav a{display:flex;align-items:center;justify-content:center;min-height:46px;padding:4px 2px;font-family:var(--sans);font-size:11.5px;font-weight:700;color:var(--muted);border-radius:var(--radius-sm);text-align:center}
+  .bottom-nav a[aria-current="page"]{color:var(--accent-ink);background:var(--accent-soft)}
+  body[data-auth="authed"]{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
+}
+
 /* ============================================================
    ボタン — 朱印 vocab (.btn) ＋ レガシー public vocab (.button/.primary)
    ============================================================ */
@@ -429,11 +439,12 @@ select{height:48px;padding-block:0}
 .dash-sub a{font-size:13px;font-weight:600;color:var(--muted)}
 .dash-sub a:hover{color:var(--accent-ink)}
 .appt-list{display:grid;gap:10px}
-.appt{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);transition:border-color .15s}
+.appt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:16px;align-items:center;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);transition:border-color .15s}
 .appt:hover{border-color:var(--line-2)}
 .appt-now{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow)}
 .appt-time{font-family:var(--mono);font-weight:700;font-size:18px;color:var(--ink);min-width:56px;line-height:1.1}
 .appt-time small{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
+.appt-body{min-width:0}
 .appt-body b{display:block;font-family:var(--display);font-size:15px}
 .appt-body span{color:var(--muted);font-size:13px}
 .appt-actions{display:flex;gap:8px;align-items:center}
@@ -448,8 +459,8 @@ select{height:48px;padding-block:0}
 .side-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
 .side-card+.side-card{margin-top:16px}
 .side-card h3{font-size:15px;margin:0 0 12px}
-.share{display:flex;gap:8px;align-items:center;border:1.5px solid var(--line-2);border-radius:var(--radius-sm);padding:5px 5px 5px 12px;background:var(--surface)}
-.share code{flex:1;font-family:var(--mono);font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.share{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0;border:1.5px solid var(--line-2);border-radius:var(--radius-sm);padding:5px 5px 5px 12px;background:var(--surface)}
+.share code{flex:1;min-width:0;font-family:var(--mono);font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .todo{display:grid;gap:8px}
 .todo a{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink-2)}
 .todo a:hover{border-color:var(--accent)}
@@ -735,6 +746,17 @@ select{height:48px;padding-block:0}
 .week-slot small{font-family:var(--jp);font-size:10px;font-weight:600;color:rgba(255,255,255,.88)}
 .week-slot:hover{filter:brightness(1.07)}
 .week-slot.selected{box-shadow:inset 0 0 0 3px #fff;background:var(--accent-ink)}
+/* 時間列を固定：横スクロール中も「何時の枠か」を見失わない */
+.week-table th:first-child{position:sticky;left:0;z-index:2;box-shadow:1px 0 0 var(--line)}
+.week-scroll-hint{display:none}
+@media(max-width:680px){
+  .week-table{min-width:520px}
+  .week-table th{padding:8px 5px;font-size:10px}
+  .week-table tbody th{font-size:11px}
+  .week-slot{font-size:11px;padding:3px 4px}
+  .week-slot small{font-size:9px}
+  .week-scroll-hint{display:block;margin:8px 0 0;text-align:center;color:var(--muted);font-size:12px}
+}
 /* レガシー：app.js の旧予約UI（防御的に維持） */
 .slot-grid{display:block}
 .schedule-card{padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
@@ -767,7 +789,8 @@ select{height:48px;padding-block:0}
 .slot-button:hover{background:var(--accent-soft);border-color:var(--accent)}
 .slot-button.selected{color:#fff;background:var(--accent);border-color:var(--accent)}
 .week-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 14px}
-.week-nav #week-label{font-family:var(--display);font-weight:700;color:var(--ink)}
+.week-nav #week-label{font-family:var(--display);font-weight:700;color:var(--ink);white-space:nowrap}
+.week-nav .button,.week-bar .button{white-space:nowrap}
 .week-nav .button[disabled]{opacity:.4;cursor:not-allowed}
 
 /* ============================================================

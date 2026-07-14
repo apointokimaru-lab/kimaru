@@ -230,6 +230,22 @@ h3{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:-.01
 /* 料金比較表：Pro 列を強調（mock 準拠の視覚回帰修正）。Pro は3列目。 */
 #compare table th:nth-child(3),#compare table td:nth-child(3){background:var(--accent-soft)}
 #compare table th:nth-child(3){color:var(--accent-ink)}
+/* モバイルの比較表：横スクロールをやめ、機能名を行見出し＋3プランの値を横並びに。
+   プラン名ヘッダは sticky で常に「どの列がどのプランか」見える。 */
+@media(max-width:680px){
+  #compare .table-wrap{overflow:visible}
+  #compare .table{min-width:0;display:block}
+  #compare thead{display:block;position:sticky;top:68px;z-index:5}
+  #compare thead tr{display:grid;grid-template-columns:repeat(3,1fr)}
+  #compare thead th:first-child{display:none}
+  #compare thead th{text-align:center;padding:11px 6px;font-size:11px}
+  #compare tbody{display:block}
+  #compare tbody tr{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line)}
+  #compare tbody tr:last-child{border-bottom:0}
+  #compare tbody td{border-bottom:0;text-align:center;padding:10px 6px 14px;font-size:12.5px;line-height:1.55}
+  #compare tbody td:first-child{grid-column:1/-1;text-align:left;padding:14px 6px 2px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--muted)}
+  #compare tbody tr:hover{background:transparent}
+}
 .hero .lead{max-width:46ch;color:var(--ink-2);font-size:clamp(16px,1.4vw,18px);line-height:1.85}
 .hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
 .hero-meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:20px;color:var(--muted);font-size:13px;font-weight:600}

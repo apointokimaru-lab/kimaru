@@ -1074,6 +1074,13 @@ async function initSchedule() {
       cols += `<div class="week-col${isToday ? " is-today" : ""}"><div class="week-colhead"><div class="week-dow">${escapeHtml(dowFmt.format(day))}${isToday ? "・" + escapeHtml(t("sched.todayTag")) : ""}</div><div class="week-date">${day.getDate()}</div></div><div class="week-body">${body}</div></div>`;
     }
     grid.innerHTML = cols;
+    // モバイル（横スクロール表示）では今週なら「今日」の列まで自動スクロール。他の週は先頭から。
+    if (grid.scrollWidth > grid.clientWidth) {
+      const todayCol = grid.querySelector(".week-col.is-today");
+      grid.scrollLeft = offset === 0 && todayCol
+        ? Math.max(0, todayCol.getBoundingClientRect().left - grid.getBoundingClientRect().left + grid.scrollLeft - 10)
+        : 0;
+    }
   }
   document.getElementById("weekPrev")?.addEventListener("click", () => { offset--; render(); });
   document.getElementById("weekNext")?.addEventListener("click", () => { offset++; render(); });

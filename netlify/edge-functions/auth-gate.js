@@ -34,6 +34,8 @@ const OPERATOR_PATHS = [
 // 表示の出し分けは body[data-auth] + CSS（.app-only / .guest-only）が担当。
 // 朱印ヘッダー。ナビ表示は body[data-auth]（.app-only/.guest-only）が担当。
 // <900px は CSS のみのハンバーガー（#km-nav-toggle チェックボックスハック）で開閉する（JSなし）。
+// 末尾の .bottom-nav はモバイル（<900px）のログイン中のみ表示される下部タブナビ。
+// 現在ページの強調は直後の inline script が aria-current を付与（CSPは 'unsafe-inline' 許可済み）。
 const SITE_HEADER = `<header class="site-header">
     <a class="brand" href="/" data-i18n="common.brand"><span class="brand-dot"></span>キマル</a>
     <input type="checkbox" id="km-nav-toggle">
@@ -51,7 +53,15 @@ const SITE_HEADER = `<header class="site-header">
       <select class="lang-select" data-language-select aria-label="Language"></select>
       <a class="app-only nav-avatar" href="/settings.html" aria-hidden="true">キ</a>
     </nav>
-  </header>`;
+  </header>
+  <nav class="bottom-nav app-only" aria-label="Primary">
+    <a href="/dashboard.html" data-i18n="nav.dashboard">ホーム</a>
+    <a href="/booking-settings.html" data-i18n="nav.bookingSettings">予約設定</a>
+    <a href="/contacts.html" data-i18n="nav.admin">相手管理</a>
+    <a href="/ai-assist.html" data-i18n="nav.aiAssist">AIアシスト</a>
+    <a href="/settings.html" data-i18n="nav.settings">設定</a>
+  </nav>
+  <script>(function(){var p=location.pathname;document.querySelectorAll(".bottom-nav a").forEach(function(a){if(a.getAttribute("href")===p)a.setAttribute("aria-current","page");});})();</script>`;
 
 // 共通フッター（法務リンク・全ページ共通）。目印 <!-- site-footer --> を置換。
 const SITE_FOOTER = `<footer class="foot footer">

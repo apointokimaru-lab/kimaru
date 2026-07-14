@@ -230,6 +230,7 @@ function renderWeeklyAvailability(container, rawSlots, form) {
           </tbody>
         </table>
       </div>
+      <p class="week-scroll-hint" aria-hidden="true">${escapeHtml(t("booking.week.scrollHint", "左右にスワイプして他の曜日を表示"))}</p>
     </div>
   `;
 

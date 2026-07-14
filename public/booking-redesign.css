@@ -256,7 +256,9 @@ body[data-page="booking"] .slot-grid{
 .rs-slot:hover{color:var(--accent-ink);border-color:var(--accent)}
 .rs-slot.selected{color:#fff;background:var(--accent);border-color:var(--accent)}
 
-@media(max-width:620px){
+/* スマホ: 横スクロール廃止。空きのある日を最大5日ずつ画面幅ぴったりで表示
+   （booking-week.js が5日ごとにテーブルを分割して縦に積む） */
+@media(max-width:680px){
   .week-schedule-head{
     display:grid;
   }
@@ -265,12 +267,16 @@ body[data-page="booking"] .slot-grid{
     justify-content:flex-start;
   }
 
-  .week-table{
-    min-width:760px;
-  }
-
+  .week-schedule-card{border:0;border-radius:0;box-shadow:none;padding:0}
+  .week-table-wrap{overflow:visible}
+  .week-table-wrap+.week-table-wrap{margin-top:12px}
+  .week-table{min-width:0}
+  .week-table thead th{padding:9px 2px;font-size:10px}
   .week-table thead th:first-child,
-  .week-table tbody th{
-    width:66px;
-  }
+  .week-table tbody th{width:40px}
+  .week-table tbody th{padding:8px 3px;font-size:10px}
+  .week-table td{padding:3px 2px;height:44px}
+  .week-slot{min-height:40px;padding:4px 2px;border-radius:8px}
+  .week-slot span{font-size:10.5px}
+  .week-slot small{font-size:8.5px}
 }

@@ -100,11 +100,15 @@
         <p id="profile-message" class="message"></p>
       </section>
 
+      <!-- スマホ専用：プレビューを全画面で開くボタン（デスクトップは右カラムに常時表示） -->
+      <button class="button primary preview-fab" type="button" id="preview-open" data-i18n="pf.preview.open">プレビューを見る</button>
+
       <div class="profile-preview-col">
         <section class="panel settings-section">
           <div class="row-between" style="margin-bottom:6px;">
             <p class="eyebrow" style="margin:0;" data-i18n="pf.preview.eyebrow">プレビュー</p>
             <span class="tag" data-i18n="pf.preview.tag">AIアシストが見る姿</span>
+            <button class="button secondary preview-close" type="button" id="preview-close" data-i18n="pf.preview.close">閉じる</button>
           </div>
           <h2 data-i18n="pf.preview.heading">プロフィールのプレビュー</h2>
           <p class="muted" style="margin-bottom:14px;" data-i18n="pf.preview.lead">入力するとリアルタイムで反映されます。</p>
@@ -243,6 +247,14 @@
       } catch (error) {
         $('#profile-status').textContent = T("pf.status.loadError", 'プロフィール情報を読み込めませんでした。手入力で保存できます。');
       }
+
+      // スマホ：プレビューを全画面で開閉（Escでも閉じる）
+      const openBtn = $('#preview-open');
+      const closeBtn = $('#preview-close');
+      const closePreview = () => { document.body.classList.remove('preview-open'); openBtn.focus(); };
+      openBtn.addEventListener('click', () => { document.body.classList.add('preview-open'); closeBtn.focus(); });
+      closeBtn.addEventListener('click', closePreview);
+      document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && document.body.classList.contains('preview-open')) closePreview(); });
 
       form.addEventListener('input', () => renderPreview(readProfile(form)));
       document.addEventListener('kimaru:languagechange', () => renderPreview(readProfile($('#profile-form'))));

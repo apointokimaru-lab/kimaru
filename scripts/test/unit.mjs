@@ -369,6 +369,40 @@ const cancel = await bookingManage.handler({ httpMethod: "POST", headers: {}, bo
 ok("cancel → 200", cancel.statusCode === 200 && JSON.parse(cancel.body).status === "cancelled");
 ok("cancel DELETEs zoom meeting", zoomMeetingCalls.some((c) => c.method === "DELETE" && c.id === "85511122233"));
 
+// ---------- 9) book.js: 予約の location_type は予約ページ設定を採用（Zoom発行の回帰） ----------
+section("book.js booking uses page location_type");
+const bookFn = requireCjs(path.join(repo, "netlify/functions/book.js"));
+DB.booking_pages = [{ id: "bp1", owner_id: OWNER.id, slug: "tarou", title: "初回相談", location_type: "zoom", is_active: true }];
+DB.rate_limit_hits = [];
+DB.zoom_connections = [{ id: "z1", owner_id: OWNER.id, access_token: cryptoLib.encrypt("zoom-access"), refresh_token: cryptoLib.encrypt("zoom-refresh"), expires_at: new Date(Date.now() + 3600000).toISOString() }];
+const captured = { posts: [], patches: [] };
+const prevFetch = globalThis.fetch;
+globalThis.fetch = async (url, options = {}) => {
+  const u = new URL(url);
+  if (u.hostname === "sb.unit.test") {
+    const table = u.pathname.replace("/rest/v1/", "");
+    if (options.method === "POST") {
+      const parsed = JSON.parse(options.body || "null");
+      captured.posts.push({ table, body: parsed });
+      const rows = Array.isArray(parsed) ? parsed : [{ id: `${table}-new`, ...parsed }];
+      return { ok: true, status: 201, text: async () => JSON.stringify(rows) };
+    }
+    if (options.method === "PATCH") captured.patches.push({ table: table.split("?")[0], body: JSON.parse(options.body || "{}") });
+  }
+  return prevFetch(url, options);
+};
+const bookStart = new Date(Date.now() + 5 * 86400000);
+const bookEnd = new Date(bookStart.getTime() + 30 * 60000);
+const bookRes = await bookFn.handler({
+  httpMethod: "POST",
+  headers: {},
+  body: JSON.stringify({ owner_slug: "tarou", visitor_name: "ゲスト 太郎", visitor_email: "guest@example.com", start: bookStart.toISOString(), end: bookEnd.toISOString() }),
+});
+const insertedBooking = captured.posts.find((p) => p.table.startsWith("bookings"))?.body;
+ok("book → 200", bookRes.statusCode === 200);
+ok("booking row uses page's location_type (zoom, not body default)", insertedBooking?.location_type === "zoom");
+ok("zoom join_url saved to meeting_url", captured.patches.some((p) => p.table === "bookings" && p.body.meeting_url === "https://zoom.us/j/123"));
+
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);
 if (fail) { console.log("FAILED: " + fails.join(" | ")); process.exit(1); }

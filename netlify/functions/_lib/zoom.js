@@ -79,6 +79,46 @@ async function zoomUserEmail(accessToken) {
   }
 }
 
+// join_url から Zoom ミーティングIDを取り出す（例 https://xxx.zoom.us/j/85511122233?pwd=...）。
+// DB に別列を持たず、予約の meeting_url から復元する。手動URLや Meet の URL は null になる。
+function meetingIdFromUrl(meetingUrl) {
+  const match = String(meetingUrl || "").match(/zoom\.us\/j\/(\d{9,12})(?:\?|$)/);
+  return match ? match[1] : null;
+}
+
+// 接続済みホストのトークンで Zoom API を呼ぶ。未設定・未連携・ID復元不可なら null（呼び出しスキップ）。
+async function meetingRequest(ownerId, meetingUrl, options) {
+  if (!isConfigured()) return null;
+  const meetingId = meetingIdFromUrl(meetingUrl);
+  if (!meetingId) return null;
+  const connection = await getConnection(ownerId);
+  if (!connection) return null;
+  const token = await accessTokenFor(connection);
+  return fetch(`https://api.zoom.us/v2/meetings/${meetingId}`, {
+    ...options,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(options.headers || {}) },
+  });
+}
+
+// リスケ時：既存ミーティングの日時・時間を更新（URL は変わらない）。実行できたら true。
+async function updateMeetingByUrl(ownerId, meetingUrl, { topic, startIso, durationMinutes }) {
+  const res = await meetingRequest(ownerId, meetingUrl, {
+    method: "PATCH",
+    body: JSON.stringify({ ...(topic ? { topic } : {}), start_time: startIso, duration: durationMinutes || 30, timezone: "Asia/Tokyo" }),
+  });
+  if (!res) return false;
+  if (!res.ok && res.status !== 204) throw new Error("Zoomミーティングの更新に失敗しました");
+  return true;
+}
+
+// キャンセル時：ミーティングを削除。404（すでに無い）は成功扱い。実行できたら true。
+async function deleteMeetingByUrl(ownerId, meetingUrl) {
+  const res = await meetingRequest(ownerId, meetingUrl, { method: "DELETE" });
+  if (!res) return false;
+  if (!res.ok && res.status !== 204 && res.status !== 404) throw new Error("Zoomミーティングの削除に失敗しました");
+  return true;
+}
+
 // ホスト本人の接続でミーティングを作成し join_url を返す。未設定・未連携なら null（予約は成立させる）。
 async function createMeetingFor(ownerId, { topic, startIso, durationMinutes }) {
   if (!isConfigured()) return null;
@@ -102,4 +142,4 @@ async function createMeetingFor(ownerId, { topic, startIso, durationMinutes }) {
   return { id: data.id, joinUrl: data.join_url || "" };
 }
 
-module.exports = { isConfigured, authorizeUrl, exchangeCode, getConnection, saveConnection, deleteConnection, accessTokenFor, zoomUserEmail, createMeetingFor };
+module.exports = { isConfigured, authorizeUrl, exchangeCode, getConnection, saveConnection, deleteConnection, accessTokenFor, zoomUserEmail, createMeetingFor, meetingIdFromUrl, updateMeetingByUrl, deleteMeetingByUrl };

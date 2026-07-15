@@ -2,6 +2,7 @@ const { json, readJson } = require("./_lib/response");
 const { sb, eq, findOwnerById } = require("./_lib/supabase");
 const { verifyBookingToken } = require("./_lib/crypto");
 const { createCalendarEvent, deleteCalendarEvent } = require("./_lib/google");
+const zoom = require("./_lib/zoom");
 const { sendMail } = require("./_lib/mail");
 const { LOCATION_LABELS, formatJst, manageUrl } = require("./_lib/booking-format");
 
@@ -117,6 +118,8 @@ exports.handler = async (event) => {
         if (booking.status === "cancelled") return json(200, { ok: true, status: "cancelled" });
         await sb(`bookings?id=${eq(booking.id)}`, { method: "PATCH", body: JSON.stringify({ status: "cancelled" }) });
         if (booking.google_event_id) await deleteCalendarEvent(booking.owner_id, booking.google_event_id).catch(() => {});
+        // Zoom 予約はホスト名義のミーティングも削除（非致命・IDは meeting_url から復元）。
+        if (booking.location_type === "zoom") await zoom.deleteMeetingByUrl(booking.owner_id, booking.meeting_url).catch(() => {});
         await notify({ booking, owner, kind: "cancel" });
         return json(200, { ok: true, status: "cancelled" });
       }
@@ -145,8 +148,16 @@ exports.handler = async (event) => {
         if (eventResult?.id) {
           if (booking.google_event_id) await deleteCalendarEvent(booking.owner_id, booking.google_event_id).catch(() => {});
           patch.google_event_id = eventResult.id;
-          meetingUrl = eventResult.hangoutLink || "";
-          patch.meeting_url = meetingUrl;
+          // Zoom 予約の meeting_url は Zoom の join_url のまま維持する（hangoutLink で上書きするとURLが消える）。
+          if (booking.location_type !== "zoom") {
+            meetingUrl = eventResult.hangoutLink || "";
+            patch.meeting_url = meetingUrl;
+          }
+        }
+        // Zoom 予約は既存ミーティングの日時を新しい時間に更新（URL不変・失敗は非致命）。
+        if (booking.location_type === "zoom") {
+          const durationMinutes = Math.max(1, Math.round((end - start) / 60000));
+          await zoom.updateMeetingByUrl(booking.owner_id, booking.meeting_url, { startIso: updated.start_at, durationMinutes }).catch(() => {});
         }
         await sb(`bookings?id=${eq(booking.id)}`, { method: "PATCH", body: JSON.stringify(patch) });
         await notify({ booking: { ...updated, meeting_url: meetingUrl }, owner, kind: "reschedule", before, meetingUrl });

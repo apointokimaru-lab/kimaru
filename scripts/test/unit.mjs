@@ -332,6 +332,43 @@ const meRes = await meFn.handler({ httpMethod: "GET", headers: { cookie }, query
 const meBody = JSON.parse(meRes.body);
 ok("me returns zoom_connected true with connection", meBody.zoom_connected === true && meBody.calendar_connected === false);
 
+// ---------- 8) Zoom のリスケ更新・キャンセル削除（booking-manage 経由） ----------
+section("Zoom reschedule/cancel via booking-manage");
+const bookingManage = requireCjs(path.join(repo, "netlify/functions/booking-manage.js"));
+ok("meetingIdFromUrl parses join_url", zoomLib.meetingIdFromUrl("https://us05web.zoom.us/j/85511122233?pwd=abc") === "85511122233");
+ok("meetingIdFromUrl rejects non-zoom URLs", zoomLib.meetingIdFromUrl("https://meet.google.com/abc-defg-hij") === null && zoomLib.meetingIdFromUrl("") === null);
+
+// Zoom API 呼び出しの記録（PATCH/DELETE /v2/meetings/{id}）
+const zoomMeetingCalls = [];
+const zoomFetch = globalThis.fetch;
+globalThis.fetch = async (url, options = {}) => {
+  const u = new URL(url);
+  if (u.hostname === "api.zoom.us" && u.pathname.startsWith("/v2/meetings/")) {
+    zoomMeetingCalls.push({ method: options.method, id: u.pathname.split("/").pop() });
+    return { ok: true, status: 204, json: async () => ({}), text: async () => "" };
+  }
+  return zoomFetch(url, options);
+};
+
+const futureStart = new Date(Date.now() + 7 * 86400000);
+const futureEnd = new Date(futureStart.getTime() + 30 * 60000);
+const ZOOM_BOOKING = { id: "zb1", owner_id: OWNER.id, visitor_name: "相手 一郎", visitor_email: "", location_type: "zoom", status: "confirmed", start_at: futureStart.toISOString(), end_at: futureEnd.toISOString(), meeting_url: "https://us05web.zoom.us/j/85511122233?pwd=abc" };
+DB.bookings.push(ZOOM_BOOKING);
+DB.availability_settings = [];
+DB.booking_pages = [];
+const manageToken = cryptoLib.bookingToken("zb1");
+
+const newStart = new Date(Date.now() + 8 * 86400000);
+const newEnd = new Date(newStart.getTime() + 30 * 60000);
+const resched = await bookingManage.handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({ id: "zb1", t: manageToken, action: "reschedule", start: newStart.toISOString(), end: newEnd.toISOString() }) });
+const reschedBody = JSON.parse(resched.body);
+ok("reschedule keeps zoom meeting_url", resched.statusCode === 200 && reschedBody.meeting_url === ZOOM_BOOKING.meeting_url);
+ok("reschedule PATCHes zoom meeting time", zoomMeetingCalls.some((c) => c.method === "PATCH" && c.id === "85511122233"));
+
+const cancel = await bookingManage.handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({ id: "zb1", t: manageToken, action: "cancel" }) });
+ok("cancel → 200", cancel.statusCode === 200 && JSON.parse(cancel.body).status === "cancelled");
+ok("cancel DELETEs zoom meeting", zoomMeetingCalls.some((c) => c.method === "DELETE" && c.id === "85511122233"));
+
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);
 if (fail) { console.log("FAILED: " + fails.join(" | ")); process.exit(1); }

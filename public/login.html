@@ -108,9 +108,15 @@
         if (!res.ok) throw new Error(result.error || T("auth.fail", "失敗しました"));
         $("#auth-message").textContent = T("auth.done", "完了しました。ホームへ移動します...");
         $("#auth-message").className = "message success";
-        // ?next= は同一オリジンのパスのみ許可（MCPコネクタの認可フロー等から戻ってくる用）
+        // ?next= は同一オリジンのパスのみ許可（MCPコネクタの認可フロー等から戻ってくる用）。
+        // 文字列判定ではなくURLとして解決して検証（"/\evil.com" のような正規化バイパスを防ぐ）。
         const next = new URLSearchParams(location.search).get("next");
-        location.href = next && /^\/(?!\/)/.test(next) ? next : "/dashboard.html";
+        let dest = "/dashboard.html";
+        try {
+          const url = new URL(next, location.origin);
+          if (next && url.origin === location.origin) dest = url.pathname + url.search + url.hash;
+        } catch (_) { /* 不正な値は既定へ */ }
+        location.href = dest;
       } catch (error) {
         $("#auth-message").textContent = error.message;
         $("#auth-message").className = "message error";

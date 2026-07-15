@@ -5,6 +5,8 @@ const { json } = require("./_lib/response");
 const { parseMcpToken, verifyMcpToken } = require("./_lib/crypto");
 const { sb, eq, findOwnerById } = require("./_lib/supabase");
 const { isPremium } = require("./_lib/auth");
+const { verifyAccessToken } = require("./_lib/mcp-oauth");
+const { appBaseUrl } = require("./_lib/config");
 
 // 新しい順に列挙。クライアントの希望バージョンを知っていればそれを返し、未知なら最新を返す。
 const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
@@ -196,8 +198,21 @@ async function authenticate(event) {
   const header = event.headers.authorization || event.headers.Authorization || "";
   const bearer = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   const token = bearer || (event.queryStringParameters && event.queryStringParameters.t) || "";
+
+  // 1) OAuth アクセストークン（コネクタ経由・signBlob 形式）。salt 束縛＝「URLを再発行」で失効。
+  const access = verifyAccessToken(token);
+  if (access) {
+    const owner = await findOwnerById(access.o).catch(() => null);
+    if (!owner || owner.cat_key_disabled || (owner.mcp_token_salt || "") !== access.k) {
+      return { status: 401, error: "トークンが失効しています。AIクライアントから再接続してください。" };
+    }
+    if (!isPremium(owner.plan)) return { status: 403, error: "MCP連携はプレミアムプランの機能です。" };
+    return { owner };
+  }
+
+  // 2) パーソナルトークン（OAuth 非対応クライアント向けの ?t= / Bearer）
   const parsed = parseMcpToken(token);
-  if (!parsed) return { status: 401, error: "認証が必要です。ai-assist.html の「自分のAIとつなぐ」で発行した接続URL（?t=）か Authorization: Bearer を使ってください。" };
+  if (!parsed) return { status: 401, error: "認証が必要です。コネクタ（OAuth）で接続するか、ai-assist の「自分のAIとつなぐ」で発行した接続URL（?t=）を使ってください。" };
   const owner = await findOwnerById(parsed.ownerId).catch(() => null);
   if (!owner || owner.cat_key_disabled || !verifyMcpToken(owner.id, owner.mcp_token_salt || "", parsed.signature)) {
     return { status: 401, error: "トークンが無効です。接続URLを再発行してください。" };
@@ -210,7 +225,13 @@ exports.handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") return json(405, { error: "POST のみ対応しています（ステートレスMCP・SSEストリームなし）" }, { Allow: "POST" });
     const auth = await authenticate(event);
-    if (auth.error) return json(auth.status, { error: auth.error });
+    if (auth.error) {
+      // 401 には OAuth 発見用の WWW-Authenticate を付ける（MCP クライアントはここから認可フローを開始する）
+      const headers = auth.status === 401
+        ? { "WWW-Authenticate": `Bearer resource_metadata="${appBaseUrl()}/.well-known/oauth-protected-resource", error="invalid_token"` }
+        : {};
+      return json(auth.status, { error: auth.error }, headers);
+    }
 
     let body;
     try {

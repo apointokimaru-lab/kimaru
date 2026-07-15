@@ -15,9 +15,11 @@
 - **`/api/mcp`**（`netlify/functions/mcp.js`）— Streamable HTTP・ステートレスのMCPサーバ。プレミアム限定。
 - **ツール（読み取り専用）**: `list_bookings`（予約一覧）/ `list_contacts`（相手一覧・手動追加含む）/ `get_booking_answers`（事前アンケート回答）/ `get_my_profile`（自分のプロフィール）。
 - **プロンプト**: `prepare_meeting`（面談準備の定型プロンプト）を MCP prompts で配布。
-- **認証**: パーソナルトークン（`crypto.js` の HMAC 導出・`mcp:{ownerId}:{salt}`）。`Authorization: Bearer` または `?t=` クエリ。`owners.mcp_token_salt` の更新で再発行（列未適用の環境では固定トークンに劣化動作）。
-- **接続URL取得**: `/api/mcp-token`（プレミアム限定）。UIは `ai-assist.html` の「自分のAIとつなぐ」セクション（URLコピー・再発行・設定手順）。
-- **次段**: ChatGPT / claude.ai コネクタのワンタップ接続に必要な OAuth 2.1（PKCE＋動的クライアント登録）。
+- **認証（2系統）**:
+  1. **OAuth 2.1（推奨・2026-07-15 実装）** — ChatGPT / claude.ai のコネクタに素のエンドポイントURL（`/api/mcp`）を貼るだけで、発見（`/.well-known/oauth-protected-resource` → `oauth-metadata.js`）→ 動的クライアント登録（`mcp-oauth-register.js`・RFC 7591・client_id はステートレス署名）→ 認可（`mcp-auth.js`・PKCE S256・同意画面・未ログインは `login.html?next=` で復帰）→ トークン交換（`mcp-oauth-token.js`・refresh対応）が自動で走る。
+  2. **パーソナルトークン**（OAuth非対応クライアント向け） — `crypto.js` の HMAC 導出（`mcp:{ownerId}:{salt}`）。`Authorization: Bearer` または `?t=` クエリ。
+  - どちらも `owners.mcp_token_salt` に束縛：**「URLを再発行」で旧URL・OAuth接続済みクライアントが全て失効**（列未適用の環境では固定トークンに劣化動作・再発行のみ不可）。
+- **接続URL取得**: `/api/mcp-token`（プレミアム限定）。UIは `ai-assist.html` の「自分のAIとつなぐ」（コネクタURL＝推奨／トークン付きURL＝上級者向け・再発行）。
 
 ## 旧方式：サーバLLM（決定20・温存・未開放）
 
@@ -51,8 +53,8 @@
 
 ## 残タスク
 
-- **OAuth 2.1 対応**（PKCE＋動的クライアント登録）→ ChatGPT / claude.ai コネクタのワンタップ接続（決定31の次段）。
-- 相手データ（ゲスト実名・メール・回答）が**ユーザー選択のAIベンダー**へ渡ることのプライバシー文面整理（[legal/](../legal/)）。
+- ~~OAuth 2.1 対応~~ → 〔2026-07-15〕実装済み（上記）。
+- ~~プライバシー文面整理~~ → 〔2026-07-15〕`privacy.html`（i18n 3言語）と `docs/legal/privacy-policy.md` の第3条にMCP・外部AI送信の条項を追記済み。
 - スクショ付きセットアップガイド（Claude Desktop / Claude Code / ChatGPT 開発者モード）。
 - プロフィールのサーバ保存（[17](./17-profile.md)）と `ai-assist.html` のプロフィールシート（localStorage）の一本化。
 - `supabase-schema.sql` の手動適用（`owners.mcp_token_salt`・dev/本番両方）。

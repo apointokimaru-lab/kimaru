@@ -19,6 +19,27 @@
 
 # 誕生日メールの自動送信は廃止（決定17・#180）。生年月日入力と占いベース相手分析は継続。
 
+# OAuth メタデータ（MCPコネクタの自動発見・RFC 9728/8414。パス接尾辞つき要求にも対応）
+[[redirects]]
+  from = "/.well-known/oauth-protected-resource"
+  to = "/.netlify/functions/oauth-metadata?doc=resource"
+  status = 200
+
+[[redirects]]
+  from = "/.well-known/oauth-protected-resource/*"
+  to = "/.netlify/functions/oauth-metadata?doc=resource"
+  status = 200
+
+[[redirects]]
+  from = "/.well-known/oauth-authorization-server"
+  to = "/.netlify/functions/oauth-metadata?doc=server"
+  status = 200
+
+[[redirects]]
+  from = "/.well-known/oauth-authorization-server/*"
+  to = "/.netlify/functions/oauth-metadata?doc=server"
+  status = 200
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

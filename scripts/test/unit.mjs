@@ -207,6 +207,74 @@ const freeCookie = sessionCookie(FREE_OWNER.id).split(";")[0];
 const freeTokenRes = await mcpTokenFn.handler({ httpMethod: "GET", headers: { cookie: freeCookie }, queryStringParameters: {} });
 ok("mcp-token for free plan → 403", freeTokenRes.statusCode === 403);
 
+// ---------- 6) MCP OAuth 2.1 フロー（発見→登録→認可→交換→利用→失効） ----------
+section("MCP OAuth 2.1 flow");
+const nodeCrypto = await import("node:crypto");
+const metaFn = requireCjs(path.join(repo, "netlify/functions/oauth-metadata.js"));
+const registerFn = requireCjs(path.join(repo, "netlify/functions/mcp-oauth-register.js"));
+const authFn = requireCjs(path.join(repo, "netlify/functions/mcp-auth.js"));
+const tokenEp = requireCjs(path.join(repo, "netlify/functions/mcp-oauth-token.js"));
+
+const resMeta = await metaFn.handler({ httpMethod: "GET", path: "/.well-known/oauth-protected-resource", queryStringParameters: {} });
+const metaBody = JSON.parse(resMeta.body);
+ok("protected-resource metadata points to /api/mcp", resMeta.statusCode === 200 && metaBody.resource.endsWith("/api/mcp") && metaBody.authorization_servers.length === 1);
+const resServer = await metaFn.handler({ httpMethod: "GET", path: "/.well-known/oauth-authorization-server", queryStringParameters: {} });
+const serverBody = JSON.parse(resServer.body);
+ok("authorization-server metadata has PKCE S256 + endpoints", serverBody.code_challenge_methods_supported.includes("S256") && serverBody.authorization_endpoint.endsWith("/api/mcp-auth") && serverBody.registration_endpoint.endsWith("/api/mcp-oauth-register"));
+
+const REDIRECT = "https://client.example/callback";
+const regRes = await registerFn.handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({ redirect_uris: [REDIRECT], client_name: "TestGPT" }) });
+const regBody = JSON.parse(regRes.body);
+ok("dynamic client registration → 201 + client_id", regRes.statusCode === 201 && !!regBody.client_id && regBody.token_endpoint_auth_method === "none");
+const badReg = await registerFn.handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({ redirect_uris: ["ftp://x"] }) });
+ok("registration rejects non-https redirect_uri", badReg.statusCode === 400);
+
+const verifier = "unit-test-verifier-0123456789-0123456789-0123456789";
+const challenge = nodeCrypto.createHash("sha256").update(verifier).digest("base64url");
+const authQuery = { response_type: "code", client_id: regBody.client_id, redirect_uri: REDIRECT, code_challenge: challenge, code_challenge_method: "S256", state: "st4te" };
+
+const anonAuth = await authFn.handler({ httpMethod: "GET", headers: {}, queryStringParameters: authQuery });
+ok("authorize without session → redirect to login with next", anonAuth.statusCode === 302 && anonAuth.headers.Location.includes("/login.html?next="));
+const freeAuth = await authFn.handler({ httpMethod: "GET", headers: { cookie: freeCookie }, queryStringParameters: authQuery });
+ok("authorize for free plan → 403 page", freeAuth.statusCode === 403);
+const consentRes = await authFn.handler({ httpMethod: "GET", headers: { cookie }, queryStringParameters: authQuery });
+ok("authorize (premium) → consent page with client name", consentRes.statusCode === 200 && consentRes.body.includes("TestGPT") && String(consentRes.headers["Set-Cookie"]).includes("kimaru_mcp_consent="));
+const consentCookieValue = String(consentRes.headers["Set-Cookie"]).split(";")[0];
+const consentNonce = consentCookieValue.split("=")[1].split(":")[0];
+
+const approveBody = new URLSearchParams({ ...authQuery, consent_nonce: consentNonce, decision: "approve" }).toString();
+const approveRes = await authFn.handler({ httpMethod: "POST", headers: { cookie: `${cookie}; ${consentCookieValue}` }, body: approveBody });
+const approveLoc = approveRes.statusCode === 302 ? new URL(approveRes.headers.Location) : null;
+ok("consent approve → 302 to redirect_uri with code + state", !!approveLoc && approveLoc.origin + approveLoc.pathname === REDIRECT && !!approveLoc.searchParams.get("code") && approveLoc.searchParams.get("state") === "st4te");
+const noCsrf = await authFn.handler({ httpMethod: "POST", headers: { cookie }, body: approveBody });
+ok("consent POST without CSRF cookie → 400", noCsrf.statusCode === 400);
+
+const code = approveLoc.searchParams.get("code");
+const exchange = async (extra) => {
+  const res = await tokenEp.handler({ httpMethod: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "authorization_code", code, client_id: regBody.client_id, redirect_uri: REDIRECT, code_verifier: verifier, ...extra }).toString() });
+  return { status: res.statusCode, body: JSON.parse(res.body) };
+};
+const badPkce = await exchange({ code_verifier: "wrong-verifier" });
+ok("token exchange with wrong PKCE verifier → invalid_grant", badPkce.status === 400 && badPkce.body.error === "invalid_grant");
+const granted = await exchange({});
+ok("token exchange → access + refresh tokens", granted.status === 200 && !!granted.body.access_token && !!granted.body.refresh_token && granted.body.token_type === "Bearer");
+
+const mcpViaOauth = await rpc(init, granted.body.access_token);
+ok("MCP initialize with OAuth access token → 200", mcpViaOauth.status === 200 && mcpViaOauth.body.result.protocolVersion === "2025-06-18");
+const rawUnauth = await mcp.handler({ httpMethod: "POST", headers: {}, queryStringParameters: {}, body: JSON.stringify(init) });
+ok("401 carries WWW-Authenticate resource_metadata", rawUnauth.statusCode === 401 && String(rawUnauth.headers["WWW-Authenticate"]).includes("oauth-protected-resource"));
+
+const refreshed = await tokenEp.handler({ httpMethod: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: granted.body.refresh_token }).toString() });
+ok("refresh grant → new access token", refreshed.statusCode === 200 && !!JSON.parse(refreshed.body).access_token);
+
+// salt 再発行で OAuth 接続も全失効すること
+OWNER.mcp_token_salt = "rotated-salt";
+const revokedAccess = await rpc(init, granted.body.access_token);
+const revokedRefresh = await tokenEp.handler({ httpMethod: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: granted.body.refresh_token }).toString() });
+ok("salt rotation revokes OAuth access token", revokedAccess.status === 401);
+ok("salt rotation revokes refresh token", revokedRefresh.statusCode === 400);
+OWNER.mcp_token_salt = "salt1";
+
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);
 if (fail) { console.log("FAILED: " + fails.join(" | ")); process.exit(1); }

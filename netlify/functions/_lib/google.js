@@ -100,6 +100,8 @@ async function createCalendarEvent(ownerId, booking) {
     attendees: booking.visitor_email ? [{ email: booking.visitor_email, displayName: booking.visitor_name }] : [],
     reminders: { useDefault: false, overrides: [{ method: "email", minutes: 15 }, { method: "popup", minutes: 15 }] },
   };
+  // Zoom 等の既発行URLがあれば予定の場所欄に載せる（Google招待メールからも参加できるように）。
+  if (booking.meeting_url) eventBody.location = booking.meeting_url;
   if (shouldCreateMeet) {
     eventBody.conferenceData = {
       createRequest: {

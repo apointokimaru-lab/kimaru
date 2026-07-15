@@ -145,7 +145,9 @@ exports.handler = async (event) => {
       end_at: end.toISOString(),
       start_time: start.toISOString(),
       end_time: end.toISOString(),
-      location_type: clean(body.location_type || "google_meet", 40),
+      // 開催方法は予約ページの設定（サーバ側）を正とする。フロントは location_type を送っておらず、
+      // body 値に頼ると全予約が既定 google_meet になる（ページ無しのデモ経路のみ body を許容）。
+      location_type: clean(bookingPage?.location_type || body.location_type || "google_meet", 40),
       status: "confirmed",
     };
     if (relationshipContext) {
@@ -199,6 +201,7 @@ exports.handler = async (event) => {
       .join("\n\n");
     booking.calendar_description = [
       qa ? `【事前アンケート】\n${qa}` : (booking.topic ? `相談内容: ${booking.topic}` : ""),
+      zoomUrl ? `▼ Zoomミーティング\n${zoomUrl}` : "",
       "— キマルで予約された面談です。",
       `▼ 予約の変更・キャンセル\n${manageUrl(booking.id)}`,
     ].filter(Boolean).join("\n\n");

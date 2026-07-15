@@ -17,14 +17,34 @@
         <h1 style="margin:0" data-i18n="aa.hero.title">次の一手を、AIが提案</h1>
         <span class="premium-badge badge-premium" data-i18n="plan.premium">プレミアム</span>
       </div>
-      <p class="sub"><span data-i18n="aa.hero.descLead">相手データから、最初の入り方・刺さる話題・次の一手まで。</span><strong data-i18n="aa.hero.descStrong">本物のAI提案（GPT-5.4 Mini）はプレミアム（¥2,200/月）で近日公開</strong><span data-i18n="aa.hero.descTail">します。今は Pro 以上でルールベースの提案を今すぐお試しいただけます。</span></p>
+      <p class="sub"><span data-i18n="aa.hero.descLead">相手データから、最初の入り方・刺さる話題・次の一手まで。</span><strong data-i18n="aa.hero.descStrong">自分のAI（ChatGPT / Claude）をつなぐMCP連携はプレミアム（¥2,200/月）で近日公開</strong><span data-i18n="aa.hero.descTail">します。今は Pro 以上でルールベースの提案を今すぐお試しいただけます。</span></p>
     </div>
 
     <!-- 近日公開アナウンス（プレミアム面） -->
     <section class="panel wide premium-surface" style="margin-top:24px">
       <span class="coming-soon-tag" data-i18n="pricing.premium.comingSoon">近日公開（フェーズ2）</span>
       <h2 data-i18n="aa.aurora.title">相手データから次回アポの戦略を提案</h2>
-      <p data-i18n="aa.aurora.desc">蓄積した相手データから、最初の入り方・刺さる話題・次の一手をAIがまとめます。プレミアムで月300回まで利用できます。</p>
+      <p data-i18n="aa.aurora.desc">お使いの ChatGPT や Claude をMCPでキマルに接続すると、蓄積した相手データからAIが面談準備を手伝います。回数制限はありません。</p>
+    </section>
+
+    <!-- MCP連携（プレミアム限定・決定31）：自分のAIをつなぐ -->
+    <section class="panel wide premium-feature" style="margin-top:18px">
+      <p class="eyebrow" data-i18n="aa.mcp.eyebrow">MCP連携</p>
+      <h2 data-i18n="aa.mcp.title">自分のAIとつなぐ</h2>
+      <p class="muted" data-i18n="aa.mcp.desc">お使いの ChatGPT や Claude をキマルに接続すると、あなたのAIが相手データ（予約・事前アンケート回答・プロフィール）を直接読んで面談準備を手伝えます。回数制限はありません。</p>
+      <label><span data-i18n="aa.mcp.urlLabel">接続URL（あなた専用・他人に共有しないでください）</span>
+        <input id="mcp-url" readonly placeholder="読み込み中..." data-i18n-placeholder="aa.mcp.loading" />
+      </label>
+      <div class="actions">
+        <button class="button secondary" type="button" id="mcp-copy" data-i18n="aa.mcp.copy">URLをコピー</button>
+        <button class="button secondary" type="button" id="mcp-regen" data-i18n="aa.mcp.regen">URLを再発行</button>
+      </div>
+      <p id="mcp-message" class="message"></p>
+      <ul class="feature-list" style="margin-top:14px">
+        <li><strong data-i18n="aa.mcp.step1Term">Claude</strong><span data-i18n="aa.mcp.step1Desc">：設定 → コネクタ →「カスタムコネクタを追加」で接続URLを貼り付け。</span></li>
+        <li><strong data-i18n="aa.mcp.step2Term">ChatGPT</strong><span data-i18n="aa.mcp.step2Desc">：設定 → コネクタ → 開発者モードを有効化して接続URLを追加。</span></li>
+        <li><strong data-i18n="aa.mcp.step3Term">使い方</strong><span data-i18n="aa.mcp.step3Desc">：接続後「◯◯さんとの面談準備をして」と頼むだけ。予約・回答・プロフィールをAIが読み取ります。</span></li>
+      </ul>
     </section>
 
     <!-- アップグレード案内（無料・Pro → アップセル） -->
@@ -452,6 +472,39 @@
 
       loadRecords();
     });
+  </script>
+  <script>
+    // MCP連携（プレミアム・決定31）：接続URLの取得・コピー・再発行
+    (() => {
+      const urlInput = document.getElementById('mcp-url');
+      if (!urlInput) return;
+      const message = document.getElementById('mcp-message');
+      const tr = (key, fallback) => (window.KimaruI18n ? window.KimaruI18n.t(key) : fallback);
+      async function loadUrl(method) {
+        try {
+          const response = await fetch('/api/mcp-token', { method, credentials: 'include' });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.url) throw new Error(data.error || '');
+          urlInput.value = data.url;
+          if (method === 'POST') message.textContent = tr('aa.mcp.regenDone', '再発行しました。旧URLは無効になりました。');
+        } catch (error) {
+          if (method === 'POST') message.textContent = error.message || tr('aa.mcp.loadError', '接続URLを取得できませんでした。');
+          else urlInput.placeholder = tr('aa.mcp.loadError', '接続URLを取得できませんでした。');
+        }
+      }
+      document.getElementById('mcp-copy').addEventListener('click', async () => {
+        if (!urlInput.value) return;
+        try {
+          await navigator.clipboard.writeText(urlInput.value);
+        } catch (_) {
+          urlInput.select();
+          document.execCommand('copy');
+        }
+        message.textContent = tr('aa.mcp.copied', 'コピーしました。');
+      });
+      document.getElementById('mcp-regen').addEventListener('click', () => loadUrl('POST'));
+      loadUrl('GET');
+    })();
   </script>
   <script src="/plan.js" defer></script>
   <script src="/i18n.js" defer></script>

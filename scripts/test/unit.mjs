@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 let pass = 0;
@@ -127,6 +128,84 @@ const jsUrl = render([{ visitor_name: "悪意", start_at: at(0, 13, 0), end_at: 
 ok("javascript: meeting_url rejected (no join button, no js href)", !jsUrl.today.includes("javascript:") && !jsUrl.today.includes("参加する"));
 const okUrl = render([{ visitor_name: "正常", start_at: at(0, 13, 0), end_at: at(0, 13, 30), status: "confirmed", meeting_url: "https://meet.google.com/x" }]);
 ok("https: meeting_url allowed (join button present)", okUrl.today.includes("参加する") && okUrl.today.includes("https://meet.google.com/x"));
+
+// ---------- 5) MCPサーバ（netlify/functions/mcp.js・決定31） ----------
+// Supabase REST への fetch をインメモリ表でスタブし、JSON-RPC の主要フローを検証する。
+section("MCP server (mcp.js)");
+process.env.SESSION_SECRET = process.env.SESSION_SECRET || "unit-test-secret";
+process.env.SUPABASE_URL = "https://sb.unit.test";
+process.env.SUPABASE_SERVICE_ROLE_KEY = "unit-test-key";
+process.env.APP_BASE_URL = process.env.APP_BASE_URL || "https://kimaru.unit.test";
+
+const requireCjs = createRequire(import.meta.url);
+const OWNER = { id: "11111111-1111-1111-1111-111111111111", name: "テスト オーナー", email: "owner@example.com", plan: "premium", mcp_token_salt: "salt1" };
+const FREE_OWNER = { id: "22222222-2222-2222-2222-222222222222", name: "無料", email: "free@example.com", plan: "free" };
+const DB = {
+  owners: [OWNER, FREE_OWNER],
+  bookings: [
+    { id: "b1", owner_id: OWNER.id, visitor_name: "相手 一郎", visitor_email: "ichiro@example.com", topic: "初回相談", start_at: "2026-07-20T05:00:00Z", end_at: "2026-07-20T05:30:00Z", location_type: "google_meet", status: "confirmed", created_at: "2026-07-01T00:00:00Z" },
+    { id: "b2", owner_id: OWNER.id, visitor_name: "取消 花子", visitor_email: "hanako@example.com", topic: "", start_at: "2026-07-21T05:00:00Z", end_at: "2026-07-21T05:30:00Z", location_type: "zoom", status: "cancelled", created_at: "2026-07-02T00:00:00Z" },
+  ],
+  questionnaire_answers: [{ booking_id: "b1", question_text: "ご予算感", answer_text: "未定" }],
+  manual_contacts: [{ id: "m1", owner_id: OWNER.id, name: "手動 次郎", email: "jiro@example.com", topic: "紹介", created_at: "2026-07-03T00:00:00Z" }],
+  profiles: [{ id: "p1", owner_id: OWNER.id, data: { profile_strengths: "課題整理・紹介", profile_style: "logical" } }],
+};
+globalThis.fetch = async (url) => {
+  const u = new URL(url);
+  const table = u.pathname.replace("/rest/v1/", "").split("?")[0];
+  let rows = DB[table] || [];
+  for (const [k, v] of u.searchParams) {
+    if (typeof v === "string" && v.startsWith("eq.")) rows = rows.filter((r) => String(r[k]) === decodeURIComponent(v.slice(3)));
+  }
+  return { ok: true, status: 200, text: async () => JSON.stringify(rows) };
+};
+
+const { mcpToken, sessionCookie } = requireCjs(path.join(repo, "netlify/functions/_lib/crypto.js"));
+const mcp = requireCjs(path.join(repo, "netlify/functions/mcp.js"));
+const mcpTokenFn = requireCjs(path.join(repo, "netlify/functions/mcp-token.js"));
+const validToken = mcpToken(OWNER.id, OWNER.mcp_token_salt);
+const rpc = async (message, token) => {
+  const res = await mcp.handler({ httpMethod: "POST", headers: token ? { authorization: `Bearer ${token}` } : {}, queryStringParameters: {}, body: JSON.stringify(message) });
+  return { status: res.statusCode, body: res.body ? JSON.parse(res.body) : null };
+};
+const init = { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "0" } } };
+
+ok("no token → 401", (await rpc(init)).status === 401);
+ok("bad token → 401", (await rpc(init, mcpToken(OWNER.id, "wrong-salt"))).status === 401);
+ok("free plan → 403", (await rpc(init, mcpToken(FREE_OWNER.id, ""))).status === 403);
+const initRes = await rpc(init, validToken);
+ok("initialize → 200 + protocolVersion + tools capability", initRes.status === 200 && initRes.body.result.protocolVersion === "2025-06-18" && !!initRes.body.result.capabilities.tools);
+const toolsRes = await rpc({ jsonrpc: "2.0", id: 2, method: "tools/list" }, validToken);
+ok("tools/list → 4 read-only tools", toolsRes.body.result.tools.length === 4);
+const notifRes = await mcp.handler({ httpMethod: "POST", headers: { authorization: `Bearer ${validToken}` }, queryStringParameters: {}, body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) });
+ok("notification → 202 no body", notifRes.statusCode === 202 && !notifRes.body);
+const listRes = await rpc({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "list_bookings", arguments: {} } }, validToken);
+const listData = JSON.parse(listRes.body.result.content[0].text);
+ok("list_bookings returns confirmed booking, excludes cancelled", listData.bookings.length === 1 && listData.bookings[0].visitor_name === "相手 一郎");
+const contactsRes = await rpc({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "list_contacts", arguments: {} } }, validToken);
+const contactsData = JSON.parse(contactsRes.body.result.content[0].text);
+ok("list_contacts merges bookings + manual", contactsData.contacts.length === 2 && contactsData.contacts.some((c) => c.manual));
+const ansRes = await rpc({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "get_booking_answers", arguments: { booking_id: "b1" } } }, validToken);
+const ansData = JSON.parse(ansRes.body.result.content[0].text);
+ok("get_booking_answers returns Q&A", ansData.answers.length === 1 && ansData.answers[0].question_text === "ご予算感");
+const noRes = await rpc({ jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "get_booking_answers", arguments: { booking_id: "not-mine" } } }, validToken);
+ok("unknown booking → isError result (not a crash)", noRes.status === 200 && noRes.body.result.isError === true);
+const profRes = await rpc({ jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "get_my_profile", arguments: {} } }, validToken);
+const profData = JSON.parse(profRes.body.result.content[0].text);
+ok("get_my_profile merges owner + profiles.data", profData.profile.profile_name === "テスト オーナー" && profData.profile.profile_strengths === "課題整理・紹介");
+const promptRes = await rpc({ jsonrpc: "2.0", id: 8, method: "prompts/get", params: { name: "prepare_meeting", arguments: { contact: "相手 一郎" } } }, validToken);
+ok("prepare_meeting prompt embeds contact", promptRes.body.result.messages[0].content.text.includes("相手 一郎"));
+const badRes = await rpc({ jsonrpc: "2.0", id: 9, method: "no/such" }, validToken);
+ok("unknown method → -32601", badRes.body.error && badRes.body.error.code === -32601);
+
+// mcp-token.js: セッションCookieで接続URLを取得（premium のみ）
+const cookie = sessionCookie(OWNER.id).split(";")[0];
+const tokenRes = await mcpTokenFn.handler({ httpMethod: "GET", headers: { cookie }, queryStringParameters: {} });
+const tokenBody = JSON.parse(tokenRes.body);
+ok("mcp-token GET returns personal connect URL", tokenRes.statusCode === 200 && tokenBody.url.includes("/api/mcp?t=") && tokenBody.token === validToken);
+const freeCookie = sessionCookie(FREE_OWNER.id).split(";")[0];
+const freeTokenRes = await mcpTokenFn.handler({ httpMethod: "GET", headers: { cookie: freeCookie }, queryStringParameters: {} });
+ok("mcp-token for free plan → 403", freeTokenRes.statusCode === 403);
 
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);

@@ -664,7 +664,15 @@ select{height:48px;padding-block:0}
 .wk-name{font-weight:700;font-size:13.5px;margin-top:2px;color:var(--ink)}
 .wk-meta{font-size:11.5px;color:var(--muted);margin-top:1px}
 .week-empty{color:var(--muted-2);font-size:12px;text-align:center;margin:auto 0;padding:14px 0}
-@media (max-width:900px){.week-grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(180px,72vw);overflow-x:auto;scroll-snap-type:x mandatory}.week-col{scroll-snap-align:start}}
+/* スマホ：横スクロールせず日ごとの縦積みアジェンダ（左＝日付レール／右＝予定） */
+@media (max-width:900px){
+  .week-grid{grid-template-columns:1fr;gap:8px}
+  .week-col{flex-direction:row;min-height:0}
+  .week-colhead{flex:none;width:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:10px 6px;border-bottom:0;border-right:1px solid var(--line)}
+  .week-dow{line-height:1.25}
+  .week-body{justify-content:center;gap:6px;padding:8px 10px;min-width:0}
+  .week-empty{margin:0;padding:5px 0;text-align:left}
+}
 
 /* ============================================================
    設定（mock .rows）＋ レガシー .settings-rows

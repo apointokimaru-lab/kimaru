@@ -275,6 +275,63 @@ ok("salt rotation revokes OAuth access token", revokedAccess.status === 401);
 ok("salt rotation revokes refresh token", revokedRefresh.statusCode === 400);
 OWNER.mcp_token_salt = "salt1";
 
+// ---------- 7) Zoom ユーザー個別連携（user-level OAuth） ----------
+section("Zoom user-level OAuth");
+process.env.ZOOM_CLIENT_ID = "zoom-client-id";
+process.env.ZOOM_CLIENT_SECRET = "zoom-client-secret";
+const cryptoLib = requireCjs(path.join(repo, "netlify/functions/_lib/crypto.js"));
+const zoomLib = requireCjs(path.join(repo, "netlify/functions/_lib/zoom.js"));
+const zoomStart = requireCjs(path.join(repo, "netlify/functions/zoom-auth-start.js"));
+const zoomCallback = requireCjs(path.join(repo, "netlify/functions/zoom-auth-callback.js"));
+const meFn = requireCjs(path.join(repo, "netlify/functions/me.js"));
+
+// fetch スタブを Zoom API 対応に拡張（Supabase 分は既存の DB 表ルックアップへ委譲）
+DB.zoom_connections = [];
+DB.google_connections = [];
+let zoomTokenCalls = 0;
+const sbFetch = globalThis.fetch;
+globalThis.fetch = async (url, options = {}) => {
+  const u = new URL(url);
+  if (u.hostname === "zoom.us" && u.pathname === "/oauth/token") {
+    zoomTokenCalls++;
+    return { ok: true, status: 200, json: async () => ({ access_token: "zoom-access", refresh_token: "zoom-refresh", expires_in: 3600 }), text: async () => "" };
+  }
+  if (u.hostname === "api.zoom.us" && u.pathname === "/v2/users/me") {
+    return { ok: true, status: 200, json: async () => ({ email: "host@example.com" }), text: async () => "" };
+  }
+  if (u.hostname === "api.zoom.us" && u.pathname === "/v2/users/me/meetings") {
+    return { ok: true, status: 200, json: async () => ({ id: 123, join_url: "https://zoom.us/j/123" }), text: async () => "" };
+  }
+  return sbFetch(url, options);
+};
+
+const startRes = await zoomStart.handler({ httpMethod: "GET", headers: { cookie }, queryStringParameters: {} });
+ok("zoom-auth-start → 302 to zoom.us authorize with state", startRes.statusCode === 302 && startRes.headers.Location.startsWith("https://zoom.us/oauth/authorize?") && startRes.headers.Location.includes("state="));
+const startState = new URL(startRes.headers.Location).searchParams.get("state");
+
+const cbRes = await zoomCallback.handler({ httpMethod: "GET", headers: { cookie }, queryStringParameters: { code: "auth-code", state: startState } });
+ok("zoom-auth-callback → settings.html?zoom=connected", cbRes.statusCode === 302 && cbRes.headers.Location.includes("zoom=connected"));
+const wrongState = await zoomCallback.handler({ httpMethod: "GET", headers: { cookie: freeCookie }, queryStringParameters: { code: "auth-code", state: startState } });
+ok("state と本人の不一致 → zoom=state_error", wrongState.headers.Location.includes("zoom=state_error"));
+
+// 有効な接続でホスト本人名義のミーティング発行
+DB.zoom_connections = [{ id: "z1", owner_id: OWNER.id, access_token: cryptoLib.encrypt("zoom-access"), refresh_token: cryptoLib.encrypt("zoom-refresh"), expires_at: new Date(Date.now() + 3600000).toISOString() }];
+const meeting = await zoomLib.createMeetingFor(OWNER.id, { topic: "面談", startIso: new Date().toISOString(), durationMinutes: 30 });
+ok("createMeetingFor returns join_url with valid connection", meeting?.joinUrl === "https://zoom.us/j/123");
+
+// 期限切れ接続はリフレッシュしてから発行
+zoomTokenCalls = 0;
+DB.zoom_connections = [{ id: "z1", owner_id: OWNER.id, access_token: cryptoLib.encrypt("old-access"), refresh_token: cryptoLib.encrypt("zoom-refresh"), expires_at: new Date(Date.now() - 1000).toISOString() }];
+const refreshedMeeting = await zoomLib.createMeetingFor(OWNER.id, { topic: "面談", startIso: new Date().toISOString(), durationMinutes: 30 });
+ok("expired connection triggers token refresh then issues", refreshedMeeting?.joinUrl === "https://zoom.us/j/123" && zoomTokenCalls === 1);
+
+const noConn = await zoomLib.createMeetingFor(FREE_OWNER.id, { topic: "x", startIso: new Date().toISOString(), durationMinutes: 30 });
+ok("no connection → null (booking proceeds without URL)", noConn === null);
+
+const meRes = await meFn.handler({ httpMethod: "GET", headers: { cookie }, queryStringParameters: {} });
+const meBody = JSON.parse(meRes.body);
+ok("me returns zoom_connected true with connection", meBody.zoom_connected === true && meBody.calendar_connected === false);
+
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);
 if (fail) { console.log("FAILED: " + fails.join(" | ")); process.exit(1); }

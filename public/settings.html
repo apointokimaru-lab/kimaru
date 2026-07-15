@@ -64,7 +64,15 @@
             <a id="calendar-connect" class="btn btn-primary" href="/api/google-auth-start" data-i18n="st.integrations.connect">Googleカレンダーと連携する</a>
             <a id="calendar-reconnect" class="btn btn-ghost" href="/api/google-auth-start" data-i18n="st.integrations.reconnect">別アカウントで再連携</a>
           </div>
-          <p class="field-note muted" style="margin-top:10px" data-i18n="st.integrations.zoomNote">Zoom連携・議事録アプリ連携は今後対応予定です。</p>
+          <!-- Zoom 連携（ユーザー個別・user-level OAuth）。ホスト本人名義でミーティングURLを自動発行する。 -->
+          <h2 style="font-family:var(--display);font-size:18px;margin:24px 0 12px;padding-top:20px;border-top:1px solid var(--line)" data-i18n="st.zoom.heading">Zoom連携</h2>
+          <p class="muted" style="font-size:13.5px" data-i18n="st.zoom.intro">自分のZoomアカウントを接続すると、開催方法「Zoom」の予約で、あなた名義のミーティングURLを自動発行してゲストに案内します。</p>
+          <p id="zoom-status" class="message" data-i18n="st.js.zoomChecking">連携状態を確認しています...</p>
+          <div class="actions">
+            <a id="zoom-connect" class="btn btn-primary" href="/api/zoom-auth-start" data-i18n="st.zoom.connect">Zoomと連携する</a>
+            <button id="zoom-disconnect" class="btn btn-ghost" type="button" data-i18n="st.zoom.disconnect" style="display:none">連携を解除する</button>
+          </div>
+          <p class="field-note muted" style="margin-top:10px" data-i18n="st.integrations.zoomNote">議事録アプリ連携は今後対応予定です。</p>
         </div>
 
         <!-- プラン -->
@@ -188,6 +196,7 @@
 
         // 外部連携
         applyCalendar(connected);
+        applyZoom(Boolean(data.zoom_connected));
       } catch (_) {
         setMsg($('#settings-status'), T("st.js.loadFailed", "読み込みに失敗しました。"), 'error');
       }
@@ -252,6 +261,30 @@
       try {
         await fetch('/api/google-disconnect', { method: 'POST', credentials: 'include' });
         applyCalendar(false);
+      } catch (_) {}
+    });
+
+    // Zoom 連携（ユーザー個別）。?zoom=denied|state_error|error で戻った直後は初回のみエラーを優先表示。
+    let zoomFlowError = (() => { const v = new URLSearchParams(location.search).get('zoom'); return Boolean(v && v !== 'connected'); })();
+    function applyZoom(connected) {
+      const statusEl = $('#zoom-status');
+      if (zoomFlowError) {
+        zoomFlowError = false;
+        setMsg(statusEl, T("st.js.zoomConnectError", "Zoom連携に失敗しました。もう一度お試しください。"), 'error');
+      } else {
+        statusEl.textContent = connected
+          ? T("st.js.zoomConnected", "✓ Zoom連携済みです。開催方法「Zoom」の予約であなた名義のURLを自動発行します。")
+          : T("st.js.zoomDisconnected", "未連携です。連携すると予約時にZoomミーティングURLを自動発行します。");
+        statusEl.className = 'message ' + (connected ? 'success' : '');
+      }
+      show($('#zoom-connect'), !connected);
+      show($('#zoom-disconnect'), connected);
+    }
+    $('#zoom-disconnect').addEventListener('click', async () => {
+      if (!confirm(T("st.js.zoomDisconnectConfirm", "Zoom連携を解除します。よろしいですか？"))) return;
+      try {
+        await fetch('/api/zoom-disconnect', { method: 'POST', credentials: 'include' });
+        applyZoom(false);
       } catch (_) {}
     });
 

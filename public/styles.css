@@ -716,6 +716,17 @@ select{height:48px;padding-block:0}
 .assist-block h3{margin:0 0 3px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .assist-block p{margin:0;color:var(--ink-2);white-space:pre-wrap;line-height:1.7}
 @media(max-width:820px){.profile-grid{grid-template-columns:1fr}.profile-preview-col{position:static}}
+/* スマホ：プレビュー列は通常非表示にし、「プレビューを見る」ボタン→全画面表示で切り替える */
+.preview-fab,.preview-close{display:none}
+@media(max-width:820px){
+  .profile-preview-col{display:none}
+  .preview-fab{display:inline-flex;position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:45;box-shadow:var(--shadow-lg)}
+  [data-auth="authed"] .preview-fab{bottom:calc(72px + env(safe-area-inset-bottom))}
+  body.preview-open{overflow:hidden}
+  body.preview-open .profile-preview-col{display:block;position:fixed;inset:0;z-index:60;overflow-y:auto;background:var(--bg);padding:16px 16px calc(28px + env(safe-area-inset-bottom))}
+  body.preview-open .preview-fab{display:none}
+  body.preview-open .preview-close{display:inline-flex;min-height:38px;padding:0 16px}
+}
 .profile-hero{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
 .profile-av{width:96px;height:96px;border-radius:24px;background:var(--accent-soft);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:34px}
 @media(max-width:560px){.settings-rows>div{grid-template-columns:108px 1fr;gap:12px}}

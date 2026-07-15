@@ -108,7 +108,9 @@
         if (!res.ok) throw new Error(result.error || T("auth.fail", "失敗しました"));
         $("#auth-message").textContent = T("auth.done", "完了しました。ホームへ移動します...");
         $("#auth-message").className = "message success";
-        location.href = "/dashboard.html";
+        // ?next= は同一オリジンのパスのみ許可（MCPコネクタの認可フロー等から戻ってくる用）
+        const next = new URLSearchParams(location.search).get("next");
+        location.href = next && /^\/(?!\/)/.test(next) ? next : "/dashboard.html";
       } catch (error) {
         $("#auth-message").textContent = error.message;
         $("#auth-message").className = "message error";

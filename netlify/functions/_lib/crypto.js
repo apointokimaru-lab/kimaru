@@ -167,6 +167,32 @@ function verifyHostAnswerToken(bookingId, token) {
   return timingEqual(token, sign(`hostanswer:${bookingId}`));
 }
 
+// 汎用の署名付きJSONブロブ（purpose で名前空間分離・発行時刻 ts 内蔵）。
+// MCP の OAuth 2.1（client_id・認可コード・アクセス/リフレッシュトークン）など、
+// DB を持たないステートレストークンの共通基盤。maxAgeMs=null で無期限。
+function signBlob(purpose, data) {
+  const payload = base64url(JSON.stringify({ ...data, ts: Date.now() }));
+  return `${payload}.${sign(`${purpose}:${payload}`)}`;
+}
+
+function verifyBlob(purpose, blob, maxAgeMs) {
+  const raw = String(blob || "");
+  const index = raw.lastIndexOf(".");
+  if (index <= 0 || index === raw.length - 1) return null;
+  const payload = raw.slice(0, index);
+  if (!timingEqual(raw.slice(index + 1), sign(`${purpose}:${payload}`))) return null;
+  let data;
+  try {
+    data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+  } catch (_) {
+    return null;
+  }
+  const ts = Number(data && data.ts);
+  if (!Number.isFinite(ts) || ts - Date.now() > 60000) return null;
+  if (maxAgeMs && Date.now() - ts > maxAgeMs) return null;
+  return data;
+}
+
 // MCP接続用パーソナルトークン（決定31）。owner id と再発行用 salt（owners.mcp_token_salt）から HMAC 導出。
 // 形式 "<ownerId>.<sig>"。salt を更新すると旧トークンは無効になる（列未適用の環境は salt="" で固定トークン）。
 function mcpToken(ownerId, salt) {
@@ -215,4 +241,4 @@ function verifyTimedToken(purpose, id, ts, token, maxAgeMs) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-module.exports = { sessionCookie, clearSessionCookie, verifySession, adminSessionCookie, clearAdminSessionCookie, verifyAdminSession, encrypt, decrypt, hashPassword, verifyPassword, bookingToken, verifyBookingToken, hostAnswerToken, verifyHostAnswerToken, mailUnsubToken, verifyMailUnsubToken, timedToken, verifyTimedToken, timingEqual, hmacBase64, oauthStateCookie, clearOauthStateCookie, verifyOauthState, mcpToken, parseMcpToken, verifyMcpToken };
+module.exports = { sessionCookie, clearSessionCookie, verifySession, adminSessionCookie, clearAdminSessionCookie, verifyAdminSession, encrypt, decrypt, hashPassword, verifyPassword, bookingToken, verifyBookingToken, hostAnswerToken, verifyHostAnswerToken, mailUnsubToken, verifyMailUnsubToken, timedToken, verifyTimedToken, timingEqual, hmacBase64, oauthStateCookie, clearOauthStateCookie, verifyOauthState, mcpToken, parseMcpToken, verifyMcpToken, signBlob, verifyBlob };

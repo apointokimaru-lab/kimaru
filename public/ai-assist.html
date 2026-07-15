@@ -32,7 +32,18 @@
       <p class="eyebrow" data-i18n="aa.mcp.eyebrow">MCP連携</p>
       <h2 data-i18n="aa.mcp.title">自分のAIとつなぐ</h2>
       <p class="muted" data-i18n="aa.mcp.desc">お使いの ChatGPT や Claude をキマルに接続すると、あなたのAIが相手データ（予約・事前アンケート回答・プロフィール）を直接読んで面談準備を手伝えます。回数制限はありません。</p>
-      <label><span data-i18n="aa.mcp.urlLabel">接続URL（あなた専用・他人に共有しないでください）</span>
+      <label><span data-i18n="aa.mcp.endpointLabel">コネクタ接続URL（推奨・貼り付け後にキマルへログインして「許可」するだけ）</span>
+        <input id="mcp-endpoint" readonly placeholder="読み込み中..." data-i18n-placeholder="aa.mcp.loading" />
+      </label>
+      <div class="actions">
+        <button class="button primary" type="button" id="mcp-endpoint-copy" data-i18n="aa.mcp.copy">URLをコピー</button>
+      </div>
+      <ul class="feature-list" style="margin-top:14px">
+        <li><strong data-i18n="aa.mcp.step1Term">Claude</strong><span data-i18n="aa.mcp.step1Desc">：設定 → コネクタ →「カスタムコネクタを追加」で上のURLを貼り、開いた画面で「許可する」。</span></li>
+        <li><strong data-i18n="aa.mcp.step2Term">ChatGPT</strong><span data-i18n="aa.mcp.step2Desc">：設定 → コネクタ → 開発者モードを有効化 → 上のURLを追加して許可。</span></li>
+        <li><strong data-i18n="aa.mcp.step3Term">使い方</strong><span data-i18n="aa.mcp.step3Desc">：接続後「◯◯さんとの面談準備をして」と頼むだけ。予約・回答・プロフィールをAIが読み取ります。</span></li>
+      </ul>
+      <label style="margin-top:16px"><span data-i18n="aa.mcp.urlLabel">トークン付きURL（OAuth非対応のクライアント向け・他人に共有しないでください）</span>
         <input id="mcp-url" readonly placeholder="読み込み中..." data-i18n-placeholder="aa.mcp.loading" />
       </label>
       <div class="actions">
@@ -40,11 +51,6 @@
         <button class="button secondary" type="button" id="mcp-regen" data-i18n="aa.mcp.regen">URLを再発行</button>
       </div>
       <p id="mcp-message" class="message"></p>
-      <ul class="feature-list" style="margin-top:14px">
-        <li><strong data-i18n="aa.mcp.step1Term">Claude</strong><span data-i18n="aa.mcp.step1Desc">：設定 → コネクタ →「カスタムコネクタを追加」で接続URLを貼り付け。</span></li>
-        <li><strong data-i18n="aa.mcp.step2Term">ChatGPT</strong><span data-i18n="aa.mcp.step2Desc">：設定 → コネクタ → 開発者モードを有効化して接続URLを追加。</span></li>
-        <li><strong data-i18n="aa.mcp.step3Term">使い方</strong><span data-i18n="aa.mcp.step3Desc">：接続後「◯◯さんとの面談準備をして」と頼むだけ。予約・回答・プロフィールをAIが読み取ります。</span></li>
-      </ul>
     </section>
 
     <!-- アップグレード案内（無料・Pro → アップセル） -->
@@ -474,10 +480,11 @@
     });
   </script>
   <script>
-    // MCP連携（プレミアム・決定31）：接続URLの取得・コピー・再発行
+    // MCP連携（プレミアム・決定31）：コネクタ用エンドポイント／トークン付きURLの取得・コピー・再発行
     (() => {
+      const endpointInput = document.getElementById('mcp-endpoint');
       const urlInput = document.getElementById('mcp-url');
-      if (!urlInput) return;
+      if (!urlInput || !endpointInput) return;
       const message = document.getElementById('mcp-message');
       const tr = (key, fallback) => (window.KimaruI18n ? window.KimaruI18n.t(key) : fallback);
       async function loadUrl(method) {
@@ -485,23 +492,26 @@
           const response = await fetch('/api/mcp-token', { method, credentials: 'include' });
           const data = await response.json().catch(() => ({}));
           if (!response.ok || !data.url) throw new Error(data.error || '');
+          endpointInput.value = data.endpoint || '';
           urlInput.value = data.url;
-          if (method === 'POST') message.textContent = tr('aa.mcp.regenDone', '再発行しました。旧URLは無効になりました。');
+          if (method === 'POST') message.textContent = tr('aa.mcp.regenDone', '再発行しました。旧URLと接続済みのAIクライアントはすべて無効になりました。');
         } catch (error) {
           if (method === 'POST') message.textContent = error.message || tr('aa.mcp.loadError', '接続URLを取得できませんでした。');
-          else urlInput.placeholder = tr('aa.mcp.loadError', '接続URLを取得できませんでした。');
+          else { endpointInput.placeholder = urlInput.placeholder = tr('aa.mcp.loadError', '接続URLを取得できませんでした。'); }
         }
       }
-      document.getElementById('mcp-copy').addEventListener('click', async () => {
-        if (!urlInput.value) return;
+      async function copyValue(input) {
+        if (!input.value) return;
         try {
-          await navigator.clipboard.writeText(urlInput.value);
+          await navigator.clipboard.writeText(input.value);
         } catch (_) {
-          urlInput.select();
+          input.select();
           document.execCommand('copy');
         }
         message.textContent = tr('aa.mcp.copied', 'コピーしました。');
-      });
+      }
+      document.getElementById('mcp-endpoint-copy').addEventListener('click', () => copyValue(endpointInput));
+      document.getElementById('mcp-copy').addEventListener('click', () => copyValue(urlInput));
       document.getElementById('mcp-regen').addEventListener('click', () => loadUrl('POST'));
       loadUrl('GET');
     })();

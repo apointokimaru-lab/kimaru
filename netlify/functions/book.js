@@ -161,12 +161,12 @@ exports.handler = async (event) => {
     const rows = await createBooking(bookingPayload);
     const booking = rows[0];
 
-    // Zoom 自動発行（#23・env設定時のみ）。location_type が zoom なら Zoom ミーティングを作成して URL を採用。
+    // Zoom 自動発行（#23）。ホスト本人の Zoom 連携（zoom_connections）があれば本人名義で作成して URL を採用。
     let zoomUrl = "";
-    if (booking?.id && bookingPayload.location_type === "zoom" && zoom.isConfigured()) {
+    if (booking?.id && bookingPayload.location_type === "zoom") {
       try {
         const durationMinutes = Math.max(1, Math.round((end - start) / 60000));
-        const meeting = await zoom.createMeeting({ topic: booking.topic || `面談: ${visitorName}`, startIso: start.toISOString(), durationMinutes });
+        const meeting = await zoom.createMeetingFor(owner.id, { topic: booking.topic || `面談: ${visitorName}`, startIso: start.toISOString(), durationMinutes });
         if (meeting?.joinUrl) {
           zoomUrl = meeting.joinUrl;
           booking.meeting_url = zoomUrl;

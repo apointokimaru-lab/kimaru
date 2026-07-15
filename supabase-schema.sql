@@ -50,6 +50,18 @@ create table if not exists google_connections (
   updated_at timestamptz not null default now()
 );
 
+-- Zoom 連携（ユーザー個別・user-level OAuth）。ホスト本人の Zoom 名義でミーティングを自動発行する。
+-- トークンは暗号化して保存（crypto.js encrypt）。テーブル未適用の環境ではコード側が未連携として動く。
+create table if not exists zoom_connections (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null unique references owners(id) on delete cascade,
+  zoom_email text,
+  access_token text not null,
+  refresh_token text not null,
+  expires_at timestamptz not null,
+  updated_at timestamptz not null default now()
+);
+
 -- ⚠️ LEGACY（#25）: 旧トークン表。現行は google_connections。非破壊で残置。
 create table if not exists google_calendar_tokens (
   id uuid primary key default gen_random_uuid(),

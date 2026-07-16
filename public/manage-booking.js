@@ -109,40 +109,25 @@ async function loadWeek(week) {
       $("#rs-week-nav").style.display = "none";
       return;
     }
-    renderSlots(data.slots || []);
+    // 週ナビは共有レンダラがカレンダー直上へ移動配置するので、先に表示状態を確定させておく。
     $("#rs-week-nav").style.display = "";
     $("#rs-prev").disabled = !data.hasPrev;
     $("#rs-next").disabled = !data.hasNext;
     $("#rs-week-label").textContent = weekLabel(state.week);
+    renderSlots(data.slots || []);
   } catch (error) {
     grid.innerHTML = `<p class="muted">${esc(error.message)}</p>`;
   }
 }
 
+// 予約ページと同じ週テーブルUI（week-table.js・時間×曜日・スマホは5日縦積み）で空き枠を表示する。
 function renderSlots(slots) {
-  const grid = $("#rs-slots");
-  const list = [...slots]
-    .map((s) => ({ ...s, sd: new Date(s.start), ed: new Date(s.end) }))
-    .filter((s) => !Number.isNaN(s.sd.getTime()))
-    .sort((a, b) => a.sd - b.sd);
-  if (!list.length) {
-    grid.innerHTML = `<p class="muted">${esc(t("booking.week.empty", "この週は空き枠がありません。「次の週 →」もご確認ください。"))}</p>`;
-    return;
-  }
-  const byDay = new Map();
-  for (const s of list) {
-    const key = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", weekday: "short" }).format(s.sd);
-    if (!byDay.has(key)) byDay.set(key, []);
-    byDay.get(key).push(s);
-  }
-  grid.innerHTML = [...byDay.entries()].map(([day, items]) => `
-    <div class="rs-day">
-      <h4>${esc(day)}</h4>
-      <div class="rs-day-slots">
-        ${items.map((s) => `<button type="button" class="rs-slot" data-start="${esc(s.start)}" data-end="${esc(s.end)}">${pad2(s.sd.getHours())}:${pad2(s.sd.getMinutes())}</button>`).join("")}
-      </div>
-    </div>`).join("");
-  grid.querySelectorAll(".rs-slot").forEach((btn) => btn.addEventListener("click", () => chooseSlot(btn.dataset.start, btn.dataset.end)));
+  window.KimaruWeekTable.render($("#rs-slots"), slots, {
+    navId: "rs-week-nav",
+    labelId: "rs-week-label",
+    actionLabel: t("mb.rs.book", "変更する"),
+    onSelect: (slot) => chooseSlot(slot.start, slot.end),
+  });
 }
 
 async function chooseSlot(start, end) {

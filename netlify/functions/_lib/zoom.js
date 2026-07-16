@@ -43,7 +43,7 @@ async function getConnection(ownerId) {
   }
 }
 
-async function saveConnection(ownerId, tokens, zoomEmail) {
+async function saveConnection(ownerId, tokens, zoomUser) {
   const payload = {
     owner_id: ownerId,
     access_token: encrypt(tokens.access_token),
@@ -52,10 +52,22 @@ async function saveConnection(ownerId, tokens, zoomEmail) {
   };
   // Zoom はリフレッシュのたびに refresh_token もローテーションされる。無い応答では旧値を保持。
   if (tokens.refresh_token) payload.refresh_token = encrypt(tokens.refresh_token);
-  if (zoomEmail) payload.zoom_email = zoomEmail;
-  const existing = await sb(`zoom_connections?owner_id=${eq(ownerId)}&select=id&limit=1`);
-  if (existing[0]) return sb(`zoom_connections?id=${eq(existing[0].id)}`, { method: "PATCH", body: JSON.stringify(payload) });
-  return sb("zoom_connections", { method: "POST", body: JSON.stringify(payload) });
+  if (zoomUser?.email) payload.zoom_email = zoomUser.email;
+  // deauthorize イベント（アンインストール時のデータ削除）で照合するキー
+  if (zoomUser?.id) payload.zoom_user_id = zoomUser.id;
+  const upsert = async (row) => {
+    const existing = await sb(`zoom_connections?owner_id=${eq(ownerId)}&select=id&limit=1`);
+    if (existing[0]) return sb(`zoom_connections?id=${eq(existing[0].id)}`, { method: "PATCH", body: JSON.stringify(row) });
+    return sb("zoom_connections", { method: "POST", body: JSON.stringify(row) });
+  };
+  try {
+    return await upsert(payload);
+  } catch (error) {
+    // zoom_user_id 列が未マイグレーションの環境では列なしで保存（deauth 照合のみ不可の劣化動作）
+    if (!payload.zoom_user_id || !String(error.message || "").includes("zoom_user_id")) throw error;
+    const { zoom_user_id, ...withoutUserId } = payload;
+    return upsert(withoutUserId);
+  }
 }
 
 function deleteConnection(ownerId) {
@@ -69,11 +81,11 @@ async function accessTokenFor(connection) {
   return tokens.access_token;
 }
 
-async function zoomUserEmail(accessToken) {
+async function zoomUserInfo(accessToken) {
   try {
     const res = await fetch("https://api.zoom.us/v2/users/me", { headers: { Authorization: `Bearer ${accessToken}` } });
     const data = await res.json().catch(() => ({}));
-    return res.ok ? data.email || null : null;
+    return res.ok ? { id: data.id || null, email: data.email || null } : null;
   } catch (_) {
     return null;
   }
@@ -142,4 +154,4 @@ async function createMeetingFor(ownerId, { topic, startIso, durationMinutes }) {
   return { id: data.id, joinUrl: data.join_url || "" };
 }
 
-module.exports = { isConfigured, authorizeUrl, exchangeCode, getConnection, saveConnection, deleteConnection, accessTokenFor, zoomUserEmail, createMeetingFor, meetingIdFromUrl, updateMeetingByUrl, deleteMeetingByUrl };
+module.exports = { isConfigured, authorizeUrl, exchangeCode, getConnection, saveConnection, deleteConnection, accessTokenFor, zoomUserInfo, createMeetingFor, meetingIdFromUrl, updateMeetingByUrl, deleteMeetingByUrl };

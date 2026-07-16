@@ -17,6 +17,7 @@
 | [`current-features.md`](./current-features.md) | 現状の実装棚卸し（実装済み／未実装／決定未反映） |
 | [`plan-comparison.md`](./plan-comparison.md) | 無料版 / 有料版の説明資料（比較表） |
 | [`running-costs.md`](./running-costs.md) | ランニングコスト（インフラ固定費・決済/AI変動費・損益の目安） |
+| [`zoom-marketplace-submission.md`](./zoom-marketplace-submission.md) | Zoom Marketplace 公開申請の提出物（チェックリスト・Listing文面・審査手順・セキュリティ回答草案） |
 | [`pro-open-items.md`](./pro-open-items.md) | **Pro版で仕様が未確定・曖昧な点の洗い出し**（リリース前に埋める） |
 | [`screens.md`](./screens.md) | 画面・URL 一覧、API 概要 |
 | [`screen-flow.md`](./screen-flow.md) | 5アクター × 画面のアクセス権マトリクス・主要フロー |
@@ -47,7 +48,7 @@
 | 顧客管理・予約履歴 | ✅（閲覧のみ） | ✅（メモ・印象スコア構造化＋相手集約） | 無料は予約履歴の閲覧のみ |
 | AIアシスト（次回アポの戦略提案） | − | − | **プレミアムのみ**（GPT-5.4 Mini・月300回・フェーズ2） |
 
-> **プレミアムプラン ¥2,200/月**（フェーズ2開放）: Pro全機能＋**AIアシスト**（相手データから次回アポの戦略提案・GPT-5.4 Mini・月300回）。**無料お試しなし**。詳細 [`plan-comparison.md`](./plan-comparison.md)、運用コストは [`running-costs.md`](./running-costs.md)。
+> **プレミアムプラン ¥2,200/月**（フェーズ2開放）: Pro全機能＋**AIアシスト**（自分の ChatGPT / Claude をMCP接続・回数無制限・決定31）。**無料お試しなし**。詳細 [`plan-comparison.md`](./plan-comparison.md)、運用コストは [`running-costs.md`](./running-costs.md)。
 
 ### アクター（5属性）
 

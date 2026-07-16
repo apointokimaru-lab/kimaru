@@ -6,10 +6,10 @@
 
 ## 申請前チェックリスト（Zoom管理画面＝人間タスク）
 
-1. ☐ **Event Subscription を有効化**（Production）: Features → Access → Event Subscription をON
-   - Event notification endpoint URL: `https://kimaru-co.jp/api/zoom-deauthorize`
-   - イベント: **App Deauthorized**（app_deauthorized）を追加
-   - 「Validate」ボタンでURL検証が green になること（デプロイ後に実施）
+1. ☑ **Event Subscription を有効化**（Production）: Features → Access → Event Subscription をON
+   - Event notification endpoint URL: `https://kimaru-co.jp/api/zoom-deauthorize` → 「Validate」で検証
+   - **注（General App の仕様）**: `app_deauthorized` は Event Types の一覧に**出てこない**。Marketplaceイベントとして、**公開後に検証済みエンドポイントへ自動配信**される（[Marketplace Webhooks](https://developers.zoom.us/docs/api/marketplace/events/)）。**未公開アプリには配信されない**ため公開前の実地テストは不可（[End user authorization](https://developers.zoom.us/docs/integrations/end-user-auth/)）。
+   - 保存にイベント選択が必要な場合は「User」カテゴリの「User Updated」等、**既存スコープ範囲のイベント**を選ぶ（エンドポイントは未知イベントを安全に無視する）。
 2. ☐ **Secret Token** を Netlify env `ZOOM_WEBHOOK_SECRET_TOKEN` に設定（Access ページの Secret Token。スクリーンショットに写ったことがあるため **Regenerate してから**設定を推奨）
 3. ☐ `supabase-schema.sql` の `zoom_connections.zoom_user_id` 列を dev/本番に適用
 4. ☐ 本番デプロイ（zoom-deauthorize エンドポイント含む）

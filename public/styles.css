@@ -826,20 +826,14 @@ select{height:48px;padding-block:0}
 .slot-button:hover{background:var(--accent-soft);border-color:var(--accent)}
 .slot-button.selected{color:#fff;background:var(--accent);border-color:var(--accent)}
 .week-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 14px}
-.week-nav #week-label{font-family:var(--display);font-weight:700;color:var(--ink);white-space:nowrap}
+.week-nav #week-label,.week-nav #rs-week-label{font-family:var(--display);font-weight:700;color:var(--ink);white-space:nowrap}
 .week-nav .button,.week-bar .button{white-space:nowrap}
 .week-nav .button[disabled]{opacity:.4;cursor:not-allowed}
 
 /* ============================================================
-   日程変更（manage-booking.js）：mock .slotgrid 風
+   日程変更（manage-booking.js）：週テーブルは予約ページと共通（week-table.js）
    ============================================================ */
 #reschedule-card[hidden]{display:none}
-.rs-day{margin-bottom:14px}
-.rs-day>strong,.rs-day>b{display:block;font-family:var(--display);font-size:14px;color:var(--ink);margin-bottom:8px}
-.rs-day-slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
-.rs-slot{padding:11px;border:1.5px solid var(--line-2);border-radius:var(--radius-sm);background:var(--surface);font-family:var(--mono);font-weight:700;color:var(--ink-2);cursor:pointer;text-align:center}
-.rs-slot:hover{border-color:var(--accent);color:var(--accent-ink)}
-.rs-slot.selected,.rs-slot.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
 
 /* ============================================================
    予約フロー: 週カレンダー タイムグリッド（mock .weekcal）

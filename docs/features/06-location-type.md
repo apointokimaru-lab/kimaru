@@ -31,5 +31,6 @@
 
 ## 残タスク
 
-- **Zoom の残り（人間タスク）**: ① Zoom Marketplace で **User-managed OAuth アプリ**を作成（scope: `meeting:write`＋`user:read`、リダイレクトURI `https://kimaru-co.jp/api/zoom-auth-callback`）→ `ZOOM_CLIENT_ID`/`ZOOM_CLIENT_SECRET` を env 設定 ② `supabase-schema.sql`（`zoom_connections`）を dev/本番へ手動適用 ③ **外部ユーザーに連携させるには Zoom Marketplace の公開審査が必要**（未公開アプリは開発者と同一 Zoom アカウントのユーザーのみ認可可＝開発検証はそれで可能）。Google Meet と同様、**無料・有料の両プランで提供**（有料限定ではない）。
+- ~~Zoomアプリ作成・env・schema~~ → 〔2026-07-15〕完了（アプリ「キマル」作成・env設定・schema適用・本番で接続/予約/発行の実機確認済み）。
+- **Marketplace 公開審査（一般ユーザー開放）**: 提出物・チェックリスト・質問票回答草案は [`../zoom-marketplace-submission.md`](../zoom-marketplace-submission.md)。公開要件の **deauthorize webhook**（アンインストール時のデータ削除）は `zoom-deauthorize.js` 実装済み（署名検証・URL検証・`zoom_connections.zoom_user_id` 照合削除）。残りの人間タスク: Event Subscription 設定＋`ZOOM_WEBHOOK_SECRET_TOKEN` env＋`zoom_user_id` 列適用＋App Listing 記入＋Submit。Google Meet と同様、**無料・有料の両プランで提供**（有料限定ではない）。
 - 対面/電話/カスタムURLの値を予約完了メール（[11](./11-notification-email.md)）へ反映する導線の整備。

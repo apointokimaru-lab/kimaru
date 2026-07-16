@@ -17,8 +17,8 @@ exports.handler = async (event) => {
     if (!state || state.o !== owner.id) return back("state_error");
     if (!q.code) return back("denied"); // ユーザーが Zoom 側で拒否
     const tokens = await zoom.exchangeCode(q.code);
-    const email = await zoom.zoomUserEmail(tokens.access_token);
-    await zoom.saveConnection(owner.id, tokens, email);
+    const zoomUser = await zoom.zoomUserInfo(tokens.access_token);
+    await zoom.saveConnection(owner.id, tokens, zoomUser);
     return back("connected");
   } catch (_) {
     // トークン交換失敗・zoom_connections 未適用など。詳細はUI側で一般エラーとして表示。

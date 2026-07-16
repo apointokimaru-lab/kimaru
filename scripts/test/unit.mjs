@@ -403,6 +403,36 @@ ok("book → 200", bookRes.statusCode === 200);
 ok("booking row uses page's location_type (zoom, not body default)", insertedBooking?.location_type === "zoom");
 ok("zoom join_url saved to meeting_url", captured.patches.some((p) => p.table === "bookings" && p.body.meeting_url === "https://zoom.us/j/123"));
 
+// ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
+section("Zoom deauthorize webhook");
+process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";
+const deauthFn = requireCjs(path.join(repo, "netlify/functions/zoom-deauthorize.js"));
+const deletedQueries = [];
+const beforeDeauthFetch = globalThis.fetch;
+globalThis.fetch = async (url, options = {}) => {
+  const u = new URL(url);
+  if (u.hostname === "sb.unit.test" && options.method === "DELETE") {
+    deletedQueries.push(u.pathname.replace("/rest/v1/", "") + u.search);
+    return { ok: true, status: 204, text: async () => "" };
+  }
+  return beforeDeauthFetch(url, options);
+};
+const signedEvent = (bodyObj, secret = "unit-webhook-secret", tsOffsetMs = 0) => {
+  const body = JSON.stringify(bodyObj);
+  const ts = String(Math.floor((Date.now() + tsOffsetMs) / 1000));
+  const sig = `v0=${nodeCrypto.createHmac("sha256", secret).update(`v0:${ts}:${body}`).digest("hex")}`;
+  return { httpMethod: "POST", headers: { "x-zm-request-timestamp": ts, "x-zm-signature": sig }, body };
+};
+const validation = await deauthFn.handler(signedEvent({ event: "endpoint.url_validation", payload: { plainToken: "abc123" } }));
+const validationBody = JSON.parse(validation.body);
+ok("url_validation returns plain + encrypted token", validation.statusCode === 200 && validationBody.plainToken === "abc123" && validationBody.encryptedToken === nodeCrypto.createHmac("sha256", "unit-webhook-secret").update("abc123").digest("hex"));
+const badSig = await deauthFn.handler(signedEvent({ event: "app_deauthorized", payload: { user_id: "zu1" } }, "wrong-secret"));
+ok("wrong signature → 401", badSig.statusCode === 401);
+const staleTs = await deauthFn.handler(signedEvent({ event: "app_deauthorized", payload: { user_id: "zu1" } }, "unit-webhook-secret", -10 * 60000));
+ok("stale timestamp → 401 (replay protection)", staleTs.statusCode === 401);
+const deauth = await deauthFn.handler(signedEvent({ event: "app_deauthorized", payload: { user_id: "zu1", account_id: "za1" } }));
+ok("app_deauthorized → 200 and deletes connection by zoom_user_id", deauth.statusCode === 200 && deletedQueries.some((q) => q.startsWith("zoom_connections") && q.includes("zoom_user_id=eq.zu1")));
+
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);
 if (fail) { console.log("FAILED: " + fails.join(" | ")); process.exit(1); }

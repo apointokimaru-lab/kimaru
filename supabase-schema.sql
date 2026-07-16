@@ -61,6 +61,9 @@ create table if not exists zoom_connections (
   expires_at timestamptz not null,
   updated_at timestamptz not null default now()
 );
+-- Zoom側でアプリを削除（deauthorize）した際に接続を消すための照合キー（Marketplace公開要件）。
+-- 列未適用の環境でもコードは劣化動作する（deauth照合のみ不可）。
+alter table zoom_connections add column if not exists zoom_user_id text;
 
 -- ⚠️ LEGACY（#25）: 旧トークン表。現行は google_connections。非破壊で残置。
 create table if not exists google_calendar_tokens (

@@ -1,5 +1,8 @@
 # Zoom Marketplace 公開申請の提出物（2026-07-16 作成）
 
+> **✅ 2026-07-16 提出完了（Submit for review 済み）。** 初回返答SLA 72時間・公開まで4週間超の場合あり（FIFO審査）。ステータスは Marketplace の「Track App Status」で確認。審査からの連絡は apointokimaru@gmail.com 宛て。
+> 提出時の構成: ドメイン検証済み（検証ファイルは `public/ZOOM_verify_*.html`・**Netlify の Pretty URLs を無効化して対応**）、App activation=承認後に自動有効化、テスト環境=Windows/macOS、テストアカウント記載済み。
+
 [← docs 索引](./README.md)／実装は [features/06-location-type.md](./features/06-location-type.md)
 
 一般ユーザーにZoom連携を開放するための公開審査（Ready for submission → Functional review → Security review → Publish）に使う資料。**申請前チェックリスト**と**貼り付け用の文面**をここに集約する。

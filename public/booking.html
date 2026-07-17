@@ -105,6 +105,14 @@
 
   <!-- site-footer -->
 
+  <!-- 通信中の全画面ロック（読み込み・予約保存中は操作を受け付けない） -->
+  <div id="page-busy" class="page-busy" hidden>
+    <div class="page-busy__box" role="status" aria-live="polite">
+      <span class="spinner" aria-hidden="true"></span>
+      <span class="page-busy__label" data-i18n="booking.busy.label">通信中です…</span>
+    </div>
+  </div>
+
   <script src="/i18n.js" defer></script>
   <script src="/week-table.js" defer></script>
   <script src="/booking-week.js" defer></script>

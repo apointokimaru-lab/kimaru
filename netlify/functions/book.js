@@ -8,9 +8,22 @@ const { LOCATION_LABELS, formatJst, manageUrl, answerUrl, answersSummary } = req
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// 予約完了メール（ゲスト宛・任意・非致命）。管理（変更/キャンセル）リンク付き。Resend 未設定ならスキップ。
+// ホスト（担当者）の公開プロフィール（表示名・肩書き/活動内容・提供できる価値）。
+// リマインダーと同じ profiles.data を参照。未マイグレーション/失敗時は {} にフォールバック。
+async function ownerProfileData(ownerId) {
+  try {
+    const rows = await sb(`profiles?owner_id=${eq(ownerId)}&limit=1`);
+    const row = rows[0];
+    return row && row.data && Object.keys(row.data).length ? row.data : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+// 予約完了メール（ゲスト宛・任意・非致命）。管理（変更/キャンセル）リンク＋ホストのプロフィール付き。Resend 未設定ならスキップ。
 async function sendBookingConfirmation({ booking, owner, meetingUrl, locationValue }) {
-  const ownerName = owner?.name || owner?.email || "担当者";
+  const profile = await ownerProfileData(owner?.id);
+  const ownerName = profile.profile_name || owner?.name || owner?.email || "担当者";
   const when = formatJst(booking.start_at || booking.start_time);
   const lines = [
     `${booking.visitor_name || ""}さん`,
@@ -22,6 +35,12 @@ async function sendBookingConfirmation({ booking, owner, meetingUrl, locationVal
   ];
   if (meetingUrl) lines.push(`ミーティング: ${meetingUrl}`);
   if (locationValue) lines.push(`場所/案内: ${locationValue}`);
+  // お相手（ホスト）のプロフィール — 肩書き/活動内容・提供できる価値があるときのみ枠を出す。
+  if (profile.profile_title || profile.profile_offer) {
+    lines.push("", "― お相手のプロフィール ―", ownerName);
+    if (profile.profile_title) lines.push(`肩書き・活動内容: ${profile.profile_title}`);
+    if (profile.profile_offer) lines.push(`相手に提供できる価値: ${profile.profile_offer}`);
+  }
   lines.push("", "▼ 予約の変更・キャンセルはこちら", manageUrl(booking.id), "", "当日お会いできるのを楽しみにしています。");
   return sendMail({ to: booking.visitor_email, subject: `予約が確定しました（${when}）`, text: lines.join("\n") });
 }

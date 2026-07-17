@@ -52,8 +52,8 @@
   const slotKey = (slot) => `${dateKey(slot.startDate)}-${timeText(slot.startDate)}`;
 
   // 1グループ分（最大7日）の時間×曜日テーブルを描画する。
-  function weekTableHtml(days, slots, byStart) {
-    const rows = buildTimeRows(slots);
+  // rows は週全体で共通の時間行。予定がない日・時間帯も列/セルを必ず出す（空きは「-」表示）。
+  function weekTableHtml(days, rows, byStart) {
     return `
       <div class="week-table-wrap">
         <table class="week-table">
@@ -99,20 +99,20 @@
     const allDays = buildWeekDays(slots);
     const byStart = new Map(slots.map((slot) => [slotKey(slot), slot]));
     const duration = Math.round((slots[0].endDate - slots[0].startDate) / 60000);
+    // 週全体で共通の時間行。空きがある時間だけでなく、どの曜日にも同じ行を出して「-」で埋める。
+    const timeRows = buildTimeRows(slots);
 
     let dayGroups;
     if (narrowMq.matches) {
-      const slotDays = allDays.filter((day) => slots.some((slot) => dateKey(slot.startDate) === dateKey(day)));
-      const base = slotDays.length ? slotDays : allDays.slice(0, 5);
+      // スマホでも「予定がない日」を含めて全曜日を表示する（空きが無い日/時間は「-」）。
+      // 横スクロールを避けるため、最大4日ずつに分割して縦に積む。
+      const groupSize = 4;
       dayGroups = [];
-      for (let i = 0; i < base.length; i += 5) dayGroups.push(base.slice(i, i + 5));
+      for (let i = 0; i < allDays.length; i += groupSize) dayGroups.push(allDays.slice(i, i + groupSize));
     } else {
       dayGroups = [allDays];
     }
-    const tables = dayGroups.map((days) => {
-      const groupKeys = new Set(days.map(dateKey));
-      return weekTableHtml(days, slots.filter((slot) => groupKeys.has(dateKey(slot.startDate))), byStart);
-    }).join("");
+    const tables = dayGroups.map((days) => weekTableHtml(days, timeRows, byStart)).join("");
 
     container.innerHTML = `
     <div class="week-schedule-card">

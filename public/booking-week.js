@@ -24,6 +24,26 @@ function setMessage(selector, text, kind = "") {
   el.className = `message ${kind}`.trim();
 }
 
+// サーバーとの通信中は全画面オーバーレイで操作をロックする（多重送信・遅延中の誤操作を防ぐ）。
+// 入れ子（「直近の空き時間」が内部で週送りを繰り返す等）に耐えるようカウンタで管理する。
+let busyDepth = 0;
+function setPageBusy(active) {
+  busyDepth = Math.max(0, busyDepth + (active ? 1 : -1));
+  const on = busyDepth > 0;
+  const overlay = document.getElementById("page-busy");
+  if (overlay) overlay.hidden = !on;
+  document.body.classList.toggle("is-busy", on);
+  document.body.setAttribute("aria-busy", on ? "true" : "false");
+}
+async function withBusy(fn) {
+  setPageBusy(true);
+  try {
+    return await fn();
+  } finally {
+    setPageBusy(false);
+  }
+}
+
 function escapeHtml(value) {
   return String(value || "").replace(/[<>'"&]/g, (char) => ({
     "&": "&amp;",
@@ -190,18 +210,28 @@ const LIFE_PATH_HINT = {
   33: "奉仕・愛（マスター）。思いやりに寄り添うと信頼されます。",
 };
 
-// 算命学（年柱の五行）＋数秘術（ライフパス）から決定的にインサイトを算出する（#20）。
+// 生年月日から日柱（日干支）を求める。ユリウス通日(JDN)ベースで60干支の通し番号を算出。
+// 検算: 2000-01-01 の日柱＝戊午（甲子=0 とした通し番号54）と一致する（(JDN+49)%60）。
+function dayPillarIndices(year, month, day) {
+  const a = Math.floor((14 - month) / 12);
+  const y = year + 4800 - a;
+  const m = month + 12 * a - 3;
+  const jdn = day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+  const ganzhi = (((jdn + 49) % 60) + 60) % 60;
+  return { stemIndex: ganzhi % 10, branchIndex: ganzhi % 12 };
+}
+
+// 算命学（日柱の五行）＋数秘術（ライフパス）から決定的にインサイトを算出する（#20）。
+// 日干（日柱の天干）＝その人の中心（自我）を表すため、年柱より本人の傾向をよく表す。
 function buildRelationshipProfile(dateString, name = "") {
   if (!dateString) return null;
   const [rawYear, month, day] = dateString.split("-").map(Number);
   if (!rawYear || !month || !day) return null;
-  // 立春前(2/4頃)は前年扱い→年干→五行。
-  const adjustedYear = month < 2 || (month === 2 && day < 4) ? rawYear - 1 : rawYear;
   const stems = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
   const branches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
   const elements = ["木", "木", "火", "火", "土", "土", "金", "金", "水", "水"];
-  const stemIndex = (((adjustedYear - 4) % 10) + 10) % 10;
-  const branchIndex = (((adjustedYear - 4) % 12) + 12) % 12;
+  // 日柱（日干支）を主軸にする。日付ベースなので立春補正は不要。
+  const { stemIndex, branchIndex } = dayPillarIndices(rawYear, month, day);
   const element = elements[stemIndex];
   const elementTips = {
     木: ["成長と可能性を大切にするタイプ", "未来の話、挑戦していること、伸ばしたい強みから入ると会話が進みやすいです。", "最初から結論を急がせすぎず、考えを広げる余白を残すと関係が作りやすくなります。"],
@@ -215,15 +245,15 @@ function buildRelationshipProfile(dateString, name = "") {
   const lpHint = LIFE_PATH_HINT[lp] || "";
   const displayName = name ? `${name}さん` : "お相手";
   return {
-    method: "生年月日インサイト（算命学＋数秘術）",
+    method: "生年月日インサイト（算命学 日柱＋数秘術）",
     pillar: `${stems[stemIndex]}${branches[branchIndex]}`,
     element,
-    type: `五行「${element}」× 数秘${lp}: ${type}`,
+    type: `日柱「${stems[stemIndex]}${branches[branchIndex]}」五行「${element}」× 数秘${lp}: ${type}`,
     approach: `${approach}${lpHint ? `（数秘${lp}：${lpHint}）` : ""}`,
     avoid,
     birthday_status: getBirthdayStatus(dateString),
     birthday_message: `${displayName}、新しい一年が挑戦したいことに一歩近づく時間になりますように。`,
-    note: "生年月日から機械的に算出した傾向（算命学の年柱五行＋数秘術ライフパス）です。断定ではなく、会話のきっかけとしてお使いください。",
+    note: "生年月日から機械的に算出した傾向（算命学の日柱五行＋数秘術ライフパス）です。断定ではなく、会話のきっかけとしてお使いください。",
   };
 }
 
@@ -288,7 +318,10 @@ async function loadWeek(week, full) {
   // カレンダー内に移動した週ナビを、グリッド書き換えで失わないよう退避する。
   const weekNav = $("#week-nav");
   if (weekNav && grid.contains(weekNav)) grid.parentElement.insertBefore(weekNav, grid);
-  grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.week.loading", "空き枠を読み込み中..."))}</p>`;
+  grid.innerHTML = `<div class="week-loading" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span>${escapeHtml(t("booking.week.loading", "空き枠を読み込み中..."))}</span></div>`;
+  // 読み込み中は週送りボタンを一時的に無効化（連打による多重取得を防ぐ）。
+  const navButtons = [$("#prev-week"), $("#next-week"), $("#nearest-slot")].filter(Boolean);
+  navButtons.forEach((btn) => { btn.disabled = true; });
   try {
     const data = await api(`availability?slug=${encodeURIComponent(bookingSlug)}&week=${week}`);
     currentWeek = typeof data.week === "number" ? data.week : week;
@@ -314,6 +347,15 @@ async function loadWeek(week, full) {
     updateWeekNav(Boolean(data.hasPrev), Boolean(data.hasNext));
   } catch (error) {
     setMessage("#booking-message", error.message, "error");
+    // エラー時は週送りを再操作できるよう戻す（成功時は updateWeekNav が境界に応じて設定）。
+    const prev = $("#prev-week");
+    const next = $("#next-week");
+    if (prev) prev.disabled = false;
+    if (next) next.disabled = false;
+  } finally {
+    // 「直近の空き時間」は境界条件に依存しないので毎回戻す。
+    const nearest = $("#nearest-slot");
+    if (nearest) nearest.disabled = false;
   }
 }
 
@@ -325,16 +367,18 @@ async function jumpToNearestSlot() {
   if (!grid || !form) return;
   if (btn) btn.disabled = true;
   try {
-    // 今の週に空きが無ければ、次の週へ最大12週分たどる（hasNext が尽きたら打ち切り）。
-    for (let i = 0; i < 12 && !(grid._slots || []).length; i++) {
-      const next = $("#next-week");
-      if (!next || next.disabled) break;
-      await loadWeek(currentWeek + 1, false);
-    }
-    const slots = grid._slots || [];
-    if (!slots.length) return;
-    const target = grid.querySelector(`td[data-slot-key="${slotKey(slots[0])}"] .week-slot`);
-    if (target) target.click();
+    await withBusy(async () => {
+      // 今の週に空きが無ければ、次の週へ最大12週分たどる（hasNext が尽きたら打ち切り）。
+      for (let i = 0; i < 12 && !(grid._slots || []).length; i++) {
+        const next = $("#next-week");
+        if (!next || next.disabled) break;
+        await loadWeek(currentWeek + 1, false);
+      }
+      const slots = grid._slots || [];
+      if (!slots.length) return;
+      const target = grid.querySelector(`td[data-slot-key="${slotKey(slots[0])}"] .week-slot`);
+      if (target) target.click();
+    });
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -426,10 +470,10 @@ async function initBooking() {
   if (!grid || !form) return;
   bookingSlug = resolveSlug();
   if (form.elements.owner_slug) form.elements.owner_slug.value = bookingSlug;
-  $("#prev-week")?.addEventListener("click", () => { if (currentWeek > 0) loadWeek(currentWeek - 1, false); });
-  $("#next-week")?.addEventListener("click", () => loadWeek(currentWeek + 1, false));
+  $("#prev-week")?.addEventListener("click", () => { if (currentWeek > 0) withBusy(() => loadWeek(currentWeek - 1, false)); });
+  $("#next-week")?.addEventListener("click", () => withBusy(() => loadWeek(currentWeek + 1, false)));
   $("#nearest-slot")?.addEventListener("click", jumpToNearestSlot);
-  await loadWeek(0, true);
+  await withBusy(() => loadWeek(0, true));
 
   // STEP1: 入力 → 確認へ（お名前/メールはブラウザ標準バリデーション後に submit が発火）
   form.addEventListener("submit", (event) => {
@@ -447,7 +491,7 @@ async function initBooking() {
     setMessage("#confirm-message", t("booking.saving", "予約を保存しています..."));
     button.disabled = true;
     try {
-      const result = await api("book", { method: "POST", body: JSON.stringify(buildBookingPayload(form)) });
+      const result = await withBusy(() => api("book", { method: "POST", body: JSON.stringify(buildBookingPayload(form)) }));
       renderSummary("done-list", buildSummaryRows(form));
       const manage = document.getElementById("done-manage");
       if (manage && result?.manage_url) {

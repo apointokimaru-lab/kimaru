@@ -136,10 +136,6 @@ function pad2(value) {
   return String(value).padStart(2, "0");
 }
 
-function dateKey(date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-}
-
 function timeText(date) {
   return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
@@ -151,29 +147,16 @@ function currentLocale() {
   return "ja-JP";
 }
 
-function slotKey(slot) {
-  return `${dateKey(slot.startDate)}-${timeText(slot.startDate)}`;
-}
-
 function selectSlot(slot, button, form) {
+  if (!form) return;
   form.classList.remove("hidden");
   form.elements.start.value = slot.start;
   form.elements.end.value = slot.end;
   const selectedLabel = document.getElementById("selected-slot");
   if (selectedLabel) selectedLabel.textContent = fmtSlotRange(slot.start, slot.end);
-  document.querySelectorAll(".week-slot").forEach((item) => item.classList.remove("selected"));
-  button.classList.add("selected");
+  document.querySelectorAll(".wk-slot").forEach((item) => item.classList.remove("sel"));
+  if (button) button.classList.add("sel");
   form.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-// 週テーブルの描画は共有レンダラ（week-table.js）へ切り出し。予約変更画面（manage-booking.js）と共通。
-function renderWeeklyAvailability(container, rawSlots, form) {
-  window.KimaruWeekTable.render(container, rawSlots, {
-    navId: "week-nav",
-    labelId: "week-label",
-    actionLabel: t("booking.week.book", "予約する"),
-    onSelect: (slot, button) => selectSlot(slot, button, form),
-  });
 }
 
 function getBirthdayStatus(dateString) {
@@ -288,101 +271,195 @@ function resolveSlug() {
   return param ? param.toLowerCase() : "demo";
 }
 
-let currentWeek = 0;
 let bookingSlug = "demo";
+let currentStart = null; // 表示中の5日間の先頭日（"YYYY-MM-DD" JST）
+let pageMinDate = null;  // 予約可能な最古日（これより過去は表示しない）
+let pageMaxDate = null;  // 受付上限日
+let calYear = 0, calMonth = 0; // カレンダーで表示中の年月
 
-function weekRangeLabel(week) {
-  const base = new Date();
-  base.setDate(base.getDate() + week * 7);
-  const start = new Date(base.getFullYear(), base.getMonth(), base.getDate());
-  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
-  return `${start.getMonth() + 1}/${start.getDate()} - ${end.getMonth() + 1}/${end.getDate()}`;
+// --- 日付ユーティリティ（JST基準）---
+function parseYmd(str) { const [y, m, d] = String(str || "").split("-").map(Number); return { y, m: (m || 1) - 1, d: d || 1 }; }
+function ymdStr(y, m0, d) { return `${y}-${pad2(m0 + 1)}-${pad2(d)}`; }
+function dateFromYmd(str, addDays = 0) { const p = parseYmd(str); return new Date(p.y, p.m, p.d + addDays); }
+function shiftYmd(str, deltaDays) { const dt = dateFromYmd(str, deltaDays); return ymdStr(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
+function todayYmd() { const d = new Date(); return ymdStr(d.getFullYear(), d.getMonth(), d.getDate()); }
+// ISO(UTC) → JST の年月日・その日の分。
+function jstFields(iso) {
+  const t2 = new Date(iso).getTime() + 9 * 3600 * 1000;
+  const u = new Date(t2);
+  return { y: u.getUTCFullYear(), m: u.getUTCMonth(), d: u.getUTCDate(), min: u.getUTCHours() * 60 + u.getUTCMinutes() };
+}
+function fmtMin(min) { return `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`; }
+function weekdayShort(date) { return new Intl.DateTimeFormat(currentLocale(), { weekday: "short" }).format(date).replace("曜日", ""); }
+
+function rangeLabelText(startYmd, days) {
+  const start = dateFromYmd(startYmd, 0);
+  const end = dateFromYmd(startYmd, (days || 5) - 1);
+  const locale = currentLocale();
+  const startTxt = new Intl.DateTimeFormat(locale, { month: "long", day: "numeric" }).format(start);
+  const sameMonth = start.getMonth() === end.getMonth();
+  const endTxt = new Intl.DateTimeFormat(locale, sameMonth ? { day: "numeric" } : { month: "long", day: "numeric" }).format(end);
+  return `${startTxt} – ${endTxt}`;
 }
 
-function updateWeekNav(hasPrev, hasNext) {
-  const nav = $("#week-nav");
-  if (!nav) return;
-  nav.style.display = "";
-  const prev = $("#prev-week");
-  const next = $("#next-week");
-  const label = $("#week-label");
-  if (prev) prev.disabled = !hasPrev;
-  if (next) next.disabled = !hasNext;
-  if (label) label.textContent = weekRangeLabel(currentWeek);
-}
-
-async function loadWeek(week, full) {
-  const grid = $("#slot-grid");
+// 5日タイムグリッドの描画。空き枠が無い日も列を出す（軸は稼働時間帯）。
+function renderGrid(data) {
+  const grid = $("#wk-grid");
+  const weekcal = $("#weekcal");
   const form = $("#booking-form");
-  if (!grid || !form) return;
-  // カレンダー内に移動した週ナビを、グリッド書き換えで失わないよう退避する。
-  const weekNav = $("#week-nav");
-  if (weekNav && grid.contains(weekNav)) grid.parentElement.insertBefore(weekNav, grid);
-  grid.innerHTML = `<div class="week-loading" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span>${escapeHtml(t("booking.week.loading", "空き枠を読み込み中..."))}</span></div>`;
-  // 読み込み中は週送りボタンを一時的に無効化（連打による多重取得を防ぐ）。
-  const navButtons = [$("#prev-week"), $("#next-week"), $("#nearest-slot")].filter(Boolean);
-  navButtons.forEach((btn) => { btn.disabled = true; });
+  if (!grid) return;
+  const axis = data.axis || { start_min: 600, end_min: 1080 };
+  const startHour = Math.max(0, Math.floor(axis.start_min / 60));
+  const endHour = Math.min(24, Math.max(startHour + 1, Math.ceil(axis.end_min / 60)));
+  const hours = endHour - startHour;
+  const days = Number(data.days) || 5;
+  const cols = Array.from({ length: days }, (_, i) => dateFromYmd(data.range_start, i));
+  const colKey = (dt) => `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+  const byCol = new Map(cols.map((dt) => [colKey(dt), []]));
+  (data.slots || []).forEach((s) => {
+    const j = jstFields(s.start);
+    const key = `${j.y}-${j.m}-${j.d}`;
+    if (byCol.has(key)) byCol.get(key).push({ start: s.start, end: s.end, startMin: j.min, endMin: jstFields(s.end).min });
+  });
+  let axisLabels = "";
+  for (let h = startHour; h <= endHour; h++) axisLabels += `<span class="hr" style="top:calc(var(--hh)*${h - startHour})">${pad2(h)}:00</span>`;
+  const axisHtml = `<div class="wk-axis" style="min-height:calc(var(--hh)*${hours})">${axisLabels}</div>`;
+  const headHtml = cols.map((dt) => `<div class="wk-headcell tappable" data-cal-open><span class="d">${dt.getDate()}</span>${escapeHtml(weekdayShort(dt))}</div>`).join("");
+  const actionLabel = t("booking.week.book", "予約する");
+  const dayColsHtml = cols.map((dt) => {
+    const list = byCol.get(colKey(dt)) || [];
+    const blocks = list.map((s) => {
+      const top = (s.startMin - startHour * 60) / 60;
+      const height = Math.max(0.6, (s.endMin - s.startMin) / 60);
+      return `<button type="button" class="wk-slot" data-start="${escapeHtml(s.start)}" data-end="${escapeHtml(s.end)}" title="${escapeHtml(actionLabel)}" style="top:calc(var(--hh)*${top.toFixed(3)});height:calc(var(--hh)*${height.toFixed(3)})"><span class="wk-slot-t">${escapeHtml(fmtMin(s.startMin))}</span><span class="wk-slot-e">${escapeHtml(fmtMin(s.endMin))}</span></button>`;
+    }).join("");
+    return `<div class="wk-day" style="min-height:calc(var(--hh)*${hours})">${blocks}</div>`;
+  }).join("");
+  grid.innerHTML = `<div class="wk-navcell"></div>${headHtml}<div class="wk-navcell"></div>${axisHtml}${dayColsHtml}${axisHtml}`;
+  grid._slots = data.slots || [];
+  const selectedStart = form && form.elements.start.value;
+  grid.querySelectorAll(".wk-slot").forEach((btn) => {
+    btn.addEventListener("click", () => selectSlot({ start: btn.dataset.start, end: btn.dataset.end }, btn, form));
+    if (selectedStart && btn.dataset.start === selectedStart) btn.classList.add("sel");
+  });
+  if (weekcal) weekcal.style.display = "";
+}
+
+function updateNav(data) {
+  const prev = $("#prev-days");
+  const next = $("#next-days");
+  const label = $("#range-label");
+  if (prev) prev.disabled = !data.hasPrev;
+  if (next) next.disabled = !data.hasNext;
+  if (label) label.textContent = rangeLabelText(data.range_start, Number(data.days) || 5);
+}
+
+// start（"YYYY-MM-DD" or null）の日から5日間を読み込む。過去はサーバ側で最古日にクランプ。
+async function loadDays(startYmd, full) {
+  const status = $("#slot-grid");
+  const weekcal = $("#weekcal");
+  const form = $("#booking-form");
+  if (!status || !form) return;
+  const firstPaint = !weekcal || weekcal.style.display === "none";
+  if (full || firstPaint) {
+    status.style.display = "";
+    status.innerHTML = `<div class="week-loading" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span>${escapeHtml(t("booking.week.loading", "空き枠を読み込み中..."))}</span></div>`;
+  }
+  [$("#prev-days"), $("#next-days")].forEach((b) => { if (b) b.disabled = true; });
   try {
-    const data = await api(`availability?slug=${encodeURIComponent(bookingSlug)}&week=${week}`);
-    currentWeek = typeof data.week === "number" ? data.week : week;
-    if (full) {
-      renderHost(data.host);
-      renderQuestions(data.questions || []);
-    }
-    if (data.suspended) {
-      grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.week.suspended", "このページは現在ご利用いただけません。"))}</p>`;
+    const q = startYmd ? `&start=${encodeURIComponent(startYmd)}` : "";
+    const data = await api(`availability?slug=${encodeURIComponent(bookingSlug)}${q}`);
+    currentStart = data.range_start || startYmd || todayYmd();
+    data.range_start = currentStart; // range_start 欠落時も描画を壊さない（NaN日付でIntlが例外化するのを防ぐ）
+    pageMinDate = data.min_date || null;
+    pageMaxDate = data.max_date || null;
+    if (full) { renderHost(data.host); renderQuestions(data.questions || []); }
+    if (data.suspended || data.paused) {
+      if (weekcal) weekcal.style.display = "none";
+      status.style.display = "";
+      status.innerHTML = `<p class="muted">${escapeHtml(data.suspended
+        ? t("booking.week.suspended", "このページは現在ご利用いただけません。")
+        : t("booking.week.paused", "現在、この予約ページは受付を停止しています。しばらくしてから再度お試しください。"))}</p>`;
       form.classList.add("hidden");
-      const nav = $("#week-nav");
-      if (nav) nav.style.display = "none";
       return;
     }
-    if (data.paused) {
-      grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.week.paused", "現在、この予約ページは受付を停止しています。しばらくしてから再度お試しください。"))}</p>`;
-      form.classList.add("hidden");
-      const nav = $("#week-nav");
-      if (nav) nav.style.display = "none";
-      return;
-    }
-    renderWeeklyAvailability(grid, data.slots || [], form);
-    updateWeekNav(Boolean(data.hasPrev), Boolean(data.hasNext));
+    renderGrid(data);
+    updateNav(data);
+    status.style.display = "none";
+    status.innerHTML = "";
   } catch (error) {
     setMessage("#booking-message", error.message, "error");
-    // エラー時は週送りを再操作できるよう戻す（成功時は updateWeekNav が境界に応じて設定）。
-    const prev = $("#prev-week");
-    const next = $("#next-week");
-    if (prev) prev.disabled = false;
-    if (next) next.disabled = false;
-  } finally {
-    // 「直近の空き時間」は境界条件に依存しないので毎回戻す。
-    const nearest = $("#nearest-slot");
-    if (nearest) nearest.disabled = false;
+    [$("#prev-days"), $("#next-days")].forEach((b) => { if (b) b.disabled = false; });
   }
 }
 
-// 「直近の空き時間」: 現在の週から順に空き枠を探し、最も早い枠を自動選択する。
-async function jumpToNearestSlot() {
-  const grid = $("#slot-grid");
-  const form = $("#booking-form");
-  const btn = $("#nearest-slot");
-  if (!grid || !form) return;
-  if (btn) btn.disabled = true;
+// --- 月カレンダー（範囲/日付タップで開く → 空き枠のある日を選ぶ → その日から5日間を表示）---
+function renderDowRow() {
+  const row = $("#cal-dow-row");
+  if (!row) return;
+  const locale = currentLocale();
+  let html = "";
+  for (let i = 0; i < 7; i++) {
+    // 2023-01-01 は日曜。曜日名はロケール依存（Intl）。
+    const d = new Date(2023, 0, 1 + i);
+    html += `<div class="cal-dow">${escapeHtml(new Intl.DateTimeFormat(locale, { weekday: "narrow" }).format(d))}</div>`;
+  }
+  row.innerHTML = html;
+}
+
+function renderCalendar(data) {
+  const wrap = $("#cal-days");
+  if (!wrap) return;
+  const has = new Set((data.days || []).map(Number));
+  const minD = data.min_date ? parseYmd(data.min_date) : null;
+  const maxD = data.max_date ? parseYmd(data.max_date) : null;
+  const startDow = new Date(calYear, calMonth - 1, 1).getDay();
+  const count = new Date(calYear, calMonth, 0).getDate();
+  const inRange = (d) => {
+    const cur = new Date(calYear, calMonth - 1, d).getTime();
+    if (minD && cur < new Date(minD.y, minD.m, minD.d).getTime()) return false;
+    if (maxD && cur > new Date(maxD.y, maxD.m, maxD.d).getTime()) return false;
+    return true;
+  };
+  let html = "";
+  for (let i = 0; i < startDow; i++) html += `<div class="cal-day empty"></div>`;
+  for (let d = 1; d <= count; d++) {
+    const ok = has.has(d) && inRange(d);
+    const attr = ok ? ` data-pick="${ymdStr(calYear, calMonth - 1, d)}"` : " disabled";
+    html += `<button type="button" class="cal-day ${ok ? "has-slot" : "no-slot"}"${attr}>${d}<span class="dot"></span></button>`;
+  }
+  wrap.innerHTML = html;
+  const ym = calYear * 12 + (calMonth - 1);
+  const prevM = $("#cal-prev-month");
+  const nextM = $("#cal-next-month");
+  if (prevM) prevM.disabled = minD ? ym <= minD.y * 12 + minD.m : false;
+  if (nextM) nextM.disabled = maxD ? ym >= maxD.y * 12 + maxD.m : false;
+}
+
+async function loadCalendarMonth() {
+  const wrap = $("#cal-days");
+  const title = $("#cal-title");
+  if (title) title.textContent = new Intl.DateTimeFormat(currentLocale(), { year: "numeric", month: "long" }).format(new Date(calYear, calMonth - 1, 1));
+  if (wrap) wrap.innerHTML = `<div class="cal-loading"><span class="spinner" aria-hidden="true"></span></div>`;
   try {
-    await withBusy(async () => {
-      // 今の週に空きが無ければ、次の週へ最大12週分たどる（hasNext が尽きたら打ち切り）。
-      for (let i = 0; i < 12 && !(grid._slots || []).length; i++) {
-        const next = $("#next-week");
-        if (!next || next.disabled) break;
-        await loadWeek(currentWeek + 1, false);
-      }
-      const slots = grid._slots || [];
-      if (!slots.length) return;
-      const target = grid.querySelector(`td[data-slot-key="${slotKey(slots[0])}"] .week-slot`);
-      if (target) target.click();
-    });
-  } finally {
-    if (btn) btn.disabled = false;
+    const data = await api(`availability-days?slug=${encodeURIComponent(bookingSlug)}&year=${calYear}&month=${calMonth}`);
+    renderCalendar(data);
+  } catch (error) {
+    if (wrap) wrap.innerHTML = `<p class="muted">${escapeHtml(t("booking.cal.error", "カレンダーの取得に失敗しました。"))}</p>`;
   }
 }
+
+async function openCalendar() {
+  renderDowRow();
+  const anchor = currentStart || pageMinDate || todayYmd();
+  const p = parseYmd(anchor);
+  calYear = p.y;
+  calMonth = p.m + 1;
+  const modal = $("#cal-modal");
+  await withBusy(loadCalendarMonth);
+  if (modal) modal.hidden = false;
+}
+function closeCalendar() { const m = $("#cal-modal"); if (m) m.hidden = true; }
 
 // --- 3ステップ（日程調整 → 確認 → 完了）---
 function jpDate(date) {
@@ -470,10 +547,24 @@ async function initBooking() {
   if (!grid || !form) return;
   bookingSlug = resolveSlug();
   if (form.elements.owner_slug) form.elements.owner_slug.value = bookingSlug;
-  $("#prev-week")?.addEventListener("click", () => { if (currentWeek > 0) withBusy(() => loadWeek(currentWeek - 1, false)); });
-  $("#next-week")?.addEventListener("click", () => withBusy(() => loadWeek(currentWeek + 1, false)));
-  $("#nearest-slot")?.addEventListener("click", jumpToNearestSlot);
-  await withBusy(() => loadWeek(0, true));
+  // 5日送り（前は最古日で無効化＝過去へ行けない。サーバも最古日にクランプ）。
+  $("#prev-days")?.addEventListener("click", () => { if (currentStart) withBusy(() => loadDays(shiftYmd(currentStart, -5), false)); });
+  $("#next-days")?.addEventListener("click", () => { if (currentStart) withBusy(() => loadDays(shiftYmd(currentStart, 5), false)); });
+  // 範囲ボタン／日付ヘッダーで月カレンダーを開く。
+  $("#range-btn")?.addEventListener("click", openCalendar);
+  $("#wk-grid")?.addEventListener("click", (event) => { if (event.target.closest("[data-cal-open]")) openCalendar(); });
+  $("#cal-close")?.addEventListener("click", closeCalendar);
+  $("#cal-modal")?.addEventListener("click", (event) => { if (event.target.id === "cal-modal") closeCalendar(); });
+  $("#cal-prev-month")?.addEventListener("click", () => { calMonth -= 1; if (calMonth < 1) { calMonth = 12; calYear -= 1; } withBusy(loadCalendarMonth); });
+  $("#cal-next-month")?.addEventListener("click", () => { calMonth += 1; if (calMonth > 12) { calMonth = 1; calYear += 1; } withBusy(loadCalendarMonth); });
+  // 空き枠のある日を選ぶ → その日から5日間を表示。
+  $("#cal-days")?.addEventListener("click", (event) => {
+    const pick = event.target.closest("[data-pick]");
+    if (!pick) return;
+    closeCalendar();
+    withBusy(() => loadDays(pick.getAttribute("data-pick"), false));
+  });
+  await withBusy(() => loadDays(null, true));
 
   // STEP1: 入力 → 確認へ（お名前/メールはブラウザ標準バリデーション後に submit が発火）
   form.addEventListener("submit", (event) => {
@@ -509,8 +600,8 @@ async function initBooking() {
   // 言語切替時にJSで描画したUIクロームを再描画する（入力済みの回答textareaは触らない）。
   document.addEventListener("kimaru:languagechange", () => {
     if (currentHost) renderHost(currentHost);
-    // 週グリッドを再取得して再描画（曜日見出し・ボタン文言などを反映）。
-    loadWeek(currentWeek, false);
+    // 5日グリッドを再取得して再描画（曜日見出し・範囲ラベルなどを反映）。
+    withBusy(() => loadDays(currentStart, false));
     // 選択中の日程ラベルを更新。
     const selectedLabel = document.getElementById("selected-slot");
     if (selectedLabel && form.elements.start.value) {

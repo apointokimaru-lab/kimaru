@@ -47,18 +47,26 @@
   <div id="step1">
   <div class="panel weekcal">
     <div class="weekcal-top">
-      <div class="weekcal-title">2026年6月</div>
+      <!-- 前後5日は「表示中の範囲」の左右に配置（見出し行と分離＝スマホの文字被りを回避） -->
+      <button class="wk-nav" type="button" data-step-days="-5" aria-label="前の5日">‹<span class="wk-nav-tx"> 前の5日</span></button>
+      <!-- 表示中の5日間の範囲。押すと月カレンダーが開く（日付ヘッダーも同様に開ける） -->
+      <button class="rangebtn" type="button" data-cal-open>
+        <span class="cal-ic">📅</span>
+        <span id="rangeLabel">6月22日 – 26日</span>
+        <span class="chev">▼</span>
+      </button>
+      <button class="wk-nav" type="button" data-step-days="5" aria-label="次の5日"><span class="wk-nav-tx">次の5日 </span>›</button>
     </div>
 
     <div class="wk-grid">
-      <!-- ヘッダー行: 週送り＋曜日 -->
-      <div class="wk-navcell"><button class="wk-nav" type="button">‹ 前へ</button></div>
-      <div class="wk-headcell"><span class="d">22</span>月</div>
-      <div class="wk-headcell"><span class="d">23</span>火</div>
-      <div class="wk-headcell"><span class="d">24</span>水</div>
-      <div class="wk-headcell on"><span class="d">25</span>木</div>
-      <div class="wk-headcell"><span class="d">26</span>金</div>
-      <div class="wk-navcell"><button class="wk-nav" type="button">次へ ›</button></div>
+      <!-- ヘッダー行: 曜日のみ（前後ナビは上部バーへ移動）。曜日/日付を押すとカレンダーが開く -->
+      <div class="wk-navcell"></div>
+      <div class="wk-headcell tappable" data-cal-open><span class="d">22</span>月</div>
+      <div class="wk-headcell tappable" data-cal-open><span class="d">23</span>火</div>
+      <div class="wk-headcell tappable" data-cal-open><span class="d">24</span>水</div>
+      <div class="wk-headcell tappable on" data-cal-open><span class="d">25</span>木</div>
+      <div class="wk-headcell tappable" data-cal-open><span class="d">26</span>金</div>
+      <div class="wk-navcell"></div>
 
       <!-- ボディ行: 時間軸（左）＋ 5日 ＋ 時間軸（右） -->
       <div class="wk-axis">
@@ -105,6 +113,29 @@
     </div>
 
     <p class="note" style="margin-top:16px">選択中：<b>6/25(木) 18:30〜19:20</b>（50分 / Google Meet）</p>
+  </div>
+
+  <!-- 月カレンダー（範囲/日付タップで開く。空き枠のある日＝朱ドット、押すとその日から5日間を表示） -->
+  <div class="modal-overlay" id="calModal" hidden>
+    <div class="modal" style="text-align:left">
+      <button class="modal-close" type="button" data-cal-close>✕</button>
+      <div class="cal">
+        <div class="cal-head">
+          <button class="cal-nav" type="button" data-cal-month="-1" aria-label="前の月">‹</button>
+          <div class="cal-title" id="calTitle">2026年6月</div>
+          <button class="cal-nav" type="button" data-cal-month="1" aria-label="次の月">›</button>
+        </div>
+        <div class="cal-grid">
+          <div class="cal-dow">日</div><div class="cal-dow">月</div><div class="cal-dow">火</div>
+          <div class="cal-dow">水</div><div class="cal-dow">木</div><div class="cal-dow">金</div><div class="cal-dow">土</div>
+        </div>
+        <div class="cal-grid" id="calDays"></div>
+        <div class="cal-legend">
+          <span class="lg"><span class="dot"></span>予約枠あり</span>
+          <span class="lg">グレー＝空きなし</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ご予約者の情報 -->
@@ -273,6 +304,77 @@
       slot.classList.add('sel');
       var note = document.querySelector('.note b');
       if (note) note.textContent = slot.getAttribute('data-label') || slot.textContent.trim();
+    });
+
+    // ---- 5日単位の送り＋月カレンダー（範囲/日付タップ → 空き日を選ぶ → その日から5日間を表示）----
+    var DOW = ['日', '月', '火', '水', '木', '金', '土'];
+    // mock: 空き枠のある日（月をまたいで用意）
+    var SLOT_DAYS = {
+      '2026-6': [22, 23, 25, 26, 29, 30],
+      '2026-7': [1, 2, 3, 6, 7, 9, 10, 13, 14, 16, 17, 21, 22, 23]
+    };
+    var calModal = document.getElementById('calModal');
+    var calDays = document.getElementById('calDays');
+    var calTitle = document.getElementById('calTitle');
+    var rangeLabel = document.getElementById('rangeLabel');
+    var heads = document.querySelectorAll('.wk-grid .wk-headcell');
+    var stripStart = new Date(2026, 5, 22); // 表示中の5日間の先頭（6/22）
+    var calYear = 2026, calMonth = 6;        // カレンダーで表示中の月（1-12）
+
+    function renderStrip() {
+      heads.forEach(function (h, i) {
+        var dt = new Date(stripStart.getFullYear(), stripStart.getMonth(), stripStart.getDate() + i);
+        h.querySelector('.d').textContent = dt.getDate();
+        h.lastChild.nodeValue = DOW[dt.getDay()];
+        h.classList.toggle('on', i === 0);
+      });
+      var end = new Date(stripStart.getFullYear(), stripStart.getMonth(), stripStart.getDate() + 4);
+      var sameMonth = end.getMonth() === stripStart.getMonth();
+      rangeLabel.textContent = (stripStart.getMonth() + 1) + '月' + stripStart.getDate() + '日 – '
+        + (sameMonth ? '' : (end.getMonth() + 1) + '月') + end.getDate() + '日';
+    }
+
+    function renderCal() {
+      calTitle.textContent = calYear + '年' + calMonth + '月';
+      var slots = SLOT_DAYS[calYear + '-' + calMonth] || [];
+      var startDow = new Date(calYear, calMonth - 1, 1).getDay();
+      var count = new Date(calYear, calMonth, 0).getDate();
+      var html = '';
+      for (var i = 0; i < startDow; i++) html += '<div class="cal-day empty"></div>';
+      for (var d = 1; d <= count; d++) {
+        var has = slots.indexOf(d) >= 0;
+        html += '<button type="button" class="cal-day ' + (has ? 'has-slot' : 'no-slot') + '"'
+          + (has ? ' data-pick="' + d + '"' : ' disabled') + '>' + d + '<span class="dot"></span></button>';
+      }
+      calDays.innerHTML = html;
+    }
+    function openCal() { renderCal(); calModal.hidden = false; }
+    function closeCal() { calModal.hidden = true; }
+
+    document.querySelectorAll('[data-cal-open]').forEach(function (el) { el.addEventListener('click', openCal); });
+    document.querySelectorAll('[data-cal-close]').forEach(function (el) { el.addEventListener('click', closeCal); });
+    calModal.addEventListener('click', function (e) { if (e.target === calModal) closeCal(); });
+    document.querySelectorAll('[data-cal-month]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        calMonth += parseInt(b.getAttribute('data-cal-month'), 10);
+        if (calMonth < 1) { calMonth = 12; calYear--; }
+        if (calMonth > 12) { calMonth = 1; calYear++; }
+        renderCal();
+      });
+    });
+    // 空き枠のある日を選ぶ → その日から5日間を表示
+    calDays.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-pick]'); if (!b) return;
+      stripStart = new Date(calYear, calMonth - 1, parseInt(b.getAttribute('data-pick'), 10));
+      renderStrip();
+      closeCal();
+    });
+    // 5日ずつ送る
+    document.querySelectorAll('[data-step-days]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        stripStart.setDate(stripStart.getDate() + parseInt(b.getAttribute('data-step-days'), 10));
+        renderStrip();
+      });
     });
   })();
 </script>

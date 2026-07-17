@@ -98,6 +98,14 @@ function weekLabel(week) {
   return `${s.getMonth() + 1}/${s.getDate()} - ${e.getMonth() + 1}/${e.getDate()}`;
 }
 
+// range_start（"YYYY-MM-DD"）から days 日分のレンジ表記（例: 7/20 - 7/24）。
+function rangeLabel(rangeStart, days) {
+  const [y, m, d] = String(rangeStart).split("-").map(Number);
+  const s = new Date(y, m - 1, d);
+  const e = new Date(y, m - 1, d + (days || 5) - 1);
+  return `${s.getMonth() + 1}/${s.getDate()} - ${e.getMonth() + 1}/${e.getDate()}`;
+}
+
 async function loadWeek(week) {
   const grid = $("#rs-slots");
   grid.innerHTML = `<p class="muted">${esc(t("booking.week.loading", "空き枠を読み込み中..."))}</p>`;
@@ -113,7 +121,8 @@ async function loadWeek(week) {
     $("#rs-week-nav").style.display = "";
     $("#rs-prev").disabled = !data.hasPrev;
     $("#rs-next").disabled = !data.hasNext;
-    $("#rs-week-label").textContent = weekLabel(state.week);
+    // 空き枠がある週は共有レンダラがラベルを上書きする。空週向けに range_start（5日窓）から補完。
+    $("#rs-week-label").textContent = data.range_start ? rangeLabel(data.range_start, Number(data.days) || 5) : weekLabel(state.week);
     renderSlots(data.slots || []);
   } catch (error) {
     grid.innerHTML = `<p class="muted">${esc(error.message)}</p>`;

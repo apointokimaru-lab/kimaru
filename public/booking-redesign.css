@@ -334,3 +334,78 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
   .week-slot span{font-size:10.5px}
   .week-slot small{font-size:8.5px}
 }
+
+/* ===== 予約枠: 5日単位のタイムグリッド（mock .weekcal を移植）＋範囲ボタン＋月カレンダー ===== */
+.weekcal{--hh:56px;margin-top:14px}
+/* 上部バー: [‹ 前の5日] [ 範囲ボタン(中央) ] [次の5日 ›] */
+.weekcal-top{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.weekcal-top .rangebtn{flex:1;justify-content:center}
+
+.wk-nav{display:inline-flex;align-items:center;gap:6px;height:42px;padding:0 15px;border:1px solid var(--line-2);border-radius:var(--radius-sm);background:var(--surface);font-size:13.5px;font-weight:700;color:var(--ink-2);cursor:pointer;white-space:nowrap;line-height:1}
+.wk-nav .wk-ar{font-size:21px;line-height:1;color:var(--accent-ink);font-weight:400}
+.wk-nav:hover:not(:disabled){border-color:var(--accent);color:var(--accent-ink)}
+.wk-nav:disabled{opacity:.38;cursor:not-allowed}
+
+.rangebtn{display:inline-flex;align-items:center;gap:10px;padding:9px 18px;border:1px solid var(--line-2);border-radius:var(--radius-pill);background:var(--surface);cursor:pointer;font-family:var(--display);font-weight:700;font-size:16px;color:var(--ink);box-shadow:var(--shadow)}
+.rangebtn:hover{border-color:var(--accent);color:var(--accent-ink)}
+.rangebtn .cal-ic{font-size:15px;line-height:1}
+.rangebtn .chev{color:var(--muted);font-size:11px}
+
+.wk-grid{display:grid;grid-template-columns:46px repeat(5,minmax(0,1fr)) 46px}
+.wk-navcell{display:block}
+.wk-headcell{display:flex;align-items:baseline;justify-content:center;gap:5px;padding:6px 0 12px;font-size:13px;font-weight:700;color:var(--ink-2)}
+.wk-headcell .d{font-family:var(--display);font-size:16px;color:var(--ink)}
+.wk-headcell.tappable{cursor:pointer;border-radius:var(--radius-sm)}
+.wk-headcell.tappable:hover{background:var(--surface-2)}
+
+.wk-axis{position:relative}
+.wk-axis .hr{position:absolute;right:8px;transform:translateY(-50%);font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+.wk-day{position:relative;border-left:1px solid var(--line);
+  background-image:
+    repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px calc(var(--hh)/2)),
+    repeating-linear-gradient(to bottom, var(--line-2) 0 1px, transparent 1px var(--hh));}
+.wk-day:last-of-type{border-right:1px solid var(--line)}
+.wk-slot{position:absolute;left:5px;right:5px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:5px 8px;font-family:var(--mono);font-weight:700;line-height:1.15;text-align:left;cursor:pointer;overflow:hidden;box-shadow:0 8px 16px -10px rgba(222,74,46,.75);transition:filter .12s ease}
+.wk-slot .wk-slot-t{font-size:12px;white-space:nowrap}
+.wk-slot .wk-slot-e{font-size:10px;opacity:.85;white-space:nowrap}
+.wk-slot:hover{filter:brightness(1.07)}
+.wk-slot.sel{box-shadow:0 0 0 3px var(--surface),0 0 0 6px rgba(222,74,46,.55)}
+
+/* 空き枠が無い日/週のメッセージ領域（#slot-grid はステータス表示に転用） */
+.slot-grid:empty{display:none}
+
+/* 月カレンダー（.modal を流用。中身は左寄せ） */
+.cal{width:min(360px,100%);text-align:left}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}
+.cal-title{font-family:var(--display);font-weight:700;font-size:17px}
+.cal-nav{width:40px;height:40px;flex:none;border:1px solid var(--line-2);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;font-size:18px;color:var(--ink-2)}
+.cal-nav:hover:not(:disabled){border-color:var(--accent);color:var(--accent-ink)}
+.cal-nav:disabled{opacity:.35;cursor:not-allowed}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding-bottom:4px}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;border-radius:var(--radius-sm);font-size:14.5px;font-weight:600;color:var(--ink);cursor:pointer;position:relative;font-family:var(--sans)}
+.cal-day.empty{visibility:hidden;pointer-events:none}
+.cal-day .dot{width:5px;height:5px;border-radius:50%;background:transparent}
+.cal-day.no-slot{color:var(--line-2);cursor:not-allowed}
+.cal-day.has-slot .dot{background:var(--accent)}
+.cal-day.has-slot:hover{background:var(--accent-soft)}
+.cal-day.sel{background:var(--accent);color:#fff}
+.cal-day.sel .dot{background:#fff}
+.cal-loading{grid-column:1/-1;display:flex;justify-content:center;padding:40px 0}
+.cal-legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px;font-size:12px;color:var(--muted)}
+.cal-legend .lg{display:inline-flex;align-items:center;gap:6px}
+.cal-legend .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block}
+
+@media (max-width:680px){
+  .weekcal{--hh:50px}
+  .wk-grid{grid-template-columns:38px repeat(5,minmax(0,1fr)) 38px}
+  .weekcal-top{gap:6px}
+  .wk-nav{height:38px;padding:0 9px;font-size:11.5px;gap:3px}
+  .wk-nav .wk-ar{font-size:18px}
+  .rangebtn{font-size:13.5px;padding:8px 10px;gap:6px}
+  .wk-headcell{font-size:11px;gap:3px}.wk-headcell .d{font-size:13px}
+  .wk-slot{padding:4px 5px;left:3px;right:3px}
+  .wk-slot .wk-slot-t{font-size:10.5px}.wk-slot .wk-slot-e{font-size:8.5px}
+  .wk-axis .hr{right:4px;font-size:9.5px}
+  .cal-day{font-size:13.5px}
+}

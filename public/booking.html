@@ -29,20 +29,30 @@
           <ul class="feature-list" id="meeting-meta"></ul>
           <ul class="feature-list">
             <li data-i18n="booking.intro.li1">Googleカレンダーの予定と重ならない空き枠だけを表示</li>
-            <li data-i18n="booking.intro.li2">1週間分の候補から都合のよい時間を選べます</li>
+            <li data-i18n="booking.intro.li2">5日分の候補から都合のよい時間を選べます</li>
             <li data-i18n="booking.intro.li3">事前アンケートで、話したい内容を共有できます</li>
           </ul>
         </section>
 
         <section class="panel">
           <p class="eyebrow" data-i18n="booking.slots.eyebrow">予約できる時間</p>
-          <h2 data-i18n="booking.slots.heading">1週間の空き枠から選ぶ</h2>
-          <div id="week-nav" class="week-nav" style="display:none">
-            <button type="button" id="prev-week" class="button secondary btn-sm" data-i18n="booking.week.prev">← 前の週</button>
-            <span id="week-label" class="muted"></span>
-            <button type="button" id="next-week" class="button secondary btn-sm" data-i18n="booking.week.next">次の週 →</button>
-            <button type="button" id="nearest-slot" class="button primary btn-sm" data-i18n="booking.week.nearest">直近の空き時間</button>
+          <h2 data-i18n="booking.slots.heading">5日間の空き枠から選ぶ</h2>
+
+          <!-- 5日単位のタイムグリッド。上部バー: [‹ 前の5日] [範囲ボタン=カレンダー] [次の5日 ›] -->
+          <div id="weekcal" class="weekcal" style="display:none">
+            <div class="weekcal-top">
+              <button type="button" id="prev-days" class="wk-nav" aria-label="前の5日"><span class="wk-ar" aria-hidden="true">‹</span><span class="wk-nav-tx" data-i18n="booking.week.prev5">前の5日</span></button>
+              <button type="button" id="range-btn" class="rangebtn" aria-haspopup="dialog">
+                <span class="cal-ic" aria-hidden="true">📅</span>
+                <span id="range-label">—</span>
+                <span class="chev" aria-hidden="true">▼</span>
+              </button>
+              <button type="button" id="next-days" class="wk-nav" aria-label="次の5日"><span class="wk-nav-tx" data-i18n="booking.week.next5">次の5日</span><span class="wk-ar" aria-hidden="true">›</span></button>
+            </div>
+            <div id="wk-grid" class="wk-grid"></div>
           </div>
+
+          <!-- 読み込み中スピナー・受付停止などのステータス表示に転用 -->
           <div id="slot-grid" class="slot-grid"></div>
 
           <form id="booking-form" class="form-grid hidden">
@@ -92,6 +102,25 @@
         <p class="done-note" data-i18n="booking.complete.note">開催方法や参加用URLは、確認メールおよびカレンダーの予定に記載されます。</p>
       </div>
     </section>
+    <!-- 月カレンダー（範囲/日付タップで開く。空き枠のある日＝朱ドット、押すとその日から5日間を表示） -->
+    <div class="modal-overlay" id="cal-modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-label="日付を選ぶ">
+        <button class="modal-close" type="button" id="cal-close" aria-label="閉じる">✕</button>
+        <div class="cal">
+          <div class="cal-head">
+            <button class="cal-nav" type="button" id="cal-prev-month" aria-label="前の月">‹</button>
+            <div class="cal-title" id="cal-title"></div>
+            <button class="cal-nav" type="button" id="cal-next-month" aria-label="次の月">›</button>
+          </div>
+          <div class="cal-grid" id="cal-dow-row"></div>
+          <div class="cal-grid" id="cal-days"></div>
+          <div class="cal-legend">
+            <span class="lg"><span class="dot"></span><span data-i18n="booking.cal.hasSlot">予約枠あり</span></span>
+            <span class="lg" data-i18n="booking.cal.noSlot">グレー＝空きなし</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <section class="shell">
@@ -114,7 +143,6 @@
   </div>
 
   <script src="/i18n.js" defer></script>
-  <script src="/week-table.js" defer></script>
   <script src="/booking-week.js" defer></script>
 </body>
 </html>

@@ -433,6 +433,44 @@ ok("stale timestamp → 401 (replay protection)", staleTs.statusCode === 401);
 const deauth = await deauthFn.handler(signedEvent({ event: "app_deauthorized", payload: { user_id: "zu1", account_id: "za1" } }));
 ok("app_deauthorized → 200 and deletes connection by zoom_user_id", deauth.statusCode === 200 && deletedQueries.some((q) => q.startsWith("zoom_connections") && q.includes("zoom_user_id=eq.zu1")));
 
+// ---------- 11) availability-core（5日窓・バッファ・リードタイム・月の空き日） ----------
+section("availability-core (5-day window / buffer / lead time)");
+const availCore = requireCjs("../../netlify/functions/_lib/availability-core");
+{
+  const DAY = availCore.DAY_MS;
+  const weekly = [1, 2, 3, 4, 5].map((d) => ({ day_of_week: d, start_time: "10:00", end_time: "18:00" }));
+  // 未来の7日窓（必ず平日5日を含む・リードタイムの影響も無い）で枠生成:
+  // 所要50＋後バッファ30 → 間隔80分 → 平日1日あたり6枠(10:00,11:20,12:40,14:00,15:20,16:40)。
+  const from = availCore.tokyoStartOfDayMs(Date.now() + 30 * DAY);
+  const page = { duration_minutes: 50, buffer_before_minutes: 0, buffer_after_minutes: 30, booking_range_months: 3 };
+  const slots = availCore.generateSlots(weekly, page, from, from + 7 * DAY);
+  ok("generateSlots: 7日窓で平日5日×6枠=30", slots.length === 30);
+  ok("generateSlots: 枠間隔=80分(所要50+後30)", (new Date(slots[1].start) - new Date(slots[0].start)) === 80 * 60000);
+
+  // overlaps: busy(11:00-11:50) を後バッファ30分ぶん広げると 12:00枠(12:00-12:50)がブロックされる。
+  const p0 = availCore.tokyoParts(new Date(from));
+  const iso = (h, m) => availCore.tokyoLocalDateToUtc(p0.year, p0.month, p0.date, h * 60 + m).toISOString();
+  const cand = { start: iso(12, 0), end: iso(12, 50) };
+  const busy = [{ start: iso(11, 0), end: iso(11, 50) }];
+  ok("overlaps: 後バッファ30で予定直後(30分以内)の枠をブロック", availCore.overlaps(cand, busy, 0, 30 * 60000) === true);
+  ok("overlaps: バッファ0なら重ならない枠はブロックしない", availCore.overlaps(cand, busy, 0, 0) === false);
+
+  // axisRange: 稼働時間帯の最小open〜最大close
+  const axis = availCore.axisRange(weekly);
+  ok("axisRange: 10:00-18:00 → 600/1080", axis.start_min === 600 && axis.end_min === 1080);
+
+  // slotsToMonthDays: 指定月の空き日抽出（7日窓ぶんの日が入る）
+  const daysInMonth = availCore.slotsToMonthDays(slots, p0.year, p0.month + 1);
+  ok("slotsToMonthDays: 空き日を抽出する", daysInMonth.length >= 1 && daysInMonth.every((d) => d >= 1 && d <= 31));
+
+  // bookingBounds: リードタイムぶん最古日が繰り下がる（過去非表示の起点）
+  const b0 = availCore.bookingBounds({ lead_time_hours: 0, booking_range_months: 1 });
+  const b48 = availCore.bookingBounds({ lead_time_hours: 48, booking_range_months: 1 });
+  ok("bookingBounds: lead0 の最古日=今日(JST)", availCore.isoDate(b0.minStart) === availCore.isoDate(Date.now()));
+  ok("bookingBounds: lead48 の最古日=2日後", availCore.isoDate(b48.minStart) === availCore.isoDate(Date.now() + 2 * DAY));
+  ok("bookingBounds: maxTime>minStart", b0.maxTime > b0.minStart);
+}
+
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);
 if (fail) { console.log("FAILED: " + fails.join(" | ")); process.exit(1); }

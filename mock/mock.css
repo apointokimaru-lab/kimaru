@@ -477,7 +477,9 @@ select{height:48px;padding-block:0}
 
 /* ===== 予約フロー: 週カレンダー（タイムグリッド） ===== */
 .weekcal{--hh:58px;padding:18px clamp(8px,1.4vw,16px)}
-.weekcal-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+/* 上部バー: [‹ 前の5日] [ 範囲ボタン(中央) ] [次の5日 ›] — 見出し行と分離して被りを防ぐ */
+.weekcal-top{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.weekcal-top .rangebtn{flex:1;margin:0;justify-content:center}
 .weekcal-top .spacer{flex:1 1 0;min-width:40px}
 .weekcal-title{flex:1;font-family:var(--display);font-weight:700;font-size:18px;text-align:center}
 .weekcal-tz{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap}
@@ -504,7 +506,9 @@ select{height:48px;padding-block:0}
 @media (max-width:680px){
   .weekcal{--hh:52px}
   .wk-grid{grid-template-columns:40px repeat(5,minmax(0,1fr)) 40px}
-  .wk-nav{height:34px;padding:0 7px;font-size:11px;gap:2px}
+  /* スマホでは前後ボタンは矢印のみ（範囲ボタンの左右）にしてラベル被りを防ぐ */
+  .weekcal-top .wk-nav{height:36px;padding:0 12px;font-size:17px;font-weight:700;gap:0}
+  .weekcal-top .wk-nav .wk-nav-tx{display:none}
   .wk-headcell{font-size:11px;gap:3px}.wk-headcell .d{font-size:13px}
   .wk-slot{font-size:9.5px;padding:4px 5px;left:3px;right:3px}
   .wk-axis .hr{right:4px;font-size:9.5px}
@@ -521,6 +525,42 @@ select{height:48px;padding-block:0}
 .modal-actions{display:flex;gap:10px;margin-top:24px}
 .modal-actions .btn{flex:1}
 @media (prefers-reduced-motion:reduce){.modal{animation:none}}
+
+/* ===== 予約フロー: 範囲ボタン（タップで月カレンダーを開く）＆ 月カレンダー ===== */
+/* 「表示中の5日間の範囲」または各日付ヘッダーを押すと、月カレンダーが開き、
+   空き枠のある日を選ぶとその日から5日間を表示する（週=5日単位・スマホ最適）。 */
+.rangebtn{display:inline-flex;align-items:center;gap:10px;margin:0 auto;padding:9px 18px;border:1px solid var(--line-2);border-radius:var(--radius-pill);background:var(--surface);cursor:pointer;font-family:var(--display);font-weight:700;font-size:16px;color:var(--ink);box-shadow:var(--shadow)}
+.rangebtn:hover{border-color:var(--accent);color:var(--accent-ink)}
+.rangebtn .cal-ic{font-size:15px;line-height:1}
+.rangebtn .chev{color:var(--muted);font-size:11px}
+.wk-headcell.tappable{cursor:pointer;border-radius:var(--radius-sm)}
+.wk-headcell.tappable:hover{background:var(--surface-2)}
+.wk-headcell .hasdot{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-top:3px}
+
+.cal{width:min(360px,100%);text-align:left}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}
+.cal-title{font-family:var(--display);font-weight:700;font-size:17px}
+.cal-nav{width:38px;height:38px;flex:none;border:1px solid var(--line-2);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;font-size:16px;color:var(--ink-2)}
+.cal-nav:hover{border-color:var(--accent);color:var(--accent-ink)}
+.cal-nav:disabled{opacity:.35;cursor:not-allowed}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding-bottom:4px}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;border-radius:var(--radius-sm);font-size:14.5px;font-weight:600;color:var(--ink);cursor:pointer;position:relative}
+.cal-day.empty{visibility:hidden;pointer-events:none}
+.cal-day .dot{width:5px;height:5px;border-radius:50%;background:transparent}
+.cal-day.no-slot{color:var(--line-2);cursor:not-allowed}
+.cal-day.has-slot .dot{background:var(--accent)}
+.cal-day.has-slot:hover{background:var(--accent-soft)}
+.cal-day.today{box-shadow:inset 0 0 0 1px var(--line-2)}
+.cal-day.sel{background:var(--accent);color:#fff}
+.cal-day.sel .dot{background:#fff}
+.cal-legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px;font-size:12px;color:var(--muted)}
+.cal-legend .lg{display:inline-flex;align-items:center;gap:6px}
+.cal-legend .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block}
+@media (max-width:680px){
+  .rangebtn{font-size:14.5px;padding:8px 14px}
+  .cal-day{font-size:13.5px}
+}
 
 /* ===== ゲスト → キマル獲得導線（予約完了画面の下） ===== */
 .guest-cta{margin:18px 0 0;padding:clamp(24px,3.4vw,40px);text-align:center;background:var(--accent-soft);border:1px solid var(--accent-soft);border-radius:var(--radius);box-shadow:var(--shadow)}

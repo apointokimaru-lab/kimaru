@@ -218,18 +218,28 @@ const LIFE_PATH_HINT = {
   33: "奉仕・愛（マスター）。思いやりに寄り添うと信頼されます。",
 };
 
+// 生年月日から日柱（日干支）を求める。ユリウス通日(JDN)ベースで60干支の通し番号を算出。
+// 検算: 2000-01-01 の日柱＝戊午（甲子=0 とした通し番号54）と一致する（(JDN+49)%60）。
+function dayPillarIndices(year, month, day) {
+  const a = Math.floor((14 - month) / 12);
+  const y = year + 4800 - a;
+  const m = month + 12 * a - 3;
+  const jdn = day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+  const ganzhi = (((jdn + 49) % 60) + 60) % 60;
+  return { stemIndex: ganzhi % 10, branchIndex: ganzhi % 12 };
+}
+
 function buildRelationshipProfile(dateString, name = "") {
   if (!dateString) return null;
   const [rawYear, month, day] = dateString.split("-").map(Number);
   if (!rawYear || !month || !day) return null;
   const lifePath = lifePathNumber(rawYear, month, day);
   const lifePathHint = LIFE_PATH_HINT[lifePath] || "";
-  const adjustedYear = month < 2 || (month === 2 && day < 4) ? rawYear - 1 : rawYear;
   const stems = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
   const branches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
   const elements = ["木", "木", "火", "火", "土", "土", "金", "金", "水", "水"];
-  const stemIndex = (((adjustedYear - 4) % 10) + 10) % 10;
-  const branchIndex = (((adjustedYear - 4) % 12) + 12) % 12;
+  // 日柱（日干支）を主軸にする。日干＝その人の中心（自我）。日付ベースなので立春補正は不要。
+  const { stemIndex, branchIndex } = dayPillarIndices(rawYear, month, day);
   const element = elements[stemIndex];
   const elementTips = {
     木: ["成長と可能性を大切にするタイプ", "未来の話、挑戦していること、伸ばしたい強みから入ると会話が進みやすいです。", "最初から結論を急がせすぎず、考えを広げる余白を残すと関係が作りやすくなります。"],
@@ -244,7 +254,7 @@ function buildRelationshipProfile(dateString, name = "") {
   const generation = getGenerationInsight(rawYear);
   const displayName = name ? `${name}さん` : "お相手";
   return {
-    method: "生年月日インサイト（算命学＋数秘術）",
+    method: "生年月日インサイト（算命学 日柱＋数秘術）",
     pillar: `${stems[stemIndex]}${branches[branchIndex]}`,
     element,
     zodiac,
@@ -257,7 +267,7 @@ function buildRelationshipProfile(dateString, name = "") {
       `星座: ${zodiac}`,
       `季節感: ${season.season}。${season.tip}`,
       `世代感: ${generation.generation}。${generation.tip}`,
-      `四柱推命メモ: ${stems[stemIndex]}${branches[branchIndex]} / ${element}`,
+      `四柱推命メモ: 日柱 ${stems[stemIndex]}${branches[branchIndex]} / 五行 ${element}`,
       `数秘術ライフパス: ${lifePath}。${lifePathHint}`,
     ],
     birthday_status: getBirthdayStatus(dateString),

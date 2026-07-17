@@ -17,9 +17,11 @@
 
 ## 現状の実装
 
-- 予約設定画面に 前/後バッファ（なし/15/30）の選択 UI あり。
-- `booking-page-save` で `{0,15,30}` を検証し `booking_pages.buffer_before_minutes` / `buffer_after_minutes` に保存。
-- `availability.js` の枠生成で `step = duration + bufferBefore + bufferAfter`、各枠は `open+bufferBefore` 〜 `close-bufferAfter` の範囲で生成。
+- 予約設定画面に 前/後バッファ（なし/15/30…）の選択 UI あり。
+- `booking-page-save` で `{0,15,30,45,60}` を検証し `booking_pages.buffer_before_minutes` / `buffer_after_minutes` に保存。
+- `availability.js` の枠生成で `step = duration + bufferBefore + bufferAfter`（＝提示する枠どうしの間隔にバッファを確保）。
+- **既存の予定との重なり判定にもバッファを反映**（2026-07-17 修正）: `overlaps()` が既存の埋まり時間を「前は `bufferBefore` 分、後ろは `bufferAfter` 分」広げてから判定するため、予定の直前・直後（確保時間内）に枠が出ない。
+- 「埋まっている時間」は **Googleカレンダーの予定（freebusy）＋キマル上の確定予約（bookings）** の両方を突き合わせる。Google未連携やイベント作成失敗でもバッファ・二重予約防止が効く。判定窓はバッファ分だけ広げて取りこぼしを防ぐ。
 
 ## 関連ファイル
 

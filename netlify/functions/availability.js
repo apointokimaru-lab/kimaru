@@ -72,10 +72,32 @@ function generateSlots(weeklySettings, bookingPage, fromTime, toTime) {
   return slots;
 }
 
-function overlaps(slot, busy) {
+// 既存の予定（Googleの予定＋既存予約）を前後バッファ分だけ広げてから重なり判定する。
+// これで「予約の前後に確保する時間（前バッファ/後バッファ）」が空き枠計算に反映され、
+// 予定の直前・直後（バッファ内）に枠が出てしまうバグを防ぐ。
+function overlaps(slot, busy, bufferBeforeMs = 0, bufferAfterMs = 0) {
   const s = new Date(slot.start).getTime();
   const e = new Date(slot.end).getTime();
-  return busy.some((item) => s < new Date(item.end).getTime() && e > new Date(item.start).getTime());
+  return busy.some((item) => {
+    const busyStart = new Date(item.start).getTime() - bufferBeforeMs;
+    const busyEnd = new Date(item.end).getTime() + bufferAfterMs;
+    return s < busyEnd && e > busyStart;
+  });
+}
+
+// 既存の確定予約を「埋まっている時間」として扱う（Google連携が無い/未反映でも二重予約・バッファを効かせる）。
+// 未マイグレーション環境や失敗時は空配列にフォールバックし、空き枠計算は止めない。
+async function ownerBookingBusy(ownerId, fromIso, toIso) {
+  try {
+    const rows = await sb(
+      `bookings?owner_id=${eq(ownerId)}&status=eq.confirmed&start_at=lt.${encodeURIComponent(toIso)}&end_at=gt.${encodeURIComponent(fromIso)}&select=start_at,end_at,start_time,end_time&limit=1000`
+    );
+    return (rows || [])
+      .map((row) => ({ start: row.start_at || row.start_time, end: row.end_at || row.end_time }))
+      .filter((item) => item.start && item.end);
+  } catch (_) {
+    return [];
+  }
 }
 
 async function ownerBookingPage(owner) {
@@ -158,8 +180,18 @@ exports.handler = async (event) => {
     const weekSlots = generateSlots(weeklySettings, bookingPage, fromTime, Math.min(toTime, maxTime + dayMs));
     let openSlots = weekSlots;
     if (weekSlots.length) {
-      const busy = await freebusy(owner.id, new Date(fromTime).toISOString(), new Date(toTime).toISOString()).catch(() => []);
-      openSlots = weekSlots.filter((slot) => !overlaps(slot, busy));
+      // 前後バッファ分だけ判定窓を広げ、窓の外の予定でもバッファが枠に掛かるものを取りこぼさない。
+      const bufferBeforeMs = Math.max(0, Number(bookingPage?.buffer_before_minutes || 0)) * 60 * 1000;
+      const bufferAfterMs = Math.max(0, Number(bookingPage?.buffer_after_minutes || 0)) * 60 * 1000;
+      const busyFromIso = new Date(fromTime - bufferAfterMs - dayMs).toISOString();
+      const busyToIso = new Date(toTime + bufferBeforeMs + dayMs).toISOString();
+      // Googleカレンダーの予定＋キマル上の確定予約の両方を「埋まっている時間」とみなす。
+      const [calendarBusy, bookingBusy] = await Promise.all([
+        freebusy(owner.id, busyFromIso, busyToIso).catch(() => []),
+        ownerBookingBusy(owner.id, busyFromIso, busyToIso),
+      ]);
+      const busy = [...calendarBusy, ...bookingBusy];
+      openSlots = weekSlots.filter((slot) => !overlaps(slot, busy, bufferBeforeMs, bufferAfterMs));
     }
     return json(200, { slots: openSlots, questions, host, week: weekOffset, hasPrev, hasNext });
   } catch (error) {

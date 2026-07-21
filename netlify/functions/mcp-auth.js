@@ -49,13 +49,6 @@ function parseForm(body) {
   return Object.fromEntries(new URLSearchParams(body || ""));
 }
 
-function parseCookies(header = "") {
-  return Object.fromEntries(header.split(";").map((part) => {
-    const index = part.indexOf("=");
-    return index < 0 ? [part.trim(), ""] : [part.slice(0, index).trim(), decodeURIComponent(part.slice(index + 1))];
-  }).filter(([key]) => key));
-}
-
 // redirect_uri へ返してよいのは client_id・redirect_uri の検証が済んだ後だけ（OAuth の鉄則）
 function redirectWithParams(redirectUri, params) {
   const url = new URL(redirectUri);
@@ -100,25 +93,25 @@ exports.handler = async (event) => {
   const clientLabel = client.n || "AIクライアント";
 
   if (method === "POST") {
-    // CSRF: hidden の nonce/ts と cookie の署名付き nonce が一致すること
-    const cookies = parseCookies(event.headers.cookie || event.headers.Cookie || "");
-    const [cnonce, cts, csig] = String(cookies.kimaru_mcp_consent || "").split(":");
-    const csrfOk = cnonce && cnonce === params.consent_nonce && verifyTimedToken("mcpconsent", cnonce, cts, csig, 600000);
+    // CSRF: hidden の署名付きトークン（nonce/ts/sig）を検証する。署名は owner.id に束縛するので
+    // 別ユーザーのトークンでは通らない。Cookie に依存しないのは、OAuth コネクタ（claude.ai / ChatGPT）の
+    // ポップアップ/リダイレクト遷移では Cookie 分割（パーティション）やパスの都合で同意 Cookie が POST 時に
+    // 届かず「セッション切れ」になっていたため。クロスサイト POST 自体は kimaru_session(=Lax) が送出されず
+    // owner=null で弾かれる（＝本来のCSRF防御はセッション Cookie 側が担っている）。
+    const csrfOk = params.consent_nonce
+      && verifyTimedToken("mcpconsent", `${params.consent_nonce}:${owner.id}`, params.consent_ts, params.consent_sig, 600000);
     if (!csrfOk) return html(400, page("接続エラー", `<p class="eyebrow">MCP CONNECT</p><h1>セッションの有効期限が切れました</h1><p>AIクライアント側から接続をやり直してください。</p>`));
-    const clearConsent = { "Set-Cookie": "kimaru_mcp_consent=; Path=/api/mcp-auth; HttpOnly; SameSite=Lax; Secure; Max-Age=0" };
     if (params.decision !== "approve") {
-      const denied = redirectWithParams(params.redirect_uri, { error: "access_denied", state: params.state });
-      return { ...denied, headers: { ...denied.headers, ...clearConsent } };
+      return redirectWithParams(params.redirect_uri, { error: "access_denied", state: params.state });
     }
     const code = issueCode({ ownerId: owner.id, clientId: params.client_id, redirectUri: params.redirect_uri, codeChallenge: params.code_challenge, scope: params.scope || SCOPE });
-    const granted = redirectWithParams(params.redirect_uri, { code, state: params.state });
-    return { ...granted, headers: { ...granted.headers, ...clearConsent } };
+    return redirectWithParams(params.redirect_uri, { code, state: params.state });
   }
 
-  // GET: 同意画面
+  // GET: 同意画面。CSRF は Cookie ではなく hidden の署名付きトークン（owner.id 束縛）で担保する。
   const nonce = crypto.randomBytes(16).toString("base64url");
   const ts = Date.now();
-  const consentCookie = `kimaru_mcp_consent=${nonce}:${ts}:${timedToken("mcpconsent", nonce, ts)}; Path=/api/mcp-auth; HttpOnly; SameSite=Lax; Secure; Max-Age=600`;
+  const sig = timedToken("mcpconsent", `${nonce}:${owner.id}`, ts);
   const hidden = (name, value) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value || "")}">`;
   const inner = `
     <p class="eyebrow">MCP CONNECT</p>
@@ -130,12 +123,12 @@ exports.handler = async (event) => {
       <li>あなたのプロフィール</li>
     </ul>
     <form method="POST" action="/api/mcp-auth">
-      ${hidden("client_id", params.client_id)}${hidden("redirect_uri", params.redirect_uri)}${hidden("state", params.state)}${hidden("code_challenge", params.code_challenge)}${hidden("code_challenge_method", "S256")}${hidden("scope", params.scope || SCOPE)}${hidden("consent_nonce", nonce)}
+      ${hidden("client_id", params.client_id)}${hidden("redirect_uri", params.redirect_uri)}${hidden("state", params.state)}${hidden("code_challenge", params.code_challenge)}${hidden("code_challenge_method", "S256")}${hidden("scope", params.scope || SCOPE)}${hidden("consent_nonce", nonce)}${hidden("consent_ts", String(ts))}${hidden("consent_sig", sig)}
       <div class="actions">
         <button class="deny" type="submit" name="decision" value="deny">拒否</button>
         <button class="approve" type="submit" name="decision" value="approve">許可する</button>
       </div>
     </form>
     <p class="note">許可すると、接続したAIサービスにこれらのデータが送信されます。ai-assist の「URLを再発行」でいつでも全接続を無効化できます。</p>`;
-  return html(200, page("接続の確認", inner), { "Set-Cookie": consentCookie });
+  return html(200, page("接続の確認", inner));
 };

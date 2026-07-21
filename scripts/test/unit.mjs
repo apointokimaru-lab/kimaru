@@ -238,16 +238,19 @@ ok("authorize without session → redirect to login with next", anonAuth.statusC
 const freeAuth = await authFn.handler({ httpMethod: "GET", headers: { cookie: freeCookie }, queryStringParameters: authQuery });
 ok("authorize for free plan → 403 page", freeAuth.statusCode === 403);
 const consentRes = await authFn.handler({ httpMethod: "GET", headers: { cookie }, queryStringParameters: authQuery });
-ok("authorize (premium) → consent page with client name", consentRes.statusCode === 200 && consentRes.body.includes("TestGPT") && String(consentRes.headers["Set-Cookie"]).includes("kimaru_mcp_consent="));
-const consentCookieValue = String(consentRes.headers["Set-Cookie"]).split(";")[0];
-const consentNonce = consentCookieValue.split("=")[1].split(":")[0];
+// CSRFは Cookie ではなく hidden の署名付きトークン（owner.id 束縛・#252 後の決定31運用）。同意HTMLから抽出する。
+ok("authorize (premium) → consent page with client name", consentRes.statusCode === 200 && consentRes.body.includes("TestGPT") && consentRes.body.includes('name="consent_sig"'));
+const hiddenVal = (name) => (consentRes.body.match(new RegExp(`name="${name}" value="([^"]*)"`)) || [])[1];
+const consentNonce = hiddenVal("consent_nonce");
+const consentTs = hiddenVal("consent_ts");
+const consentSig = hiddenVal("consent_sig");
 
-const approveBody = new URLSearchParams({ ...authQuery, consent_nonce: consentNonce, decision: "approve" }).toString();
-const approveRes = await authFn.handler({ httpMethod: "POST", headers: { cookie: `${cookie}; ${consentCookieValue}` }, body: approveBody });
+const approveBody = new URLSearchParams({ ...authQuery, consent_nonce: consentNonce, consent_ts: consentTs, consent_sig: consentSig, decision: "approve" }).toString();
+const approveRes = await authFn.handler({ httpMethod: "POST", headers: { cookie }, body: approveBody });
 const approveLoc = approveRes.statusCode === 302 ? new URL(approveRes.headers.Location) : null;
 ok("consent approve → 302 to redirect_uri with code + state", !!approveLoc && approveLoc.origin + approveLoc.pathname === REDIRECT && !!approveLoc.searchParams.get("code") && approveLoc.searchParams.get("state") === "st4te");
-const noCsrf = await authFn.handler({ httpMethod: "POST", headers: { cookie }, body: approveBody });
-ok("consent POST without CSRF cookie → 400", noCsrf.statusCode === 400);
+const noCsrf = await authFn.handler({ httpMethod: "POST", headers: { cookie }, body: new URLSearchParams({ ...authQuery, decision: "approve" }).toString() });
+ok("consent POST without CSRF token → 400", noCsrf.statusCode === 400);
 
 const code = approveLoc.searchParams.get("code");
 const exchange = async (extra) => {

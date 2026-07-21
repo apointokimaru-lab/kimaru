@@ -18,6 +18,7 @@
   <!-- site-footer -->
 
   <script src="/i18n.js" defer></script>
+  <script src="/richtext.js" defer></script>
   <script>
     const $ = (s) => document.querySelector(s);
     const T = (k, fb) => (window.KimaruI18n ? window.KimaruI18n.t(k) : fb);
@@ -78,7 +79,11 @@
       // 予約導線（mock 準拠・/b/<slug> へ）。公開プロフィールに予約CTAが無いのは集客機会の損失。
       const bookSlug = resolveSlug();
       if (bookSlug) blocks.push(`<div class="form-actions pp-book" style="margin:2px 0 18px"><a class="button primary" href="/b/${encodeURIComponent(bookSlug)}">${escapeHtml(T('pp.bookCta', 'この人に予約する →'))}</a></div>`);
-      if (p.profile_bio_rich) blocks.push(`<section class="assist-block pp-bio">${formatRich(p.profile_bio_rich)}</section>`);
+      if (p.profile_bio_rich) {
+        // 自己紹介はサニタイズ済みHTML（旧Markdownも後方互換で変換）。見出しにはアクセント色。
+        const bioHtml = window.KimaruRichText ? window.KimaruRichText.render(p.profile_bio_rich) : formatRich(p.profile_bio_rich);
+        blocks.push(`<section class="assist-block pp-bio"${accent ? ` style="--pp-accent:${accent}"` : ''}>${bioHtml}</section>`);
+      }
       if (p.profile_strengths) blocks.push(`<section class="assist-block"><h3 class="pp-heading"${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(T('pp.strengths', '強み・得意なこと'))}</h3><p>${escapeHtml(p.profile_strengths)}</p></section>`);
       if (p.profile_offer) blocks.push(`<section class="assist-block"><h3 class="pp-heading"${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(T('pp.offer', '提供できる価値'))}</h3><p>${escapeHtml(p.profile_offer)}</p></section>`);
       if (p.profile_values) blocks.push(`<section class="assist-block"><h3 class="pp-heading"${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(T('pp.values', '大切にしていること'))}</h3><p>${escapeHtml(p.profile_values)}</p></section>`);

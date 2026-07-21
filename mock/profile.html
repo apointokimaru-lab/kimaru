@@ -56,9 +56,17 @@
           <label for="pf-bio">自己紹介（公開・装飾できます）</label>
           <div class="rte" id="pf-bio-rte">
             <div class="rte-bar" role="toolbar" aria-label="装飾">
-              <button type="button" class="rte-btn" data-cmd="heading" title="見出しにする"><span class="rte-ico">H</span>見出し</button>
-              <button type="button" class="rte-btn" data-cmd="bold" title="太字にする"><span class="rte-ico">B</span>太字</button>
-              <span class="rte-hint">選んでから装飾</span>
+              <button type="button" class="rte-btn" data-cmd="bold" title="太字"><b>B</b></button>
+              <button type="button" class="rte-btn" data-cmd="italic" title="斜体"><i>I</i></button>
+              <button type="button" class="rte-btn" data-cmd="underline" title="下線"><u>U</u></button>
+              <button type="button" class="rte-btn" data-cmd="strike" title="打ち消し線"><s>S</s></button>
+              <span class="rte-sep" aria-hidden="true"></span>
+              <button type="button" class="rte-btn" data-cmd="heading" title="見出し">見出し</button>
+              <span class="rte-sep" aria-hidden="true"></span>
+              <button type="button" class="rte-btn" data-cmd="ul" title="箇条書き">・箇条書き</button>
+              <button type="button" class="rte-btn" data-cmd="ol" title="番号付き">1. 番号</button>
+              <span class="rte-sep" aria-hidden="true"></span>
+              <button type="button" class="rte-btn" data-cmd="link" title="リンク">🔗 リンク</button>
             </div>
             <div class="rte-area" id="pf-bio" contenteditable="true" role="textbox" aria-multiline="true"
                  data-placeholder="見出しや太字で、自己紹介を読みやすく。"></div>
@@ -128,14 +136,16 @@
       var accent = document.getElementById('pf-accent');
       var accentCode = document.getElementById('pf-accent-code');
 
-      // 初期表示（見出し＋太字のサンプル）
+      // 初期表示（各装飾のサンプル）
       editor.innerHTML =
         '<h3>はじめまして、田中さくらです</h3>' +
-        '<div>これまで<strong>300名以上</strong>のキャリア面談を担当してきました。</div>' +
-        '<div>等身大で話せる時間にしましょう。</div>';
+        '<div>これまで<strong>300名以上</strong>の<em>キャリア面談</em>を担当してきました。</div>' +
+        '<ul><li>強み：<u>傾聴</u>と具体的な次の一手</li><li>対象：<s>学生のみ</s> 社会人も歓迎</li></ul>' +
+        '<div>詳しくは <a href="https://example.com">プロフィール</a> をご覧ください。</div>';
 
+      var CMD = { bold: 'bold', italic: 'italic', underline: 'underline', strike: 'strikeThrough', ul: 'insertUnorderedList', ol: 'insertOrderedList' };
       function refreshEmpty() {
-        var blank = editor.textContent.trim() === '' && !editor.querySelector('h3,strong,b');
+        var blank = editor.textContent.trim() === '' && !editor.querySelector('h3,strong,b,em,i,u,s,a,ul,ol');
         editor.classList.toggle('is-empty', blank);
       }
       function currentHeading() {
@@ -143,17 +153,25 @@
         while (node && node !== editor) { if (node.nodeName === 'H3') return true; node = node.parentNode; }
         return false;
       }
+      function state(cmd) { try { return document.queryCommandState(cmd); } catch (e) { return false; } }
       function refreshActive() {
-        var b = false; try { b = document.queryCommandState('bold'); } catch (e) {}
         bar.querySelector('[data-cmd="heading"]').classList.toggle('is-active', currentHeading());
-        bar.querySelector('[data-cmd="bold"]').classList.toggle('is-active', b);
+        Object.keys(CMD).forEach(function (k) {
+          var btn = bar.querySelector('[data-cmd="' + k + '"]');
+          if (btn) btn.classList.toggle('is-active', state(CMD[k]));
+        });
       }
+      bar.addEventListener('mousedown', function (e) { if (e.target.closest('.rte-btn')) e.preventDefault(); });
       bar.addEventListener('click', function (e) {
         var btn = e.target.closest('.rte-btn'); if (!btn) return;
         e.preventDefault();
         editor.focus();
-        if (btn.dataset.cmd === 'bold') document.execCommand('bold');
-        else document.execCommand('formatBlock', false, currentHeading() ? 'div' : 'h3');
+        var cmd = btn.dataset.cmd;
+        if (cmd === 'heading') document.execCommand('formatBlock', false, currentHeading() ? 'div' : 'h3');
+        else if (cmd === 'link') {
+          var url = window.prompt('リンク先URL（https://…）', 'https://');
+          if (url && /^https?:\/\//i.test(url)) document.execCommand('createLink', false, url);
+        } else if (CMD[cmd]) document.execCommand(CMD[cmd]);
         refreshEmpty(); refreshActive();
       });
       document.addEventListener('selectionchange', function () { if (document.activeElement === editor) refreshActive(); });

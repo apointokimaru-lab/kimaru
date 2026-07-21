@@ -221,6 +221,20 @@ create table if not exists manual_contacts (
   created_at timestamptz not null default now()
 );
 
+-- 会話記録（Pro）: 予約(会った1回)と1対1。相手一覧の各行から作成/編集・閲覧する（決定・行↔記録=1:1）。
+-- notes/next_action/keywords＋印象スコア(scores jsonb)。列/テーブル欠如時はコード側で degrade。
+create table if not exists booking_notes (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references owners(id) on delete cascade,
+  booking_id uuid not null references bookings(id) on delete cascade,
+  notes text not null default '',
+  next_action text not null default '',
+  keywords text not null default '',
+  scores jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now(),
+  unique (booking_id)
+);
+
 create table if not exists free_signups (
   id uuid primary key default gen_random_uuid(),
   name text not null,

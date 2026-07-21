@@ -370,6 +370,8 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
 .wk-slot .wk-slot-e{font-size:10px;opacity:.85;white-space:nowrap}
 .wk-slot:hover{filter:brightness(1.07)}
 .wk-slot.sel{box-shadow:0 0 0 3px var(--surface),0 0 0 6px rgba(222,74,46,.55)}
+/* 表示間隔が短い（30分など）低い枠：開始時刻のみ・余白を詰めて重なりを防ぐ */
+.wk-slot.is-compact{padding-top:2px;padding-bottom:2px;gap:0}
 
 /* 空き枠が無い日/週のメッセージ領域（#slot-grid はステータス表示に転用） */
 .slot-grid:empty{display:none}

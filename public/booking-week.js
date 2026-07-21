@@ -327,11 +327,19 @@ function renderGrid(data) {
   const headHtml = cols.map((dt) => `<div class="wk-headcell tappable" data-cal-open><span class="d">${dt.getDate()}</span>${escapeHtml(weekdayShort(dt))}</div>`).join("");
   const actionLabel = t("booking.week.book", "予約する");
   const dayColsHtml = cols.map((dt) => {
-    const list = byCol.get(colKey(dt)) || [];
-    const blocks = list.map((s) => {
+    const list = (byCol.get(colKey(dt)) || []).slice().sort((a, b) => a.startMin - b.startMin);
+    const blocks = list.map((s, i) => {
       const top = (s.startMin - startHour * 60) / 60;
-      const height = Math.max(0.6, (s.endMin - s.startMin) / 60);
-      return `<button type="button" class="wk-slot" data-start="${escapeHtml(s.start)}" data-end="${escapeHtml(s.end)}" title="${escapeHtml(actionLabel)}" style="top:calc(var(--hh)*${top.toFixed(3)});height:calc(var(--hh)*${height.toFixed(3)})"><span class="wk-slot-t">${escapeHtml(fmtMin(s.startMin))}</span><span class="wk-slot-e">${escapeHtml(fmtMin(s.endMin))}</span></button>`;
+      const durH = (s.endMin - s.startMin) / 60;
+      // 表示間隔が所要より短いと枠が重なるため、高さは「次の枠の開始まで(=表示間隔)」を超えないようにする。
+      const gapH = (i + 1 < list.length) ? (list[i + 1].startMin - s.startMin) / 60 : durH;
+      const height = Math.min(durH, gapH);
+      // 低い枠は開始時刻のみ表示（終了は所要から自明）。2行が収まらず重なるのを防ぐ。
+      const compact = height < 0.62;
+      const label = compact
+        ? `<span class="wk-slot-t">${escapeHtml(fmtMin(s.startMin))}</span>`
+        : `<span class="wk-slot-t">${escapeHtml(fmtMin(s.startMin))}</span><span class="wk-slot-e">${escapeHtml(fmtMin(s.endMin))}</span>`;
+      return `<button type="button" class="wk-slot${compact ? " is-compact" : ""}" data-start="${escapeHtml(s.start)}" data-end="${escapeHtml(s.end)}" title="${escapeHtml(actionLabel)}" style="top:calc(var(--hh)*${top.toFixed(3)});height:calc(var(--hh)*${height.toFixed(3)})">${label}</button>`;
     }).join("");
     return `<div class="wk-day" style="min-height:calc(var(--hh)*${hours})">${blocks}</div>`;
   }).join("");

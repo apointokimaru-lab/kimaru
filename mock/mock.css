@@ -179,15 +179,22 @@ select{height:48px;padding-block:0}
 .rte{border:1.5px solid var(--line-2);border-radius:var(--radius-sm);background:var(--surface);transition:border-color .15s,box-shadow .15s}
 .rte:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
 .rte-bar{display:flex;align-items:center;gap:6px;padding:7px 9px;background:var(--surface-2);border-bottom:1px solid var(--line);border-radius:var(--radius-sm) var(--radius-sm) 0 0;flex-wrap:wrap}
-.rte-btn{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 12px;font:inherit;font-size:13px;font-weight:700;color:var(--ink-2);background:var(--surface);border:1px solid var(--line-2);border-radius:var(--radius-sm);cursor:pointer;transition:background .12s,color .12s,border-color .12s}
-.rte-btn:hover{border-color:var(--ink);color:var(--ink)}
-.rte-btn.is-active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.rte-btn .rte-ico{font-family:var(--display);font-weight:800;font-size:15px;line-height:1}
+.rte-btn{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 9px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);background:transparent;border:0;border-radius:7px;cursor:pointer;transition:background .12s,color .12s}
+.rte-btn:hover{background:rgba(26,26,26,.06);color:var(--ink)}
+.rte-btn.is-active{background:var(--accent);color:#fff}
+.rte-btn b,.rte-btn i,.rte-btn u,.rte-btn s{font-size:15px;font-weight:800;line-height:1}
+.rte-sep{width:1px;align-self:stretch;margin:5px 4px;background:var(--line-2)}
 .rte-hint{margin-left:auto;font-size:12px;color:var(--muted);align-self:center}
-.rte-area{min-height:136px;padding:14px;line-height:1.75;color:var(--ink);outline:none;overflow-wrap:anywhere}
+.rte-area{min-height:150px;padding:14px 16px;line-height:1.75;color:var(--ink);outline:none;overflow-wrap:anywhere}
 .rte-area.is-empty::before{content:attr(data-placeholder);color:var(--muted);pointer-events:none}
 .rte-area h3{font-family:var(--display);font-size:19px;font-weight:800;line-height:1.35;margin:2px 0 7px;color:var(--rte-accent,var(--accent))}
-.rte-area strong,.rte-area b{font-weight:800;color:var(--ink)}
+.rte-area strong,.rte-area b{font-weight:800}
+.rte-area em,.rte-area i{font-style:italic}
+.rte-area u{text-decoration:underline}
+.rte-area s,.rte-area strike,.rte-area del{text-decoration:line-through;opacity:.8}
+.rte-area a{color:var(--accent-ink);text-decoration:underline}
+.rte-area ul,.rte-area ol{margin:5px 0;padding-left:1.5em}
+.rte-area li{margin:2px 0}
 .rte-area>div:not(:last-child){margin-bottom:2px}
 /* アクセント色ピッカー行 */
 .accent-row{display:flex;align-items:center;gap:12px}

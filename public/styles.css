@@ -336,20 +336,36 @@ select{height:48px;padding-block:0}
 .field-warning a{color:inherit;font-weight:700;text-decoration:underline}
 @media (max-width:640px){.candidate-grid{grid-template-columns:1fr}}
 
-/* ===== リッチテキストエディタ（自己紹介の装飾入力・見出し/太字） ===== */
+/* ===== リッチテキストエディタ（自己紹介の装飾入力：太字/斜体/下線/打消/見出し/リスト/リンク） ===== */
 .rte{border:1.5px solid var(--line-2);border-radius:var(--radius-sm);background:var(--surface);transition:border-color .15s,box-shadow .15s}
 .rte:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
-.rte-bar{display:flex;align-items:center;gap:6px;padding:7px 9px;background:var(--surface-2);border-bottom:1px solid var(--line);border-radius:var(--radius-sm) var(--radius-sm) 0 0;flex-wrap:wrap}
-.rte-btn{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 12px;font:inherit;font-size:13px;font-weight:700;color:var(--ink-2);background:var(--surface);border:1px solid var(--line-2);border-radius:var(--radius-sm);cursor:pointer;transition:background .12s,color .12s,border-color .12s}
-.rte-btn:hover{border-color:var(--ink);color:var(--ink)}
-.rte-btn.is-active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.rte-btn .rte-ico{font-family:var(--display);font-weight:800;font-size:15px;line-height:1}
+.rte-bar{display:flex;align-items:center;gap:2px;padding:6px 8px;background:var(--surface-2);border-bottom:1px solid var(--line);border-radius:var(--radius-sm) var(--radius-sm) 0 0;flex-wrap:wrap}
+.rte-btn{display:inline-flex;align-items:center;gap:5px;min-height:32px;padding:0 9px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);background:transparent;border:0;border-radius:7px;cursor:pointer;transition:background .12s,color .12s}
+.rte-btn:hover{background:rgba(25,26,28,.06);color:var(--ink)}
+.rte-btn.is-active{background:var(--accent);color:#fff}
+.rte-btn b,.rte-btn i,.rte-btn u,.rte-btn s{font-size:15px;font-weight:800;line-height:1}
+.rte-sep{width:1px;align-self:stretch;margin:5px 4px;background:var(--line-2)}
 .rte-hint{margin-left:auto;font-size:12px;color:var(--muted);align-self:center}
-.rte-area{min-height:136px;padding:14px;line-height:1.75;color:var(--ink);outline:none;overflow-wrap:anywhere}
+.rte-area{min-height:150px;padding:14px 16px;line-height:1.75;color:var(--ink);outline:none;overflow-wrap:anywhere}
 .rte-area.is-empty::before{content:attr(data-placeholder);color:var(--muted);pointer-events:none}
 .rte-area h3{font-family:var(--display);font-size:19px;font-weight:800;line-height:1.35;margin:2px 0 7px;color:var(--rte-accent,var(--accent))}
-.rte-area strong,.rte-area b{font-weight:800;color:var(--ink)}
+.rte-area strong,.rte-area b{font-weight:800}
+.rte-area em,.rte-area i{font-style:italic}
+.rte-area u{text-decoration:underline}
+.rte-area s,.rte-area strike,.rte-area del{text-decoration:line-through;opacity:.8}
+.rte-area a{color:var(--accent-ink);text-decoration:underline}
+.rte-area ul,.rte-area ol{margin:5px 0;padding-left:1.5em}
+.rte-area li{margin:2px 0}
 .rte-area>div:not(:last-child){margin-bottom:2px}
+
+/* 公開プロフィールの自己紹介（サニタイズ済みHTMLを描画） */
+.pp-bio h3{color:var(--pp-accent,inherit)}
+.pp-bio em,.pp-bio i{font-style:italic}
+.pp-bio u{text-decoration:underline}
+.pp-bio s,.pp-bio strike,.pp-bio del{text-decoration:line-through;opacity:.8}
+.pp-bio a{color:var(--accent-ink);text-decoration:underline}
+.pp-bio ul,.pp-bio ol{margin:6px 0;padding-left:1.5em}
+.pp-bio li{margin:3px 0}
 
 /* ===== メッセージ（.message / 成功・エラー） ===== */
 .message{min-height:22px;margin:12px 0 0;color:var(--ink-2);font-size:14px;font-weight:700;line-height:1.6}
@@ -899,6 +915,24 @@ select{height:48px;padding-block:0}
 .modal-actions{display:flex;gap:10px;margin-top:24px}
 .modal-actions .btn,.modal-actions .button{flex:1}
 @media (prefers-reduced-motion:reduce){.modal{animation:none}}
+
+/* ===== 会話記録（相手一覧の行ボタン＋モーダル） ===== */
+.button.mini{min-height:32px;padding:0 12px;font-size:12.5px;font-weight:700;border-radius:var(--radius-sm)}
+.cell-note{white-space:nowrap}
+.cell-note .button{margin:2px 6px 2px 0}
+.note-dot{color:var(--success);font-size:9px;vertical-align:middle;margin-left:2px}
+body.modal-open{overflow:hidden}
+.note-modal{width:min(560px,100%);text-align:left;max-height:calc(100dvh - 40px);overflow-y:auto}
+.note-modal>.eyebrow{margin:0}
+.note-modal h2{font-size:22px;margin:4px 0 2px}
+.note-modal .note-sub{margin:0 0 14px;font-weight:700;color:var(--ink)}
+.note-modal .modal-actions{position:sticky;bottom:-1px;background:var(--surface);padding:12px 0 2px;margin-top:18px}
+.note-view-body .note-view-sec{margin-top:14px}
+.note-view-body .note-view-sec h3{font-size:13px;color:var(--accent-ink);margin:0 0 4px;letter-spacing:.02em}
+.note-view-body .note-view-kw{font-family:var(--mono);font-size:13px;color:var(--muted);margin:0}
+.note-scores{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 18px;margin-top:4px}
+.note-score-row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:5px 0;font-size:13px}
+.note-score-row b{color:var(--accent-ink)}
 
 /* ============================================================
    ゲスト → キマル獲得導線（mock .guest-cta）

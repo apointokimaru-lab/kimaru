@@ -3,6 +3,7 @@ const page = document.body.dataset.page;
 let currentOwner = null;
 let ownerAvailability = [];
 let calendarConnected = false;
+let contactNoteIds = new Set(); // 会話記録がある予約IDの集合（相手一覧のバッジ用）
 
 function t(key) {
   return window.KimaruI18n?.t(key) || key;
@@ -565,9 +566,10 @@ function renderBookings(bookings) {
   const list = $("#booking-list");
   if (!list) return;
   if (!bookings.length) {
-    list.innerHTML = `<tr><td colspan="4" class="empty-cell">${t("admin.noBookings")}</td></tr>`;
+    list.innerHTML = `<tr><td colspan="5" class="empty-cell">${t("admin.noBookings")}</td></tr>`;
     return;
   }
+  const isPro = isProPlan(currentOwner?.plan);
   list.innerHTML = bookings.map((booking) => {
     const context = parseRelationshipContext(booking.filter_request);
     const insight = renderRelationshipContext(context);
@@ -579,12 +581,21 @@ function renderBookings(bookings) {
     // 生年月日インサイト（占いベース相手分析）は Pro/Premium 限定（無料には出さない）。
     const insightCell = insight && isProPlan(currentOwner?.plan) ? `<details class="insight-toggle"><summary>${t("admin.contacts.insightToggle")}</summary>${insight}</details>` : "";
     const manualTag = booking.manual ? ` <span class="free-tag">${escapeHtml(t("admin.contacts.manualTag"))}</span>` : "";
+    // 会話記録（Pro）: 実予約(手動でない)の行だけ「取る／見る」。記録があれば●バッジ。
+    const canNote = isPro && !booking.manual && booking.id;
+    const hasNote = canNote && contactNoteIds.has(booking.id);
+    const bid = escapeHtml(booking.id || "");
+    const noteCell = canNote
+      ? `<button type="button" class="button mini secondary" data-note-take data-booking-id="${bid}" data-name="${name}">${escapeHtml(t("admin.note.take"))}</button>`
+        + `<button type="button" class="button mini secondary" data-note-view data-booking-id="${bid}" data-name="${name}">${escapeHtml(t("admin.note.view"))}${hasNote ? ' <span class="note-dot" aria-hidden="true">●</span>' : ""}</button>`
+      : "—";
     return `
       <tr class="list-item">
         <td data-label="${t("admin.contacts.colName")}"><strong>${name}</strong>${manualTag}</td>
         <td data-label="${t("admin.contacts.colEmail")}" class="cell-email">${email || "—"}</td>
         <td data-label="${t("admin.contacts.colTopic")}">${topic || (insightCell ? "" : "—")}${insightCell}</td>
         <td data-label="${t("admin.contacts.colDate")}" class="cell-date">${when || "—"}</td>
+        <td data-label="${t("admin.contacts.colNote")}" class="cell-note">${noteCell}</td>
       </tr>
     `;
   }).join("");
@@ -920,6 +931,106 @@ function fillBookingPageForm(page) {
   openPageEditor();
 }
 
+// ===== 会話記録（Pro）: 相手一覧の行(=予約1回)ごと・1対1。モーダルで作成/編集・閲覧。 =====
+const NOTE_TRAITS = [
+  ["trait_first_impression", "admin.trait.firstImpression"],
+  ["trait_speaking", "admin.trait.speaking"],
+  ["trait_listening", "admin.trait.listening"],
+  ["trait_proactive", "admin.trait.proactive"],
+  ["trait_giver", "admin.trait.giver"],
+  ["trait_positive", "admin.trait.positive"],
+  ["trait_logical", "admin.trait.logical"],
+  ["trait_empathy", "admin.trait.empathy"],
+  ["trait_decisive", "admin.trait.decisive"],
+  ["trait_referral", "admin.trait.referral"],
+];
+
+function buildNoteTraitGrid() {
+  const grid = document.getElementById("note-trait-grid");
+  if (!grid || grid.dataset.built) return;
+  grid.innerHTML = NOTE_TRAITS.map(([key, i18nKey]) => {
+    const opts = [1, 2, 3, 4, 5].map((n) => `<option value="${n}"${n === 3 ? " selected" : ""}>${n}</option>`).join("");
+    return `<label><span data-i18n="${i18nKey}">${escapeHtml(t(i18nKey))}</span><select name="${key}">${opts}</select></label>`;
+  }).join("");
+  grid.dataset.built = "1";
+}
+function openModalEl(id) { const m = document.getElementById(id); if (m) { m.hidden = false; document.body.classList.add("modal-open"); } }
+function closeNoteModals() {
+  ["note-edit-modal", "note-view-modal"].forEach((id) => { const m = document.getElementById(id); if (m) m.hidden = true; });
+  document.body.classList.remove("modal-open");
+}
+function fillNoteForm(form, note) {
+  if (form.elements.keywords) form.elements.keywords.value = note.keywords || "";
+  if (form.elements.notes) form.elements.notes.value = note.notes || "";
+  if (form.elements.next_action) form.elements.next_action.value = note.next_action || "";
+  const scores = note.scores && typeof note.scores === "object" ? note.scores : {};
+  NOTE_TRAITS.forEach(([key]) => { if (form.elements[key] && scores[key]) form.elements[key].value = String(scores[key]); });
+}
+async function openNoteEditor(bookingId, name) {
+  if (!bookingId) return;
+  buildNoteTraitGrid();
+  const form = document.getElementById("note-form");
+  if (!form) return;
+  form.reset();
+  if (form.elements.booking_id) form.elements.booking_id.value = bookingId;
+  const sub = document.getElementById("note-edit-sub"); if (sub) sub.textContent = name || "";
+  setMessage("#note-form-message", "");
+  openModalEl("note-edit-modal");
+  try { const { note } = await api(`booking-note?booking_id=${encodeURIComponent(bookingId)}`); if (note) fillNoteForm(form, note); } catch (_) { /* 未保存/未マイグレーションは空のまま */ }
+}
+function renderNoteView(note) {
+  const scores = note.scores && typeof note.scores === "object" ? note.scores : {};
+  const rows = NOTE_TRAITS.filter(([k]) => scores[k]).map(([k, i18nKey]) => `<div class="note-score-row"><span>${escapeHtml(t(i18nKey))}</span><b>${escapeHtml(String(scores[k]))}</b></div>`).join("");
+  const html = [
+    note.keywords ? `<p class="note-view-kw">${escapeHtml(note.keywords)}</p>` : "",
+    note.notes ? `<div class="note-view-sec"><h3>${escapeHtml(t("admin.memo.notes"))}</h3><p class="readtext">${escapeHtml(note.notes)}</p></div>` : "",
+    note.next_action ? `<div class="note-view-sec"><h3>${escapeHtml(t("admin.memo.next"))}</h3><p class="readtext">${escapeHtml(note.next_action)}</p></div>` : "",
+    rows ? `<div class="note-view-sec"><h3>${escapeHtml(t("admin.memo.ratingEyebrow"))}</h3><div class="note-scores">${rows}</div></div>` : "",
+  ].filter(Boolean).join("");
+  return html || `<p class="readtext">${escapeHtml(t("admin.note.none"))}</p>`;
+}
+async function openNoteViewer(bookingId, name) {
+  if (!bookingId) return;
+  const body = document.getElementById("note-view-body");
+  const sub = document.getElementById("note-view-sub"); if (sub) sub.textContent = name || "";
+  const editBtn = document.getElementById("note-view-edit");
+  if (editBtn) editBtn.onclick = () => { closeNoteModals(); openNoteEditor(bookingId, name); };
+  if (body) body.innerHTML = `<p class="muted">${escapeHtml(t("admin.note.loading"))}</p>`;
+  openModalEl("note-view-modal");
+  try {
+    const { note } = await api(`booking-note?booking_id=${encodeURIComponent(bookingId)}`);
+    if (body) body.innerHTML = note ? renderNoteView(note) : `<p class="readtext">${escapeHtml(t("admin.note.none"))}</p>`;
+  } catch (_) {
+    if (body) body.innerHTML = `<p class="readtext">${escapeHtml(t("admin.note.none"))}</p>`;
+  }
+}
+function wireNoteModals() {
+  const list = document.getElementById("booking-list");
+  if (list) list.addEventListener("click", (e) => {
+    const take = e.target.closest("[data-note-take]");
+    const view = e.target.closest("[data-note-view]");
+    if (take) openNoteEditor(take.dataset.bookingId, take.dataset.name || "");
+    else if (view) openNoteViewer(view.dataset.bookingId, view.dataset.name || "");
+  });
+  document.querySelectorAll("[data-note-close]").forEach((b) => b.addEventListener("click", closeNoteModals));
+  document.querySelectorAll("#note-edit-modal, #note-view-modal").forEach((m) => m.addEventListener("click", (e) => { if (e.target === m) closeNoteModals(); }));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeNoteModals(); });
+  document.getElementById("note-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    setMessage("#note-form-message", t("admin.note.saving"));
+    try {
+      await api("booking-note", { method: "POST", body: JSON.stringify(formData(form)) });
+      const bid = form.elements.booking_id ? form.elements.booking_id.value : "";
+      if (bid) contactNoteIds.add(bid);
+      closeNoteModals();
+      await refreshAdmin();
+    } catch (error) {
+      setMessage("#note-form-message", error.message, "error");
+    }
+  });
+}
+
 function clearBookingPageForm() {
   const form = $("#booking-page-form");
   if (!form) return;
@@ -945,6 +1056,11 @@ async function refreshAdmin() {
     if (ownerCard) ownerCard.innerHTML = me.owner ? `<strong>${escapeHtml(me.owner.name || me.owner.email)}</strong><p>${escapeHtml(t("admin.planLabel"))}: ${escapeHtml(me.owner.plan === "premium" ? t("plan.premium") : me.owner.plan === "pro" ? t("plan.pro") : t("plan.free"))}</p>` : "";
     updateBookingPageControls();
     if (me.owner) {
+      // 会話記録のある予約ID（Pro）を先に取得して一覧のバッジに使う。失敗・未マイグレーションは空。
+      contactNoteIds = new Set();
+      if (isProPlan(me.owner.plan)) {
+        try { contactNoteIds = new Set((await api("booking-note")).booking_ids || []); } catch (_) { /* 非致命 */ }
+      }
       // 予約履歴（相手レコード）の閲覧は無料にも開放（決定19）。失敗しても致命にしない。
       try { const bookings = await api("owner-bookings"); renderBookings(bookings.bookings || []); renderDashboardSchedule(bookings.bookings || []); renderDashboardTodos(bookings.bookings || []); } catch (_) { /* 非致命 */ }
       // 面談メモ・印象スコア（appointment-log）は Pro/Premium 限定。
@@ -1073,6 +1189,7 @@ async function initAdmin() {
       setMessage("#manual-contact-message", error.message, "error");
     }
   });
+  wireNoteModals(); // 会話記録モーダル（相手一覧の行）
 }
 
 window.KimaruI18n?.init();

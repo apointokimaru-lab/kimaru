@@ -40,6 +40,7 @@
               <th data-i18n="admin.contacts.colEmail">メール</th>
               <th data-i18n="admin.contacts.colTopic">話題</th>
               <th data-i18n="admin.contacts.colDate">日時</th>
+              <th data-i18n="admin.contacts.colNote">会話記録</th>
             </tr>
           </thead>
           <tbody id="booking-list" class="searchable-list"></tbody>
@@ -78,59 +79,50 @@
       </div>
     </section>
 
-    <!-- 面談メモ＋印象スコア（Pro） -->
-    <section class="panel wide pro-feature">
+    <!-- 会った後の記録は相手一覧の各行「会話記録を取る」から（予約1回ごと・1対1）。
+         旧・単独メモ欄と顧客集約（メール単位の appointment-log 集計）は廃止。 -->
+  </main>
+
+  <!-- 会話記録: 編集モーダル（Pro・相手一覧の各行から開く） -->
+  <div class="modal-overlay" id="note-edit-modal" hidden>
+    <div class="modal note-modal" role="dialog" aria-modal="true" aria-labelledby="note-edit-title">
+      <button class="modal-close" type="button" data-note-close aria-label="閉じる">×</button>
       <p class="eyebrow" data-i18n="admin.memo.eyebrow">相手メモ</p>
-      <h2 data-i18n="admin.memo.heading">会った後に、関係を育てる</h2>
-      <p class="muted" data-i18n="admin.memo.desc">話した内容、次のアクション、相手の印象スコアを残して、次の連絡につなげます。</p>
-      <form id="log-form" class="form-grid">
-        <label class="wide"><span data-i18n="admin.memo.email">相手のメールアドレス</span><input name="visitor_email" type="email" required /></label>
+      <h2 id="note-edit-title" data-i18n="admin.note.editTitle">会話記録</h2>
+      <p class="muted note-sub" id="note-edit-sub"></p>
+      <form id="note-form" class="form-grid note-form">
+        <input type="hidden" name="booking_id" />
         <label class="wide"><span data-i18n="admin.memo.keywords">キーワード</span><input name="keywords" data-i18n-placeholder="admin.memo.keywordsPlaceholder" placeholder="夢, 仕事, 紹介したい人" /></label>
-        <label class="wide"><span data-i18n="admin.memo.notes">メモ</span><textarea name="notes" rows="4" required></textarea></label>
+        <label class="wide"><span data-i18n="admin.memo.notes">メモ</span><textarea name="notes" rows="4"></textarea></label>
         <label class="wide"><span data-i18n="admin.memo.next">次にできること</span><textarea name="next_action" rows="3"></textarea></label>
         <div class="questionnaire-box conversation-rating-box">
           <p class="eyebrow" data-i18n="admin.memo.ratingEyebrow">相手の印象メモ</p>
-          <h3 data-i18n="admin.memo.ratingHeading">会話以外の情報を5段階で残す</h3>
           <p class="muted" data-i18n="admin.memo.ratingDesc">1は弱い、3は標準、5は強い印象です。未確認の項目は3のままで保存できます。</p>
-          <div class="trait-grid">
-            <label><span data-i18n="admin.trait.firstImpression">第一印象</span><select name="trait_first_impression" data-trait-label="第一印象"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
-            <label><span data-i18n="admin.trait.speaking">話し上手</span><select name="trait_speaking" data-trait-label="話し上手"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
-            <label><span data-i18n="admin.trait.listening">聞き上手</span><select name="trait_listening" data-trait-label="聞き上手"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
-            <label><span data-i18n="admin.trait.proactive">積極性</span><select name="trait_proactive" data-trait-label="積極性"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
-            <label><span data-i18n="admin.trait.giver">ギバー度</span><select name="trait_giver" data-trait-label="ギバー度"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
-            <label><span data-i18n="admin.trait.positive">前向きさ</span><select name="trait_positive" data-trait-label="前向きさ"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
-            <label><span data-i18n="admin.trait.logical">論理性</span><select name="trait_logical" data-trait-label="論理性"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
-            <label><span data-i18n="admin.trait.empathy">共感力</span><select name="trait_empathy" data-trait-label="共感力"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
-            <label><span data-i18n="admin.trait.decisive">決断力</span><select name="trait_decisive" data-trait-label="決断力"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
-            <label><span data-i18n="admin.trait.referral">紹介しやすさ</span><select name="trait_referral" data-trait-label="紹介しやすさ"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
-          </div>
+          <div class="trait-grid" id="note-trait-grid"></div>
         </div>
-        <button class="primary" type="submit" data-i18n="admin.memo.save">メモを保存する</button>
+        <div class="modal-actions">
+          <button class="button secondary" type="button" data-note-close data-i18n="admin.note.close">閉じる</button>
+          <button class="button primary" type="submit" data-i18n="admin.note.save">保存する</button>
+        </div>
       </form>
-      <p id="log-message" class="message"></p>
-      <div class="crm-toolbar" style="margin-top:18px">
-        <div class="field search">
-          <input id="log-search" type="search" data-i18n-placeholder="admin.memo.searchPlaceholder" placeholder="メール、キーワード、メモ、印象、次のアクションで検索" aria-label="メモを検索" />
-        </div>
-        <p id="log-search-count" class="crm-count message"></p>
-      </div>
-      <div id="log-list" class="list searchable-list" style="margin-top:14px"></div>
-    </section>
+      <p id="note-form-message" class="message"></p>
+    </div>
+  </div>
 
-    <!-- 顧客集約（Pro） -->
-    <section class="panel wide pro-feature">
-      <p class="eyebrow" data-i18n="admin.agg.eyebrow">顧客集約</p>
-      <h2 data-i18n="admin.agg.heading">相手ごとのまとめ（面談回数・印象スコア平均）</h2>
-      <p class="muted" data-i18n="admin.agg.desc">同じ相手の面談メモを集計し、面談回数と印象スコアの平均を相手ごとに表示します。</p>
-      <div class="crm-toolbar" style="margin-top:18px">
-        <div class="field search">
-          <input id="aggregate-search" type="search" data-i18n-placeholder="admin.agg.searchPh" placeholder="メールで検索" aria-label="相手を検索" />
-        </div>
-        <p id="aggregate-search-count" class="crm-count message"></p>
+  <!-- 会話記録: 閲覧モーダル -->
+  <div class="modal-overlay" id="note-view-modal" hidden>
+    <div class="modal note-modal" role="dialog" aria-modal="true" aria-labelledby="note-view-title">
+      <button class="modal-close" type="button" data-note-close aria-label="閉じる">×</button>
+      <p class="eyebrow" data-i18n="admin.memo.eyebrow">相手メモ</p>
+      <h2 id="note-view-title" data-i18n="admin.note.viewTitle">会話記録</h2>
+      <p class="muted note-sub" id="note-view-sub"></p>
+      <div id="note-view-body" class="note-view-body"></div>
+      <div class="modal-actions">
+        <button class="button secondary" type="button" data-note-close data-i18n="admin.note.close">閉じる</button>
+        <button class="button primary" type="button" id="note-view-edit" data-i18n="admin.note.take">会話記録を取る</button>
       </div>
-      <div id="log-aggregate" class="list searchable-list" style="margin-top:14px"></div>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <!-- site-footer -->
 

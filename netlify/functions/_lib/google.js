@@ -128,10 +128,12 @@ async function createBufferEvent(ownerId, { summary, startIso, endIso }) {
   if (!accessToken) return null;
   const eventBody = {
     summary: summary || "バッファ",
-    description: "キマルの前後バッファ（自分用のブロック時間）です。",
+    description: "キマルの前後バッファ（自分用の目印）です。",
     start: { dateTime: startIso },
     end: { dateTime: endIso },
-    transparency: "opaque", // 「予定あり」＝この時間は埋まっている扱い
+    // 「予定なし(free)」にして freeBusy に出さない。空き枠計算はバッファ設定(前後バッファ)側で
+    // 一度だけ効かせるため、この予定を busy にすると二重にバッファが掛かってしまう。カレンダー上には表示される。
+    transparency: "transparent",
     visibility: "private",
     reminders: { useDefault: false, overrides: [] }, // 通知不要
   };

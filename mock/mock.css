@@ -175,6 +175,25 @@ select{height:48px;padding-block:0}
 .checkrow input{width:18px;height:18px;min-height:0;accent-color:var(--accent)}
 .form-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
 
+/* ===== リッチテキストエディタ（自己紹介の装飾入力・見出し/太字） ===== */
+.rte{border:1.5px solid var(--line-2);border-radius:var(--radius-sm);background:var(--surface);transition:border-color .15s,box-shadow .15s}
+.rte:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.rte-bar{display:flex;align-items:center;gap:6px;padding:7px 9px;background:var(--surface-2);border-bottom:1px solid var(--line);border-radius:var(--radius-sm) var(--radius-sm) 0 0;flex-wrap:wrap}
+.rte-btn{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 12px;font:inherit;font-size:13px;font-weight:700;color:var(--ink-2);background:var(--surface);border:1px solid var(--line-2);border-radius:var(--radius-sm);cursor:pointer;transition:background .12s,color .12s,border-color .12s}
+.rte-btn:hover{border-color:var(--ink);color:var(--ink)}
+.rte-btn.is-active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.rte-btn .rte-ico{font-family:var(--display);font-weight:800;font-size:15px;line-height:1}
+.rte-hint{margin-left:auto;font-size:12px;color:var(--muted);align-self:center}
+.rte-area{min-height:136px;padding:14px;line-height:1.75;color:var(--ink);outline:none;overflow-wrap:anywhere}
+.rte-area.is-empty::before{content:attr(data-placeholder);color:var(--muted);pointer-events:none}
+.rte-area h3{font-family:var(--display);font-size:19px;font-weight:800;line-height:1.35;margin:2px 0 7px;color:var(--rte-accent,var(--accent))}
+.rte-area strong,.rte-area b{font-weight:800;color:var(--ink)}
+.rte-area>div:not(:last-child){margin-bottom:2px}
+/* アクセント色ピッカー行 */
+.accent-row{display:flex;align-items:center;gap:12px}
+.accent-row input[type=color]{width:44px;height:34px;min-height:0;padding:2px;border:1.5px solid var(--line-2);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer}
+.accent-row .accent-swatch-label{font-family:var(--mono);font-size:13px;color:var(--muted)}
+
 /* ===== 認証カード（login / signup / reset） ===== */
 .authwrap{min-height:calc(100vh - 68px);display:grid;place-items:center;padding:40px 0}
 .authcard{width:min(440px,100%);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:clamp(26px,3vw,38px)}

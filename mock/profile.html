@@ -53,9 +53,24 @@
           <input id="pf-title" type="text" value="キャリアコンサルタント" />
         </div>
         <div class="field">
-          <label for="pf-bio">自己紹介</label>
-          <textarea id="pf-bio">はじめまして。これまで300名以上のキャリア面談を担当してきました。等身大で話せる時間にしましょう。</textarea>
-          <span class="field-note">120字程度までが読みやすい目安です。</span>
+          <label for="pf-bio">自己紹介（公開・装飾できます）</label>
+          <div class="rte" id="pf-bio-rte">
+            <div class="rte-bar" role="toolbar" aria-label="装飾">
+              <button type="button" class="rte-btn" data-cmd="heading" title="見出しにする"><span class="rte-ico">H</span>見出し</button>
+              <button type="button" class="rte-btn" data-cmd="bold" title="太字にする"><span class="rte-ico">B</span>太字</button>
+              <span class="rte-hint">選んでから装飾</span>
+            </div>
+            <div class="rte-area" id="pf-bio" contenteditable="true" role="textbox" aria-multiline="true"
+                 data-placeholder="見出しや太字で、自己紹介を読みやすく。"></div>
+          </div>
+          <span class="field-note">見出しには下の「アクセント色」が付きます。120字程度までが読みやすい目安です。</span>
+        </div>
+        <div class="field">
+          <label for="pf-accent">見出しのアクセント色</label>
+          <div class="accent-row">
+            <input type="color" id="pf-accent" value="#DE4A2E" />
+            <span class="accent-swatch-label" id="pf-accent-code">#DE4A2E</span>
+          </div>
         </div>
         <div class="field">
           <label for="pf-keywords">関心・キーワード</label>
@@ -105,5 +120,50 @@
     <div>© 2026 Kimaru — 日程が、キマる。</div>
   </div>
 </footer>
+  <script>
+    (function () {
+      var rte = document.getElementById('pf-bio-rte');
+      var editor = document.getElementById('pf-bio');
+      var bar = rte.querySelector('.rte-bar');
+      var accent = document.getElementById('pf-accent');
+      var accentCode = document.getElementById('pf-accent-code');
+
+      // 初期表示（見出し＋太字のサンプル）
+      editor.innerHTML =
+        '<h3>はじめまして、田中さくらです</h3>' +
+        '<div>これまで<strong>300名以上</strong>のキャリア面談を担当してきました。</div>' +
+        '<div>等身大で話せる時間にしましょう。</div>';
+
+      function refreshEmpty() {
+        var blank = editor.textContent.trim() === '' && !editor.querySelector('h3,strong,b');
+        editor.classList.toggle('is-empty', blank);
+      }
+      function currentHeading() {
+        var node = window.getSelection().anchorNode;
+        while (node && node !== editor) { if (node.nodeName === 'H3') return true; node = node.parentNode; }
+        return false;
+      }
+      function refreshActive() {
+        var b = false; try { b = document.queryCommandState('bold'); } catch (e) {}
+        bar.querySelector('[data-cmd="heading"]').classList.toggle('is-active', currentHeading());
+        bar.querySelector('[data-cmd="bold"]').classList.toggle('is-active', b);
+      }
+      bar.addEventListener('click', function (e) {
+        var btn = e.target.closest('.rte-btn'); if (!btn) return;
+        e.preventDefault();
+        editor.focus();
+        if (btn.dataset.cmd === 'bold') document.execCommand('bold');
+        else document.execCommand('formatBlock', false, currentHeading() ? 'div' : 'h3');
+        refreshEmpty(); refreshActive();
+      });
+      document.addEventListener('selectionchange', function () { if (document.activeElement === editor) refreshActive(); });
+      editor.addEventListener('input', function () { refreshEmpty(); refreshActive(); });
+
+      function applyAccent(v) { rte.style.setProperty('--rte-accent', v); accentCode.textContent = v.toUpperCase(); }
+      accent.addEventListener('input', function () { applyAccent(accent.value); });
+      applyAccent(accent.value);
+      refreshEmpty(); refreshActive();
+    })();
+  </script>
 </body>
 </html>

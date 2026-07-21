@@ -64,8 +64,16 @@
             <label><span data-i18n="pf.label.headline">キャッチコピー（1行）</span>
               <input name="profile_headline" placeholder="例：はじめての人にも伝わる一言" data-i18n-placeholder="pf.ph.headline" />
             </label>
-            <label><span data-i18n="pf.label.bio">自己紹介（公開・装飾可：見出しは行頭「# 」、太字は **文字**）</span>
-              <textarea name="profile_bio_rich" rows="6" placeholder="# 見出し&#10;**太字**で強調できます。&#10;改行はそのまま反映されます。" data-i18n-placeholder="pf.bioPlaceholder"></textarea>
+            <label><span data-i18n="pf.label.bio">自己紹介（公開・装飾できます）</span>
+              <div class="rte" id="bio-rte">
+                <div class="rte-bar" role="toolbar" aria-label="装飾">
+                  <button type="button" class="rte-btn" data-cmd="heading" title="見出しにする"><span class="rte-ico" aria-hidden="true">H</span><span data-i18n="pf.rte.heading">見出し</span></button>
+                  <button type="button" class="rte-btn" data-cmd="bold" title="太字にする"><span class="rte-ico" aria-hidden="true">B</span><span data-i18n="pf.rte.bold">太字</span></button>
+                  <span class="rte-hint" data-i18n="pf.rte.hint">選んでから装飾</span>
+                </div>
+                <div class="rte-area" id="bio-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
+              </div>
+              <input type="hidden" name="profile_bio_rich" />
             </label>
             <label><span data-i18n="pf.label.accent">見出しのアクセント色</span>
               <input name="profile_accent_color" type="color" value="#2563eb" />
@@ -208,11 +216,108 @@
         <section class="assist-block"><h3>${escapeHtml(T("pf.preview.goal", '次につなげたいこと'))}</h3><p>${escapeHtml(profile.profile_goal || unset)}</p></section>`;
     }
 
+    // --- 自己紹介リッチテキストエディタ（見出し/太字）。保存形式は Markdown サブセット（# / **）を維持し、
+    //     公開ページ（public-profile.html の formatRich）の描画は変更しない。 ---
+    function inlineToMarkdown(node) {
+      let md = '';
+      node.childNodes.forEach((n) => {
+        if (n.nodeType === 3) md += n.textContent;
+        else if (n.nodeName === 'BR') md += '\n';
+        else if (n.nodeName === 'STRONG' || n.nodeName === 'B') md += '**' + inlineToMarkdown(n).replace(/\*\*/g, '') + '**';
+        else md += inlineToMarkdown(n);
+      });
+      return md;
+    }
+    function editorToMarkdown(editor) {
+      const lines = [];
+      const push = (text) => text.split('\n').forEach((l) => lines.push(l));
+      editor.childNodes.forEach((node) => {
+        if (node.nodeType === 3) { if (node.textContent !== '') lines.push(node.textContent); return; }
+        if (node.nodeName === 'H3') { lines.push('# ' + inlineToMarkdown(node).replace(/\n/g, ' ').trim()); return; }
+        if (node.nodeName === 'BR') { lines.push(''); return; }
+        push(inlineToMarkdown(node)); // DIV / P / 直下の strong など
+      });
+      while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+      return lines.join('\n');
+    }
+    function markdownToEditorHtml(md) {
+      return String(md == null ? '' : md).split('\n').map((raw) => {
+        const line = escapeHtml(raw).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        if (/^#\s+/.test(raw)) return '<h3>' + line.replace(/^#\s+/, '') + '</h3>';
+        return '<div>' + (line || '<br>') + '</div>';
+      }).join('');
+    }
+    function setupBioEditor(form) {
+      const rte = document.getElementById('bio-rte');
+      const editor = document.getElementById('bio-editor');
+      const field = form.elements['profile_bio_rich'];
+      if (!rte || !editor || !field) return null;
+      const bar = rte.querySelector('.rte-bar');
+      const accentInput = form.elements['profile_accent_color'];
+      try { document.execCommand('styleWithCSS', false, false); } catch (e) {}
+
+      const headingBtn = bar.querySelector('[data-cmd="heading"]');
+      const boldBtn = bar.querySelector('[data-cmd="bold"]');
+      function refreshEmpty() {
+        editor.classList.toggle('is-empty', editor.textContent.trim() === '' && !editor.querySelector('h3,strong,b'));
+      }
+      function inHeading() {
+        let node = window.getSelection().anchorNode;
+        while (node && node !== editor) { if (node.nodeName === 'H3') return true; node = node.parentNode; }
+        return false;
+      }
+      function refreshActive() {
+        let bold = false; try { bold = document.queryCommandState('bold'); } catch (e) {}
+        if (headingBtn) headingBtn.classList.toggle('is-active', inHeading());
+        if (boldBtn) boldBtn.classList.toggle('is-active', bold);
+      }
+      function syncField() { field.value = editorToMarkdown(editor); }
+
+      bar.addEventListener('mousedown', (e) => { if (e.target.closest('.rte-btn')) e.preventDefault(); }); // 選択保持
+      bar.addEventListener('click', (e) => {
+        const btn = e.target.closest('.rte-btn'); if (!btn) return;
+        e.preventDefault();
+        editor.focus();
+        if (btn.dataset.cmd === 'bold') document.execCommand('bold');
+        else document.execCommand('formatBlock', false, inHeading() ? 'div' : 'h3');
+        refreshEmpty(); refreshActive(); syncField();
+        form.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      document.addEventListener('selectionchange', () => { if (document.activeElement === editor) refreshActive(); });
+      editor.addEventListener('input', () => { refreshEmpty(); refreshActive(); syncField(); });
+      editor.addEventListener('blur', syncField);
+      editor.addEventListener('paste', (e) => { // 貼り付けはプレーン化（装飾崩れ防止）
+        e.preventDefault();
+        const text = ((e.clipboardData || window.clipboardData).getData('text/plain') || '');
+        document.execCommand('insertText', false, text);
+      });
+
+      function applyAccent() {
+        const v = (accentInput && /^#[0-9a-fA-F]{6}$/.test(accentInput.value || '')) ? accentInput.value : '';
+        rte.style.setProperty('--rte-accent', v || 'var(--accent)');
+      }
+      if (accentInput) accentInput.addEventListener('input', applyAccent);
+      function setPlaceholder() { editor.setAttribute('data-placeholder', T('pf.bioPlaceholder', '見出しや太字で、自己紹介を読みやすく。')); }
+      setPlaceholder();
+      document.addEventListener('kimaru:languagechange', setPlaceholder);
+
+      return {
+        loadFromField() {
+          editor.innerHTML = (field.value && field.value.trim()) ? markdownToEditorHtml(field.value) : '';
+          refreshEmpty(); refreshActive();
+        },
+        applyAccent,
+        syncField,
+      };
+    }
+
     async function initProfile() {
       const form = $('#profile-form');
+      const bioEditor = setupBioEditor(form);
       const stored = loadStoredProfile();
       applyProfile(form, stored, true);
       renderPreview(readProfile(form));
+      if (bioEditor) { bioEditor.loadFromField(); bioEditor.applyAccent(); }
 
       try {
         const data = await api('me');
@@ -245,6 +350,7 @@
         const serverProfile = await api('profile').then((result) => result.profile).catch(() => ({}));
         if (serverProfile && Object.keys(serverProfile).length) applyProfile(form, serverProfile, true);
         renderPreview(readProfile(form));
+        if (bioEditor) { bioEditor.loadFromField(); bioEditor.applyAccent(); }
       } catch (error) {
         $('#profile-status').textContent = T("pf.status.loadError", 'プロフィール情報を読み込めませんでした。手入力で保存できます。');
       }
@@ -261,6 +367,7 @@
       document.addEventListener('kimaru:languagechange', () => renderPreview(readProfile($('#profile-form'))));
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (bioEditor) bioEditor.syncField();
         const profile = saveProfile(form);
         renderPreview(profile);
         $('#profile-message').textContent = T("pf.save.saving", '保存しています...');

@@ -63,7 +63,10 @@ function generateSlots(weeklySettings, bookingPage, fromTime, toTime) {
     if (!acceptHolidays && isJapaneseHoliday(parts.year, parts.month, parts.date)) continue;
     const open = timeToMinutes(setting.start_time);
     const close = timeToMinutes(setting.end_time);
-    for (let minute = open; minute + duration <= close; minute += step) {
+    // 「前バッファ＋打合せ＋後バッファ」が受付時間帯[open,close]に収まる枠だけ生成する。
+    // 例: 後バッファ20分・close18:00 → 17:00開始(打合せ終了18:00+後20=18:20)は不可、最終は打合せ終了+後バッファ<=18:00。
+    for (let minute = open; minute + duration + bufferAfter <= close; minute += step) {
+      if (minute - bufferBefore < open) continue; // 前バッファが受付開始より前へはみ出す枠は除外
       const start = tokyoLocalDateToUtc(parts.year, parts.month, parts.date, minute);
       const end = new Date(start.getTime() + duration * 60 * 1000);
       if (start <= earliest) continue;

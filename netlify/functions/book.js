@@ -1,6 +1,6 @@
 const { json, readJson } = require("./_lib/response");
 const { sb, eq, defaultOwner, findOwnerById, findOwnerByEmail } = require("./_lib/supabase");
-const { createCalendarEvent } = require("./_lib/google");
+const { createCalendarEvent, createBufferEventsFor } = require("./_lib/google");
 const { checkRateLimit, clientIp, RATE_LIMIT_MESSAGE } = require("./_lib/rate-limit");
 const zoom = require("./_lib/zoom");
 const { sendMail } = require("./_lib/mail");
@@ -229,6 +229,22 @@ exports.handler = async (event) => {
     if (eventResult?.id) {
       // Zoom URL を上書きしないよう hangoutLink || zoomUrl を採用。
       await sb(`bookings?id=eq.${booking.id}`, { method: "PATCH", body: JSON.stringify({ google_event_id: eventResult.id, meeting_url: eventResult.hangoutLink || zoomUrl || "" }) });
+    }
+
+    // ホスト専用の前後バッファ予定（ゲスト非表示）。予約ページでタイトルが設定されている側だけ作る。
+    // 予約本体は成立済みなので、ここでの失敗・列未マイグレーションは非致命（try/catch で握りつぶす）。
+    if (booking?.id && bookingPage) {
+      try {
+        const bufferIds = await createBufferEventsFor(owner.id, booking, bookingPage);
+        if (bufferIds.before || bufferIds.after) {
+          await sb(`bookings?id=eq.${booking.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ buffer_before_event_id: bufferIds.before, buffer_after_event_id: bufferIds.after }),
+          }).catch(() => {});
+        }
+      } catch (_) {
+        // バッファ予定は補助機能。失敗しても予約完了レスポンスは返す。
+      }
     }
 
     // 予約完了メール（ゲスト）＋ホスト通知（いずれも任意・非致命）。

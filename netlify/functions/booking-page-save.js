@@ -77,6 +77,10 @@ exports.handler = async (event) => {
     const duration = intValue(body.duration_minutes, 30);
     const bufferBefore = intValue(body.buffer_before_minutes, 0);
     const bufferAfter = intValue(body.buffer_after_minutes, 0);
+    // 前後バッファをホスト専用のGoogleカレンダー予定にするときのタイトル（空=予定を作らない）。
+    // バッファ0分の側はタイトルを保持しない（UIとサーバの整合）。
+    const bufferBeforeTitle = bufferBefore > 0 ? String(body.buffer_before_title || "").trim().slice(0, 120) : "";
+    const bufferAfterTitle = bufferAfter > 0 ? String(body.buffer_after_title || "").trim().slice(0, 120) : "";
     const requestedRange = intValue(body.booking_range_months, 2);
     const locationType = allowedLocationTypes.has(body.location_type) ? body.location_type : "google_meet";
     const questions = Array.isArray(body.questions) ? body.questions.map((q, i) => normalizeQuestion(q, i, isPro)).filter((q) => q.question_text) : [];
@@ -132,6 +136,8 @@ exports.handler = async (event) => {
       duration_minutes: duration,
       buffer_before_minutes: bufferBefore,
       buffer_after_minutes: bufferAfter,
+      buffer_before_title: bufferBeforeTitle,
+      buffer_after_title: bufferAfterTitle,
       booking_range_months: bookingRange,
       location_type: locationType,
       location_value: String(body.location_value || "").trim(),
@@ -143,14 +149,22 @@ exports.handler = async (event) => {
       is_active: body.is_active !== false,
     };
 
+    const writePage = (data) => existing
+      ? sb(`booking_pages?id=${eq(existing.id)}`, { method: "PATCH", body: JSON.stringify(data) })
+      : sb("booking_pages", { method: "POST", body: JSON.stringify(data) });
     let saved;
     try {
-      saved = existing
-        ? await sb(`booking_pages?id=${eq(existing.id)}`, { method: "PATCH", body: JSON.stringify(payload) })
-        : await sb("booking_pages", { method: "POST", body: JSON.stringify(payload) });
+      saved = await writePage(payload);
     } catch (error) {
-      if (/duplicate|unique/i.test(String(error.message || ""))) return json(409, { error: "そのURL(slug)は既に使われています" });
-      throw error;
+      const message = String(error.message || "");
+      if (/duplicate|unique/i.test(message)) return json(409, { error: "そのURL(slug)は既に使われています" });
+      // buffer_before_title/buffer_after_title 列が未マイグレーションの環境ではタイトルを落として保存。
+      if (/buffer_before_title|buffer_after_title/.test(message)) {
+        const { buffer_before_title, buffer_after_title, ...rest } = payload;
+        saved = await writePage(rest);
+      } else {
+        throw error;
+      }
     }
     const bookingPage = saved[0];
 

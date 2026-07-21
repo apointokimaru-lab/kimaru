@@ -221,7 +221,17 @@ async function authenticate(event) {
   return { owner };
 }
 
-exports.handler = async (event) => {
+// ブラウザ経由のMCPクライアント（claude.ai / ChatGPT 等）向け CORS。プリフライト(OPTIONS)を通し、
+// 401 の WWW-Authenticate をブラウザから読めるよう expose する（無いと接続確認がプリフライトで弾かれ「接続できませんでした」になる）。
+const MCP_CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, MCP-Protocol-Version, Accept",
+  "Access-Control-Expose-Headers": "WWW-Authenticate",
+  "Access-Control-Max-Age": "86400",
+};
+
+async function handleRequest(event) {
   try {
     if (event.httpMethod !== "POST") return json(405, { error: "POST のみ対応しています（ステートレスMCP・SSEストリームなし）" }, { Allow: "POST" });
     const auth = await authenticate(event);
@@ -250,4 +260,12 @@ exports.handler = async (event) => {
   } catch (error) {
     return json(500, rpcError(null, -32603, "Internal error"));
   }
+}
+
+exports.handler = async (event) => {
+  // CORS プリフライトは本体処理・認証なしで即応答。
+  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: { ...MCP_CORS, "Cache-Control": "no-store" }, body: "" };
+  const res = await handleRequest(event);
+  res.headers = { ...(res.headers || {}), ...MCP_CORS }; // 全レスポンスに CORS を付与
+  return res;
 };

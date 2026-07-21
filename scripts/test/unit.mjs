@@ -475,6 +475,19 @@ const availCore = requireCjs("../../netlify/functions/_lib/availability-core");
     ok("scenario: 前30/後30/60分/空き14-17時 → 14:30,15:00,15:30 の3枠", JSON.stringify(openHM) === JSON.stringify(["14:30", "15:00", "15:30"]));
   }
 
+  // 受付終了(close)に後バッファが収まること: 打合せ60/後20/表示60/10:00-18:00
+  // → 最終枠は16:00開始(17:00終了・後バッファで17:20)。17:00開始(18:20)は close 超過で不可。
+  {
+    const dayWeekly = [p0.day].map((d) => ({ day_of_week: d, start_time: "10:00", end_time: "18:00" }));
+    const wpage = { duration_minutes: 60, buffer_before_minutes: 0, buffer_after_minutes: 20, slot_interval_minutes: 60 };
+    const dayStart = availCore.tokyoLocalDateToUtc(p0.year, p0.month, p0.date, 0).getTime();
+    const wslots = availCore.generateSlots(dayWeekly, wpage, dayStart, dayStart + DAY);
+    const wStarts = wslots.map((s) => { const t = new Date(new Date(s.start).getTime() + 9 * 3600000); return `${String(t.getUTCHours()).padStart(2, "0")}:${String(t.getUTCMinutes()).padStart(2, "0")}`; });
+    ok("window: 後バッファが受付終了に収まる(最終16:00・17:00開始は除外)", wStarts[wStarts.length - 1] === "16:00" && !wStarts.includes("17:00"));
+    const closeMs = availCore.tokyoLocalDateToUtc(p0.year, p0.month, p0.date, 18 * 60).getTime();
+    ok("window: 全枠で打合せ終了+後バッファ<=18:00", wslots.every((s) => new Date(s.end).getTime() + 20 * 60000 <= closeMs));
+  }
+
   // axisRange: 稼働時間帯の最小open〜最大close
   const axis = availCore.axisRange(weekly);
   ok("axisRange: 10:00-18:00 → 600/1080", axis.start_min === 600 && axis.end_min === 1080);

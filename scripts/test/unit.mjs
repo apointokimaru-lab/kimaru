@@ -504,6 +504,35 @@ const availCore = requireCjs("../../netlify/functions/_lib/availability-core");
   ok("bookingBounds: maxTime>minStart", b0.maxTime > b0.minStart);
 }
 
+// ---------- 12) profile.js cleanProfile: リンク（表示名＋URL）をバックエンドで連結 ----------
+section("profile.js cleanProfile (links concat)");
+{
+  const prof = requireCjs("../../netlify/functions/profile");
+  const items = [{ name: "サイト", url: "https://a.com" }, { name: "ブ\tロ\nグ", url: "https://b.com\n" }, { name: "", url: "" }];
+  const outPro = prof.cleanProfile({ profile_links_items: items }, true);
+  ok("cleanProfile: items→profile_links を TAB/改行連結", outPro.profile_links === "サイト\thttps://a.com\nブ ロ グ\thttps://b.com");
+  ok("cleanProfile: name/url のタブ・改行は空白化（区切り保護・空要素は除外）", outPro.profile_links.split("\n").length === 2 && outPro.profile_links.indexOf("ブ\t") === -1);
+  const outFree = prof.cleanProfile({ profile_links_items: items }, false);
+  ok("cleanProfile: 無料は profile_links(items)を作らない（Pro限定）", outFree.profile_links == null);
+}
+
+// ---------- 13) book.js: 相手（ホスト）プロフィール節（メール/カレンダー） ----------
+section("book.js host profile block (email/calendar)");
+{
+  const book = requireCjs("../../netlify/functions/book");
+  const profile = { profile_name: "田中彰吾", profile_title: "肩書", profile_offer: "キマルのプロジェクト説明", profile_strengths: "" };
+  const fields = book.hostProfileFields(profile);
+  ok("hostProfileFields: 値のある項目だけ（空のstrengthsは除外）", fields.length === 2 && fields.every(([, v]) => v));
+  const url = "https://kimaru-co.jp/u/tanaka";
+  const lines = book.hostProfileTextLines(profile, "田中彰吾", url);
+  ok("hostProfileTextLines: 見出しは「{名前}のプロフィール」", lines[0] === "― 田中彰吾のプロフィール ―");
+  ok("hostProfileTextLines: 値のある項目のみ・末尾に公開URL", lines.includes("肩書き・活動内容: 肩書") && lines.includes(url) && !lines.some((l) => /^強み/.test(l)));
+  const html = book.linesToHtml(lines, url, "田中彰吾のプロフィール");
+  ok("linesToHtml: 公開URLは「{名前}のプロフィール」文言のハイパーリンク", html.includes(`<a href="${url}">田中彰吾のプロフィール</a>`) && html.indexOf("▼ 田中彰吾のプロフィール") === -1);
+  const noneProfile = { profile_name: "X" };
+  ok("hostProfileTextLines: 値もURLも無ければ空", book.hostProfileTextLines(noneProfile, "X", "").length === 0);
+}
+
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);
 if (fail) { console.log("FAILED: " + fails.join(" | ")); process.exit(1); }

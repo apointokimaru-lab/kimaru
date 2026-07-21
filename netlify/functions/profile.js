@@ -38,9 +38,23 @@ function cleanProfile(input, isPro) {
         out[field] = String(input[field]).slice(0, 8000);
       }
     });
+    // リンク（表示名＋URL）: フロントは items 配列で送り、ここで「表示名<TAB>URL」を改行連結して
+    // 既存の profile_links カラムに保存する（区切りを壊さないよう name/url からタブ・改行を除去）。
+    if (Array.isArray(input.profile_links_items)) {
+      out.profile_links = input.profile_links_items
+        .map((it) => ({
+          name: String((it && it.name) || "").replace(/[\t\r\n]+/g, " ").trim().slice(0, 120),
+          url: String((it && it.url) || "").replace(/[\t\r\n]+/g, " ").trim().slice(0, 500),
+        }))
+        .filter((it) => it.url || it.name)
+        .map((it) => it.name + "\t" + it.url)
+        .join("\n")
+        .slice(0, 8000);
+    }
   }
   return out;
 }
+exports.cleanProfile = cleanProfile; // テスト用に公開（handler には影響なし）
 
 function safeParse(text) {
   try {

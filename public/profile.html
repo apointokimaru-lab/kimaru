@@ -65,7 +65,7 @@
             <label><span data-i18n="pf.label.headline">キャッチコピー（1行）</span>
               <input name="profile_headline" placeholder="例：はじめての人にも伝わる一言" data-i18n-placeholder="pf.ph.headline" />
             </label>
-            <label><span data-i18n="pf.label.bio">自己紹介（公開・装飾できます）</span>
+            <div class="rte-field"><span class="rte-field-label" data-i18n="pf.label.bio">自己紹介（公開・装飾できます）</span>
               <div class="rte" id="bio-rte">
                 <div class="rte-bar" role="toolbar" aria-label="装飾">
                   <button type="button" class="rte-btn" data-cmd="bold" data-i18n-title="pf.rte.bold" title="太字"><b>B</b></button>
@@ -73,7 +73,16 @@
                   <button type="button" class="rte-btn" data-cmd="underline" data-i18n-title="pf.rte.underline" title="下線"><u>U</u></button>
                   <button type="button" class="rte-btn" data-cmd="strike" data-i18n-title="pf.rte.strike" title="打ち消し線"><s>S</s></button>
                   <span class="rte-sep" aria-hidden="true"></span>
-                  <button type="button" class="rte-btn" data-cmd="heading" data-i18n-title="pf.rte.heading" title="見出し"><span data-i18n="pf.rte.heading">見出し</span></button>
+                  <select class="rte-select" data-cmd="block" aria-label="段落・見出し" title="段落・見出し">
+                    <option value="p" data-i18n="pf.rte.blockP">本文</option>
+                    <option value="h1" data-i18n="pf.rte.blockH1">見出し1</option>
+                    <option value="h2" data-i18n="pf.rte.blockH2">見出し2</option>
+                    <option value="h3" data-i18n="pf.rte.blockH3">見出し3</option>
+                    <option value="h4" data-i18n="pf.rte.blockH4">見出し4</option>
+                    <option value="h5" data-i18n="pf.rte.blockH5">見出し5</option>
+                    <option value="h6" data-i18n="pf.rte.blockH6">見出し6</option>
+                  </select>
+                  <label class="rte-color" data-i18n-title="pf.rte.color" title="文字色"><span class="rte-color-a" aria-hidden="true">A</span><input type="color" data-cmd="color" value="#1A1D24" aria-label="文字色" /></label>
                   <span class="rte-sep" aria-hidden="true"></span>
                   <button type="button" class="rte-btn" data-cmd="ul" data-i18n-title="pf.rte.bullet" title="箇条書き"><span aria-hidden="true">・</span><span data-i18n="pf.rte.bullet">箇条書き</span></button>
                   <button type="button" class="rte-btn" data-cmd="ol" data-i18n-title="pf.rte.ordered" title="番号付き"><span aria-hidden="true">1.</span><span data-i18n="pf.rte.ordered">番号</span></button>
@@ -83,13 +92,15 @@
                 <div class="rte-area" id="bio-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
               </div>
               <input type="hidden" name="profile_bio_rich" />
-            </label>
+            </div>
             <label><span data-i18n="pf.label.accent">見出しのアクセント色</span>
               <input name="profile_accent_color" type="color" value="#2563eb" />
             </label>
-            <label><span data-i18n="pf.label.links">リンク（1行に1つ・http(s) から始まるURL）</span>
-              <textarea name="profile_links" rows="2" placeholder="https://example.com" data-i18n-placeholder="pf.ph.links"></textarea>
-            </label>
+            <div class="rte-field">
+              <span class="rte-field-label" data-i18n="pf.label.links">リンク（表示名＋URL）</span>
+              <div id="links-list" class="links-list"></div>
+              <button type="button" class="button secondary mini" id="add-link" data-i18n="pf.links.add">＋ リンクを追加</button>
+            </div>
             <label><span data-i18n="pf.label.public">公開設定</span>
               <select name="profile_public">
                 <option value="on" data-i18n="pf.public.on">公開する（URLを知っている人は誰でも閲覧可）</option>
@@ -199,6 +210,44 @@
       return profile;
     }
 
+    // ===== リンク（表示名＋URL）行UI。保存は profile_links カラムへ「表示名<TAB>URL」を改行連結（連結はバックエンド）。 =====
+    function addLinkRow(name = '', url = '') {
+      const list = document.getElementById('links-list');
+      if (!list) return;
+      const row = document.createElement('div');
+      row.className = 'link-row';
+      row.innerHTML = '<input type="text" class="link-name" data-i18n-placeholder="pf.links.namePh" />'
+        + '<input type="url" class="link-url" data-i18n-placeholder="pf.links.urlPh" />'
+        + '<button type="button" class="link-remove" aria-label="削除">×</button>';
+      const ni = row.querySelector('.link-name'), ui = row.querySelector('.link-url');
+      ni.placeholder = T('pf.links.namePh', '表示名（例：ホームページ）');
+      ui.placeholder = T('pf.links.urlPh', 'https://example.com');
+      ni.value = name || ''; ui.value = url || '';
+      list.appendChild(row);
+    }
+    function collectLinks() {
+      return [...document.querySelectorAll('#links-list .link-row')].map((r) => ({
+        name: (r.querySelector('.link-name').value || '').trim(),
+        url: (r.querySelector('.link-url').value || '').trim(),
+      })).filter((it) => it.url || it.name);
+    }
+    function buildLinksString(items) { return items.map((it) => `${it.name}\t${it.url}`).join('\n'); }
+    function parseLinksString(s) {
+      return String(s || '').split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => l.trim()).map((line) => {
+        const tab = line.indexOf('\t');
+        if (tab !== -1) return { name: line.slice(0, tab).trim(), url: line.slice(tab + 1).trim() };
+        return { name: '', url: line.trim() }; // 後方互換: 区切り無し（旧データ）は URL のみ
+      });
+    }
+    function loadLinks(linksString) {
+      const list = document.getElementById('links-list');
+      if (!list) return;
+      list.innerHTML = '';
+      const items = parseLinksString(linksString);
+      if (!items.length) { addLinkRow(); return; } // 空でも1行は出す
+      items.forEach((it) => addLinkRow(it.name, it.url));
+    }
+
     function loadStoredProfile() {
       return JSON.parse(localStorage.getItem(profileKey) || '{}');
     }
@@ -235,48 +284,92 @@
       if (!rte || !editor || !field || !RT) return null;
       const bar = rte.querySelector('.rte-bar');
       const accentInput = form.elements['profile_accent_color'];
-      try { document.execCommand('styleWithCSS', false, false); } catch (e) {}
-
-      const CMD = { bold: 'bold', italic: 'italic', underline: 'underline', strike: 'strikeThrough', ul: 'insertUnorderedList', ol: 'insertOrderedList' };
       const btnFor = (cmd) => bar.querySelector(`[data-cmd="${cmd}"]`);
-      // 空のときは必ずブロック要素(<div><br></div>)を1つ置く。空の contenteditable は
-      // ブロックが無いと execCommand の状態(bold等)が不安定になり、クリックのたびにトグルしてしまうため。
-      function ensureBlock() { if (!editor.firstChild || (editor.childNodes.length === 1 && editor.firstChild.nodeType === 3 && !editor.firstChild.nodeValue.trim())) editor.innerHTML = '<div><br></div>'; }
+      // B/I/U/S は Range で自前にタグを包む/外す（execCommand は CSSスパンを吐き不安定）。
+      const INLINE_TAG = { bold: 'strong', italic: 'em', underline: 'u', strike: 's' };
+      const ACTIVE_TAGS = { bold: ['STRONG', 'B'], italic: ['EM', 'I'], underline: ['U'], strike: ['S', 'STRIKE', 'DEL'], ul: ['UL'], ol: ['OL'] };
+      const HEADINGS = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
+      const blockSelect = () => bar.querySelector('[data-cmd="block"]');
+      const colorInput = () => bar.querySelector('[data-cmd="color"]');
       function refreshEmpty() {
-        editor.classList.toggle('is-empty', editor.textContent.trim() === '' && !editor.querySelector('h3,ul,ol,li,a,strong,b,em,i,u,s,strike,del'));
+        editor.classList.toggle('is-empty', editor.textContent.trim() === '' && !editor.querySelector('h1,h2,h3,h4,h5,h6,ul,ol,li,a,strong,b,em,i,u,s,strike,del'));
       }
-      function inHeading() {
-        let node = window.getSelection().anchorNode;
-        while (node && node !== editor) { if (node.nodeName === 'H3') return true; node = node.parentNode; }
-        return false;
+      // カーソル/選択が該当タグ内にあれば、その要素を返す。
+      function elemInSelection(tags) {
+        const sel = window.getSelection();
+        let node = sel && sel.anchorNode;
+        if (!node || !editor.contains(node)) return null;
+        while (node && node !== editor) { if (tags.indexOf(node.nodeName) !== -1) return node; node = node.parentNode; }
+        return null;
       }
-      function cmdState(c) { try { return document.queryCommandState(c); } catch (e) { return false; } }
+      function unwrap(el) { const p = el.parentNode; const first = el.firstChild, last = el.lastChild; while (el.firstChild) p.insertBefore(el.firstChild, el); p.removeChild(el); p.normalize(); return { first, last }; }
+      // 選択範囲に装飾を反映/解除（WordPress風トグル）。選択が無いときは何もしない（選んでから装飾）。
+      function toggleInline(cmd) {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        const existing = elemInSelection(ACTIVE_TAGS[cmd]);
+        if (existing) { // 既に装飾中→外す
+          const ends = unwrap(existing);
+          try {
+            if (ends.first && ends.first.parentNode && ends.last && ends.last.parentNode) {
+              const r = document.createRange(); r.setStartBefore(ends.first); r.setEndAfter(ends.last); sel.removeAllRanges(); sel.addRange(r);
+            }
+          } catch (e) { /* normalize で結合された場合は選択維持しない（非致命） */ }
+          return;
+        }
+        const range = sel.getRangeAt(0);
+        if (range.collapsed) return;
+        const el = document.createElement(INLINE_TAG[cmd]);
+        try { range.surroundContents(el); } catch (e) { el.appendChild(range.extractContents()); range.insertNode(el); }
+        const r = document.createRange(); r.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(r);
+      }
+      // 選択範囲に文字色（エクセル風）。span[style=color] で包む。選択が無いときは何もしない。
+      function applyColor(color) {
+        const sel = window.getSelection();
+        if (!sel.rangeCount || sel.getRangeAt(0).collapsed) return;
+        const range = sel.getRangeAt(0);
+        const span = document.createElement('span'); span.style.color = color;
+        try { range.surroundContents(span); } catch (e) { span.appendChild(range.extractContents()); range.insertNode(span); }
+        const r = document.createRange(); r.selectNodeContents(span); sel.removeAllRanges(); sel.addRange(r);
+      }
+      function applyBlock(tag) { document.execCommand('formatBlock', false, tag === 'p' ? 'p' : tag); } // 本文/H1〜H6
+      function currentBlock() { const el = elemInSelection(HEADINGS); return el ? el.nodeName.toLowerCase() : 'p'; }
+      // 装飾ボタン点灯＋見出しプルダウンの現在値（DOM祖先で判定＝誤反応しない）。
       function refreshActive() {
-        const h = btnFor('heading'); if (h) h.classList.toggle('is-active', inHeading());
-        // 空エディタは execCommand の状態が不安定でクリックのたびにトグルするため、装飾ボタンは常に非アクティブにする。
-        const empty = editor.textContent.trim() === '';
-        Object.keys(CMD).forEach((k) => { const b = btnFor(k); if (b) b.classList.toggle('is-active', !empty && cmdState(CMD[k])); });
+        Object.keys(ACTIVE_TAGS).forEach((k) => { const b = btnFor(k); if (b) b.classList.toggle('is-active', !!elemInSelection(ACTIVE_TAGS[k])); });
+        const sb = blockSelect(); if (sb) sb.value = currentBlock();
       }
       function syncField() { field.value = RT.isBlank(editor.innerHTML) ? '' : RT.sanitize(editor.innerHTML); }
 
-      editor.addEventListener('focus', ensureBlock); // 空クリック時の状態トグルを防ぐ
-      bar.addEventListener('mousedown', (e) => { if (e.target.closest('.rte-btn')) e.preventDefault(); }); // 選択保持
+      // select/color はネイティブUIが開くとエディタの選択が消えるため、操作前に選択を退避して復元する。
+      let savedRange = null;
+      function saveRange() { const s = window.getSelection(); if (document.activeElement === editor && s.rangeCount) savedRange = s.getRangeAt(0).cloneRange(); }
+      function restoreRange() { if (savedRange) { editor.focus(); const s = window.getSelection(); s.removeAllRanges(); s.addRange(savedRange); } }
+      const afterEdit = () => { refreshEmpty(); refreshActive(); syncField(); form.dispatchEvent(new Event('input', { bubbles: true })); };
+
+      bar.addEventListener('mousedown', (e) => { saveRange(); if (e.target.closest('.rte-btn')) e.preventDefault(); }); // ボタンはフォーカス保持
       bar.addEventListener('click', (e) => {
         const btn = e.target.closest('.rte-btn'); if (!btn) return;
         e.preventDefault();
         editor.focus();
         const cmd = btn.dataset.cmd;
-        if (cmd === 'heading') document.execCommand('formatBlock', false, inHeading() ? 'div' : 'h3');
+        if (cmd === 'ul') document.execCommand('insertUnorderedList');
+        else if (cmd === 'ol') document.execCommand('insertOrderedList');
         else if (cmd === 'link') {
           const url = window.prompt(T('pf.rte.linkPrompt', 'リンク先URL（https://…）'), 'https://');
           if (url && /^(https?:\/\/|mailto:)/i.test(url.trim())) document.execCommand('createLink', false, url.trim());
-        } else if (CMD[cmd]) document.execCommand(CMD[cmd]);
-        refreshEmpty(); refreshActive(); syncField();
-        form.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (INLINE_TAG[cmd]) toggleInline(cmd);
+        afterEdit();
       });
+      const sb0 = blockSelect(); if (sb0) sb0.addEventListener('change', (e) => { restoreRange(); applyBlock(e.target.value); afterEdit(); });
+      const ci0 = colorInput(); if (ci0) ci0.addEventListener('change', (e) => { restoreRange(); applyColor(e.target.value); afterEdit(); });
       document.addEventListener('selectionchange', () => { if (document.activeElement === editor) refreshActive(); });
       editor.addEventListener('input', () => { refreshEmpty(); refreshActive(); syncField(); });
-      editor.addEventListener('blur', syncField);
+      editor.addEventListener('blur', () => {
+        syncField();
+        // フォーカスが外れたら装飾ボタンの点灯を消す（古い点灯が残らないように）。
+        bar.querySelectorAll('.rte-btn.is-active').forEach((b) => b.classList.remove('is-active'));
+      });
       editor.addEventListener('paste', (e) => { // 貼り付けはプレーン化（装飾崩れ・不正HTML混入を防ぐ）
         e.preventDefault();
         const text = ((e.clipboardData || window.clipboardData).getData('text/plain') || '');
@@ -294,7 +387,7 @@
 
       return {
         loadFromField() {
-          editor.innerHTML = RT.render(field.value) || '<div><br></div>'; // HTMLはサニタイズ、旧Markdownは変換。空でも安定ブロックを置く
+          editor.innerHTML = RT.render(field.value); // HTMLはサニタイズ、旧Markdownは変換
           refreshEmpty(); refreshActive();
         },
         applyAccent,
@@ -309,6 +402,9 @@
       applyProfile(form, stored, true);
       renderPreview(readProfile(form));
       if (bioEditor) { bioEditor.loadFromField(); bioEditor.applyAccent(); }
+      loadLinks(stored.profile_links);
+      document.getElementById('add-link')?.addEventListener('click', () => addLinkRow());
+      document.getElementById('links-list')?.addEventListener('click', (e) => { const rm = e.target.closest('.link-remove'); if (rm) rm.closest('.link-row').remove(); });
 
       try {
         const data = await api('me');
@@ -342,6 +438,7 @@
         if (serverProfile && Object.keys(serverProfile).length) applyProfile(form, serverProfile, true);
         renderPreview(readProfile(form));
         if (bioEditor) { bioEditor.loadFromField(); bioEditor.applyAccent(); }
+        loadLinks((serverProfile && Object.keys(serverProfile).length) ? (serverProfile.profile_links || '') : (stored.profile_links || ''));
       } catch (error) {
         $('#profile-status').textContent = T("pf.status.loadError", 'プロフィール情報を読み込めませんでした。手入力で保存できます。');
       }
@@ -360,6 +457,11 @@
         event.preventDefault();
         if (bioEditor) bioEditor.syncField();
         const profile = saveProfile(form);
+        // リンク（表示名＋URL）を送る。連結（改行区切りの profile_links 生成）はバックエンドが行う。
+        const linkItems = collectLinks();
+        profile.profile_links_items = linkItems;
+        profile.profile_links = buildLinksString(linkItems);
+        localStorage.setItem(profileKey, JSON.stringify(profile));
         renderPreview(profile);
         $('#profile-message').textContent = T("pf.save.saving", '保存しています...');
         try {

@@ -90,7 +90,7 @@ erDiagram
 - ✅ **複数の予約ページ**（[features/24](./features/24-multiple-booking-pages.md)）: `slug` グローバル一意維持・オーナー複数行・保存数上限（無料1/Pro2/プレミアム5・決定27、frozen は上限カウント除外・#174）。
 - ✅ **受付期間 無料2ヶ月化**（[features/05](./features/05-booking-range.md)）: `booking_range_months` CHECK は `(1〜6)`、無料は2ヶ月にクランプ。
 - ✅ **会員同士の相互質問**（[features/20](./features/20-member-mutual-questions.md)）: `bookings.guest_message`（最小実装・#21）。本格的な相互アンケート交換は将来。
-- ✅ **議事録連携**（[features/23](./features/23-meeting-minutes.md)）: 汎用 inbound webhook（`meeting-notes-webhook`）→ `appointment_logs` 保存（#24・env-gate）。専用議事録テーブルは将来。
+- 📝 **議事録連携**（[features/23](./features/23-meeting-minutes.md)）: 将来構想。暫定で置いていた汎用 inbound webhook（`meeting-notes-webhook`→`appointment_logs`・#24）は外部連携未確定・誤動作防止のため削除（2026-07-21）。専用議事録テーブルとともに着手時にあらためて設計。
 - ✅ **お試し期間**（[features/13](./features/13-plans.md)）: `owners.trial_ends_at`。Pro=1ヶ月無料、プレミアム=無料お試しなし。
 - ✅ **印象スコア構造化**（[features/14](./features/14-customer-management.md)）: `appointment_logs.scores`(jsonb)＋相手ごと集約ビュー（#175）。
 - ✅ **プレミアムプラン**（決定20）: `owners.plan` に `premium`、AIアシスト利用ログ `ai_assist_logs`（月300回上限）。

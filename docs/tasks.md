@@ -44,7 +44,7 @@
 - [ ] メール: `RESEND_API_KEY` / `TRANSACTIONAL_EMAIL_FROM`(notify) / `MARKETING_EMAIL_FROM`(news) / `RESEND_WEBHOOK_SECRET` / `THANKYOU_CRON_SECRET`（or `CRON_SECRET`）
 - [ ] Square: アクセストークン・署名鍵・`SQUARE_WEBHOOK_SHARED_SECRET`・¥980プランID・`SQUARE_PREMIUM_PLAN_ID`
 - [ ] AIアシスト: `OPENAI_API_KEY` / `OPENAI_MODEL`(=gpt-5.4-mini) / `AI_ASSIST_MONTHLY_LIMIT`(=300)
-- [ ] （任意）Zoom: `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET`、議事録: `MEETING_NOTES_WEBHOOK_SECRET`
+- [ ] （任意）Zoom: `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET`
 
 ## F. 法務・運用
 - [x] [legal/](./legal/) ドラフトの**差し込み情報を確定**（一般社団法人ぴんころ／代表理事 内山 文雄／西本町 fabbit／インボイス T1030005019164／電話 080-6882-9783）。
@@ -88,7 +88,7 @@
 ## 優先度 ⚪ 低（完了）
 - [x] 会員同士の相互質問（ゲスト→ホスト・最小実装）（[20](./features/20-member-mutual-questions.md)・#21）
 - [x] Zoom 自動発行（[06](./features/06-location-type.md)・#23）　設定待ち: `ZOOM_*`
-- [x] 議事録アプリ連携（汎用inbound webhook）（[23](./features/23-meeting-minutes.md)・#24）　設定待ち: `MEETING_NOTES_WEBHOOK_SECRET`
+- [ ] 議事録アプリ連携（将来構想・[23](./features/23-meeting-minutes.md)）※暫定の汎用inbound webhookは誤動作防止のため削除（2026-07-21・#24廃止）
 - [x] DBレガシー整理（非破壊・ドキュメント明示）（#25・[db-schema.md](./db-schema.md)）
 
 > 未着手の実装タスクは現状なし。新規要望が出たら本セクションに追加する。

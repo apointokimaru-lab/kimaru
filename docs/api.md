@@ -177,9 +177,6 @@ Square 決済イベントを受信し、該当オーナーのプランを更新�
 ### `POST /api/resend-webhook` — 署名（任意）
 Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_WEBHOOK_SECRET` 設定時は検証）。
 
-### `POST /api/meeting-notes-webhook` — 署名（シークレット）
-議事録ツール等から面談メモを受信し `appointment_logs` に保存。`MEETING_NOTES_WEBHOOK_SECRET` 未設定なら 503。
-
 ---
 
 ## 環境変数（API 関連）
@@ -198,4 +195,3 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 | `SQUARE_PREMIUM_PLAN_ID` | プレミアム（¥2,200）の付与判定 |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` / `AI_ASSIST_MONTHLY_LIMIT` | AIアシスト（GPT-5.4 Mini・月300回） |
 | `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET` | Zoom 自動発行（任意） |
-| `MEETING_NOTES_WEBHOOK_SECRET` | 議事録 inbound webhook（任意） |

@@ -4,7 +4,54 @@ const { createCalendarEvent, createBufferEventsFor } = require("./_lib/google");
 const { checkRateLimit, clientIp, RATE_LIMIT_MESSAGE } = require("./_lib/rate-limit");
 const zoom = require("./_lib/zoom");
 const { sendMail } = require("./_lib/mail");
+const { appBaseUrl } = require("./_lib/config");
 const { LOCATION_LABELS, formatJst, manageUrl, answerUrl, answersSummary } = require("./_lib/booking-format");
+
+const APP_ESC = (v) => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+// ホストのプロフィール項目（値があるものだけ）。相手（ゲスト）向けの表示に使う。値が無い項目は出さない。
+function hostProfileFields(profile) {
+  return [
+    ["肩書き・活動内容", profile.profile_title],
+    ["キャッチコピー", profile.profile_headline],
+    ["強み・得意なこと", profile.profile_strengths],
+    ["提供できる価値", profile.profile_offer],
+    ["大切にしていること", profile.profile_values],
+    ["次につなげたいこと", profile.profile_goal],
+  ].filter(([, v]) => v != null && String(v).trim());
+}
+// 公開プロフィールURL（公開設定がoff/slug無しなら空）。
+function hostProfileUrl(owner, profile) {
+  const slug = owner && owner.slug;
+  if (!slug || (profile && profile.profile_public === "off")) return "";
+  try { return `${appBaseUrl().replace(/\/+$/, "")}/u/${encodeURIComponent(slug)}`; } catch (_) { return ""; }
+}
+// 相手（ホスト）のプロフィール節・プレーンテキスト（見出しは「{名前}のプロフィール」、末尾に公開プロフィールURL）。
+function hostProfileTextLines(profile, ownerName, url) {
+  const fields = hostProfileFields(profile);
+  if (!fields.length && !url) return [];
+  const lines = [`― ${ownerName}のプロフィール ―`];
+  fields.forEach(([label, v]) => lines.push(`${label}: ${String(v).trim()}`));
+  if (url) lines.push("", `▼ ${ownerName}のプロフィール`, url);
+  return lines;
+}
+// URLをリンク化しつつHTMLエスケープ（メール本文用）。
+function linkifyEscape(line) {
+  return String(line).split(/(https?:\/\/[^\s]+)/g)
+    .map((p, i) => (i % 2 ? `<a href="${APP_ESC(p)}">${APP_ESC(p)}</a>` : APP_ESC(p))).join("");
+}
+// テキスト行配列 → HTML。公開プロフィールURL行は「{名前}のプロフィール」文言のハイパーリンクにする。
+function linesToHtml(lines, profileUrl, profileLabel) {
+  const out = [];
+  for (const ln of lines) {
+    if (profileUrl && ln === `▼ ${profileLabel}`) continue; // ラベル行はハイパーリンクに統合
+    if (profileUrl && ln === profileUrl) { out.push(`<a href="${APP_ESC(profileUrl)}">${APP_ESC(profileLabel)}</a>`); continue; }
+    out.push(linkifyEscape(ln));
+  }
+  return `<div style="font-family:sans-serif;line-height:1.75;color:#1a1d24">${out.join("<br>")}</div>`;
+}
+exports.hostProfileFields = hostProfileFields; // テスト用に公開（handler には影響なし）
+exports.hostProfileTextLines = hostProfileTextLines;
+exports.linesToHtml = linesToHtml;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -21,9 +68,10 @@ async function ownerProfileData(ownerId) {
 }
 
 // 予約完了メール（ゲスト宛・任意・非致命）。管理（変更/キャンセル）リンク＋ホストのプロフィール付き。Resend 未設定ならスキップ。
-async function sendBookingConfirmation({ booking, owner, meetingUrl, locationValue }) {
-  const profile = await ownerProfileData(owner?.id);
-  const ownerName = profile.profile_name || owner?.name || owner?.email || "担当者";
+async function sendBookingConfirmation({ booking, owner, meetingUrl, locationValue, profile }) {
+  const prof = profile || await ownerProfileData(owner?.id);
+  const ownerName = prof.profile_name || owner?.name || owner?.email || "担当者";
+  const profUrl = hostProfileUrl(owner, prof);
   const when = formatJst(booking.start_at || booking.start_time);
   const lines = [
     `${booking.visitor_name || ""}さん`,
@@ -35,14 +83,13 @@ async function sendBookingConfirmation({ booking, owner, meetingUrl, locationVal
   ];
   if (meetingUrl) lines.push(`ミーティング: ${meetingUrl}`);
   if (locationValue) lines.push(`場所/案内: ${locationValue}`);
-  // お相手（ホスト）のプロフィール — 肩書き/活動内容・提供できる価値があるときのみ枠を出す。
-  if (profile.profile_title || profile.profile_offer) {
-    lines.push("", "― お相手のプロフィール ―", ownerName);
-    if (profile.profile_title) lines.push(`肩書き・活動内容: ${profile.profile_title}`);
-    if (profile.profile_offer) lines.push(`相手に提供できる価値: ${profile.profile_offer}`);
-  }
+  // 相手（ホスト）のプロフィール — 見出しは「{名前}のプロフィール」、値のある項目だけ、末尾に公開プロフィールへのリンク。
+  const profileLines = hostProfileTextLines(prof, ownerName, profUrl);
+  if (profileLines.length) lines.push("", ...profileLines);
   lines.push("", "▼ 予約の変更・キャンセルはこちら", manageUrl(booking.id), "", "当日お会いできるのを楽しみにしています。");
-  return sendMail({ to: booking.visitor_email, subject: `予約が確定しました（${when}）`, text: lines.join("\n") });
+  const text = lines.join("\n");
+  const html = linesToHtml(lines, profUrl, `${ownerName}のプロフィール`);
+  return sendMail({ to: booking.visitor_email, subject: `予約が確定しました（${when}）`, text, html });
 }
 
 // 新規予約のホスト（主催者）宛通知メール（任意・非致命）。無料版でも予約に気づける。
@@ -213,14 +260,19 @@ exports.handler = async (event) => {
       }
     }
 
-    // カレンダー予定の説明文に「事前アンケート（質問と回答）」を載せる。
+    // カレンダー予定の説明文に「事前アンケート（質問と回答）」＋相手（ホスト）のプロフィールを載せる。
     const qa = answers
       .filter((a) => a && a.answer_text)
       .map((a) => `Q. ${clean(a.question_text, 200) || "質問"}\nA. ${clean(a.answer_text, 2000)}`)
       .join("\n\n");
+    // 相手（ホスト）のプロフィール。ゲストのカレンダー予定（招待）にも同じ情報を載せる。
+    const ownerProfile = await ownerProfileData(owner.id).catch(() => ({}));
+    const ownerDisplayName = ownerProfile.profile_name || owner.name || owner.email || "担当者";
+    const ownerProfileLines = hostProfileTextLines(ownerProfile, ownerDisplayName, hostProfileUrl(owner, ownerProfile));
     booking.calendar_description = [
       qa ? `【事前アンケート】\n${qa}` : (booking.topic ? `相談内容: ${booking.topic}` : ""),
       zoomUrl ? `▼ Zoomミーティング\n${zoomUrl}` : "",
+      ownerProfileLines.length ? ownerProfileLines.join("\n") : "",
       "— キマルで予約された面談です。",
       `▼ 予約の変更・キャンセル\n${manageUrl(booking.id)}`,
     ].filter(Boolean).join("\n\n");
@@ -252,7 +304,7 @@ exports.handler = async (event) => {
     const locationValue = clean(body.location_value, 500);
     // 予約者がキマル会員か判定（会員同士なら相互質問の回答導線を有効化・#20）。
     const booker = await findOwnerByEmail(visitorEmail).catch(() => null);
-    await sendBookingConfirmation({ booking, owner, meetingUrl, locationValue }).catch(() => {});
+    await sendBookingConfirmation({ booking, owner, meetingUrl, locationValue, profile: ownerProfile }).catch(() => {});
     await sendHostNotification({ booking, owner, meetingUrl, locationValue, answers, booker }).catch(() => {});
 
     return json(200, { ok: true, booking, google: eventResult, manage_url: manageUrl(booking.id) });

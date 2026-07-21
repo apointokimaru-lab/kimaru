@@ -69,13 +69,14 @@ function gmailTransport() {
 }
 
 // Gmail SMTP で送信。差出人アドレスは認証アカウント（GMAIL_USER）固定、表示名のみ反映。
-async function sendViaGmail({ to, subject, text, replyTo, fromName, headers }) {
+async function sendViaGmail({ to, subject, text, html, replyTo, fromName, headers }) {
   const transport = gmailTransport();
   if (!transport) return null;
   const user = optional("GMAIL_USER", "");
   const from = fromName ? `${fromName} <${user}>` : user;
   const info = await transport.sendMail({
     from, to, subject, text,
+    ...(html ? { html } : {}),
     ...(replyTo ? { replyTo } : {}),
     ...(headers && Object.keys(headers).length ? { headers } : {}),
   });
@@ -83,7 +84,7 @@ async function sendViaGmail({ to, subject, text, replyTo, fromName, headers }) {
 }
 
 // Resend HTTP API で送信。
-async function sendViaResend({ to, subject, text, from, replyTo, headers }) {
+async function sendViaResend({ to, subject, text, html, from, replyTo, headers }) {
   const apiKey = optional("RESEND_API_KEY", "");
   if (!apiKey || !from) return null;
   const response = await fetch("https://api.resend.com/emails", {
@@ -91,6 +92,7 @@ async function sendViaResend({ to, subject, text, from, replyTo, headers }) {
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       from, to, subject, text,
+      ...(html ? { html } : {}),
       ...(replyTo ? { reply_to: replyTo } : {}),
       ...(headers && Object.keys(headers).length ? { headers } : {}),
     }),
@@ -102,7 +104,7 @@ async function sendViaResend({ to, subject, text, from, replyTo, headers }) {
 
 // 共通送信。Gmail（設定あれば）→ Resend → スキップ。失敗は例外（呼び出し側は非致命で握りつぶす）。
 // category 既定は transactional（＝従来挙動と互換）。
-async function sendMail({ to, subject, text, from, replyTo, category = "transactional", headers = {}, unsubscribeEmail }) {
+async function sendMail({ to, subject, text, html, from, replyTo, category = "transactional", headers = {}, unsubscribeEmail }) {
   if (!to) return { skipped: true };
   const isMarketing = category === "marketing";
 
@@ -129,10 +131,10 @@ async function sendMail({ to, subject, text, from, replyTo, category = "transact
     }
   }
 
-  const viaGmail = await sendViaGmail({ to, subject, text, replyTo: reply, fromName: displayName(fromAddr) || "キマル", headers: mailHeaders });
+  const viaGmail = await sendViaGmail({ to, subject, text, html, replyTo: reply, fromName: displayName(fromAddr) || "キマル", headers: mailHeaders });
   if (viaGmail) return viaGmail;
 
-  const viaResend = await sendViaResend({ to, subject, text, from: fromAddr, replyTo: reply, headers: mailHeaders });
+  const viaResend = await sendViaResend({ to, subject, text, html, from: fromAddr, replyTo: reply, headers: mailHeaders });
   if (viaResend) return viaResend;
 
   return { skipped: true };

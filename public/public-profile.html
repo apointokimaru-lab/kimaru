@@ -71,7 +71,7 @@
       blocks.push(`<div class="profile-hero">
         <div class="profile-av"${accent ? ` style="background:${accent}1f;color:${accent}"` : ''}>${initialOf(p.profile_name)}</div>
         <div class="assist-summary">
-          <h1${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(name)}</h1>
+          <h1>${escapeHtml(name)}</h1>
           ${p.profile_title ? `<p class="muted">${escapeHtml(p.profile_title)}</p>` : ''}
           ${p.profile_headline ? `<p class="lead">${escapeHtml(p.profile_headline)}</p>` : ''}
         </div>
@@ -80,20 +80,24 @@
       const bookSlug = resolveSlug();
       if (bookSlug) blocks.push(`<div class="form-actions pp-book" style="margin:2px 0 18px"><a class="button primary" href="/b/${encodeURIComponent(bookSlug)}">${escapeHtml(T('pp.bookCta', 'この人に予約する →'))}</a></div>`);
       if (p.profile_bio_rich) {
-        // 自己紹介はサニタイズ済みHTML（旧Markdownも後方互換で変換）。見出しにはアクセント色。
+        // 自己紹介はサニタイズ済みHTML（旧Markdownも後方互換で変換）。文字色は本文内の指定を尊重（アクセント色はアバターのみ）。
         const bioHtml = window.KimaruRichText ? window.KimaruRichText.render(p.profile_bio_rich) : formatRich(p.profile_bio_rich);
-        blocks.push(`<section class="assist-block pp-bio"${accent ? ` style="--pp-accent:${accent}"` : ''}>${bioHtml}</section>`);
+        blocks.push(`<section class="assist-block pp-bio">${bioHtml}</section>`);
       }
-      if (p.profile_strengths) blocks.push(`<section class="assist-block"><h3 class="pp-heading"${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(T('pp.strengths', '強み・得意なこと'))}</h3><p>${escapeHtml(p.profile_strengths)}</p></section>`);
-      if (p.profile_offer) blocks.push(`<section class="assist-block"><h3 class="pp-heading"${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(T('pp.offer', '提供できる価値'))}</h3><p>${escapeHtml(p.profile_offer)}</p></section>`);
-      if (p.profile_values) blocks.push(`<section class="assist-block"><h3 class="pp-heading"${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(T('pp.values', '大切にしていること'))}</h3><p>${escapeHtml(p.profile_values)}</p></section>`);
+      if (p.profile_strengths) blocks.push(`<section class="assist-block"><h3 class="pp-heading">${escapeHtml(T('pp.strengths', '強み・得意なこと'))}</h3><p>${escapeHtml(p.profile_strengths)}</p></section>`);
+      if (p.profile_offer) blocks.push(`<section class="assist-block"><h3 class="pp-heading">${escapeHtml(T('pp.offer', '提供できる価値'))}</h3><p>${escapeHtml(p.profile_offer)}</p></section>`);
+      if (p.profile_values) blocks.push(`<section class="assist-block"><h3 class="pp-heading">${escapeHtml(T('pp.values', '大切にしていること'))}</h3><p>${escapeHtml(p.profile_values)}</p></section>`);
       if (p.profile_links) {
-        const links = String(p.profile_links).split('\n').map((l) => l.trim()).filter(Boolean);
-        const items = links.map((l) => {
-          const safe = /^https?:\/\//i.test(l) ? l : '';
-          return safe ? `<li><a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${escapeHtml(safe)}</a></li>` : `<li>${escapeHtml(l)}</li>`;
+        // 各行「表示名<TAB>URL」。区切り無し（旧データ）はURLのみとして扱う。表示名があればリンク文言に使う。
+        const items = String(p.profile_links).split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => l.trim()).map((line) => {
+          const tab = line.indexOf('\t');
+          const name = tab !== -1 ? line.slice(0, tab).trim() : '';
+          const url = (tab !== -1 ? line.slice(tab + 1) : line).trim();
+          const safe = /^https?:\/\//i.test(url) ? url : '';
+          const label = name || safe || url;
+          return safe ? `<li><a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a></li>` : `<li>${escapeHtml(label)}</li>`;
         }).join('');
-        if (items) blocks.push(`<section class="assist-block"><h3 class="pp-heading"${accent ? ` style="color:${accent}"` : ''}>${escapeHtml(T('pp.links', 'リンク'))}</h3><ul>${items}</ul></section>`);
+        if (items) blocks.push(`<section class="assist-block"><h3 class="pp-heading">${escapeHtml(T('pp.links', 'リンク'))}</h3><ul>${items}</ul></section>`);
       }
       $('#public-profile').innerHTML = blocks.join('');
     }

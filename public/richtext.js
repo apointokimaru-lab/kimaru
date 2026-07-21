@@ -5,8 +5,8 @@
 (function () {
   if (window.KimaruRichText) return;
 
-  // インライン装飾・見出し・リスト・リンク・改行のみ許可。
-  var ALLOWED = { STRONG: 1, B: 1, EM: 1, I: 1, U: 1, S: 1, STRIKE: 1, DEL: 1, H3: 1, UL: 1, OL: 1, LI: 1, A: 1, BR: 1, P: 1, DIV: 1, SPAN: 1 };
+  // インライン装飾・見出し(h1〜h6)・リスト・リンク・改行のみ許可。
+  var ALLOWED = { STRONG: 1, B: 1, EM: 1, I: 1, U: 1, S: 1, STRIKE: 1, DEL: 1, H1: 1, H2: 1, H3: 1, H4: 1, H5: 1, H6: 1, UL: 1, OL: 1, LI: 1, A: 1, BR: 1, P: 1, DIV: 1, SPAN: 1 };
   // 中身ごと破棄する危険タグ（テキストとしても残さない）。
   var DROP = { SCRIPT: 1, STYLE: 1, IFRAME: 1, OBJECT: 1, EMBED: 1, LINK: 1, META: 1, BASE: 1, NOSCRIPT: 1, TEMPLATE: 1, HEAD: 1, TITLE: 1, FORM: 1, INPUT: 1, TEXTAREA: 1, BUTTON: 1, SELECT: 1, OPTION: 1, SVG: 1, MATH: 1, IMG: 1, VIDEO: 1, AUDIO: 1, SOURCE: 1, CANVAS: 1 };
 
@@ -14,7 +14,19 @@
     return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
   }
 
-  // src の子ノードを許可リストに沿って dest に複製する（属性は基本破棄）。
+  // 文字色のみ許可（url()/expression() 等は色として不正なので通らない）。それ以外の style は破棄。
+  function safeColor(node) {
+    var c = "";
+    try { c = (node.style && node.style.color) || ""; } catch (e) { return ""; }
+    c = c.trim();
+    if (/^#[0-9a-f]{3,8}$/i.test(c)) return c;
+    if (/^rgba?\(\s*[\d.\s,%]+\)$/i.test(c)) return c;
+    if (/^hsla?\(\s*[\d.\s,%]+\)$/i.test(c)) return c;
+    if (/^[a-z]{1,20}$/i.test(c)) return c; // 色キーワード（red 等）
+    return "";
+  }
+
+  // src の子ノードを許可リストに沿って dest に複製する（属性は破棄。文字色のみ復元）。
   function walk(src, dest) {
     var kids = src.childNodes;
     for (var i = 0; i < kids.length; i++) {
@@ -30,6 +42,7 @@
           a.setAttribute("href", href);
           a.setAttribute("target", "_blank");
           a.setAttribute("rel", "noopener noreferrer nofollow");
+          var ac = safeColor(node); if (ac) a.style.color = ac;
           walk(node, a); dest.appendChild(a);
         } else {
           walk(node, dest); // 不正URLはリンクを外して中身だけ残す
@@ -38,6 +51,7 @@
       }
       if (ALLOWED[tag]) {
         var el = document.createElement(tag.toLowerCase());
+        var col = safeColor(node); if (col) el.style.color = col; // 文字色のみ復元
         walk(node, el); dest.appendChild(el);
       } else {
         walk(node, dest); // 未知タグはアンラップ（中身のみ）
@@ -70,7 +84,7 @@
   }
 
   // 許可タグを含めばHTML、含まなければ旧Markdownとみなす。
-  var HTML_RE = /<\/?(strong|b|em|i|u|s|strike|del|h3|ul|ol|li|a|br|p|div|span)\b/i;
+  var HTML_RE = /<\/?(strong|b|em|i|u|s|strike|del|h[1-6]|ul|ol|li|a|br|p|div|span)\b/i;
 
   // 保存値 → 表示/編集用の安全なHTML。
   function render(stored) {
@@ -82,7 +96,7 @@
   // エディタが実質空か（テキストも装飾要素も無い。空ブロックの <br> だけは空扱い）。
   function isBlank(html) {
     var doc = new DOMParser().parseFromString(String(html == null ? "" : html), "text/html");
-    return doc.body.textContent.trim() === "" && !doc.body.querySelector("h3,ul,ol,li,a,strong,b,em,i,u,s,strike,del,img");
+    return doc.body.textContent.trim() === "" && !doc.body.querySelector("h1,h2,h3,h4,h5,h6,ul,ol,li,a,strong,b,em,i,u,s,strike,del,img");
   }
 
   window.KimaruRichText = { sanitize: sanitize, markdownToHtml: markdownToHtml, render: render, isBlank: isBlank };

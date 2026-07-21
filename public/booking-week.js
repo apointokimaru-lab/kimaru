@@ -321,6 +321,20 @@ function renderGrid(data) {
     const key = `${j.y}-${j.m}-${j.d}`;
     if (byCol.has(key)) byCol.get(key).push({ start: s.start, end: s.end, startMin: j.min, endMin: jstFields(s.end).min });
   });
+  // 表示間隔（=隣接枠の最小間隔）に応じて縦軸(--hh)を伸ばし、短い間隔でも各枠に読みやすい高さを確保する。
+  if (weekcal) {
+    let step = Infinity;
+    byCol.forEach((list) => {
+      const mins = list.map((s) => s.startMin).sort((a, b) => a - b);
+      for (let i = 1; i < mins.length; i++) { const d = mins[i] - mins[i - 1]; if (d > 0 && d < step) step = d; }
+    });
+    if (!isFinite(step)) step = 60;
+    weekcal.style.removeProperty("--hh");
+    const baseHH = parseFloat(getComputedStyle(weekcal).getPropertyValue("--hh")) || 56;
+    const SLOT_MIN = 42; // 1枠の最低高さ(px)。間隔が短いほど --hh を伸ばす。
+    const hh = Math.max(baseHH, Math.min(120, Math.round((SLOT_MIN * 60) / step)));
+    weekcal.style.setProperty("--hh", `${hh}px`);
+  }
   let axisLabels = "";
   for (let h = startHour; h <= endHour; h++) axisLabels += `<span class="hr" style="top:calc(var(--hh)*${h - startHour})">${pad2(h)}:00</span>`;
   const axisHtml = `<div class="wk-axis" style="min-height:calc(var(--hh)*${hours})">${axisLabels}</div>`;

@@ -240,6 +240,7 @@ ok("authorize for free plan → 403 page", freeAuth.statusCode === 403);
 const consentRes = await authFn.handler({ httpMethod: "GET", headers: { cookie }, queryStringParameters: authQuery });
 // CSRFは Cookie ではなく hidden の署名付きトークン（owner.id 束縛・#252 後の決定31運用）。同意HTMLから抽出する。
 ok("authorize (premium) → consent page with client name", consentRes.statusCode === 200 && consentRes.body.includes("TestGPT") && consentRes.body.includes('name="consent_sig"'));
+ok("consent CSP form-action allows redirect origin (OAuth 302 back)", String(consentRes.headers["Content-Security-Policy"]).includes("form-action 'self' https://client.example"));
 const hiddenVal = (name) => (consentRes.body.match(new RegExp(`name="${name}" value="([^"]*)"`)) || [])[1];
 const consentNonce = hiddenVal("consent_nonce");
 const consentTs = hiddenVal("consent_ts");

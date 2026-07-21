@@ -73,13 +73,15 @@ function generateSlots(weeklySettings, bookingPage, fromTime, toTime) {
   return slots;
 }
 
-// 既存の予定（Google＋既存予約）を前後バッファ分だけ広げて重なり判定する。
+// 候補枠(=新しい打ち合わせ)を前後バッファ分だけ広げ、既存予定(生の時間)と重なるか判定する。
+// 「前バッファ＋打ち合わせ＋後バッファ」が空き時間に収まる枠だけを可とする。
+// 前バッファは開始前、後バッファは終了後にだけ効く（before≠after でも取り違えない）。
 function overlaps(slot, busy, bufferBeforeMs = 0, bufferAfterMs = 0) {
-  const s = new Date(slot.start).getTime();
-  const e = new Date(slot.end).getTime();
+  const s = new Date(slot.start).getTime() - bufferBeforeMs;
+  const e = new Date(slot.end).getTime() + bufferAfterMs;
   return busy.some((item) => {
-    const busyStart = new Date(item.start).getTime() - bufferBeforeMs;
-    const busyEnd = new Date(item.end).getTime() + bufferAfterMs;
+    const busyStart = new Date(item.start).getTime();
+    const busyEnd = new Date(item.end).getTime();
     return s < busyEnd && e > busyStart;
   });
 }
@@ -104,8 +106,9 @@ async function openSlotsForWindow(owner, bookingPage, weeklySettings, fromTime, 
   if (!slots.length || !owner?.id) return slots;
   const bufferBeforeMs = Math.max(0, Number(bookingPage?.buffer_before_minutes || 0)) * 60 * 1000;
   const bufferAfterMs = Math.max(0, Number(bookingPage?.buffer_after_minutes || 0)) * 60 * 1000;
-  const busyFromIso = new Date(fromTime - bufferAfterMs - DAY_MS).toISOString();
-  const busyToIso = new Date(toTime + bufferBeforeMs + DAY_MS).toISOString();
+  // 候補枠は開始前に bufferBefore、終了後に bufferAfter ぶん広がるので、その方向に取得窓も広げる。
+  const busyFromIso = new Date(fromTime - bufferBeforeMs - DAY_MS).toISOString();
+  const busyToIso = new Date(toTime + bufferAfterMs + DAY_MS).toISOString();
   const [calendarBusy, bookingBusy] = await Promise.all([
     freebusy(owner.id, busyFromIso, busyToIso).catch(() => []),
     ownerBookingBusy(owner.id, busyFromIso, busyToIso),

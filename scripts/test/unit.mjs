@@ -447,13 +447,33 @@ const availCore = requireCjs("../../netlify/functions/_lib/availability-core");
   ok("generateSlots: 7日窓で平日5日×6枠=30", slots.length === 30);
   ok("generateSlots: 枠間隔=80分(所要50+後30)", (new Date(slots[1].start) - new Date(slots[0].start)) === 80 * 60000);
 
-  // overlaps: busy(11:00-11:50) を後バッファ30分ぶん広げると 12:00枠(12:00-12:50)がブロックされる。
+  // overlaps: 候補枠を前後バッファぶん広げて既存予定と突き合わせる（前バッファ=開始前／後バッファ=終了後）。
   const p0 = availCore.tokyoParts(new Date(from));
   const iso = (h, m) => availCore.tokyoLocalDateToUtc(p0.year, p0.month, p0.date, h * 60 + m).toISOString();
-  const cand = { start: iso(12, 0), end: iso(12, 50) };
-  const busy = [{ start: iso(11, 0), end: iso(11, 50) }];
-  ok("overlaps: 後バッファ30で予定直後(30分以内)の枠をブロック", availCore.overlaps(cand, busy, 0, 30 * 60000) === true);
-  ok("overlaps: バッファ0なら重ならない枠はブロックしない", availCore.overlaps(cand, busy, 0, 0) === false);
+  const cand = { start: iso(12, 0), end: iso(12, 50) };        // 候補: 12:00-12:50
+  const before = [{ start: iso(11, 0), end: iso(11, 50) }];    // 直前の予定: 11:00-11:50（10分前に終了）
+  const after = [{ start: iso(13, 0), end: iso(13, 50) }];     // 直後の予定: 13:00-13:50（10分後に開始）
+  // 前バッファ30 → 開始前(11:30-12:00)が直前予定(〜11:50)と重なる → ブロック。後バッファは開始側に効かない。
+  ok("overlaps: 前バッファ30で予定直後(30分以内)の開始枠をブロック", availCore.overlaps(cand, before, 30 * 60000, 0) === true);
+  ok("overlaps: 後バッファは予定“後”の開始枠を塞がない（前バッファの役割）", availCore.overlaps(cand, before, 0, 30 * 60000) === false);
+  // 後バッファ30 → 終了後(12:50-13:20)が直後予定(13:00〜)と重なる → ブロック。前バッファは終了側に効かない。
+  ok("overlaps: 後バッファ30で予定直前(30分以内)の終了枠をブロック", availCore.overlaps(cand, after, 0, 30 * 60000) === true);
+  ok("overlaps: 前バッファは予定“前”の終了枠を塞がない（後バッファの役割）", availCore.overlaps(cand, after, 30 * 60000, 0) === false);
+  ok("overlaps: バッファ0なら重ならない枠はブロックしない", availCore.overlaps(cand, before, 0, 0) === false);
+
+  // シナリオ: 前30/後30/打合せ60/表示30分、空きが14:00-17:00 → 14:30・15:00・15:30 の3枠だけ可
+  // （前後バッファ＋打合せのトータルが空きに収まる枠のみ。14:00は前バッファ、16:00以降は後バッファで不可）。
+  {
+    const dayWeekly = [p0.day].map((d) => ({ day_of_week: d, start_time: "10:00", end_time: "18:00" }));
+    const spage = { duration_minutes: 60, buffer_before_minutes: 30, buffer_after_minutes: 30, slot_interval_minutes: 30 };
+    const dayStart = availCore.tokyoLocalDateToUtc(p0.year, p0.month, p0.date, 0).getTime();
+    const daySlots = availCore.generateSlots(dayWeekly, spage, dayStart, dayStart + DAY);
+    const sceneBusy = [{ start: iso(10, 0), end: iso(14, 0) }, { start: iso(17, 0), end: iso(18, 0) }];
+    const openHM = daySlots
+      .filter((s) => !availCore.overlaps(s, sceneBusy, 30 * 60000, 30 * 60000))
+      .map((s) => { const t = new Date(new Date(s.start).getTime() + 9 * 3600000); return `${String(t.getUTCHours()).padStart(2, "0")}:${String(t.getUTCMinutes()).padStart(2, "0")}`; });
+    ok("scenario: 前30/後30/60分/空き14-17時 → 14:30,15:00,15:30 の3枠", JSON.stringify(openHM) === JSON.stringify(["14:30", "15:00", "15:30"]));
+  }
 
   // axisRange: 稼働時間帯の最小open〜最大close
   const axis = availCore.axisRange(weekly);

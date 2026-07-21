@@ -44,7 +44,7 @@ premium coming-soon は既定状態（コードに組込み済み）なので、
 | `REMINDER_CRON_SECRET` / `THANKYOU_CRON_SECRET` / `CRON_SECRET` | 🟢推奨 | ランダム値（任意） | HTTP手動cronを保護（定期実行は秘密なしでも動く） |
 | `SQUARE_WEBHOOK_SIGNATURE_KEY` | 🟢推奨 | Square署名キー | 正規HMAC検証を有効化（無くても共有シークレットで動作） |
 | `RESEND_API_KEY` / `RESEND_WEBHOOK_SECRET` / `TRANSACTIONAL_EMAIL_FROM` / `MARKETING_EMAIL_FROM` | 🟢独自ドメイン化時 | — | Resend移行＋SPF/DKIM/DMARC。バウンス自動配信停止 |
-| `ZOOM_*` / `MEETING_NOTES_WEBHOOK_SECRET` | ⚪任意 | — | Zoom自動発行・議事録inbound |
+| `ZOOM_*` | ⚪任意 | — | Zoom自動発行 |
 | `OPENAI_MODEL` / `AI_ASSIST_MONTHLY_LIMIT` | ⚪任意 | 既定でOK | premium解禁時に効く |
 
 > 生成済みのランダム値はチャット側に提示（このファイルには載せない）。Netlify env にのみ設定し、リポジトリにコミットしない。

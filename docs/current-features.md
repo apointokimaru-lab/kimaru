@@ -102,6 +102,6 @@
 
 ## ⚠️ 主な残課題（設定待ち・将来）
 
-- **設定待ち（コードは完了・env/外部設定が必要）**: プレミアム課金（Square商品＋`SQUARE_PREMIUM_PLAN_ID`）、AIアシスト本番稼働（`OPENAI_API_KEY`）、メール送信（Resend Pro＋送信元env＋DNS SPF/DKIM/DMARC）、Zoom自動発行（`ZOOM_*`）、議事録連携（`MEETING_NOTES_WEBHOOK_SECRET`）、`supabase-schema.sql` の本番適用、本番デプロイ。→ 人間タスクは [`tasks.md`](./tasks.md)。
+- **設定待ち（コードは完了・env/外部設定が必要）**: プレミアム課金（Square商品＋`SQUARE_PREMIUM_PLAN_ID`）、AIアシスト本番稼働（`OPENAI_API_KEY`）、メール送信（Resend Pro＋送信元env＋DNS SPF/DKIM/DMARC）、Zoom自動発行（`ZOOM_*`）、`supabase-schema.sql` の本番適用、本番デプロイ。→ 人間タスクは [`tasks.md`](./tasks.md)。
 - **将来**: 高度プロフィールの画像アップロード、算命学の日柱精密化、AI要約/AI検索（プレミアム上位）、議事録ツール提携、法人プラン。
 - 注: DB はレガシー重複あり（`owners`/`users`、`google_connections`/`google_calendar_tokens` ほか・非破壊で残置）。詳細は [`db-schema.md`](./db-schema.md)。

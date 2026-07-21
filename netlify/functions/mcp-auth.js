@@ -130,5 +130,11 @@ exports.handler = async (event) => {
       </div>
     </form>
     <p class="note">許可すると、接続したAIサービスにこれらのデータが送信されます。ai-assist の「URLを再発行」でいつでも全接続を無効化できます。</p>`;
-  return html(200, page("接続の確認", inner));
+  // 同意フォーム送信後は検証済み redirect_uri（chatgpt.com / claude.ai 等）へ 302 で戻すため、
+  // その origin を form-action に許可する。Chrome は form-action をリダイレクト先にも適用するので、
+  // 'self' だけだと OAuth のリダイレクトが CSP でブロックされる（＝接続が「戻れない」原因）。
+  let redirectOrigin = "";
+  try { redirectOrigin = new URL(params.redirect_uri).origin; } catch (_) { /* 検証済みのため通常到達しない */ }
+  const consentCsp = `default-src 'none'; style-src 'unsafe-inline'; form-action 'self'${redirectOrigin ? ` ${redirectOrigin}` : ""}; base-uri 'none'; frame-ancestors 'none'`;
+  return html(200, page("接続の確認", inner), { "Content-Security-Policy": consentCsp });
 };

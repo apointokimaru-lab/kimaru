@@ -142,8 +142,6 @@
     let aiAssistRecords = [];
     let currentOwner = null;
     let isPremium = false;
-    // プレミアムのAI（GPT）はフェーズ2で開放（決定20）。それまでは全員ルールベース＋「近日公開」表示。
-    const PREMIUM_AI_LIVE = false;
     const $ = (selector) => document.querySelector(selector);
 
     function escapeHtml(value) {
@@ -329,49 +327,6 @@
         <p class="muted">このMVPは保存済み情報から提案を作成します。本格AI連携時は、同じプロフィールシートと相手データをAI APIへ渡せます。</p>`;
     }
 
-    function renderServerResult(record, data) {
-      const safe = escapeHtml(data.suggestion || '').replace(/\n/g, '<br>');
-      $('#ai-assist-result').innerHTML = `
-        <div class="assist-summary">
-          <p class="eyebrow">照合した相手（AIアシスト）</p>
-          <h3>${escapeHtml(record.name || record.email || '選択した相手')}</h3>
-          <p class="muted">${escapeHtml(record.email || '')}</p>
-        </div>
-        <section class="assist-block"><p>${safe}</p></section>
-        <p class="muted">モデル: ${escapeHtml(data.model || '')}。占いベースの傾向は補助情報です。最終判断はご自身で行ってください。</p>`;
-    }
-
-    // プレミアム会員はサーバのLLMで提案を生成。準備中(503)や失敗時は false を返してルールベースにフォールバックする。
-    async function runServerAssist(record, profile) {
-      const resultEl = $('#ai-assist-result');
-      resultEl.innerHTML = '<p class="muted">AIが提案を作成しています…</p>';
-      try {
-        const response = await fetch('/api/ai-assist', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contact: { name: record.name, email: record.email, text: record.text }, profile })
-        });
-        const data = await response.json().catch(() => ({}));
-        if (response.status === 503) return false; // 準備中 → ルールベースへ
-        if (response.status === 429) {
-          resultEl.innerHTML = `<p class="message">${escapeHtml(data.error || '今月の利用上限に達しました。')}</p>`;
-          return true;
-        }
-        if (!response.ok) {
-          resultEl.innerHTML = `<p class="message">${escapeHtml(data.error || '提案の生成に失敗しました。')}</p>`;
-          return true;
-        }
-        renderServerResult(record, data);
-        if (typeof data.remaining === 'number') {
-          $('#ai-assist-status').textContent = `照合できる相手データ: ${aiAssistRecords.length}件 ／ 今月のAIアシスト残り ${data.remaining}回`;
-        }
-        return true;
-      } catch (_) {
-        return false;
-      }
-    }
-
     async function runAssist(keyword) {
       const form = $('#profile-sheet-form');
       const input = $('#ai-assist-form input[name="target_keyword"]');
@@ -384,7 +339,6 @@
         return false;
       }
       const profile = saveProfile(form);
-      if (isPremium && PREMIUM_AI_LIVE && await runServerAssist(record, profile)) return true;
       renderResult(record, profile);
       return true;
     }

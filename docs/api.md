@@ -159,11 +159,8 @@ Square 決済イベントを受信し、該当オーナーのプランを更新�
 
 ## プレミアム・AI / プロフィール / メール配信
 
-### `POST /api/ai-assist` — 要（**プレミアム限定**）
-プロフィール×相手データから LLM（GPT-5.4 Mini）で関係構築の提案を生成。
-- body: `{ contact: { name?, email?, text? }, profile? }`
-- 上限: 月300回/ユーザー（`AI_ASSIST_MONTHLY_LIMIT`、超過 429）。`OPENAI_API_KEY` 未設定なら 503。
-- 応答: `{ ok: true, suggestion, model, used, remaining, limit }` / DB: `ai_assist_logs`
+### AI アシスト（プレミアム・MCP連携）
+プレミアムのAIはユーザー自身の ChatGPT/Claude を **MCP** で接続する方式（決定31・回数無制限）。エンドポイントは `/api/mcp`（`mcp.js`・読み取り専用ツール）、接続URL取得は `/api/mcp-token`。**旧サーバLLM `/api/ai-assist`（月300回上限）は撤去済み（2026-07-21）。**
 
 ### `GET / POST /api/profile` — 要
 プロフィール取得/保存。高度フィールド（`profile_headline`/`bio_rich`/`accent_color`/`links`/`public`）は **Pro/Premium のみ保存**。DB: `profiles`
@@ -193,5 +190,4 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 | `REMINDER_CRON_SECRET` / `THANKYOU_CRON_SECRET`（or `CRON_SECRET`） | リマインダー/サンキュー・ジョブ認証 |
 | `RESEND_API_KEY` / `TRANSACTIONAL_EMAIL_FROM`(notify) / `MARKETING_EMAIL_FROM`(news) / `RESEND_WEBHOOK_SECRET` | メール送信（経路分離）・配信イベント |
 | `SQUARE_PREMIUM_PLAN_ID` | プレミアム（¥2,200）の付与判定 |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` / `AI_ASSIST_MONTHLY_LIMIT` | AIアシスト（GPT-5.4 Mini・月300回） |
 | `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET` | Zoom 自動発行（任意） |

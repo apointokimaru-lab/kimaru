@@ -40,12 +40,10 @@ premium coming-soon は既定状態（コードに組込み済み）なので、
 | `ADMIN_SECRET` | 🟠 | **長いランダム値**（生成済） | 運営コンソール/Cat Key承認。未設定だと operator-login 500 |
 | `SQUARE_WEBHOOK_SHARED_SECRET` | 🟡Pro課金時 | 共有シークレット | **未設定だと square-webhook が503＝Pro付与されない**（fail-closed化済） |
 | `SQUARE_PREMIUM_PLAN_ID` | ✅coming-soon | **空のまま** | 空＝Square は誰にも premium を付与しない（pro のみ） |
-| `OPENAI_API_KEY` | ✅coming-soon | **空のまま** | 空＝AIアシスト503→ルールベースにフォールバック |
 | `REMINDER_CRON_SECRET` / `THANKYOU_CRON_SECRET` / `CRON_SECRET` | 🟢推奨 | ランダム値（任意） | HTTP手動cronを保護（定期実行は秘密なしでも動く） |
 | `SQUARE_WEBHOOK_SIGNATURE_KEY` | 🟢推奨 | Square署名キー | 正規HMAC検証を有効化（無くても共有シークレットで動作） |
 | `RESEND_API_KEY` / `RESEND_WEBHOOK_SECRET` / `TRANSACTIONAL_EMAIL_FROM` / `MARKETING_EMAIL_FROM` | 🟢独自ドメイン化時 | — | Resend移行＋SPF/DKIM/DMARC。バウンス自動配信停止 |
 | `ZOOM_*` | ⚪任意 | — | Zoom自動発行 |
-| `OPENAI_MODEL` / `AI_ASSIST_MONTHLY_LIMIT` | ⚪任意 | 既定でOK | premium解禁時に効く |
 
 > 生成済みのランダム値はチャット側に提示（このファイルには載せない）。Netlify env にのみ設定し、リポジトリにコミットしない。
 
@@ -76,7 +74,7 @@ premium coming-soon は既定状態（コードに組込み済み）なので、
 
 ## 7. Premium 解禁（フェーズ2・将来）
 
-1. `OPENAI_API_KEY` を設定、2. `SQUARE_PREMIUM_PLAN_ID` に Square の premium plan variation id、3. `public/ai-assist.html` の `PREMIUM_AI_LIVE = true`。
+1. `SQUARE_PREMIUM_PLAN_ID` に Square の premium plan variation id を設定（プレミアム付与判定）。**AIアシストはMCP連携＝OpenAIキー不要**（旧サーバLLMは撤去済み 2026-07-21）。
 （メモ: `premium-3tier-frontend`）
 
 ## 法務

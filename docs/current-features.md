@@ -72,7 +72,7 @@
 | 面談メモ・印象スコア構造化＋相手集約ビュー | ✅ | `appointment-log.js`（`scores`）, `app.js` `renderLogAggregate` |
 | 生年月日インサイト（算命学=年柱五行＋数秘術=ライフパス） | ✅ | `booking-week.js` / `app.js` `buildRelationshipProfile` |
 | プロフィール（サーバ保存）＋高度プロフィール＋公開ページ | ✅ | `profile.js`, `profile.html`, `profile-public.js`, `public-profile.html`（`/u/<slug>`） |
-| AIアシスト（LLM連携・プレミアム・月300回上限） | ✅（要 `OPENAI_API_KEY`） | `ai-assist.js`, `_lib/llm.js`, `ai_assist_logs` |
+| AIアシスト（プレミアム・MCP連携／回数無制限） | ✅ | `mcp.js`, `mcp-token.js`, `mcp-oauth*.js`, `mcp-auth.js` |
 
 ## 🌐 フロントエンド
 
@@ -94,7 +94,7 @@
 
 ## ✅ 2026-06-09 反映済み（決定→実装）
 
-- **プレミアムプラン**（¥2,200・無料お試しなし）＋ **AIアシスト**（GPT-5.4 Mini・月300回上限）。
+- **プレミアムプラン**（¥2,200・無料お試しなし）＋ **AIアシスト**（MCP連携・自分の ChatGPT/Claude・回数無制限）。
 - **メール/パスワード認証**・パスワード再設定・メール確認。
 - **占いインサイト高度化**（算命学＋数秘術）、**高度プロフィール＋公開ページ**、**相互質問**、**印象スコア構造化＋集約**。
 - **降格時のデータ凍結/復元**、**メール経路分離＋サプレッション**、**会員獲得サンキュー導線**。
@@ -102,6 +102,6 @@
 
 ## ⚠️ 主な残課題（設定待ち・将来）
 
-- **設定待ち（コードは完了・env/外部設定が必要）**: プレミアム課金（Square商品＋`SQUARE_PREMIUM_PLAN_ID`）、AIアシスト本番稼働（`OPENAI_API_KEY`）、メール送信（Resend Pro＋送信元env＋DNS SPF/DKIM/DMARC）、Zoom自動発行（`ZOOM_*`）、`supabase-schema.sql` の本番適用、本番デプロイ。→ 人間タスクは [`tasks.md`](./tasks.md)。
+- **設定待ち（コードは完了・env/外部設定が必要）**: プレミアム課金（Square商品＋`SQUARE_PREMIUM_PLAN_ID`）、メール送信（Resend Pro＋送信元env＋DNS SPF/DKIM/DMARC）、Zoom自動発行（`ZOOM_*`）、`supabase-schema.sql` の本番適用、本番デプロイ。→ 人間タスクは [`tasks.md`](./tasks.md)。
 - **将来**: 高度プロフィールの画像アップロード、算命学の日柱精密化、AI要約/AI検索（プレミアム上位）、議事録ツール提携、法人プラン。
 - 注: DB はレガシー重複あり（`owners`/`users`、`google_connections`/`google_calendar_tokens` ほか・非破壊で残置）。詳細は [`db-schema.md`](./db-schema.md)。

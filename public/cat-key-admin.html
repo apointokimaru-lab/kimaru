@@ -184,21 +184,21 @@
     function ownerState(o) {
       if (o.cat_key_pending) return 'pending';                    // 申請中（Cat Key登録→承認待ち）
       if (o.cat_key_disabled) return 'suspended';                 // 停止中（運営が停止）
-      if (o.invite_code && o.plan === 'free') return 'withdrawn'; // 退会済（過去メンバー・無料へ降格）
+      if (o.invite_code && o.plan === 'free') return 'free'; // 無料（過去メンバー・無料へ降格。アカウントは有効）
       return 'active';                                            // 利用中（一般Free・課金・メンバー）
     }
     const STATE_HTML = {
       pending: '<span class="badge-pending">申請中</span>',
       active: '<span class="state-active">利用中</span>',
       suspended: '<span class="badge-off">停止中</span>',
-      withdrawn: '<span class="state-withdrawn">退会済</span>',
+      free: '<span class="plan-pill">Free</span>',
     };
 
     // 並び替え状態（既定：登録の新しい順）
     let sortKey = 'created_at';
     let sortDir = -1; // 1=昇順 / -1=降順
     const PLAN_RANK = { free: 0, pro: 1, premium: 2 };
-    const STATE_RANK = { active: 1, withdrawn: 2, suspended: 3, pending: 4 };
+    const STATE_RANK = { active: 1, free: 2, suspended: 3, pending: 4 };
     function sortValue(owner, key) {
       switch (key) {
         case 'name': return (owner.name || owner.email || '').toLowerCase();
@@ -238,7 +238,7 @@
     // 退会（完全削除）はどの状態でも可能（関連データごと物理削除・元に戻せない）。
     function ownerActions(owner, state, id) {
       const demoteBtn = owner.invite_code
-        ? `<button class="button secondary" type="button" data-action="demote" data-owner-id="${id}" title="無料プランへ降格し退会扱いにする">無料プランへ降格</button>`
+        ? `<button class="button secondary" type="button" data-action="demote" data-owner-id="${id}" title="無料プランへ降格する（アカウントは有効なまま）">無料プランへ降格</button>`
         : '';
       const deleteBtn = `<button class="button danger" type="button" data-action="delete" data-owner-id="${id}" title="このユーザーを完全に削除（退会）する">削除</button>`;
       if (state === 'active') return `
@@ -389,7 +389,7 @@
       reject: 'このユーザーの Cat Key 申請を却下します。実行しますか？',
       suspend: 'このユーザーの利用を停止します（停止中にします）。実行しますか？',
       resume: 'このユーザーの利用を再開します。実行しますか？',
-      demote: 'このメンバーを無料プランへ降格し、退会扱いにします。実行しますか？',
+      demote: 'このメンバーを無料プランへ降格します（アカウントは有効なまま・データは残ります）。実行しますか？',
       delete: 'このユーザーを完全に削除（退会）します。予約・相手管理・カレンダー連携などの関連データもすべて削除され、元に戻せません。有料課金中の場合、Square側の解約は別途必要です。本当に実行しますか？',
     };
     async function doAction(action, ownerId) {

@@ -709,6 +709,15 @@ function updateBookingPageControls() {
   if (meetWarning && locationType) {
     meetWarning.classList.toggle("hidden", !(locationType.value === "google_meet" && !calendarConnected));
   }
+  // 前後バッファのカレンダー予定名の入力欄は、そのバッファが1分以上のときだけ表示する。
+  const pageForm = $("#booking-page-form");
+  if (pageForm) {
+    [["before", "buffer_before_minutes"], ["after", "buffer_after_minutes"]].forEach(([side, name]) => {
+      const field = pageForm.querySelector(`.buffer-title-field[data-buffer-title="${side}"]`);
+      const select = pageForm.elements[name];
+      if (field && select) field.hidden = !(Number(select.value) > 0);
+    });
+  }
   updateAvailabilityRows();
 }
 
@@ -788,6 +797,9 @@ function collectBookingPagePayload(form) {
     duration_minutes: Number(data.duration_minutes),
     buffer_before_minutes: Number(data.buffer_before_minutes),
     buffer_after_minutes: Number(data.buffer_after_minutes),
+    // バッファ0分の側はタイトルを送らない（サーバ側でも捨てるが整合のため）。
+    buffer_before_title: Number(data.buffer_before_minutes) > 0 ? (data.buffer_before_title || "") : "",
+    buffer_after_title: Number(data.buffer_after_minutes) > 0 ? (data.buffer_after_title || "") : "",
     booking_range_months: range.months,
     candidate_days: range.days,
     location_type: data.location_type,
@@ -884,6 +896,8 @@ function fillBookingPageForm(page) {
   set("duration_minutes", String(page.duration_minutes || 30));
   set("buffer_before_minutes", String(page.buffer_before_minutes != null ? page.buffer_before_minutes : 0));
   set("buffer_after_minutes", String(page.buffer_after_minutes != null ? page.buffer_after_minutes : 0));
+  set("buffer_before_title", page.buffer_before_title != null ? page.buffer_before_title : "");
+  set("buffer_after_title", page.buffer_after_title != null ? page.buffer_after_title : "");
   set("booking_range", rangeTokenFromPage(page));
   set("is_active", page.is_active === false ? "false" : "true");
   set("location_type", page.location_type || "google_meet");
@@ -964,6 +978,9 @@ async function initAdmin() {
   });
   $("#location-type-select")?.addEventListener("change", updateBookingPageControls);
   $("#booking-range-select")?.addEventListener("change", updateBookingPageControls);
+  // 前後バッファの選択でカレンダー予定名の入力欄を出し入れ。
+  $("#booking-page-form")?.querySelector('select[name="buffer_before_minutes"]')?.addEventListener("change", updateBookingPageControls);
+  $("#booking-page-form")?.querySelector('select[name="buffer_after_minutes"]')?.addEventListener("change", updateBookingPageControls);
   $("#booking-page-new")?.addEventListener("click", clearBookingPageForm);
   $("#add-question")?.addEventListener("click", addQuestionRow);
   $("#question-list")?.addEventListener("click", (event) => {

@@ -1044,3 +1044,47 @@ select{height:48px;padding-block:0}
   .schedule-card{margin-inline:-8px;padding:14px;overflow-x:auto}
   .calendar-board{min-width:560px}
 }
+
+/* ===== ユーザーページ共通の全画面ローディング（page-busy.js が制御） =====
+   ログイン後ページの初回データ取得中に全画面を覆う。見た目は booking の
+   .page-busy と揃える（朱スピナー＋白半透明）。予約ページは booking-redesign.css
+   側の定義が後勝ちで適用される。 */
+.spinner{
+  display:inline-block;
+  width:30px;height:30px;
+  border-radius:50%;
+  border:3px solid var(--line,#E7E7E2);
+  border-top-color:var(--accent,#DE4A2E);
+  animation:kimaru-spin .8s linear infinite;
+}
+@keyframes kimaru-spin{to{transform:rotate(360deg)}}
+.page-busy{
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  display:grid;
+  place-items:center;
+  background:rgba(255,255,255,.72);
+  -webkit-backdrop-filter:blur(1.5px);
+  backdrop-filter:blur(1.5px);
+}
+.page-busy[hidden]{display:none}
+.page-busy__box{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:14px;
+  padding:24px 30px;
+  background:var(--surface,#fff);
+  border:1px solid var(--line,#E7E7E2);
+  border-radius:var(--radius,14px);
+  box-shadow:var(--shadow-lg);
+}
+.page-busy__label{
+  font-size:13px;
+  font-weight:600;
+  color:var(--ink-2,#3C3E44);
+}
+@media(prefers-reduced-motion:reduce){
+  .spinner{animation-duration:1.8s}
+}

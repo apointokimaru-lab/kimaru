@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="bs.pageTitle">キマル - 予約ページ設定</title>
   <link rel="stylesheet" href="/styles.css" />
+  <script src="/page-busy.js"></script>
 </head>
 <body data-page="admin" data-booking-settings="true" data-i18n-title="bs.pageTitle">
   <!-- site-header -->
@@ -100,6 +101,9 @@
               <option value="60" data-i18n="bs.min.60">60分</option>
             </select>
           </label>
+          <label class="buffer-title-field" data-buffer-title="before" hidden><span data-i18n="bs.time.bufferBeforeTitle">前バッファのカレンダー予定名</span>
+            <input type="text" name="buffer_before_title" maxlength="120" autocomplete="off" data-i18n-placeholder="bs.time.bufferBeforeTitlePh" placeholder="例：移動・準備時間" />
+          </label>
           <label><span data-i18n="bs.time.bufferAfter">後バッファ</span>
             <select name="buffer_after_minutes">
               <option value="0" selected data-i18n="bs.min.none">なし</option>
@@ -111,6 +115,10 @@
               <option value="60" data-i18n="bs.min.60">60分</option>
             </select>
           </label>
+          <label class="buffer-title-field" data-buffer-title="after" hidden><span data-i18n="bs.time.bufferAfterTitle">後バッファのカレンダー予定名</span>
+            <input type="text" name="buffer_after_title" maxlength="120" autocomplete="off" data-i18n-placeholder="bs.time.bufferAfterTitlePh" placeholder="例：記録・片付け" />
+          </label>
+          <p class="form-note muted" data-i18n="bs.time.bufferTitleHint">予定名を入力すると、その前後の時間があなたのGoogleカレンダーに自分だけの予定として登録されます（予約した相手には表示されません）。空欄なら予定は作らず、空き枠を塞ぐだけです。</p>
           <label><span data-i18n="bs.time.range">予約枠の公開範囲</span>
             <select name="booking_range" id="booking-range-select">
               <option value="7d" data-i18n="bs.range.7d">今日から7日先まで公開</option>

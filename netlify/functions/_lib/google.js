@@ -121,6 +121,65 @@ async function createCalendarEvent(ownerId, booking) {
   return data;
 }
 
+// ホスト専用のバッファ予定を1件作成する。attendees を付けず sendUpdates=none なので、
+// ゲストには招待も表示もされず、ホスト自身の Google カレンダーにだけ現れる。
+async function createBufferEvent(ownerId, { summary, startIso, endIso }) {
+  const accessToken = await accessTokenForOwner(ownerId);
+  if (!accessToken) return null;
+  const eventBody = {
+    summary: summary || "バッファ",
+    description: "キマルの前後バッファ（自分用のブロック時間）です。",
+    start: { dateTime: startIso },
+    end: { dateTime: endIso },
+    transparency: "opaque", // 「予定あり」＝この時間は埋まっている扱い
+    visibility: "private",
+    reminders: { useDefault: false, overrides: [] }, // 通知不要
+  };
+  const response = await fetch(
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=none",
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(eventBody),
+    }
+  );
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || "Googleカレンダーへのバッファ予定作成に失敗しました");
+  return data;
+}
+
+// 予約(start_at/end_at)と予約ページ(buffer_*_minutes / buffer_*_title)から、前後の
+// バッファ予定をホストのカレンダーに作成する。タイトル未設定 or バッファ0分の側は作らない。
+// 戻り値: { before: eventId|null, after: eventId|null }。個々の失敗は握りつぶす（予約本体は成立済み）。
+async function createBufferEventsFor(ownerId, booking, page) {
+  const out = { before: null, after: null };
+  if (!page) return out;
+  const start = new Date(booking.start_at || booking.start_time);
+  const end = new Date(booking.end_at || booking.end_time);
+  if (isNaN(start) || isNaN(end)) return out;
+  const bBefore = Math.max(0, Number(page.buffer_before_minutes || 0));
+  const bAfter = Math.max(0, Number(page.buffer_after_minutes || 0));
+  const tBefore = String(page.buffer_before_title || "").trim();
+  const tAfter = String(page.buffer_after_title || "").trim();
+  if (bBefore > 0 && tBefore) {
+    const ev = await createBufferEvent(ownerId, {
+      summary: tBefore,
+      startIso: new Date(start.getTime() - bBefore * 60000).toISOString(),
+      endIso: start.toISOString(),
+    }).catch(() => null);
+    out.before = ev?.id || null;
+  }
+  if (bAfter > 0 && tAfter) {
+    const ev = await createBufferEvent(ownerId, {
+      summary: tAfter,
+      startIso: end.toISOString(),
+      endIso: new Date(end.getTime() + bAfter * 60000).toISOString(),
+    }).catch(() => null);
+    out.after = ev?.id || null;
+  }
+  return out;
+}
+
 // 予約キャンセル/日程変更時にカレンダー予定を削除。連携なし・既に削除済み(404/410)は成功扱い。
 async function deleteCalendarEvent(ownerId, eventId) {
   if (!eventId) return { skipped: true };
@@ -135,4 +194,4 @@ async function deleteCalendarEvent(ownerId, eventId) {
   throw new Error(data.error?.message || "Googleカレンダーの予定削除に失敗しました");
 }
 
-module.exports = { googleAuthUrl, exchangeCode, userInfo, saveGoogleConnection, freebusy, createCalendarEvent, deleteCalendarEvent };
+module.exports = { googleAuthUrl, exchangeCode, userInfo, saveGoogleConnection, freebusy, createCalendarEvent, createBufferEvent, createBufferEventsFor, deleteCalendarEvent };

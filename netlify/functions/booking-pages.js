@@ -9,11 +9,14 @@ exports.handler = async (event) => {
 
     if (event.httpMethod === "GET") {
       // 編集時のプレフィル用に全列＋事前アンケート（ページ単位）を返す。受付時間はオーナー単位なので別途。
-      const cols = "id,slug,title,description,duration_minutes,buffer_before_minutes,buffer_after_minutes,location_type,location_value,booking_range_months,timezone,accept_holidays,lead_time_hours,candidate_days,slot_interval_minutes,is_active,created_at";
-      const pagesQuery = (qcols) => `booking_pages?owner_id=${eq(owner.id)}&select=${cols},questionnaire_questions(${qcols})&order=created_at.asc`;
-      // answer_type/options 列が未マイグレーションの環境ではそれらを除いた select にフォールバック。
-      const pages = await sb(pagesQuery("question_text,is_required,sort_order,answer_type,options"))
-        .catch(() => sb(pagesQuery("question_text,is_required,sort_order")));
+      const baseCols = "id,slug,title,description,duration_minutes,buffer_before_minutes,buffer_after_minutes,location_type,location_value,booking_range_months,timezone,accept_holidays,lead_time_hours,candidate_days,slot_interval_minutes,is_active,created_at";
+      const withTitles = `${baseCols},buffer_before_title,buffer_after_title`;
+      const pagesQuery = (cols, qcols) => `booking_pages?owner_id=${eq(owner.id)}&select=${cols},questionnaire_questions(${qcols})&order=created_at.asc`;
+      // buffer_*_title / answer_type / options が未マイグレーションの環境では順に列を落としてフォールバック。
+      const pages = await sb(pagesQuery(withTitles, "question_text,is_required,sort_order,answer_type,options"))
+        .catch(() => sb(pagesQuery(withTitles, "question_text,is_required,sort_order")))
+        .catch(() => sb(pagesQuery(baseCols, "question_text,is_required,sort_order,answer_type,options")))
+        .catch(() => sb(pagesQuery(baseCols, "question_text,is_required,sort_order")));
       const availability = await sb(
         `availability_settings?owner_id=${eq(owner.id)}&select=day_of_week,start_time,end_time&order=day_of_week.asc`
       ).catch(() => []);

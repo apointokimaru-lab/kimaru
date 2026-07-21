@@ -1,7 +1,7 @@
 const { json, readJson } = require("./_lib/response");
 const { sb, eq, findOwnerById } = require("./_lib/supabase");
 const { verifyBookingToken } = require("./_lib/crypto");
-const { createCalendarEvent, deleteCalendarEvent } = require("./_lib/google");
+const { createCalendarEvent, createBufferEventsFor, deleteCalendarEvent } = require("./_lib/google");
 const zoom = require("./_lib/zoom");
 const { sendMail } = require("./_lib/mail");
 const { LOCATION_LABELS, formatJst, manageUrl } = require("./_lib/booking-format");
@@ -118,6 +118,9 @@ exports.handler = async (event) => {
         if (booking.status === "cancelled") return json(200, { ok: true, status: "cancelled" });
         await sb(`bookings?id=${eq(booking.id)}`, { method: "PATCH", body: JSON.stringify({ status: "cancelled" }) });
         if (booking.google_event_id) await deleteCalendarEvent(booking.owner_id, booking.google_event_id).catch(() => {});
+        // ホスト専用のバッファ予定も削除（列未マイグレーション環境では id が undefined でスキップ）。
+        if (booking.buffer_before_event_id) await deleteCalendarEvent(booking.owner_id, booking.buffer_before_event_id).catch(() => {});
+        if (booking.buffer_after_event_id) await deleteCalendarEvent(booking.owner_id, booking.buffer_after_event_id).catch(() => {});
         // Zoom 予約はホスト名義のミーティングも削除（非致命・IDは meeting_url から復元）。
         if (booking.location_type === "zoom") await zoom.deleteMeetingByUrl(booking.owner_id, booking.meeting_url).catch(() => {});
         await notify({ booking, owner, kind: "cancel" });
@@ -160,6 +163,21 @@ exports.handler = async (event) => {
           await zoom.updateMeetingByUrl(booking.owner_id, booking.meeting_url, { startIso: updated.start_at, durationMinutes }).catch(() => {});
         }
         await sb(`bookings?id=${eq(booking.id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+
+        // ホスト専用の前後バッファ予定を新しい時間で作り直す（旧予定は削除）。補助機能なので失敗は非致命。
+        try {
+          const page = await bookingPageFor(booking);
+          const newBuffer = await createBufferEventsFor(booking.owner_id, updated, page);
+          if (booking.buffer_before_event_id) await deleteCalendarEvent(booking.owner_id, booking.buffer_before_event_id).catch(() => {});
+          if (booking.buffer_after_event_id) await deleteCalendarEvent(booking.owner_id, booking.buffer_after_event_id).catch(() => {});
+          await sb(`bookings?id=${eq(booking.id)}`, {
+            method: "PATCH",
+            body: JSON.stringify({ buffer_before_event_id: newBuffer.before, buffer_after_event_id: newBuffer.after }),
+          }).catch(() => {});
+        } catch (_) {
+          // 列未マイグレーション or カレンダー未連携。日程変更自体は成立させる。
+        }
+
         await notify({ booking: { ...updated, meeting_url: meetingUrl }, owner, kind: "reschedule", before, meetingUrl });
         return json(200, { ok: true, status: "confirmed", start_at: updated.start_at, end_at: updated.end_at, meeting_url: meetingUrl });
       }

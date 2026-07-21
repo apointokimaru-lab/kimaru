@@ -87,6 +87,9 @@ create table if not exists booking_pages (
   duration_minutes int not null default 30 check (duration_minutes between 30 and 120),
   buffer_before_minutes int not null default 0 check (buffer_before_minutes between 0 and 60),
   buffer_after_minutes int not null default 0 check (buffer_after_minutes between 0 and 60),
+  -- 前後バッファをホスト専用のGoogleカレンダー予定として作るときのタイトル（空=予定を作らず空き枠を塞ぐだけ）。
+  buffer_before_title text not null default '',
+  buffer_after_title text not null default '',
   booking_range_months int not null default 2 check (booking_range_months between 1 and 6),
   location_type text not null default 'google_meet' check (location_type in ('in_person', 'google_meet', 'zoom', 'phone', 'custom_url', 'later')),
   location_value text not null default '',
@@ -136,6 +139,9 @@ create table if not exists bookings (
   meeting_url text not null default '',
   location_type text not null default 'google_meet',
   google_event_id text,
+  -- ホスト専用の前後バッファ予定（ゲスト非表示）のGoogleイベントID。キャンセル/日程変更時の削除・作り直しに使う。
+  buffer_before_event_id text,
+  buffer_after_event_id text,
   status text not null default 'confirmed' check (status in ('confirmed', 'cancelled', 'pending')),
   created_at timestamptz not null default now()
 );
@@ -321,6 +327,9 @@ alter table booking_pages drop constraint if exists booking_pages_buffer_before_
 alter table booking_pages add constraint booking_pages_buffer_before_minutes_check check (buffer_before_minutes between 0 and 60);
 alter table booking_pages drop constraint if exists booking_pages_buffer_after_minutes_check;
 alter table booking_pages add constraint booking_pages_buffer_after_minutes_check check (buffer_after_minutes between 0 and 60);
+-- 前後バッファをホスト専用のGoogleカレンダー予定にするときのタイトル（空=予定を作らない）。列が無い環境ではコード側でタイトルを落として保存する。
+alter table booking_pages add column if not exists buffer_before_title text not null default '';
+alter table booking_pages add column if not exists buffer_after_title text not null default '';
 alter table booking_pages add column if not exists location_type text not null default 'google_meet';
 alter table booking_pages add column if not exists location_value text not null default '';
 alter table booking_pages add column if not exists is_active boolean not null default true;
@@ -337,6 +346,9 @@ alter table questionnaire_questions add column if not exists frozen boolean not 
 alter table questionnaire_questions add column if not exists answer_type text not null default 'text';
 alter table questionnaire_questions add column if not exists options jsonb not null default '[]'::jsonb;
 alter table bookings add column if not exists user_id uuid references users(id) on delete cascade;
+-- ホスト専用の前後バッファ予定（ゲスト非表示）のGoogleイベントID。列が無い環境ではコード側でID保存をスキップする。
+alter table bookings add column if not exists buffer_before_event_id text;
+alter table bookings add column if not exists buffer_after_event_id text;
 alter table bookings add column if not exists guest_name text not null default '';
 alter table bookings add column if not exists guest_email text not null default '';
 alter table bookings add column if not exists visitor_birth_date date;

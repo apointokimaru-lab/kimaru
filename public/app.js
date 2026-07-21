@@ -1026,12 +1026,15 @@ async function initAdmin() {
   $("#booking-page-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     setMessage("#booking-page-message", "予約ページを保存しています...");
+    window.KimaruBusy?.show(); // 保存API＋一覧再取得の間、全画面ローディングで操作をブロック
     try {
       await api("booking-page-save", { method: "POST", body: JSON.stringify(collectBookingPagePayload(event.currentTarget)) });
       await refreshAdmin();
       closePageEditor();
     } catch (error) {
       setMessage("#booking-page-message", error.message, "error");
+    } finally {
+      window.KimaruBusy?.hide();
     }
   });
   $("#invite-form")?.addEventListener("submit", async (event) => {

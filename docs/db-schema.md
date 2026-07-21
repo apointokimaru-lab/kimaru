@@ -51,7 +51,7 @@ erDiagram
 | **questionnaire_questions** | 事前アンケート質問 | `booking_page_id`, `question_text`, `is_required`, `sort_order` |
 | **questionnaire_answers** | 事前アンケート回答 | `booking_id`, `question_id`, `answer_text` |
 | **appointment_logs** | 面談ログ（相手管理） | `owner_id`, `visitor_email`, `keywords`, `notes`, `next_action`, `scores`(jsonb・印象スコア構造化・#175) |
-| **ai_assist_logs** | AIアシスト利用ログ（月300回上限の集計元・#190） | `owner_id`, `model`, `prompt_tokens`, `completion_tokens`, `created_at` |
+| **ai_assist_logs** | 旧サーバLLMの利用ログ（サーバLLMは2026-07-21撤去・**テーブルは非破壊で残置**） | `owner_id`, `model`, `prompt_tokens`, `completion_tokens`, `created_at` |
 | **email_suppressions** | メール配信停止（解除/バウンス/苦情・#192） | `email`(uniq), `reason`(unsubscribe/bounce/complaint) |
 | **thankyou_deliveries** | サンキュー＋登録案内メールの重複防止（#181） | `booking_id`(uniq), `recipient_email`, `status` |
 | **birthday_message_deliveries** | 誕生日メール配信記録（重複防止） | `booking_id`, `delivery_date`, `provider_message_id`, `status`, uniq(`booking_id`,`delivery_date`) |

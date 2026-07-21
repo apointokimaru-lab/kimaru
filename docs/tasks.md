@@ -30,7 +30,7 @@
 - [ ] **受信**: Cloudflare Email Routing で `info@` → 既存Gmail へ転送（コード不要）。
 
 ## C2. AIアシスト（OpenAI）
-- [ ] **OpenAI APIアカウント作成**・APIキー取得・**使用量ハードリミット**設定（プレミアム用 GPT-5.4 Mini）。
+- [x] ~~OpenAI APIアカウント/キー~~ **不要**（決定31でMCP一本化・旧サーバLLMは撤去 2026-07-21。AIはユーザー自身の ChatGPT/Claude を接続）。
 
 ## D. 決済（Square）
 - [ ] **Square アカウント作成**（本番）。
@@ -43,7 +43,6 @@
 - [ ] `ADMIN_SECRET`（運営コンソール用）
 - [ ] メール: `RESEND_API_KEY` / `TRANSACTIONAL_EMAIL_FROM`(notify) / `MARKETING_EMAIL_FROM`(news) / `RESEND_WEBHOOK_SECRET` / `THANKYOU_CRON_SECRET`（or `CRON_SECRET`）
 - [ ] Square: アクセストークン・署名鍵・`SQUARE_WEBHOOK_SHARED_SECRET`・¥980プランID・`SQUARE_PREMIUM_PLAN_ID`
-- [ ] AIアシスト: `OPENAI_API_KEY` / `OPENAI_MODEL`(=gpt-5.4-mini) / `AI_ASSIST_MONTHLY_LIMIT`(=300)
 - [ ] （任意）Zoom: `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET`
 
 ## F. 法務・運用
@@ -83,7 +82,7 @@
 - [x] 顧客管理拡張（印象スコア構造化・集約）（#175）
 - [x] 高度プロフィール＋公開ページ（#176）　※画像アップロードは将来
 - [x] 会員獲得の自動導線（サンキューメール）（#181）　設定待ち: 👤C・法務文面
-- [x] **AIアシスト LLM連携**（GPT-5.4 Mini・月300回上限）（[18](./features/18-ai-assist.md)・#22/#190）　設定待ち: `OPENAI_API_KEY`
+- [x] **AIアシスト（MCP連携）**（[18](./features/18-ai-assist.md)・決定31）※旧サーバLLM（月300回上限）は撤去（2026-07-21）
 
 ## 優先度 ⚪ 低（完了）
 - [x] 会員同士の相互質問（ゲスト→ホスト・最小実装）（[20](./features/20-member-mutual-questions.md)・#21）

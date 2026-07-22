@@ -193,24 +193,6 @@ function verifyBlob(purpose, blob, maxAgeMs) {
   return data;
 }
 
-// MCP接続用パーソナルトークン（決定31）。owner id と再発行用 salt（owners.mcp_token_salt）から HMAC 導出。
-// 形式 "<ownerId>.<sig>"。salt を更新すると旧トークンは無効になる（列未適用の環境は salt="" で固定トークン）。
-function mcpToken(ownerId, salt) {
-  return `${ownerId}.${sign(`mcp:${ownerId}:${salt || ""}`)}`;
-}
-
-function parseMcpToken(token) {
-  const raw = String(token || "");
-  const index = raw.lastIndexOf(".");
-  if (index <= 0 || index === raw.length - 1) return null;
-  return { ownerId: raw.slice(0, index), signature: raw.slice(index + 1) };
-}
-
-function verifyMcpToken(ownerId, salt, signature) {
-  if (!ownerId || !signature) return false;
-  return timingEqual(signature, sign(`mcp:${ownerId}:${salt || ""}`));
-}
-
 // 営業メールのワンクリック解除リンク用の署名トークン。メールアドレスから HMAC で導出（DB列不要・期限なし）。
 function mailUnsubToken(email) {
   return sign(`unsub:${String(email || "").trim().toLowerCase()}`);
@@ -241,4 +223,4 @@ function verifyTimedToken(purpose, id, ts, token, maxAgeMs) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-module.exports = { sessionCookie, clearSessionCookie, verifySession, adminSessionCookie, clearAdminSessionCookie, verifyAdminSession, encrypt, decrypt, hashPassword, verifyPassword, bookingToken, verifyBookingToken, hostAnswerToken, verifyHostAnswerToken, mailUnsubToken, verifyMailUnsubToken, timedToken, verifyTimedToken, timingEqual, hmacBase64, oauthStateCookie, clearOauthStateCookie, verifyOauthState, mcpToken, parseMcpToken, verifyMcpToken, signBlob, verifyBlob };
+module.exports = { sessionCookie, clearSessionCookie, verifySession, adminSessionCookie, clearAdminSessionCookie, verifyAdminSession, encrypt, decrypt, hashPassword, verifyPassword, bookingToken, verifyBookingToken, hostAnswerToken, verifyHostAnswerToken, mailUnsubToken, verifyMailUnsubToken, timedToken, verifyTimedToken, timingEqual, hmacBase64, oauthStateCookie, clearOauthStateCookie, verifyOauthState, signBlob, verifyBlob };

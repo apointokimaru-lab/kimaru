@@ -15,11 +15,11 @@
 - **`/api/mcp`**（`netlify/functions/mcp.js`）— Streamable HTTP・ステートレスのMCPサーバ。プレミアム限定。
 - **ツール（読み取り専用）**: `list_bookings`（予約一覧）/ `list_contacts`（相手一覧・手動追加含む）/ `get_booking_answers`（事前アンケート回答）/ `get_my_profile`（自分のプロフィール）。
 - **プロンプト**: `prepare_meeting`（面談準備の定型プロンプト）を MCP prompts で配布。
-- **認証（2系統）**:
-  1. **OAuth 2.1（推奨・2026-07-15 実装）** — ChatGPT / claude.ai のコネクタに素のエンドポイントURL（`/api/mcp`）を貼るだけで、発見（`/.well-known/oauth-protected-resource` → `oauth-metadata.js`）→ 動的クライアント登録（`mcp-oauth-register.js`・RFC 7591・client_id はステートレス署名）→ 認可（`mcp-auth.js`・PKCE S256・同意画面・未ログインは `login.html?next=` で復帰）→ トークン交換（`mcp-oauth-token.js`・refresh対応）が自動で走る。
-  2. **パーソナルトークン**（OAuth非対応クライアント向け） — `crypto.js` の HMAC 導出（`mcp:{ownerId}:{salt}`）。`Authorization: Bearer` または `?t=` クエリ。
-  - どちらも `owners.mcp_token_salt` に束縛：**「URLを再発行」で旧URL・OAuth接続済みクライアントが全て失効**（列未適用の環境では固定トークンに劣化動作・再発行のみ不可）。
-- **接続URL取得**: `/api/mcp-token`（プレミアム限定）。UIは `ai-assist.html` の「自分のAIとつなぐ」（コネクタURL＝推奨／トークン付きURL＝上級者向け・再発行）。
+- **認証（OAuth 2.1 のみ）**:
+  - **OAuth 2.1（2026-07-15 実装）** — ChatGPT / claude.ai のコネクタに素のエンドポイントURL（`/api/mcp`）を貼るだけで、発見（`/.well-known/oauth-protected-resource` → `oauth-metadata.js`）→ 動的クライアント登録（`mcp-oauth-register.js`・RFC 7591・client_id はステートレス署名）→ 認可（`mcp-auth.js`・PKCE S256・同意画面・未ログインは `login.html?next=` で復帰）→ トークン交換（`mcp-oauth-token.js`・refresh対応）が自動で走る。
+  - アクセス/リフレッシュトークンは `owners.mcp_token_salt` に束縛：**「すべての接続を解除」で全 OAuth 接続が失効**（列未適用の環境では salt="" で動作・解除のみ不可）。
+  - 〔2026-07-22 削除〕**パーソナルトークン（`?t=` / URL埋め込み）方式は廃止**。URLに資格情報が載って漏洩すると読み取られるため（セキュリティ対応）。`mcp.js` は `Authorization: Bearer` の OAuth アクセストークンのみ受理する。
+- **接続情報取得**: `/api/mcp-token`（プレミアム限定・**GET=コネクタURL取得／POST=すべての接続を解除**）。UIは `ai-assist.html` の「自分のAIとつなぐ」（コネクタURL＝OAuth）。
 
 ## 旧方式：サーバLLM（決定20・温存・未開放）
 
@@ -43,7 +43,7 @@
 ## 関連ファイル
 
 - `netlify/functions/mcp.js` — MCPサーバ（Streamable HTTP・プレミアム限定・読み取り専用ツール＋prompts）
-- `netlify/functions/mcp-token.js` — 接続URL取得・トークン再発行（プレミアム限定）
+- `netlify/functions/mcp-token.js` — コネクタURL取得（GET）・すべての接続を解除（POST・salt更新）（プレミアム限定）
 - `netlify/functions/ai-assist.js` — 旧サーバLLM関数（温存・未開放。月300回上限）
 - `netlify/functions/_lib/llm.js` — OpenAI 呼び出し共通ヘルパ（温存）
 - `ai_assist_logs` テーブル — 旧方式の利用ログ／`owners.mcp_token_salt` — トークン再発行用

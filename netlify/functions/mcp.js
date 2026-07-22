@@ -1,8 +1,7 @@
 // MCPサーバ（決定31・プレミアム限定）。ユーザー自身の ChatGPT/Claude をキマルの相手データに接続する。
 // Streamable HTTP のステートレス実装：POST の JSON-RPC を都度処理し、単一 JSON レスポンスを返す
-// （SSE ストリームは持たない。GET は 405）。認証はパーソナルトークン（_lib/crypto.js の mcpToken）。
+// （SSE ストリームは持たない。GET は 405）。認証は OAuth アクセストークン（Authorization: Bearer）のみ。
 const { json } = require("./_lib/response");
-const { parseMcpToken, verifyMcpToken } = require("./_lib/crypto");
 const { sb, eq, findOwnerById } = require("./_lib/supabase");
 const { isPremium } = require("./_lib/auth");
 const { verifyAccessToken } = require("./_lib/mcp-oauth");
@@ -195,27 +194,18 @@ async function handleMessage(message, owner) {
 }
 
 async function authenticate(event) {
+  // 認証は OAuth アクセストークン（Authorization: Bearer）のみ。かつての ?t= / パーソナルトークンは
+  // URL に資格情報が載って漏洩リスクがあるため廃止（セキュリティ対応）。salt 束縛＝「接続を解除」で失効。
   const header = event.headers.authorization || event.headers.Authorization || "";
-  const bearer = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
-  const token = bearer || (event.queryStringParameters && event.queryStringParameters.t) || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
 
-  // 1) OAuth アクセストークン（コネクタ経由・signBlob 形式）。salt 束縛＝「URLを再発行」で失効。
   const access = verifyAccessToken(token);
-  if (access) {
-    const owner = await findOwnerById(access.o).catch(() => null);
-    if (!owner || owner.cat_key_disabled || (owner.mcp_token_salt || "") !== access.k) {
-      return { status: 401, error: "トークンが失効しています。AIクライアントから再接続してください。" };
-    }
-    if (!isPremium(owner.plan)) return { status: 403, error: "MCP連携はプレミアムプランの機能です。" };
-    return { owner };
+  if (!access) {
+    return { status: 401, error: "認証が必要です。AIクライアントのコネクタ（OAuth）でキマルに接続してください。" };
   }
-
-  // 2) パーソナルトークン（OAuth 非対応クライアント向けの ?t= / Bearer）
-  const parsed = parseMcpToken(token);
-  if (!parsed) return { status: 401, error: "認証が必要です。コネクタ（OAuth）で接続するか、ai-assist の「自分のAIとつなぐ」で発行した接続URL（?t=）を使ってください。" };
-  const owner = await findOwnerById(parsed.ownerId).catch(() => null);
-  if (!owner || owner.cat_key_disabled || !verifyMcpToken(owner.id, owner.mcp_token_salt || "", parsed.signature)) {
-    return { status: 401, error: "トークンが無効です。接続URLを再発行してください。" };
+  const owner = await findOwnerById(access.o).catch(() => null);
+  if (!owner || owner.cat_key_disabled || (owner.mcp_token_salt || "") !== access.k) {
+    return { status: 401, error: "トークンが失効しています。AIクライアントから再接続してください。" };
   }
   if (!isPremium(owner.plan)) return { status: 403, error: "MCP連携はプレミアムプランの機能です。" };
   return { owner };

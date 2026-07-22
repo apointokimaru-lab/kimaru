@@ -160,10 +160,11 @@ globalThis.fetch = async (url) => {
   return { ok: true, status: 200, text: async () => JSON.stringify(rows) };
 };
 
-const { mcpToken, sessionCookie } = requireCjs(path.join(repo, "netlify/functions/_lib/crypto.js"));
+const { sessionCookie } = requireCjs(path.join(repo, "netlify/functions/_lib/crypto.js"));
+const { issueTokens } = requireCjs(path.join(repo, "netlify/functions/_lib/mcp-oauth.js"));
 const mcp = requireCjs(path.join(repo, "netlify/functions/mcp.js"));
 const mcpTokenFn = requireCjs(path.join(repo, "netlify/functions/mcp-token.js"));
-const validToken = mcpToken(OWNER.id, OWNER.mcp_token_salt);
+const validToken = issueTokens(OWNER).access_token; // OAuth アクセストークンのみ（パーソナルトークンは廃止）
 const rpc = async (message, token) => {
   const res = await mcp.handler({ httpMethod: "POST", headers: token ? { authorization: `Bearer ${token}` } : {}, queryStringParameters: {}, body: JSON.stringify(message) });
   return { status: res.statusCode, body: res.body ? JSON.parse(res.body) : null };
@@ -171,8 +172,9 @@ const rpc = async (message, token) => {
 const init = { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "0" } } };
 
 ok("no token → 401", (await rpc(init)).status === 401);
-ok("bad token → 401", (await rpc(init, mcpToken(OWNER.id, "wrong-salt"))).status === 401);
-ok("free plan → 403", (await rpc(init, mcpToken(FREE_OWNER.id, ""))).status === 403);
+ok("bad token → 401", (await rpc(init, "not-a-valid-token")).status === 401);
+ok("free plan → 403", (await rpc(init, issueTokens(FREE_OWNER).access_token)).status === 403);
+ok("legacy ?t= query token is rejected (personal token path removed)", (await mcp.handler({ httpMethod: "POST", headers: {}, queryStringParameters: { t: validToken }, body: JSON.stringify(init) })).statusCode === 401);
 const initRes = await rpc(init, validToken);
 ok("initialize → 200 + protocolVersion + tools capability", initRes.status === 200 && initRes.body.result.protocolVersion === "2025-06-18" && !!initRes.body.result.capabilities.tools);
 const toolsRes = await rpc({ jsonrpc: "2.0", id: 2, method: "tools/list" }, validToken);
@@ -198,11 +200,11 @@ ok("prepare_meeting prompt embeds contact", promptRes.body.result.messages[0].co
 const badRes = await rpc({ jsonrpc: "2.0", id: 9, method: "no/such" }, validToken);
 ok("unknown method → -32601", badRes.body.error && badRes.body.error.code === -32601);
 
-// mcp-token.js: セッションCookieで接続URLを取得（premium のみ）
+// mcp-token.js: セッションCookieで接続エンドポイントを取得（premium のみ）。トークン付きURLは廃止済み。
 const cookie = sessionCookie(OWNER.id).split(";")[0];
 const tokenRes = await mcpTokenFn.handler({ httpMethod: "GET", headers: { cookie }, queryStringParameters: {} });
 const tokenBody = JSON.parse(tokenRes.body);
-ok("mcp-token GET returns personal connect URL", tokenRes.statusCode === 200 && tokenBody.url.includes("/api/mcp?t=") && tokenBody.token === validToken);
+ok("mcp-token GET returns connector endpoint, no token URL", tokenRes.statusCode === 200 && tokenBody.endpoint.endsWith("/api/mcp") && !tokenBody.url && !tokenBody.token);
 const freeCookie = sessionCookie(FREE_OWNER.id).split(";")[0];
 const freeTokenRes = await mcpTokenFn.handler({ httpMethod: "GET", headers: { cookie: freeCookie }, queryStringParameters: {} });
 ok("mcp-token for free plan → 403", freeTokenRes.statusCode === 403);

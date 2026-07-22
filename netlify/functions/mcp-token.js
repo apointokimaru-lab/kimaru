@@ -1,11 +1,10 @@
-// MCP接続URLの取得（GET）と再発行（POST）。プレミアム限定（決定31）。
-// トークンは owner id + owners.mcp_token_salt から HMAC 導出（DB保存しない）。
-// POST は salt を更新して旧トークンを無効化する。mcp_token_salt 列が未適用の環境では
-// GET は salt="" の固定トークンで動き、POST（再発行）だけがエラーになる（劣化動作）。
+// MCP接続情報の取得（GET）と「すべての接続を解除」（POST）。プレミアム限定（決定31）。
+// GET はコネクタ接続用エンドポイント（OAuth）を返す。POST は owners.mcp_token_salt を更新して、
+// 発行済みの OAuth アクセス/リフレッシュトークンを全て失効させる（AIクライアントの再接続が必要）。
+// 認証は OAuth のみ（URLにトークンを載せるパーソナルトークン方式はセキュリティ上廃止）。
 const crypto = require("crypto");
 const { json } = require("./_lib/response");
 const { requirePremiumOwner } = require("./_lib/auth");
-const { mcpToken } = require("./_lib/crypto");
 const { sb, eq } = require("./_lib/supabase");
 const { appBaseUrl } = require("./_lib/config");
 
@@ -14,20 +13,19 @@ exports.handler = async (event) => {
     const owner = await requirePremiumOwner(event);
 
     if (event.httpMethod === "POST") {
+      // salt を更新＝発行済みの全 OAuth 接続を失効させる（「すべての接続を解除」）。
       const salt = crypto.randomBytes(12).toString("base64url");
       try {
         await sb(`owners?id=${eq(owner.id)}`, { method: "PATCH", body: JSON.stringify({ mcp_token_salt: salt }) });
         owner.mcp_token_salt = salt;
       } catch (_) {
-        return json(409, { error: "再発行にはデータベース更新（owners.mcp_token_salt）が必要です。supabase-schema.sql を適用してください。" });
+        return json(409, { error: "接続解除にはデータベース更新（owners.mcp_token_salt）が必要です。supabase-schema.sql を適用してください。" });
       }
     } else if (event.httpMethod !== "GET") {
       return json(405, { error: "許可されていない操作です" });
     }
 
-    const token = mcpToken(owner.id, owner.mcp_token_salt || "");
-    const endpoint = `${appBaseUrl()}/api/mcp`;
-    return json(200, { endpoint, token, url: `${endpoint}?t=${encodeURIComponent(token)}` });
+    return json(200, { endpoint: `${appBaseUrl()}/api/mcp` });
   } catch (error) {
     return json(error.statusCode || 500, { error: error.statusCode ? error.message : "サーバーでエラーが発生しました。時間をおいて再度お試しください。" });
   }

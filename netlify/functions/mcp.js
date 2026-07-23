@@ -28,7 +28,7 @@ const TOOLS = [
   },
   {
     name: "list_contacts",
-    description: "相手（これまで会った人＋手動追加）の一覧を返す。名前・メール・面談回数・最終面談日時・トピック。",
+    description: "相手（これまで会った人＋手動追加）の一覧を返す。名前・メール・面談回数・最終面談日時・トピックに加え、会話記録（メモ・次の一手・印象スコア）があれば records に含む。",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -70,24 +70,48 @@ async function toolListBookings(owner, args = {}) {
   return { bookings };
 }
 
+// 会話記録（booking_notes）を owner 単位で取得。予約は booking_id、手動相手は manual_contact_id で紐づく。
+// manual_contact_id 列が未適用の環境では booking_id のみで取得（graceful degradation）。
+async function fetchNotes(owner) {
+  const byBooking = {}, byManual = {};
+  try {
+    let notes;
+    try { notes = await sb(`booking_notes?owner_id=${eq(owner.id)}&select=booking_id,manual_contact_id,notes,next_action,keywords,scores`); }
+    catch (_) { notes = await sb(`booking_notes?owner_id=${eq(owner.id)}&select=booking_id,notes,next_action,keywords,scores`).catch(() => []); }
+    for (const n of notes || []) {
+      const rec = { notes: n.notes || "", next_action: n.next_action || "", keywords: n.keywords || "", scores: (n.scores && typeof n.scores === "object") ? n.scores : {} };
+      if (n.booking_id) byBooking[n.booking_id] = rec;
+      if (n.manual_contact_id) byManual[n.manual_contact_id] = rec;
+    }
+  } catch (_) { /* 会話記録テーブル未適用: 記録なし扱い */ }
+  return { byBooking, byManual };
+}
+function hasRecord(rec) { return rec && (String(rec.notes).trim() || String(rec.next_action).trim() || Object.keys(rec.scores || {}).length); }
+
 async function toolListContacts(owner) {
   const bookings = await sb(`bookings?owner_id=${eq(owner.id)}&select=${BOOKING_FIELDS}&order=start_at.desc&limit=200`);
   const manual = await sb(`manual_contacts?owner_id=${eq(owner.id)}&order=created_at.desc&limit=100`).catch(() => []);
+  const { byBooking, byManual } = await fetchNotes(owner);
   const byKey = new Map();
   for (const b of bookings || []) {
     if (b.status && b.status !== "confirmed") continue;
     const key = (b.visitor_email || b.visitor_name || "").trim().toLowerCase();
     if (!key) continue;
-    const entry = byKey.get(key) || { name: b.visitor_name || "", email: b.visitor_email || "", meeting_count: 0, last_meeting_at: null, topics: [] };
+    const entry = byKey.get(key) || { name: b.visitor_name || "", email: b.visitor_email || "", meeting_count: 0, last_meeting_at: null, topics: [], records: [] };
     entry.meeting_count += 1;
     if (!entry.last_meeting_at || (b.start_at && b.start_at > entry.last_meeting_at)) entry.last_meeting_at = b.start_at;
     if (b.topic && !entry.topics.includes(b.topic) && entry.topics.length < 3) entry.topics.push(b.topic);
+    const rec = byBooking[b.id];
+    if (hasRecord(rec)) entry.records.push({ ...rec, at: b.start_at });
     byKey.set(key, entry);
   }
   for (const m of manual || []) {
     const key = (m.email || m.name || "").trim().toLowerCase();
     if (!key || byKey.has(key)) continue;
-    byKey.set(key, { name: m.name || "", email: m.email || "", meeting_count: 0, last_meeting_at: null, topics: m.topic ? [m.topic] : [], manual: true });
+    const entry = { name: m.name || "", email: m.email || "", meeting_count: 0, last_meeting_at: null, topics: m.topic ? [m.topic] : [], manual: true, records: [] };
+    const rec = byManual[m.id];
+    if (hasRecord(rec)) entry.records.push(rec);
+    byKey.set(key, entry);
   }
   return { contacts: [...byKey.values()] };
 }
@@ -127,7 +151,7 @@ function prepareMeetingPrompt(args = {}) {
   const text = [
     `キマルのMCPツールを使って、「${contact}」との次回面談の準備をしてください。手順:`,
     "1. get_my_profile で私（ホスト）のプロフィール（強み・スタイル・提供価値・目標）を取得",
-    `2. list_contacts と list_bookings で「${contact}」の面談履歴を確認`,
+    `2. list_contacts と list_bookings で「${contact}」の面談履歴と会話記録（records: メモ・次の一手・印象スコア）を確認`,
     "3. 直近の予約の booking_id で get_booking_answers を呼び、事前アンケート回答とメッセージを取得",
     "その上で、次の4点を日本語で簡潔に提案してください: ①最初の入り方 ②刺さりやすい話題 ③避けた方がいい入り方 ④次の一手（関係を進める具体的アクション）。",
   ].join("\n");

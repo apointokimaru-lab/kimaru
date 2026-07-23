@@ -234,6 +234,11 @@ create table if not exists booking_notes (
   updated_at timestamptz not null default now(),
   unique (booking_id)
 );
+-- 会話記録を「手動追加の相手」にも残せるように（決定27 拡張）: booking_id を任意化し manual_contact_id を追加。
+-- 既存の予約ベースの会話記録はそのまま。手動相手は manual_contact_id に紐づく（どちらか一方が入る）。
+alter table booking_notes alter column booking_id drop not null;
+alter table booking_notes add column if not exists manual_contact_id uuid references manual_contacts(id) on delete cascade;
+create unique index if not exists booking_notes_manual_contact_uidx on booking_notes(manual_contact_id) where manual_contact_id is not null;
 
 create table if not exists free_signups (
   id uuid primary key default gen_random_uuid(),

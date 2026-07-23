@@ -45,6 +45,8 @@ const SITE_HEADER = `<header class="site-header">
       <a class="guest-only" href="/signup.html" data-i18n="nav.signup">無料登録</a>
       <a class="guest-only" href="/login.html" data-i18n="nav.signin">ログイン</a>
       <a class="app-only" href="/dashboard.html" data-i18n="nav.dashboard">ホーム</a>
+      <a class="app-only" href="/schedule.html" data-i18n="nav.schedule">スケジュール</a>
+      <a class="app-only" href="/answers.html" data-i18n="nav.answers">アンケート回答</a>
       <a class="app-only" href="/booking-settings.html" data-i18n="nav.bookingSettings">予約ページ設定</a>
       <a class="app-only" href="/profile.html" data-i18n="nav.profile">プロフィール設定</a>
       <a class="app-only" href="/contacts.html" data-i18n="nav.admin">相手管理</a>

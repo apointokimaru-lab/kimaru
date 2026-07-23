@@ -26,6 +26,9 @@
       <p class="muted" data-i18n="admin.history.desc">名前・メール・話題・目標・誕生日メモから探せます。閲覧は無料です。</p>
 
       <div class="crm-toolbar" style="margin-top:20px">
+        <div class="crm-toolbar-actions premium-feature">
+          <button type="button" class="button primary" id="manual-contact-open" data-i18n="admin.manual.openBtn">＋ 相手を追加</button>
+        </div>
         <div class="field search">
           <input id="booking-search" type="search" data-i18n-placeholder="admin.contacts.searchPlaceholder" placeholder="名前、メール、話題、目標、誕生日メモで検索" aria-label="相手を検索" />
         </div>
@@ -46,20 +49,6 @@
           <tbody id="booking-list" class="searchable-list"></tbody>
         </table>
       </div>
-    </section>
-
-    <!-- 相手を手動で追加（プレミアム限定・決定27）。予約していない相手も相手一覧に登録できる。 -->
-    <section class="panel wide premium-feature">
-      <p class="eyebrow" data-i18n="admin.manual.eyebrow">相手を追加</p>
-      <h2 data-i18n="admin.manual.heading">予約していない相手も登録できる</h2>
-      <p class="muted" data-i18n="admin.manual.desc">見込み客など、まだ予約していない相手を相手一覧に手動で追加できます（プレミアム限定）。</p>
-      <form id="manual-contact-form" class="form-grid">
-        <label><span data-i18n="admin.manual.name">名前</span><input name="name" autocomplete="name" /></label>
-        <label><span data-i18n="admin.manual.email">メールアドレス</span><input name="email" type="email" autocomplete="email" /></label>
-        <label class="wide"><span data-i18n="admin.manual.topic">話題・メモ</span><input name="topic" data-i18n-placeholder="admin.manual.topicPlaceholder" placeholder="例：紹介で知り合い／商談予定" /></label>
-        <button class="primary" type="submit" data-i18n="admin.manual.save">相手を追加する</button>
-      </form>
-      <p id="manual-contact-message" class="message"></p>
     </section>
 
     <!-- Pro案内（無料のみ）。履歴の下にスリムに表示 -->
@@ -121,6 +110,26 @@
         <button class="button secondary" type="button" data-note-close data-i18n="admin.note.close">閉じる</button>
         <button class="button primary" type="button" id="note-view-edit" data-i18n="admin.note.take">会話記録を取る</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 相手を手動で追加（プレミアム限定・決定27）: 検索の上のボタンから開くモーダル -->
+  <div class="modal-overlay" id="manual-contact-modal" hidden>
+    <div class="modal note-modal" role="dialog" aria-modal="true" aria-labelledby="manual-contact-title">
+      <button class="modal-close" type="button" data-manual-close aria-label="閉じる">×</button>
+      <p class="eyebrow" data-i18n="admin.manual.eyebrow">相手を追加</p>
+      <h2 id="manual-contact-title" data-i18n="admin.manual.heading">予約していない相手も登録できる</h2>
+      <p class="muted" data-i18n="admin.manual.desc">見込み客など、まだ予約していない相手を相手一覧に手動で追加できます（プレミアム限定）。</p>
+      <form id="manual-contact-form" class="form-grid note-form">
+        <label class="wide"><span data-i18n="admin.manual.name">名前</span><input name="name" autocomplete="name" /></label>
+        <label class="wide"><span data-i18n="admin.manual.email">メールアドレス</span><input name="email" type="email" autocomplete="email" /></label>
+        <label class="wide"><span data-i18n="admin.manual.topic">話題・メモ</span><input name="topic" data-i18n-placeholder="admin.manual.topicPlaceholder" placeholder="例：紹介で知り合い／商談予定" /></label>
+        <div class="modal-actions">
+          <button class="button secondary" type="button" data-manual-close data-i18n="admin.note.close">閉じる</button>
+          <button class="button primary" type="submit" data-i18n="admin.manual.save">相手を追加する</button>
+        </div>
+      </form>
+      <p id="manual-contact-message" class="message"></p>
     </div>
   </div>
 

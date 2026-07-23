@@ -40,13 +40,6 @@
     </div>
   </div>
 
-  <!-- 占いベース相手分析（Pro+） -->
-  <div class="panel pro-feature" style="margin-top:18px">
-    <h3 style="font-family:var(--display);font-size:16px;font-weight:700;margin:0 0 10px"><span data-i18n="meeting.fortuneTitle">占いベース相手分析</span> <span class="badge badge-pro" style="vertical-align:middle" data-i18n="meeting.todayBadge">本日</span></h3>
-    <div class="insight" id="meeting-fortune"></div>
-    <p class="field-note" style="margin-top:10px" data-i18n="meeting.fortuneNote">生年月日（算命学＋数秘術）から、当日の接し方・注意点を提案します。</p>
-  </div>
-
   <!-- 相手プロフィール（Pro+） -->
   <div class="panel pro-feature" style="margin-top:18px">
     <div class="row-between" style="margin-bottom:12px">
@@ -66,11 +59,18 @@
     <div class="form-actions" style="margin-top:16px"><button class="btn btn-ghost btn-sm" type="button" id="mark-read" data-i18n="meeting.markRead">確認済みにする</button></div>
   </div>
 
+  <!-- 占いベース相手分析（Pro+）: 事前アンケート回答の直下に配置 -->
+  <div class="panel pro-feature" style="margin-top:18px">
+    <h3 style="font-family:var(--display);font-size:16px;font-weight:700;margin:0 0 10px"><span data-i18n="meeting.fortuneTitle">占いベース相手分析</span> <span class="badge badge-pro" style="vertical-align:middle" data-i18n="meeting.todayBadge">本日</span></h3>
+    <div class="insight" id="meeting-fortune"></div>
+    <p class="field-note" style="margin-top:10px" data-i18n="meeting.fortuneNote">生年月日（算命学＋数秘術）から、当日の接し方・注意点を提案します。</p>
+  </div>
+
   <!-- これまでの面談メモ（Pro+） -->
   <div class="panel pro-feature" style="margin-top:18px">
     <div class="row-between" style="margin-bottom:12px">
-      <h3 style="font-family:var(--display);font-size:16px;font-weight:700;margin:0"><span data-i18n="meeting.memoTitle">これまでの面談メモ</span> <span class="muted" style="font-size:13px;font-weight:600" id="meeting-memo-count"></span></h3>
-      <a class="btn btn-ghost btn-sm" href="/contacts.html" data-i18n="meeting.addMemo">メモを追加</a>
+      <h3 style="font-family:var(--display);font-size:16px;font-weight:700;margin:0"><span data-i18n="meeting.memoTitle">これまでの会話記録</span> <span class="muted" style="font-size:13px;font-weight:600" id="meeting-memo-count"></span></h3>
+      <button class="btn btn-ghost btn-sm" type="button" id="meeting-note-add" data-i18n="meeting.addMemo">会話記録を追加</button>
     </div>
     <div class="memo-card" id="meeting-memos"></div>
   </div>
@@ -79,14 +79,14 @@
   <div class="aipanel premium-feature" style="margin-top:18px;padding:22px">
     <span class="eyebrow" data-i18n="meeting.aiEyebrow">AI Assist</span>
     <h2 style="font-family:var(--display);font-size:18px;margin:8px 0 6px" data-i18n="meeting.aiTitle">この面談の次の一手</h2>
-    <p style="color:rgba(255,255,255,.9);font-size:13.5px;margin:0 0 14px" data-i18n="meeting.aiBody">アンケート・プロフィール・占い分析から、刺さる話題と当日の進め方をAIがまとめます。</p>
-    <a class="btn btn-sm" href="/ai-assist.html" style="background:#fff;color:var(--aurora-ink)" data-i18n="meeting.aiCta">提案を見る →</a>
+    <p style="color:rgba(255,255,255,.9);font-size:13.5px;margin:0 0 14px" data-i18n="meeting.aiBody">自分のAI（ChatGPT / Claude）をキマルにつなぐと、予約・回答・プロフィールから、この面談の準備をAIに任せられます。</p>
+    <a class="btn btn-sm" href="/ai-assist.html" style="background:#fff;color:var(--aurora-ink)" data-i18n="meeting.aiCta">AIをつないで準備する →</a>
   </div>
 
   <!-- 無料/Pro: プレミアムAIの案内 -->
   <div class="side-card premium-lock" style="margin-top:18px">
     <h3 data-i18n="meeting.lockAiTitle">プレミアムでAIが次の一手を提案</h3>
-    <p class="muted" style="margin:0 0 14px;font-size:14px" data-i18n="meeting.lockAiBody">この面談に合わせて、刺さる話題と当日の進め方をAIがまとめます。</p>
+    <p class="muted" style="margin:0 0 14px;font-size:14px" data-i18n="meeting.lockAiBody">自分のAI（ChatGPT / Claude）をMCPでキマルにつなぐと、この面談の準備をAIに任せられます。プレミアムプランの機能です。</p>
     <a class="btn btn-aurora btn-sm" href="/plan.html" data-i18n="meeting.lockAiCta">プレミアムを見る</a>
   </div>
 
@@ -99,6 +99,47 @@
   </section>
 
 </main>
+
+<!-- 会話記録: 編集モーダル（Pro・「会話記録を追加」から開く。app.js の openNoteEditor が使用） -->
+<div class="modal-overlay" id="note-edit-modal" hidden>
+  <div class="modal note-modal" role="dialog" aria-modal="true" aria-labelledby="note-edit-title">
+    <button class="modal-close" type="button" data-note-close aria-label="閉じる">×</button>
+    <p class="eyebrow" data-i18n="admin.memo.eyebrow">相手メモ</p>
+    <h2 id="note-edit-title" data-i18n="admin.note.editTitle">会話記録</h2>
+    <p class="muted note-sub" id="note-edit-sub"></p>
+    <form id="note-form" class="form-grid note-form">
+      <input type="hidden" name="booking_id" />
+      <label class="wide"><span data-i18n="admin.memo.keywords">キーワード</span><input name="keywords" data-i18n-placeholder="admin.memo.keywordsPlaceholder" placeholder="夢, 仕事, 紹介したい人" /></label>
+      <label class="wide"><span data-i18n="admin.memo.notes">メモ</span><textarea name="notes" rows="4"></textarea></label>
+      <label class="wide"><span data-i18n="admin.memo.next">次にできること</span><textarea name="next_action" rows="3"></textarea></label>
+      <div class="questionnaire-box conversation-rating-box">
+        <p class="eyebrow" data-i18n="admin.memo.ratingEyebrow">相手の印象メモ</p>
+        <p class="muted" data-i18n="admin.memo.ratingDesc">1は弱い、3は標準、5は強い印象です。未確認の項目は3のままで保存できます。</p>
+        <div class="trait-grid" id="note-trait-grid"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="button secondary" type="button" data-note-close data-i18n="admin.note.close">閉じる</button>
+        <button class="button primary" type="submit" data-i18n="admin.note.save">保存する</button>
+      </div>
+    </form>
+    <p id="note-form-message" class="message"></p>
+  </div>
+</div>
+
+<!-- 会話記録: 閲覧モーダル -->
+<div class="modal-overlay" id="note-view-modal" hidden>
+  <div class="modal note-modal" role="dialog" aria-modal="true" aria-labelledby="note-view-title">
+    <button class="modal-close" type="button" data-note-close aria-label="閉じる">×</button>
+    <p class="eyebrow" data-i18n="admin.memo.eyebrow">相手メモ</p>
+    <h2 id="note-view-title" data-i18n="admin.note.viewTitle">会話記録</h2>
+    <p class="muted note-sub" id="note-view-sub"></p>
+    <div id="note-view-body" class="note-view-body"></div>
+    <div class="modal-actions">
+      <button class="button secondary" type="button" data-note-close data-i18n="admin.note.close">閉じる</button>
+      <button class="button primary" type="button" id="note-view-edit" data-i18n="admin.note.take">会話記録を取る</button>
+    </div>
+  </div>
+</div>
 
 <!-- site-footer -->
 

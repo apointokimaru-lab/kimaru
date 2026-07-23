@@ -974,9 +974,11 @@ const NOTE_TRAITS = [
 function buildNoteTraitGrid() {
   const grid = document.getElementById("note-trait-grid");
   if (!grid || grid.dataset.built) return;
+  // 5段階のボタン（ラジオ）。既定は3。FormData で選択値が拾え、fillNoteForm は elements[key].value で復元できる。
   grid.innerHTML = NOTE_TRAITS.map(([key, i18nKey]) => {
-    const opts = [1, 2, 3, 4, 5].map((n) => `<option value="${n}"${n === 3 ? " selected" : ""}>${n}</option>`).join("");
-    return `<label><span data-i18n="${i18nKey}">${escapeHtml(t(i18nKey))}</span><select name="${key}">${opts}</select></label>`;
+    const btns = [1, 2, 3, 4, 5].map((n) => `<label>${n}<input type="radio" name="${key}" value="${n}"${n === 3 ? " checked" : ""}></label>`).join("");
+    const label = escapeHtml(t(i18nKey));
+    return `<div class="trait-row"><span class="trait-name" data-i18n="${i18nKey}">${label}</span><div class="seg-radio" role="radiogroup" aria-label="${label}">${btns}</div></div>`;
   }).join("");
   grid.dataset.built = "1";
 }

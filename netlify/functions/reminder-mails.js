@@ -3,6 +3,7 @@ const { optional, appBaseUrl } = require("./_lib/config");
 const { sb, eq } = require("./_lib/supabase");
 const { sendMail } = require("./_lib/mail");
 const { timingEqual } = require("./_lib/crypto");
+const { briefingUrl } = require("./_lib/booking-format");
 
 // 予約開始の約22分前にゲストへ「お相手プロフィール付き」リマインダーメールを送る。
 // スケジューラ（Netlify Scheduled Functions / 外部cron）から ~5分間隔で叩く想定。
@@ -129,6 +130,26 @@ function buildMessage(booking, owner, profile, answers, isPro) {
   return { subject: `まもなく面談です（${when}）`, text: lines.join("\n") };
 }
 
+// ホスト（主催者）向けのリマインド。面談ブリーフィング（相手の回答・プロフィール・メモ）への
+// ワンタップリンクを載せる。ブリーフィングは認証必須ページなので、リンクだけでも安全。
+function buildHostMessage(booking) {
+  const guestName = booking.visitor_name || booking.guest_name || "お相手";
+  const guestEmail = booking.visitor_email || booking.guest_email || "";
+  const when = formatJst(booking.start_at || booking.start_time);
+  const lines = [`まもなく ${guestName} さんとの面談です（開始予定: ${when}）。`];
+  if (guestEmail) lines.push(`お相手: ${guestName}（${guestEmail}）`);
+  if (booking.meeting_url) lines.push(`ミーティング: ${booking.meeting_url}`);
+  lines.push(
+    "",
+    "▼ 面談ブリーフィング（相手の回答・プロフィール・メモをまとめて確認）",
+    briefingUrl(booking.id),
+    "※ キマルにログインした状態で開けます。",
+    "",
+    "良い時間になりますように。"
+  );
+  return { subject: `【面談リマインド】まもなく ${guestName} さんとの面談です（${when}）`, text: lines.join("\n") };
+}
+
 async function alreadySent(bookingId) {
   try {
     const rows = await sb(`reminder_deliveries?booking_id=${eq(bookingId)}&limit=1`);
@@ -188,8 +209,12 @@ async function run(dryRun) {
     const profile = profileCache.get(ownerId) || {};
     const answers = await answersForBooking(booking.id);
     const message = buildMessage(booking, owner, profile, answers, isPro);
+    // ホスト（主催者）にもリマインドを送る。面談ブリーフィングのリンク付き。宛先が無ければ送らない。
+    const hostMessage = buildHostMessage(booking);
+    const hostRecipient = owner?.email || "";
     if (dryRun) {
       results.push({ booking_id: booking.id, to: recipient, status: "dry_run", subject: message.subject, text: message.text });
+      if (hostRecipient) results.push({ booking_id: booking.id, to: hostRecipient, kind: "host", status: "dry_run", subject: hostMessage.subject, text: hostMessage.text });
       continue;
     }
     try {
@@ -200,6 +225,15 @@ async function run(dryRun) {
       }
       await markSent(booking.id, sent.id, "sent");
       results.push({ booking_id: booking.id, to: recipient, status: "sent", provider_message_id: sent.id });
+      // ホスト向けリマインド（任意・失敗しても本処理は継続。重複送信はゲスト側の alreadySent/markSent で一括ガード）。
+      if (hostRecipient) {
+        try {
+          const hostSent = await sendMail({ to: hostRecipient, subject: hostMessage.subject, text: hostMessage.text, from: reminderFrom(), replyTo: reminderReplyTo() });
+          results.push({ booking_id: booking.id, to: hostRecipient, kind: "host", status: hostSent.skipped ? "skipped" : "sent", provider_message_id: hostSent.id || "" });
+        } catch (hostError) {
+          results.push({ booking_id: booking.id, to: hostRecipient, kind: "host", status: "failed", error: hostError.message });
+        }
+      }
     } catch (error) {
       await markSent(booking.id, "", "failed", error.message);
       results.push({ booking_id: booking.id, to: recipient, status: "failed", error: error.message });

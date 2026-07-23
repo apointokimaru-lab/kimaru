@@ -45,16 +45,26 @@ exports.handler = async (event) => {
     const bookings = await sb(`bookings?owner_id=${eq(owner.id)}&order=start_at.desc&limit=50`);
     const manual = await sb(`manual_contacts?owner_id=${eq(owner.id)}&order=created_at.desc&limit=50`).catch(() => []);
 
-    // 事前アンケート回答（questionnaire_answers）を各予約に添付。未マイグレーション環境では空配列にフォールバック。
+    // 事前アンケート回答（questionnaire_answers）を各予約に添付。
+    // answers 側に question_text 列は無く question_id で questionnaire_questions を参照するため、
+    // 埋め込み(select=...,questionnaire_questions(question_text))で質問文を取得する。
     const ids = (bookings || []).map((b) => b.id).filter(Boolean);
     const answersByBooking = {};
     if (ids.length) {
       try {
-        const rows = await sb(`questionnaire_answers?booking_id=in.(${ids.join(",")})&select=booking_id,question_text,answer_text`);
+        const rows = await sb(`questionnaire_answers?booking_id=in.(${ids.join(",")})&select=booking_id,answer_text,questionnaire_questions(question_text)`);
         for (const r of rows || []) {
-          (answersByBooking[r.booking_id] = answersByBooking[r.booking_id] || []).push({ question_text: r.question_text, answer_text: r.answer_text });
+          (answersByBooking[r.booking_id] = answersByBooking[r.booking_id] || []).push({ question_text: (r.questionnaire_questions && r.questionnaire_questions.question_text) || "", answer_text: r.answer_text });
         }
-      } catch (_) { /* 列/テーブル未作成: 回答なし扱い */ }
+      } catch (_) {
+        // 埋め込み不可の環境向けフォールバック（質問文なしで回答のみ）。
+        try {
+          const rows = await sb(`questionnaire_answers?booking_id=in.(${ids.join(",")})&select=booking_id,answer_text`);
+          for (const r of rows || []) {
+            (answersByBooking[r.booking_id] = answersByBooking[r.booking_id] || []).push({ question_text: "", answer_text: r.answer_text });
+          }
+        } catch (_2) { /* テーブル未作成: 回答なし扱い */ }
+      }
     }
 
     const enrich = (b) => ({ ...hidePrivateBirthDate(b), answers: answersByBooking[b.id] || [], manage_url: safeManageUrl(b.id) });

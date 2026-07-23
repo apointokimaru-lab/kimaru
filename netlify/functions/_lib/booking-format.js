@@ -31,6 +31,12 @@ function answerUrl(bookingId) {
   return `${appBaseUrl()}/answer-question.html?id=${encodeURIComponent(bookingId)}&t=${encodeURIComponent(hostAnswerToken(bookingId))}`;
 }
 
+// ホスト専用の面談ブリーフィング画面（回答・プロフィール・占い分析・メモを集約）の絶対URL。
+// 認証必須ページなのでトークンは付けない（開くにはキマルにログインしたホスト本人が必要）。
+function briefingUrl(bookingId) {
+  return `${appBaseUrl()}/meeting.html?id=${encodeURIComponent(bookingId)}`;
+}
+
 // 事前アンケート回答の要約（メール本文用）。
 function answersSummary(answers) {
   return (Array.isArray(answers) ? answers : [])
@@ -39,4 +45,4 @@ function answersSummary(answers) {
     .join("\n\n");
 }
 
-module.exports = { LOCATION_LABELS, formatJst, manageUrl, answerUrl, answersSummary };
+module.exports = { LOCATION_LABELS, formatJst, manageUrl, answerUrl, briefingUrl, answersSummary };

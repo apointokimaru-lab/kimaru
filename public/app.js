@@ -444,14 +444,14 @@ function renderTodayAppt(b, now, locale) {
   const dur = durMin > 0 ? `<small>${durMin}分</small>` : "";
   const isNow = endIso ? now >= b._start && now < new Date(endIso) : false;
   const url = escapeHtml(safeHref(b.meeting_url));
-  const join = url
-    ? `<div class="appt-actions"><a class="button primary btn-sm" href="${url}" target="_blank" rel="noopener">${escapeHtml(t("dash.appt.join"))}</a></div>`
-    : "";
+  const brief = b.id ? `<a class="button secondary btn-sm" href="/meeting.html?id=${encodeURIComponent(b.id)}">${escapeHtml(t("common.briefing"))}</a>` : "";
+  const joinLink = url ? `<a class="button primary btn-sm" href="${url}" target="_blank" rel="noopener">${escapeHtml(t("dash.appt.join"))}</a>` : "";
+  const actions = (brief || joinLink) ? `<div class="appt-actions">${brief}${joinLink}</div>` : "";
   return `
     <div class="appt${isNow ? " appt-now" : ""}">
       <div class="appt-time">${hm}${dur}</div>
       <div class="appt-body"><b>${name} さん</b><span>${loc}</span></div>
-      ${join}
+      ${actions}
     </div>`;
 }
 
@@ -461,10 +461,12 @@ function renderUpcomingAppt(b, locale) {
   const hm = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(b._start);
   const name = escapeHtml(b.visitor_name || b.guest_name || t("admin.guest"));
   const loc = escapeHtml(dashLocationLabel(b.location_type));
+  const brief = b.id ? `<div class="appt-actions"><a class="button secondary btn-sm" href="/meeting.html?id=${encodeURIComponent(b.id)}">${escapeHtml(t("common.briefing"))}</a></div>` : "";
   return `
     <div class="appt">
       <div class="appt-time" style="font-size:15px">${md}<small>${wd}</small></div>
       <div class="appt-body"><b>${name} さん</b><span>${hm} ・ ${loc}</span></div>
+      ${brief}
     </div>`;
 }
 
@@ -562,6 +564,21 @@ async function loadDashboardProfileTodo() {
   } catch (_) { /* 非致命 */ }
 }
 
+// 相手一覧「詳細・記録」列のアイコン（feather系・ホバーで title 表示）。
+const ICON_BRIEF = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>';
+const ICON_EDIT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const ICON_EYE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+function iconAction(svg, label, attrs, extraCls = "") {
+  return `<button type="button" class="icon-btn${extraCls}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}" ${attrs}>${svg}</button>`;
+}
+// ナビゲーション用アイコン（面談ブリーフィング画面へ遷移）。中クリック/新規タブできるよう <a>。
+// label を渡すとアイコン横に文字を併記する（見つけやすさ優先）。title は常にツールチップ。
+function iconLink(svg, title, href, extraCls = "", label = "") {
+  const inner = label ? `${svg}<span>${escapeHtml(label)}</span>` : svg;
+  const cls = label ? "icon-btn labeled" : "icon-btn";
+  return `<a class="${cls}${extraCls}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}" href="${href}">${inner}</a>`;
+}
+
 function renderBookings(bookings) {
   const list = $("#booking-list");
   if (!list) return;
@@ -571,31 +588,32 @@ function renderBookings(bookings) {
   }
   const isPro = isProPlan(currentOwner?.plan);
   list.innerHTML = bookings.map((booking) => {
-    const context = parseRelationshipContext(booking.filter_request);
-    const insight = renderRelationshipContext(context);
     const name = escapeHtml(booking.visitor_name || booking.guest_name || t("admin.guest"));
     const email = escapeHtml(booking.visitor_email || booking.guest_email || "");
     const topic = escapeHtml(booking.topic || "");
     const when = booking.start_at || booking.start_time ? escapeHtml(formatSlot(booking.start_at || booking.start_time)) : "";
-    // インサイト（生年月日）は任意・行が膨らむので details に畳む。textContent には残るので検索は効く。
-    // 生年月日インサイト（占いベース相手分析）は Pro/Premium 限定（無料には出さない）。
-    const insightCell = insight && isProPlan(currentOwner?.plan) ? `<details class="insight-toggle"><summary>${t("admin.contacts.insightToggle")}</summary>${insight}</details>` : "";
+    // 「詳細・記録」列に、面談ブリーフィング（回答・プロフィール・占い分析を集約）→記録系（会話記録 取る／見る）の順でボタンを集約する。
+    // ブリーフィングは無料でも開ける（画面内でプラン出し分け）。会話記録は Pro 以上。手動追加の相手も会話記録は残せる。
     const manualTag = booking.manual ? ` <span class="free-tag">${escapeHtml(t("admin.contacts.manualTag"))}</span>` : "";
-    // 会話記録（Pro）: 実予約(手動でない)の行だけ「取る／見る」。記録があれば●バッジ。
-    const canNote = isPro && !booking.manual && booking.id;
+    const canNote = isPro && Boolean(booking.id); // 実予約＋手動追加の相手（手動は id="manual-<uuid>"）
     const hasNote = canNote && contactNoteIds.has(booking.id);
     const bid = escapeHtml(booking.id || "");
-    const noteCell = canNote
-      ? `<button type="button" class="button mini secondary" data-note-take data-booking-id="${bid}" data-name="${name}">${escapeHtml(t("admin.note.take"))}</button>`
-        + `<button type="button" class="button mini secondary" data-note-view data-booking-id="${bid}" data-name="${name}">${escapeHtml(t("admin.note.view"))}${hasNote ? ' <span class="note-dot" aria-hidden="true">●</span>' : ""}</button>`
-      : "—";
+    // 実予約の相手のみブリーフィング画面へ遷移（手動追加の相手は面談が無いので出さない）。
+    const canBrief = Boolean(booking.id) && !booking.manual;
+    // 順序: ブリーフィング（無料も可）→ 記録を取る → 記録を見る（後ろ2つは Pro 以上）。
+    const actionBtns = [
+      canBrief ? iconLink(ICON_BRIEF, t("admin.contacts.briefingOpen"), `/meeting.html?id=${encodeURIComponent(booking.id)}`, "", t("common.briefing")) : "",
+      canNote ? iconAction(ICON_EDIT, t("admin.note.take"), `data-note-take data-booking-id="${bid}" data-name="${name}"`) : "",
+      canNote ? iconAction(ICON_EYE, t("admin.note.view"), `data-note-view data-booking-id="${bid}" data-name="${name}"`, hasNote ? " has-note" : "") : "",
+    ].filter(Boolean).join("");
+    const actionCell = actionBtns ? `<div class="action-btns">${actionBtns}</div>` : "—";
     return `
       <tr class="list-item">
         <td data-label="${t("admin.contacts.colName")}"><strong>${name}</strong>${manualTag}</td>
         <td data-label="${t("admin.contacts.colEmail")}" class="cell-email">${email || "—"}</td>
-        <td data-label="${t("admin.contacts.colTopic")}">${topic || (insightCell ? "" : "—")}${insightCell}</td>
+        <td data-label="${t("admin.contacts.colTopic")}">${topic || "—"}</td>
         <td data-label="${t("admin.contacts.colDate")}" class="cell-date">${when || "—"}</td>
-        <td data-label="${t("admin.contacts.colNote")}" class="cell-note">${noteCell}</td>
+        <td data-label="${t("admin.contacts.colNote")}" class="cell-note">${actionCell}</td>
       </tr>
     `;
   }).join("");
@@ -738,6 +756,11 @@ const DEFAULT_QUESTIONS = [];
 
 const ANSWER_TYPES = ["text", "select", "checkbox"];
 
+// 選択肢1つ分の入力行（＋ボタンで増やす／×で削除）。保存時は各行の値を配列にまとめる（DB構造は options 配列のまま）。
+function optionRowHtml(value) {
+  return `<div class="q-option-row"><input class="q-option-input" placeholder="${escapeHtml(t("bs.q.optionPlaceholder"))}" value="${escapeHtml(value || "")}" /><button type="button" class="q-option-remove" aria-label="${escapeHtml(t("bs.delete"))}">×</button></div>`;
+}
+
 function questionRowHtml(q) {
   const obj = (typeof q === "string") ? { question_text: q } : (q || {});
   const isPro = isProPlan(currentOwner?.plan);
@@ -746,6 +769,8 @@ function questionRowHtml(q) {
   const placeholder = escapeHtml(t("bs.questionnaire.placeholder"));
   const del = escapeHtml(t("bs.delete"));
   const textVal = escapeHtml(obj.question_text || "");
+  const required = obj.is_required !== false; // 未指定は必須（既存挙動を維持）
+  const reqLabel = escapeHtml(t("bs.q.required"));
   // 無料は自由入力のみ。Pro・プレミアムは回答形式（自由入力/プルダウン/チェックボックス）＋選択肢を設定できる（決定27）。
   const choiceUi = isPro ? `
     <div class="q-row-choice">
@@ -754,10 +779,13 @@ function questionRowHtml(q) {
         <option value="select"${type === "select" ? " selected" : ""}>${escapeHtml(t("bs.q.type.select"))}</option>
         <option value="checkbox"${type === "checkbox" ? " selected" : ""}>${escapeHtml(t("bs.q.type.checkbox"))}</option>
       </select>
-      <textarea class="question-options${type === "text" ? " hidden" : ""}" rows="2" placeholder="${escapeHtml(t("bs.q.optionsPlaceholder"))}">${escapeHtml(options.join("\n"))}</textarea>
+      <div class="q-options${type === "text" ? " hidden" : ""}">
+        <div class="q-option-rows">${(options.length ? options : [""]).map((opt) => optionRowHtml(opt)).join("")}</div>
+        <button type="button" class="button secondary mini q-option-add">${escapeHtml(t("bs.q.optionAdd"))}</button>
+      </div>
     </div>` : "";
   return `<div class="q-row" data-answer-type="${type}">
-    <div class="q-row-main"><input class="question-input" placeholder="${placeholder}" value="${textVal}" /><button type="button" class="button secondary question-remove">${del}</button></div>${choiceUi}
+    <div class="q-row-main"><input class="question-input" placeholder="${placeholder}" value="${textVal}" /><label class="q-required"><input type="checkbox" class="question-required"${required ? " checked" : ""} />${reqLabel}</label><button type="button" class="button secondary question-remove">${del}</button></div>${choiceUi}
   </div>`;
 }
 
@@ -776,9 +804,9 @@ function collectQuestions() {
       const typeEl = row.querySelector(".question-type");
       let answer_type = typeEl ? typeEl.value : "text";
       if (!ANSWER_TYPES.includes(answer_type)) answer_type = "text";
-      const optionsRaw = row.querySelector(".question-options")?.value || "";
-      const options = answer_type === "text" ? [] : optionsRaw.split("\n").map((s) => s.trim()).filter(Boolean);
-      return { question_text, answer_type, options };
+      const options = answer_type === "text" ? [] : [...row.querySelectorAll(".q-option-input")].map((el) => el.value.trim()).filter(Boolean);
+      const is_required = !!row.querySelector(".question-required")?.checked;
+      return { question_text, answer_type, options, is_required };
     })
     .filter((q) => q.question_text);
 }
@@ -796,9 +824,7 @@ function collectBookingPagePayload(form) {
   const data = formData(form);
   const isPro = isProPlan(currentOwner?.plan);
   const maxQuestions = isPro ? 5 : 2;
-  const questions = collectQuestions()
-    .slice(0, maxQuestions)
-    .map((q, index) => ({ ...q, is_required: index < 2 }));
+  const questions = collectQuestions().slice(0, maxQuestions); // is_required は各質問行の「必須」トグルから
   const range = parseRangeToken(data.booking_range);
   return {
     id: data.page_id || undefined,
@@ -919,7 +945,7 @@ function fillBookingPageForm(page) {
   // 事前アンケート（ページ単位・sort_order 順）を可変行で表示
   const questions = [...(page.questionnaire_questions || [])]
     .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-    .map((q) => ({ question_text: q.question_text, answer_type: q.answer_type || "text", options: Array.isArray(q.options) ? q.options : [] }));
+    .map((q) => ({ question_text: q.question_text, answer_type: q.answer_type || "text", options: Array.isArray(q.options) ? q.options : [], is_required: q.is_required !== false }));
   renderQuestionRows(questions);
   // 受付時間（オーナー単位）
   applyAvailability(form, ownerAvailability);
@@ -1103,15 +1129,30 @@ async function initAdmin() {
     if (event.target.closest(".question-remove")) {
       event.target.closest(".q-row")?.remove();
       updateBookingPageControls();
+      return;
+    }
+    // ＋選択肢を追加
+    const addOpt = event.target.closest(".q-option-add");
+    if (addOpt) {
+      const rows = addOpt.closest(".q-options")?.querySelector(".q-option-rows");
+      if (rows) { rows.insertAdjacentHTML("beforeend", optionRowHtml("")); rows.querySelector(".q-option-row:last-child .q-option-input")?.focus(); }
+      return;
+    }
+    // 選択肢を×で削除（最低1行は残す）
+    const rmOpt = event.target.closest(".q-option-remove");
+    if (rmOpt) {
+      const rows = rmOpt.closest(".q-option-rows");
+      rmOpt.closest(".q-option-row")?.remove();
+      if (rows && !rows.querySelector(".q-option-row")) rows.insertAdjacentHTML("beforeend", optionRowHtml(""));
     }
   });
-  // 回答形式の変更：選択肢入力欄（プルダウン/チェックボックス時のみ）の表示を切替。
+  // 回答形式の変更：選択肢入力（プルダウン/チェックボックス時のみ）の表示を切替。
   $("#question-list")?.addEventListener("change", (event) => {
     const typeEl = event.target.closest(".question-type");
     if (!typeEl) return;
     const row = typeEl.closest(".q-row");
     if (row) row.dataset.answerType = typeEl.value;
-    const opts = row?.querySelector(".question-options");
+    const opts = row?.querySelector(".q-options");
     if (opts) opts.classList.toggle("hidden", typeEl.value === "text");
   });
   $("#page-editor-close")?.addEventListener("click", closePageEditor);
@@ -1176,15 +1217,27 @@ async function initAdmin() {
       setMessage("#log-message", error.message, "error");
     }
   });
-  // 手動の相手追加（プレミアム限定・決定27）。成功後に相手一覧を再読込。
+  // 手動の相手追加（プレミアム限定・決定27）。検索の上のボタン→モーダルで追加。成功後は一覧再読込＋モーダルを閉じる。
+  const manualModal = document.getElementById("manual-contact-modal");
+  const closeManual = () => { if (manualModal) manualModal.hidden = true; };
+  const openManual = () => {
+    if (!manualModal) return;
+    setMessage("#manual-contact-message", "");
+    document.getElementById("manual-contact-form")?.reset();
+    manualModal.hidden = false;
+    manualModal.querySelector("input[name='name']")?.focus();
+  };
+  document.getElementById("manual-contact-open")?.addEventListener("click", openManual);
+  manualModal?.querySelectorAll("[data-manual-close]").forEach((el) => el.addEventListener("click", closeManual));
+  manualModal?.addEventListener("click", (event) => { if (event.target === manualModal) closeManual(); });
   $("#manual-contact-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     setMessage("#manual-contact-message", t("admin.manual.saving"));
     try {
       await api("manual-contact", { method: "POST", body: JSON.stringify(formData(event.currentTarget)) });
       event.currentTarget.reset();
-      setMessage("#manual-contact-message", t("admin.manual.added"), "success");
       await refreshAdmin();
+      closeManual();
     } catch (error) {
       setMessage("#manual-contact-message", error.message, "error");
     }
@@ -1303,13 +1356,13 @@ async function initMeeting() {
   if (!h1) return;
   const id = new URLSearchParams(location.search).get("id");
   let booking = null;
-  let logs = [];
+  let allBookings = [];
   if (id) {
     try {
       const data = await api("owner-bookings");
-      booking = (data.bookings || []).find((b) => String(b.id) === String(id)) || null;
+      allBookings = data.bookings || [];
+      booking = allBookings.find((b) => String(b.id) === String(id)) || null;
     } catch (_) { /* 非致命 */ }
-    try { const lg = await api("appointment-log"); logs = lg.logs || []; } catch (_) { /* free/未連携は空 */ }
   }
   const setText = (elId, text) => { const el = document.getElementById(elId); if (el) el.textContent = text; };
   const setHtml = (elId, html) => { const el = document.getElementById(elId); if (el) el.innerHTML = html; };
@@ -1322,8 +1375,51 @@ async function initMeeting() {
     return;
   }
 
+  const guestName = booking.visitor_name || booking.guest_name || t("admin.guest");
+
+  // この相手（同一メール）の会話記録（booking_notes）。予約1回ごとに1件・1対1。相手管理と同じ保存先。
+  let meetingNotes = [];
+  async function loadNotes() {
+    meetingNotes = [];
+    const email = String(booking.visitor_email || "").toLowerCase();
+    const mine = allBookings.filter((b) => b.id && String(b.visitor_email || "").toLowerCase() === email);
+    let noteIds;
+    try { noteIds = new Set((await api("booking-note")).booking_ids || []); }
+    catch (_) { return; } // Pro未満/未マイグレーションは空
+    for (const b of mine) {
+      if (!noteIds.has(b.id)) continue;
+      try {
+        const { note } = await api(`booking-note?booking_id=${encodeURIComponent(b.id)}`);
+        const hasContent = note && (note.notes || note.keywords || note.next_action || (note.scores && Object.keys(note.scores || {}).length));
+        if (hasContent) meetingNotes.push({ b, note });
+      } catch (_) { /* この予約分はスキップ */ }
+    }
+    // この面談の記録を先頭に、以降は日時の新しい順。
+    meetingNotes.sort((x, y) => {
+      if (x.b.id === booking.id) return -1;
+      if (y.b.id === booking.id) return 1;
+      return String(y.b.start_at || y.b.start_time || "").localeCompare(String(x.b.start_at || x.b.start_time || ""));
+    });
+  }
+
+  function renderMemos() {
+    const memoCount = document.getElementById("meeting-memo-count");
+    if (memoCount) memoCount.textContent = `（${meetingNotes.length}）`;
+    setHtml("meeting-memos", meetingNotes.length
+      ? meetingNotes.map(({ b, note }) => {
+          const when = escapeHtml(formatSlot(b.start_at || b.start_time));
+          const thisTag = b.id === booking.id ? ` <span class="badge badge-pro" style="vertical-align:middle">${escapeHtml(t("meeting.memoThis"))}</span>` : "";
+          const kw = note.keywords ? `<p class="memo-topic">${escapeHtml(note.keywords)}</p>` : "";
+          const body = note.notes ? `<p class="readtext">${escapeHtml(note.notes)}</p>` : "";
+          const next = note.next_action ? `<div class="memo-next"><b>${escapeHtml(t("meeting.memoNextLabel"))}</b><span>${escapeHtml(note.next_action)}</span></div>` : "";
+          const viewBtn = `<button class="btn btn-ghost btn-sm" type="button" data-note-view data-booking-id="${escapeHtml(b.id)}" data-name="${escapeHtml(guestName)}">${escapeHtml(t("admin.note.view"))}</button>`;
+          return `<div class="row-between" style="align-items:baseline;gap:10px;margin-bottom:6px"><span class="memo-when" style="font-size:13px;font-weight:700">${when}${thisTag}</span>${viewBtn}</div>${kw}${body}${next}`;
+        }).join("<hr>")
+      : `<p class="readtext">${escapeHtml(t("meeting.memoNone"))}</p>`);
+  }
+
   function render() {
-    const name = booking.visitor_name || booking.guest_name || t("admin.guest");
+    const name = guestName;
     setText("meeting-h1", `${name}${t("meeting.titleSuffix")}`);
     setText("meeting-name", name);
     setText("meeting-when", `${formatSlot(booking.start_at || booking.start_time)} ・ ${dashLocationLabel(booking.location_type)}`);
@@ -1368,17 +1464,35 @@ async function initMeeting() {
     if (booking.visitor_birth_date) pRows.push([t("meeting.birthdayLabel"), booking.visitor_birth_date]);
     setHtml("meeting-profile", pRows.length ? pRows.map(([q, a]) => `<div><dt>${escapeHtml(q)}</dt><dd>${escapeHtml(a)}</dd></div>`).join("") : `<div><dd>${escapeHtml(t("meeting.profileNone"))}</dd></div>`);
 
-    // 面談メモ（appointment-log の同一相手）
-    const email = String(booking.visitor_email || "").toLowerCase();
-    const myLogs = logs.filter((l) => String(l.visitor_email || "").toLowerCase() === email && (l.notes || l.keywords || l.next_action));
-    const memoCount = document.getElementById("meeting-memo-count");
-    if (memoCount) memoCount.textContent = `（${myLogs.length}）`;
-    setHtml("meeting-memos", myLogs.length
-      ? myLogs.map((l) => `<div class="memo-head"><span class="memo-topic">${escapeHtml(l.keywords || "")}</span></div><p class="readtext">${escapeHtml(l.notes || "")}</p>${l.next_action ? `<div class="memo-next"><b>${escapeHtml(t("meeting.memoNextLabel"))}</b><span>${escapeHtml(l.next_action)}</span></div>` : ""}`).join("<hr>")
-      : `<p class="readtext">${escapeHtml(t("meeting.memoNone"))}</p>`);
+    // 会話記録（booking_notes）: 相手管理と同じ保存先を表示。
+    renderMemos();
   }
+
+  // 会話記録エディタ／閲覧の配線（モーダルは meeting.html に移植。openNoteEditor/openNoteViewer/closeNoteModals は app.js 共通）。
+  document.getElementById("meeting-note-add")?.addEventListener("click", () => openNoteEditor(booking.id, guestName));
+  document.getElementById("meeting-memos")?.addEventListener("click", (e) => {
+    const view = e.target.closest("[data-note-view]");
+    if (view) openNoteViewer(view.dataset.bookingId, view.dataset.name || "");
+  });
+  document.querySelectorAll("[data-note-close]").forEach((b) => b.addEventListener("click", closeNoteModals));
+  document.querySelectorAll("#note-edit-modal, #note-view-modal").forEach((m) => m.addEventListener("click", (e) => { if (e.target === m) closeNoteModals(); }));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeNoteModals(); });
+  document.getElementById("note-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    setMessage("#note-form-message", t("admin.note.saving"));
+    try {
+      await api("booking-note", { method: "POST", body: JSON.stringify(formData(e.currentTarget)) });
+      closeNoteModals();
+      await loadNotes();
+      renderMemos();
+    } catch (err) {
+      setMessage("#note-form-message", err.message, "error");
+    }
+  });
+
   document.getElementById("mark-read")?.addEventListener("click", () => { markAnswerRead(booking.id, true); render(); });
   document.addEventListener("kimaru:languagechange", render);
+  await loadNotes();
   render();
 }
 

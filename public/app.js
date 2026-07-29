@@ -374,6 +374,20 @@ function renderRelationshipContext(context) {
   `;
 }
 
+// 相手の詳細ページの「占いベース相手分析」欄。生年月日から作る簡易プロフィール（buildRelationshipProfile）を表示。
+// 生年月日そのものは「相手プロフィール」欄に出るので、ここは分析内容のみ（相手が生年月日を非公開でも保存済み profile は表示できる）。
+function renderMeetingFortune(profile) {
+  if (!profile) return "";
+  const lenses = Array.isArray(profile.lenses) ? profile.lenses : [];
+  return [
+    `<p><b>${escapeHtml(profile.pillar || "")}${profile.element ? " ／ 五行 " + escapeHtml(profile.element) : ""}</b>${profile.type ? "　" + escapeHtml(profile.type) : ""}</p>`,
+    profile.approach ? `<p><b>仲良くなるヒント:</b> ${escapeHtml(profile.approach)}</p>` : "",
+    profile.avoid ? `<p><b>気をつけること:</b> ${escapeHtml(profile.avoid)}</p>` : "",
+    lenses.length ? `<p class="muted" style="font-size:12px;margin-top:4px">${lenses.map(escapeHtml).join(" ／ ")}</p>` : "",
+    profile.note ? `<small>${escapeHtml(profile.note)}</small>` : "",
+  ].filter(Boolean).join("");
+}
+
 // ダッシュボードの「今日の予定」「これから」を owner-bookings の実データで描画する。
 // 該当コンテナが無いページ（相手管理・予約設定）では何もしない。手動追加の相手・キャンセル済みは除外。
 const DASH_LOCATION_LABELS = {
@@ -571,7 +585,7 @@ const ICON_EYE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" st
 function iconAction(svg, label, attrs, extraCls = "") {
   return `<button type="button" class="icon-btn${extraCls}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}" ${attrs}>${svg}</button>`;
 }
-// ナビゲーション用アイコン（面談ブリーフィング画面へ遷移）。中クリック/新規タブできるよう <a>。
+// ナビゲーション用アイコン（相手の詳細画面へ遷移）。中クリック/新規タブできるよう <a>。
 // label を渡すとアイコン横に文字を併記する（見つけやすさ優先）。title は常にツールチップ。
 function iconLink(svg, title, href, extraCls = "", label = "") {
   const inner = label ? `${svg}<span>${escapeHtml(label)}</span>` : svg;
@@ -592,15 +606,15 @@ function renderBookings(bookings) {
     const email = escapeHtml(booking.visitor_email || booking.guest_email || "");
     const topic = escapeHtml(booking.topic || "");
     const when = booking.start_at || booking.start_time ? escapeHtml(formatSlot(booking.start_at || booking.start_time)) : "";
-    // 「詳細・記録」列に、面談ブリーフィング（回答・プロフィール・占い分析を集約）→記録系（会話記録 取る／見る）の順でボタンを集約する。
-    // ブリーフィングは無料でも開ける（画面内でプラン出し分け）。会話記録は Pro 以上。手動追加の相手も会話記録は残せる。
+    // 「詳細・記録」列に、相手の詳細（回答・プロフィール・占い分析を集約）→記録系（会話記録 取る／見る）の順でボタンを集約する。
+    // 相手の詳細は無料でも開ける（画面内でプラン出し分け）。会話記録は Pro 以上。手動追加の相手も会話記録は残せる。
     const manualTag = booking.manual ? ` <span class="free-tag">${escapeHtml(t("admin.contacts.manualTag"))}</span>` : "";
     const canNote = isPro && Boolean(booking.id); // 実予約＋手動追加の相手（手動は id="manual-<uuid>"）
     const hasNote = canNote && contactNoteIds.has(booking.id);
     const bid = escapeHtml(booking.id || "");
-    // 実予約の相手のみブリーフィング画面へ遷移（手動追加の相手は面談が無いので出さない）。
+    // 実予約の相手のみ相手の詳細画面へ遷移（手動追加の相手は面談が無いので出さない）。
     const canBrief = Boolean(booking.id) && !booking.manual;
-    // 順序: ブリーフィング（無料も可）→ 記録を取る → 記録を見る（後ろ2つは Pro 以上）。
+    // 順序: 相手の詳細（無料も可）→ 記録を取る → 記録を見る（後ろ2つは Pro 以上）。
     const actionBtns = [
       canBrief ? iconLink(ICON_BRIEF, t("admin.contacts.briefingOpen"), `/meeting.html?id=${encodeURIComponent(booking.id)}`, "", t("common.briefing")) : "",
       canNote ? iconAction(ICON_EDIT, t("admin.note.take"), `data-note-take data-booking-id="${bid}" data-name="${name}"`) : "",
@@ -1352,7 +1366,7 @@ async function initAnswers() {
   render();
 }
 
-// ===== 面談ブリーフィング（meeting.html）: ?id の予約を owner-bookings から取得して描画 =====
+// ===== 相手の詳細（meeting.html）: ?id の予約を owner-bookings から取得して描画 =====
 async function initMeeting() {
   const h1 = document.getElementById("meeting-h1");
   if (!h1) return;
@@ -1457,8 +1471,11 @@ async function initMeeting() {
     const markBtn = document.getElementById("mark-read");
     if (markBtn) markBtn.style.display = isRead ? "none" : "";
 
-    // 占いベース分析（生年月日機能は準備中）
-    setText("meeting-fortune", t("meeting.fortunePending"));
+    // 占いベース相手分析（生年月日インサイト・簡易版）。予約時に保存した profile を優先し、
+    // 無ければ生年月日から計算（相手が生年月日を非公開なら visitor_birth_date は無く、保存済み profile のみ表示）。
+    const fortuneProfile = parseRelationshipContext(booking.filter_request)?.profile
+      || (booking.visitor_birth_date ? buildRelationshipProfile(booking.visitor_birth_date, booking.visitor_name || booking.guest_name || "") : null);
+    setHtml("meeting-fortune", fortuneProfile ? renderMeetingFortune(fortuneProfile) : `<span class="muted">${escapeHtml(t("meeting.fortuneNoBirth"))}</span>`);
 
     // 相手プロフィール（保有している実データのみ：メール／生年月日）
     const pRows = [];

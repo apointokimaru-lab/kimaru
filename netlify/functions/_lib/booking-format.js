@@ -31,7 +31,7 @@ function answerUrl(bookingId) {
   return `${appBaseUrl()}/answer-question.html?id=${encodeURIComponent(bookingId)}&t=${encodeURIComponent(hostAnswerToken(bookingId))}`;
 }
 
-// ホスト専用の面談ブリーフィング画面（回答・プロフィール・占い分析・メモを集約）の絶対URL。
+// ホスト専用の相手の詳細画面（回答・プロフィール・占い分析・メモを集約）の絶対URL。
 // 認証必須ページなのでトークンは付けない（開くにはキマルにログインしたホスト本人が必要）。
 function briefingUrl(bookingId) {
   return `${appBaseUrl()}/meeting.html?id=${encodeURIComponent(bookingId)}`;

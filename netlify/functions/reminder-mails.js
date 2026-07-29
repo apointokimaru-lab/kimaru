@@ -130,8 +130,8 @@ function buildMessage(booking, owner, profile, answers, isPro) {
   return { subject: `まもなく面談です（${when}）`, text: lines.join("\n") };
 }
 
-// ホスト（主催者）向けのリマインド。面談ブリーフィング（相手の回答・プロフィール・メモ）への
-// ワンタップリンクを載せる。ブリーフィングは認証必須ページなので、リンクだけでも安全。
+// ホスト（主催者）向けのリマインド。相手の詳細（相手の回答・プロフィール・メモ）への
+// ワンタップリンクを載せる。相手の詳細は認証必須ページなので、リンクだけでも安全。
 function buildHostMessage(booking) {
   const guestName = booking.visitor_name || booking.guest_name || "お相手";
   const guestEmail = booking.visitor_email || booking.guest_email || "";
@@ -141,7 +141,7 @@ function buildHostMessage(booking) {
   if (booking.meeting_url) lines.push(`ミーティング: ${booking.meeting_url}`);
   lines.push(
     "",
-    "▼ 面談ブリーフィング（相手の回答・プロフィール・メモをまとめて確認）",
+    "▼ 相手の詳細（相手の回答・プロフィール・メモをまとめて確認）",
     briefingUrl(booking.id),
     "※ キマルにログインした状態で開けます。",
     "",
@@ -209,7 +209,7 @@ async function run(dryRun) {
     const profile = profileCache.get(ownerId) || {};
     const answers = await answersForBooking(booking.id);
     const message = buildMessage(booking, owner, profile, answers, isPro);
-    // ホスト（主催者）にもリマインドを送る。面談ブリーフィングのリンク付き。宛先が無ければ送らない。
+    // ホスト（主催者）にもリマインドを送る。相手の詳細のリンク付き。宛先が無ければ送らない。
     const hostMessage = buildHostMessage(booking);
     const hostRecipient = owner?.email || "";
     if (dryRun) {

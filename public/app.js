@@ -3,6 +3,7 @@ const page = document.body.dataset.page;
 let currentOwner = null;
 let ownerAvailability = [];
 let calendarConnected = false;
+let zoomConnected = false;
 let contactNoteIds = new Set(); // 会話記録がある予約IDの集合（相手一覧のバッジ用）
 
 function t(key) {
@@ -752,6 +753,11 @@ function updateBookingPageControls() {
   if (meetWarning && locationType) {
     meetWarning.classList.toggle("hidden", !(locationType.value === "google_meet" && !calendarConnected));
   }
+  // 同じく Zoom自動発行 × Zoom未連携。無言でURL無しの予約が成立するのを防ぐ。
+  const zoomWarning = $("#zoom-warning");
+  if (zoomWarning && locationType) {
+    zoomWarning.classList.toggle("hidden", !(locationType.value === "zoom" && !zoomConnected));
+  }
   // 前後バッファのカレンダー予定名の入力欄は、そのバッファが1分以上のときだけ表示する。
   const pageForm = $("#booking-page-form");
   if (pageForm) {
@@ -1092,6 +1098,7 @@ async function refreshAdmin() {
     const me = await api("me");
     currentOwner = me.owner || null;
     calendarConnected = Boolean(me.calendar_connected);
+    zoomConnected = Boolean(me.zoom_connected);
     const ownerStatus = $("#owner-status");
     if (ownerStatus) ownerStatus.textContent = me.owner ? t("admin.loggedIn") : t("admin.notLoggedIn");
     const ownerCard = $("#owner-card");

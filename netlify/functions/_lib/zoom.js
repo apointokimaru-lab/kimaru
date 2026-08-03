@@ -99,10 +99,8 @@ function meetingIdFromUrl(meetingUrl) {
 }
 
 // 接続済みホストのトークンで Zoom API を呼ぶ。未設定・未連携・ID復元不可なら null（呼び出しスキップ）。
-async function meetingRequest(ownerId, meetingUrl, options) {
-  if (!isConfigured()) return null;
-  const meetingId = meetingIdFromUrl(meetingUrl);
-  if (!meetingId) return null;
+async function meetingRequestById(ownerId, meetingId, options) {
+  if (!isConfigured() || !meetingId) return null;
   const connection = await getConnection(ownerId);
   if (!connection) return null;
   const token = await accessTokenFor(connection);
@@ -110,6 +108,10 @@ async function meetingRequest(ownerId, meetingUrl, options) {
     ...options,
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(options.headers || {}) },
   });
+}
+
+function meetingRequest(ownerId, meetingUrl, options) {
+  return meetingRequestById(ownerId, meetingIdFromUrl(meetingUrl), options);
 }
 
 // リスケ時：既存ミーティングの日時・時間を更新（URL は変わらない）。実行できたら true。
@@ -125,7 +127,11 @@ async function updateMeetingByUrl(ownerId, meetingUrl, { topic, startIso, durati
 
 // キャンセル時：ミーティングを削除。404（すでに無い）は成功扱い。実行できたら true。
 async function deleteMeetingByUrl(ownerId, meetingUrl) {
-  const res = await meetingRequest(ownerId, meetingUrl, { method: "DELETE" });
+  return deleteMeetingById(ownerId, meetingIdFromUrl(meetingUrl));
+}
+
+async function deleteMeetingById(ownerId, meetingId) {
+  const res = await meetingRequestById(ownerId, meetingId, { method: "DELETE" });
   if (!res) return false;
   if (!res.ok && res.status !== 204 && res.status !== 404) throw new Error("Zoomミーティングの削除に失敗しました");
   return true;
@@ -154,4 +160,4 @@ async function createMeetingFor(ownerId, { topic, startIso, durationMinutes }) {
   return { id: data.id, joinUrl: data.join_url || "" };
 }
 
-module.exports = { isConfigured, authorizeUrl, exchangeCode, getConnection, saveConnection, deleteConnection, accessTokenFor, zoomUserInfo, createMeetingFor, meetingIdFromUrl, updateMeetingByUrl, deleteMeetingByUrl };
+module.exports = { isConfigured, authorizeUrl, exchangeCode, getConnection, saveConnection, deleteConnection, accessTokenFor, zoomUserInfo, createMeetingFor, meetingIdFromUrl, updateMeetingByUrl, deleteMeetingByUrl, deleteMeetingById };

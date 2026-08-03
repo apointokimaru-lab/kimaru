@@ -73,8 +73,10 @@
           <p id="zoom-status" class="message" data-i18n="st.js.zoomChecking">連携状態を確認しています...</p>
           <div class="actions">
             <a id="zoom-connect" class="btn btn-primary" href="/api/zoom-auth-start" data-i18n="st.zoom.connect">Zoomと連携する</a>
+            <button id="zoom-test" class="btn btn-ghost" type="button" data-i18n="st.zoom.test" style="display:none">接続テスト</button>
             <button id="zoom-disconnect" class="btn btn-ghost" type="button" data-i18n="st.zoom.disconnect" style="display:none">連携を解除する</button>
           </div>
+          <p class="field-note muted" style="margin-top:10px" data-i18n="st.zoom.testNote">「接続テスト」はテスト用ミーティングを1件作成してすぐ削除し、実際に発行できる状態かを確認します。実際のミーティングは、開催方法「Zoom自動発行」の予約が入ったときに自動作成されます。</p>
           <p class="field-note muted" style="margin-top:10px" data-i18n="st.integrations.zoomNote">議事録アプリ連携は今後対応予定です。</p>
         </div>
 
@@ -281,8 +283,26 @@
         statusEl.className = 'message ' + (connected ? 'success' : '');
       }
       show($('#zoom-connect'), !connected);
+      show($('#zoom-test'), connected);
       show($('#zoom-disconnect'), connected);
     }
+    // 接続テスト: テスト用ミーティングを作成→即削除。実際に発行できる状態かをホスト自身が確認できる。
+    $('#zoom-test').addEventListener('click', async () => {
+      const statusEl = $('#zoom-status');
+      const button = $('#zoom-test');
+      button.disabled = true;
+      setMsg(statusEl, T("st.js.zoomTesting", "テスト用ミーティングを作成しています..."), '');
+      try {
+        const response = await fetch('/api/zoom-test', { method: 'POST', credentials: 'include' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || T("st.js.zoomTestFail", "接続テストに失敗しました。連携を解除して再接続してください。"));
+        setMsg(statusEl, T("st.js.zoomTestOk", "✓ 接続テストに成功しました。テスト用ミーティングは作成後に削除済みです。"), 'success');
+      } catch (error) {
+        setMsg(statusEl, error.message || T("st.js.zoomTestFail", "接続テストに失敗しました。連携を解除して再接続してください。"), 'error');
+      } finally {
+        button.disabled = false;
+      }
+    });
     $('#zoom-disconnect').addEventListener('click', async () => {
       if (!confirm(T("st.js.zoomDisconnectConfirm", "Zoom連携を解除します。よろしいですか？"))) return;
       try {

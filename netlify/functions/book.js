@@ -93,7 +93,7 @@ async function sendBookingConfirmation({ booking, owner, meetingUrl, locationVal
 }
 
 // 新規予約のホスト（主催者）宛通知メール（任意・非致命）。無料版でも予約に気づける。
-async function sendHostNotification({ booking, owner, meetingUrl, locationValue, answers, booker }) {
+async function sendHostNotification({ booking, owner, meetingUrl, locationValue, answers, booker, zoomFailure }) {
   if (!owner?.email) return { skipped: true };
   const when = formatJst(booking.start_at || booking.start_time);
   const qa = answersSummary(answers);
@@ -108,6 +108,17 @@ async function sendHostNotification({ booking, owner, meetingUrl, locationValue,
   ];
   if (meetingUrl) lines.push(`ミーティング: ${meetingUrl}`);
   if (locationValue) lines.push(`場所/案内: ${locationValue}`);
+  // Zoom自動発行に失敗＝ゲストに参加URLが届いていない。ホストが自分で連絡できるよう明示する。
+  if (zoomFailure) {
+    lines.push(
+      "",
+      "⚠ ZoomミーティングURLを自動発行できませんでした。ゲストには参加URLが届いていません。",
+      zoomFailure === "not_connected"
+        ? "設定 → 外部連携 → Zoom連携 からZoomアカウントを接続し、この予約のURLは個別にご連絡ください。"
+        : "Zoom連携を解除して再接続したうえで、この予約のURLは個別にご連絡ください。",
+      `${appBaseUrl()}/settings.html#integrations`
+    );
+  }
   if (qa) lines.push("", "― 事前アンケート ―", qa);
   if (booking.guest_message) {
     // 会員同士（予約者が別のキマル会員）なら、回答ページへの導線つきで「回答お願いします」と促す（#20）。
@@ -231,6 +242,9 @@ exports.handler = async (event) => {
 
     // Zoom 自動発行（#23）。ホスト本人の Zoom 連携（zoom_connections）があれば本人名義で作成して URL を採用。
     let zoomUrl = "";
+    // 発行できなかった理由。ホストへの通知メールで知らせる（未連携のまま「Zoom自動発行」を選んでいると
+    // ゲストに参加URLが1つも届かないため、無言のフォールバックにしない）。
+    let zoomFailure = "";
     if (booking?.id && bookingPayload.location_type === "zoom") {
       try {
         const durationMinutes = Math.max(1, Math.round((end - start) / 60000));
@@ -239,9 +253,15 @@ exports.handler = async (event) => {
           zoomUrl = meeting.joinUrl;
           booking.meeting_url = zoomUrl;
           await sb(`bookings?id=eq.${booking.id}`, { method: "PATCH", body: JSON.stringify({ meeting_url: zoomUrl }) }).catch(() => null);
+        } else {
+          // createMeetingFor が null＝未設定 or Zoom未連携。予約は成立させ、ホストに連携を促す。
+          zoomFailure = "not_connected";
+          console.error("[book] zoom skipped: no connection", { owner_id: owner.id, booking_id: booking.id });
         }
-      } catch (_) {
-        // 失敗時は手動URL（location_value）運用にフォールバック。
+      } catch (error) {
+        // トークン失効・API エラー等。手動URL（location_value）運用にフォールバックしつつ記録する。
+        zoomFailure = "api_error";
+        console.error("[book] zoom create failed", { owner_id: owner.id, booking_id: booking.id, message: error.message });
       }
     }
 
@@ -305,7 +325,7 @@ exports.handler = async (event) => {
     // 予約者がキマル会員か判定（会員同士なら相互質問の回答導線を有効化・#20）。
     const booker = await findOwnerByEmail(visitorEmail).catch(() => null);
     await sendBookingConfirmation({ booking, owner, meetingUrl, locationValue, profile: ownerProfile }).catch(() => {});
-    await sendHostNotification({ booking, owner, meetingUrl, locationValue, answers, booker }).catch(() => {});
+    await sendHostNotification({ booking, owner, meetingUrl, locationValue, answers, booker, zoomFailure }).catch(() => {});
 
     return json(200, { ok: true, booking, google: eventResult, manage_url: manageUrl(booking.id) });
   } catch (error) {

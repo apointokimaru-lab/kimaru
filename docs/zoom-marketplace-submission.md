@@ -43,16 +43,27 @@
 - **Terms of Use URL**: `https://kimaru-co.jp/terms.html`
 - **Developer contact**: キマル運営 / apointokimaru@gmail.com
 
+## 審査コメント「API コールが認可時の1回だけ」への対応（2026-08-03 調査）
+
+Functional review で **"only one api call was made, this happened during authorization"**（2026-07-18）と指摘された。本番DBを確認した結果、**アプリの不具合ではなく手順の順序**が原因だった。
+
+- 実運用で Zoom API を呼ぶのは **ゲストが予約を完了した瞬間**（`book.js` → `createMeetingFor`）で、ホストがアプリ内を操作しても発生しない。ホスト画面だけを触る審査では認可時の `GET /v2/users/me` しか出ない。
+- 本番の予約データ: 審査アカウント `ben.user1@zoomappsec.us` の予約は **2026-07-17 18:43 UTC（Zoom未接続の状態で予約）→ `meeting_url` 空**。一方 **2026-07-22 17:20 UTC の予約は成功**し、`meeting_url` に審査者自身のZoomドメイン（`pooja-onelogin-test.zoom.us/j/…`）が入っている＝`POST /v2/users/me/meetings` が成功している。**7/22 の再提出時点では実コールが発生済み**なので、返信ではこの予約を証拠として示す。
+- 恒久対策（2026-08-03 実装）:
+  - **設定画面に「接続テスト」ボタン**（`zoom-test.js`）を追加。テスト用ミーティングを1件作成→即削除するので、**ホストのアプリ内操作だけで `POST /meetings` と `DELETE /meetings/{id}` の実コールを審査者に見せられる**。
+  - Zoom未連携のまま開催方法「Zoom自動発行」の予約が入ると、従来は**無言でURL無しの予約**になっていた。予約設定画面に警告を出し（`#zoom-warning`）、発行失敗時はホスト通知メールに明記＋関数ログに記録するようにした。
+
 ## Functional review 用テスト手順（貼り付け用・EN）
 
 > 1. Sign up at https://kimaru-co.jp/signup.html (or use the provided test account below).
 > 2. Open Settings (設定) → External integrations (外部連携) → click "Connect Zoom" (Zoomと連携する). Complete the Zoom OAuth consent. The settings page shows "connected".
-> 3. In Booking settings (予約設定), set the meeting type of your booking page to "Zoom".
-> 4. Open your public booking page (シェア用URL), book a slot as a guest with any email address.
-> 5. Verify a scheduled meeting appears in the connected Zoom account, and the confirmation email contains the zoom.us join URL.
-> 6. Open the manage link in the confirmation email → "Change date" (日程を変更): pick a new slot. Verify the Zoom meeting's start time is updated (same join URL).
-> 7. From the same manage link, cancel the booking. Verify the meeting disappears from the Zoom account.
-> 8. Deauthorization: remove the app from the Zoom account (Marketplace → Manage → Added Apps). Kimaru deletes the stored connection/tokens upon receiving app_deauthorized.
+> 3. **On the same settings page, click "Test connection" (接続テスト). This immediately calls the Zoom API twice: it creates a scheduled meeting (`POST /v2/users/me/meetings`) and deletes it again (`DELETE /v2/meetings/{meetingId}`).** Please note that in normal use the meeting is created when a *guest* books — clicking around as the host does not call the API, which is why an earlier review saw only the authorization call.
+> 4. In Booking settings (予約設定), set the meeting type of your booking page to "Zoom" (Zoom自動発行), and save. **Both steps matter: the meeting type belongs to the booking page, and the Zoom account must be connected before the booking is made.**
+> 5. Open that booking page's public URL (シェア用URL) in a private window, and book a slot as a guest with any email address.
+> 6. Verify a scheduled meeting appears in the connected Zoom account, and the confirmation email contains the zoom.us join URL.
+> 7. Open the manage link in the confirmation email → "Change date" (日程を変更): pick a new slot. Verify the Zoom meeting's start time is updated (same join URL) — `PATCH /v2/meetings/{meetingId}`.
+> 8. From the same manage link, cancel the booking. Verify the meeting disappears from the Zoom account — `DELETE /v2/meetings/{meetingId}`.
+> 9. Deauthorization: remove the app from the Zoom account (Marketplace → Manage → Added Apps). Kimaru deletes the stored connection/tokens upon receiving app_deauthorized.
 
 - ☐ 審査用テストアカウント（メール/パスワード）を発行して記載する（プランは無料でよい。Zoom連携は全プラン利用可）
 - ☐ デモ動画（任意だが推奨）: 上記手順の画面録画。Google審査で作った動画と同じ要領

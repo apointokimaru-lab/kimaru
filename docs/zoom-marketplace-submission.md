@@ -13,12 +13,12 @@
    - Event notification endpoint URL: `https://kimaru-co.jp/api/zoom-deauthorize` → 「Validate」で検証
    - **注（General App の仕様）**: `app_deauthorized` は Event Types の一覧に**出てこない**。Marketplaceイベントとして、**公開後に検証済みエンドポイントへ自動配信**される（[Marketplace Webhooks](https://developers.zoom.us/docs/api/marketplace/events/)）。**未公開アプリには配信されない**ため公開前の実地テストは不可（[End user authorization](https://developers.zoom.us/docs/integrations/end-user-auth/)）。
    - 保存にイベント選択が必要な場合は「User」カテゴリの「User Updated」等、**既存スコープ範囲のイベント**を選ぶ（エンドポイントは未知イベントを安全に無視する）。
-2. ☐ **Secret Token** を Netlify env `ZOOM_WEBHOOK_SECRET_TOKEN` に設定（Access ページの Secret Token。スクリーンショットに写ったことがあるため **Regenerate してから**設定を推奨）
-3. ☐ `supabase-schema.sql` の `zoom_connections.zoom_user_id` 列を dev/本番に適用
-4. ☐ 本番デプロイ（zoom-deauthorize エンドポイント含む）
-5. ☐ App Listing 記入（下記の文面を使用）＋スクリーンショット添付
-6. ☐ Beta Test ページの「supporting security evidence」（セキュリティ質問票）回答（下記草案を使用）
-7. ☐ Submit for review
+2. ☑ **Secret Token** を Netlify env `ZOOM_WEBHOOK_SECRET_TOKEN` に設定（Access ページの Secret Token。スクリーンショットに写ったことがあるため **Regenerate してから**設定を推奨）〔2026-08-03 本番 env に設定済みを確認〕
+3. ☑ `supabase-schema.sql` の `zoom_connections.zoom_user_id` 列を dev/本番に適用〔2026-08-03 両DBで列の存在を確認〕
+4. ☑ 本番デプロイ（zoom-deauthorize エンドポイント含む）〔`POST /api/zoom-deauthorize` が署名なしリクエストを 401 で拒否＝稼働中〕
+5. ☑ App Listing 記入（下記の文面を使用）＋スクリーンショット添付〔2026-07-16 提出〕
+6. ☑ Beta Test ページの「supporting security evidence」（セキュリティ質問票）回答（下記草案を使用）
+7. ☑ Submit for review〔2026-07-16 初回提出 → 指摘対応後 2026-07-22 再提出〕
 
 ## App Listing 文面（貼り付け用）
 
@@ -65,7 +65,10 @@ Functional review で **"only one api call was made, this happened during author
 > 8. From the same manage link, cancel the booking. Verify the meeting disappears from the Zoom account — `DELETE /v2/meetings/{meetingId}`.
 > 9. Deauthorization: remove the app from the Zoom account (Marketplace → Manage → Added Apps). Kimaru deletes the stored connection/tokens upon receiving app_deauthorized.
 
-- ☐ 審査用テストアカウント（メール/パスワード）を発行して記載する（プランは無料でよい。Zoom連携は全プラン利用可）
+- ☑ 審査用テストアカウントを発行して記載済み（プランは無料でよい。Zoom連携は全プラン利用可）
+  - ログイン: `apointokimaru+zoomreview@gmail.com`（**パスワードは運営メモ側に保持。リポジトリには書かない**）
+  - Zoom開催の予約ページ: `https://kimaru-co.jp/b/zoom-review`（月〜金 9-18 JST・空き枠あり・`location_type=zoom`）
+  - **審査承認まで削除しない**（過去に一度消して作り直した経緯あり）
 - ☐ デモ動画（任意だが推奨）: 上記手順の画面録画。Google審査で作った動画と同じ要領
 
 ## Security review（質問票の回答草案）

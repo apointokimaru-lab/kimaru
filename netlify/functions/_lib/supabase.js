@@ -35,14 +35,36 @@ async function defaultOwner() {
   return rows[0] || null;
 }
 
+// owners.slug は公開プロフィールURL（/u/{slug}）になり、グローバル一意（owners_slug_unique）。
+// メールのローカル部そのままだと別ドメインの同名（info@a.jp / info@b.com）で衝突するため、
+// auth-register.js の makeSlug と同じくランダムサフィックスを付ける。
+function ownerSlugCandidate(email) {
+  const base = String(email || "").split("@")[0].toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 24) || "user";
+  return `${base}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 async function upsertOwner(profile) {
   const existing = await findOwnerByEmail(profile.email);
   if (existing) {
-    const rows = await sb(`owners?id=${eq(existing.id)}`, { method: "PATCH", body: JSON.stringify(profile) });
+    // slug は上書きしない。共有済みの公開プロフィールURL（メールにも載る）が切れるうえ、
+    // 他アカウントと衝突すると unique 違反でログイン自体が 500 になるため。
+    const { slug, ...patch } = profile;
+    const rows = await sb(`owners?id=${eq(existing.id)}`, { method: "PATCH", body: JSON.stringify(patch) });
     return rows[0];
   }
-  const rows = await sb("owners", { method: "POST", body: JSON.stringify({ ...profile, plan: "free", slug: profile.slug || "demo" }) });
-  return rows[0];
+  // 新規作成。slug が衝突したら候補を変えて数回リトライする。
+  let lastError = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const slug = ownerSlugCandidate(profile.email);
+    try {
+      const rows = await sb("owners", { method: "POST", body: JSON.stringify({ ...profile, plan: "free", slug }) });
+      return rows[0];
+    } catch (error) {
+      if (!/duplicate|unique/i.test(String(error.message || ""))) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 // メール配信停止（解除/バウンス/苦情）リスト。営業メールはここに載った宛先には送らない。
@@ -64,4 +86,4 @@ async function addEmailSuppression(email, reason = "unsubscribe") {
   });
 }
 
-module.exports = { sb, eq, findOwnerByEmail, findOwnerById, defaultOwner, upsertOwner, isEmailSuppressed, addEmailSuppression };
+module.exports = { sb, eq, findOwnerByEmail, findOwnerById, defaultOwner, upsertOwner, ownerSlugCandidate, isEmailSuppressed, addEmailSuppression };

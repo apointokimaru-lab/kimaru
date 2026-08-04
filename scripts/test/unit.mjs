@@ -623,6 +623,111 @@ section("per-page availability (booking-page-save / availability)");
   ok("自前の設定があるページは共有行に引きずられない", guestA2.axis.start_min === 600 && guestA2.axis.end_min === 1080);
 }
 
+// ---------- 15) Google連携: slug を壊さない／ログイン中はアカウントを切り替えない ----------
+// (1) upsertOwner が既存アカウントの slug を上書きしない（公開URL /u/{slug} が切れる・unique違反で500になる）
+// (2) 新規は衝突しにくいランダムサフィックス付き slug を採番し、衝突したらリトライする
+// (3) 設定画面からの連携(state="c...")でログイン中なら、そのアカウントにカレンダーを繋ぐだけ
+section("Google auth: slug preservation / connect vs login");
+{
+  process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "unit-test-client-id";
+  process.env.GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "unit-test-client-secret";
+  const OWNER3 = { id: "44444444-4444-4444-4444-444444444444", email: "mnie427@icloud.com", name: "既存ユーザー", slug: "mnie427-r3a1o", plan: "free" };
+  const TABLES = { owners: [OWNER3], google_connections: [], booking_pages: [], availability_settings: [] };
+  let seq = 0;
+  let failNextInserts = 0; // slug unique 違反を人工的に起こす回数
+  const matches = (row, params) => {
+    for (const [k, v] of params) {
+      if (["select", "order", "limit", "offset"].includes(k)) continue;
+      if (v === "is.null") { if (row[k] != null) return false; continue; }
+      if (v.startsWith("eq.") && String(row[k]) !== decodeURIComponent(v.slice(3))) return false;
+    }
+    return true;
+  };
+  globalThis.fetch = async (url, options = {}) => {
+    const u = new URL(url);
+    // Google 側のエンドポイントはスタブ応答を返す（ネットワークに出さない）。google.js は response.json() を使う。
+    const reply = (obj) => ({ ok: true, status: 200, json: async () => obj, text: async () => JSON.stringify(obj) });
+    if (u.hostname === "oauth2.googleapis.com") return reply({ access_token: "at", refresh_token: "rt", expires_in: 3600 });
+    if (u.hostname === "www.googleapis.com" && u.pathname.startsWith("/oauth2/v2/userinfo")) {
+      return reply({ email: "another.google@gmail.com", name: "別のGoogle", picture: "https://x/p.png" });
+    }
+    const table = u.pathname.replace("/rest/v1/", "").split("?")[0];
+    const params = [...u.searchParams];
+    const rows = TABLES[table] || (TABLES[table] = []);
+    const method = (options.method || "GET").toUpperCase();
+    const body = options.body ? JSON.parse(options.body) : null;
+    let out = [];
+    if (method === "GET") out = rows.filter((r) => matches(r, params));
+    else if (method === "POST") {
+      if (table === "owners" && failNextInserts > 0) {
+        failNextInserts -= 1;
+        return { ok: false, status: 409, text: async () => JSON.stringify({ message: 'duplicate key value violates unique constraint "owners_slug_unique"' }) };
+      }
+      const list = Array.isArray(body) ? body : [body];
+      out = list.map((r) => ({ id: `${table}-${++seq}`, ...r }));
+      rows.push(...out);
+    } else if (method === "PATCH") {
+      out = rows.filter((r) => matches(r, params));
+      out.forEach((r) => Object.assign(r, body));
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify(out) };
+  };
+
+  const { upsertOwner, ownerSlugCandidate } = requireCjs(path.join(repo, "netlify/functions/_lib/supabase"));
+
+  // (1) 既存アカウント: slug は据え置き、name/avatar だけ更新される
+  await upsertOwner({ email: OWNER3.email, name: "Googleの表示名", avatar_url: "https://x/a.png", slug: "mnie427" });
+  ok("既存アカウントの slug は上書きされない（公開URLが切れない）", TABLES.owners[0].slug === "mnie427-r3a1o");
+  ok("既存アカウントの name/avatar は Google の値で更新される", TABLES.owners[0].name === "Googleの表示名" && TABLES.owners[0].avatar_url === "https://x/a.png");
+
+  // (2) 新規アカウント: ランダムサフィックス付き＋衝突時リトライ
+  ok("ownerSlugCandidate: ローカル部＋サフィックス", /^info-[a-z0-9]{1,5}$/.test(ownerSlugCandidate("info@example.com")));
+  ok("ownerSlugCandidate: 同じメールでも毎回違う", ownerSlugCandidate("info@example.com") !== ownerSlugCandidate("info@example.com"));
+  const created = await upsertOwner({ email: "info@example.com", name: "新規" });
+  ok("新規アカウントの slug はローカル部そのままではない（他ドメインの同名と衝突しない）", created.slug !== "info" && created.slug.startsWith("info-"));
+  failNextInserts = 2; // 最初の2回は unique 違反 → 3回目で成功するはず
+  const retried = await upsertOwner({ email: "info@other.co.jp", name: "衝突" });
+  ok("slug 衝突時は候補を変えてリトライし、ログインを 500 にしない", Boolean(retried && retried.slug.startsWith("info-")));
+
+  // (3) 連携モード: ログイン中は「別のGoogleアカウント」を選んでもアカウントが切り替わらない
+  const startFn = requireCjs(path.join(repo, "netlify/functions/google-auth-start"));
+  const connectRes = await startFn.handler({ queryStringParameters: { connect: "1" } });
+  const loginRes = await startFn.handler({ queryStringParameters: {} });
+  const stateOf = (res) => decodeURIComponent(String(res.headers.Location).match(/[?&]state=([^&]+)/)[1]);
+  const connectState = stateOf(connectRes);
+  ok("google-auth-start: connect=1 の state は 'c' で始まる", connectState.startsWith("c"));
+  ok("google-auth-start: 通常ログインの state は 'l' で始まる", stateOf(loginRes).startsWith("l"));
+
+  const cbFn = requireCjs(path.join(repo, "netlify/functions/google-auth-callback"));
+  const stateCookie = String(connectRes.headers["Set-Cookie"]).split(";")[0];
+  const ownersBefore = TABLES.owners.length;
+  const cb = await cbFn.handler({
+    queryStringParameters: { code: "x", state: connectState },
+    headers: { cookie: `${sessionCookie(OWNER3.id).split(";")[0]}; ${stateCookie}` },
+  });
+  ok("連携モード: 別のGoogleアカウントを選んでも owner が増えない（アカウント切替が起きない）", TABLES.owners.length === ownersBefore);
+  ok("連携モード: カレンダーはログイン中のアカウントに紐づく", TABLES.google_connections.length === 1 && TABLES.google_connections[0].owner_id === OWNER3.id);
+  ok("連携モード: 設定画面へ戻す", String(cb.headers.Location).includes("/settings.html"));
+
+  // ログインモード（state="l...") は従来どおり Google のメールで解決して新規作成する
+  const loginState = stateOf(loginRes);
+  const loginCookie = String(loginRes.headers["Set-Cookie"]).split(";")[0];
+  const before2 = TABLES.owners.length;
+  const cb2 = await cbFn.handler({ queryStringParameters: { code: "x", state: loginState }, headers: { cookie: loginCookie } });
+  ok("ログインモード: Googleのメールでアカウントを作成する", TABLES.owners.length === before2 + 1 && TABLES.owners.some((o) => o.email === "another.google@gmail.com"));
+  ok("ログインモード: ホームへ遷移する", String(cb2.headers.Location).includes("/dashboard.html"));
+
+  // (4) booking_pages.updated_at が保存で更新される（plan-freeze の「直近更新順」が効くように）
+  const saveFn = requireCjs(path.join(repo, "netlify/functions/booking-page-save"));
+  TABLES.owners.push({ id: "55555555-5555-5555-5555-555555555555", email: "up@example.com", plan: "premium", slug: "up" });
+  const upCookie = sessionCookie("55555555-5555-5555-5555-555555555555").split(";")[0];
+  const saved = await saveFn.handler({
+    httpMethod: "POST", headers: { cookie: upCookie },
+    body: JSON.stringify({ slug: "up-page", title: "U", duration_minutes: 30, availability_settings: [{ day_of_week: 1, start_time: "10:00", end_time: "18:00", enabled: true }] }),
+  });
+  ok("booking-page-save: updated_at を書き込む", saved.statusCode === 200 && Boolean(JSON.parse(saved.body).booking_page.updated_at));
+}
+
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);
 if (fail) { console.log("FAILED: " + fails.join(" | ")); process.exit(1); }

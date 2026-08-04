@@ -17,10 +17,22 @@ exports.handler = async (event) => {
         .catch(() => sb(pagesQuery(withTitles, "question_text,is_required,sort_order")))
         .catch(() => sb(pagesQuery(baseCols, "question_text,is_required,sort_order,answer_type,options")))
         .catch(() => sb(pagesQuery(baseCols, "question_text,is_required,sort_order")));
-      const availability = await sb(
-        `availability_settings?owner_id=${eq(owner.id)}&select=day_of_week,start_time,end_time&order=day_of_week.asc`
-      ).catch(() => []);
-      return json(200, { pages: pages || [], availability: availability || [] });
+      // 受付時間は予約ページ単位（#263）。booking_page_id 付きの行を各ページへ、
+      // 列が無い/未設定の旧データ（booking_page_id=null）はオーナー共有のフォールバックとして返す。
+      const cols = "booking_page_id,day_of_week,start_time,end_time";
+      let rows = await sb(`availability_settings?owner_id=${eq(owner.id)}&select=${cols}&order=day_of_week.asc`)
+        .catch(() => sb(`availability_settings?owner_id=${eq(owner.id)}&select=day_of_week,start_time,end_time&order=day_of_week.asc`))
+        .catch(() => []);
+      rows = rows || [];
+      const strip = ({ booking_page_id, ...rest }) => rest;
+      const shared = rows.filter((row) => !row.booking_page_id).map(strip);
+      const list = (pages || []).map((page) => {
+        const own = rows.filter((row) => row.booking_page_id === page.id).map(strip);
+        return { ...page, availability: own.length ? own : shared };
+      });
+      // 新規ページの初期値: 共有（レガシー）設定 → 無ければ先頭ページの設定（無ければ画面のHTML既定＝平日10:00-18:00）。
+      const defaults = shared.length ? shared : ((list[0] && list[0].availability) || []);
+      return json(200, { pages: list, availability: shared, default_availability: defaults });
     }
 
     if (event.httpMethod === "POST") {

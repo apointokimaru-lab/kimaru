@@ -28,7 +28,7 @@
 | 前後バッファ（0〜60分） | ✅ | 同上 |
 | 受付期間（無料2ヶ月/有料6ヶ月・プラン制限） | ✅ | 同上＋`app.js` |
 | 開催方法（対面/Meet/Zoom/電話/URL/後で連絡） | ✅（Zoomは env設定で自動発行） | `booking-settings.html`, `book.js`, `_lib/zoom.js` |
-| 受付可能時間（曜日・時間帯） | ✅ | `availability_settings` 利用 |
+| 受付可能時間（曜日・時間帯） | ✅ | `availability_settings` 利用。**予約ページ単位**（`booking_page_id`・#263） |
 
 ## 🗓 Google カレンダー連携・予約
 

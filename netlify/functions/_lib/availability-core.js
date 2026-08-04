@@ -173,6 +173,26 @@ async function ownerAvailability(owner) {
   return sb(`availability_settings?owner_id=${eq(owner.id)}&order=day_of_week.asc,start_time.asc`);
 }
 
+// 受付時間は予約ページ単位（#263）。ページ専用の行 → 無ければオーナー共有のレガシー行（booking_page_id=null）の順で解決する。
+// booking_page_id 列が未マイグレーションの環境ではオーナー単位の旧挙動へデグレードする。
+async function pageAvailability(owner, bookingPage) {
+  if (!owner) return [];
+  const order = "order=day_of_week.asc,start_time.asc";
+  if (bookingPage) {
+    try {
+      const own = await sb(`availability_settings?booking_page_id=${eq(bookingPage.id)}&${order}`);
+      if (own && own.length) return own;
+      // ページ専用の行が無いときだけ、旧「オーナー共有」行にフォールバックする。
+      // ここで owner_id だけで引くと他ページ専用の行まで拾ってしまうため、必ず null 行に限定する。
+      const shared = await sb(`availability_settings?owner_id=${eq(owner.id)}&booking_page_id=is.null&${order}`);
+      return shared || [];
+    } catch (_) {
+      // 列が無い＝ページ単位で持てない環境。オーナー単位で返す。
+    }
+  }
+  return ownerAvailability(owner).catch(() => []);
+}
+
 // slug から owner＋bookingPage を解決（無ければ既定オーナーの先頭ページ）。
 async function resolveOwnerAndPage(slug) {
   const s = String(slug || "").trim().toLowerCase();
@@ -207,5 +227,5 @@ module.exports = {
   timeToMinutes, tokyoParts, tokyoLocalDateToUtc, tokyoStartOfDayMs, isoDate, addMonths,
   generateSlots, overlaps, ownerBookingBusy, openSlotsForWindow,
   bookingBounds, axisRange, slotsToMonthDays, availabilityDaysForMonth,
-  ownerBookingPage, ownerAvailability, resolveOwnerAndPage, bookingPageQuestions,
+  ownerBookingPage, ownerAvailability, pageAvailability, resolveOwnerAndPage, bookingPageQuestions,
 };

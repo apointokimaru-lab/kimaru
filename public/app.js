@@ -1,7 +1,8 @@
 const $ = (selector) => document.querySelector(selector);
 const page = document.body.dataset.page;
 let currentOwner = null;
-let ownerAvailability = [];
+let ownerAvailability = []; // 予約ページ固有の受付時間が無いときのフォールバック（旧オーナー共有設定）
+let defaultAvailability = []; // 新規予約ページの初期値（共有設定→先頭ページの設定）
 let calendarConnected = false;
 let zoomConnected = false;
 let contactNoteIds = new Set(); // 会話記録がある予約IDの集合（相手一覧のバッジ用）
@@ -902,13 +903,14 @@ async function loadBookingPages() {
   try {
     const data = await api("booking-pages");
     ownerAvailability = data.availability || [];
+    defaultAvailability = data.default_availability || ownerAvailability;
     renderBookingPages(data.pages || []);
   } catch (_) {
     if (el) el.innerHTML = `<p class="muted">${escapeHtml(t("bs.list.loadError"))}</p>`;
   }
 }
 
-// 受付時間（オーナー単位）をフォームに反映
+// 受付時間（予約ページ単位）をフォームに反映
 function applyAvailability(form, settings) {
   const byDay = {};
   (settings || []).forEach((s) => { byDay[s.day_of_week] = s; });
@@ -967,8 +969,8 @@ function fillBookingPageForm(page) {
     .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
     .map((q) => ({ question_text: q.question_text, answer_type: q.answer_type || "text", options: Array.isArray(q.options) ? q.options : [], is_required: q.is_required !== false }));
   renderQuestionRows(questions);
-  // 受付時間（オーナー単位）
-  applyAvailability(form, ownerAvailability);
+  // 受付時間は予約ページ単位（#263）。このページ専用の設定が無ければ旧オーナー共有設定を出す。
+  applyAvailability(form, page.availability && page.availability.length ? page.availability : ownerAvailability);
   updateBookingPageControls();
   const editing = $("#booking-page-editing");
   if (editing) editing.textContent = `${t("bs.editor.editingPrefix")}${page.title || page.slug}`;
@@ -1084,6 +1086,8 @@ function clearBookingPageForm() {
   if (!form) return;
   form.reset();
   if (form.elements.page_id) form.elements.page_id.value = "";
+  // 受付時間はページ単位なので、新規ページはいつもの設定を「初期値として」引き継ぐだけ（保存しても他ページには影響しない）。
+  if (defaultAvailability.length) applyAvailability(form, defaultAvailability);
   renderQuestionRows([...DEFAULT_QUESTIONS]);
   const editing = $("#booking-page-editing");
   if (editing) editing.textContent = t("bs.editor.editingNew");

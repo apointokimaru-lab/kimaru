@@ -46,7 +46,7 @@ erDiagram
 | **profiles** | プロフィールシート | `owner_id`, `user_id`(legacy), `display_name`, `bio`, `profile_url` |
 | **google_connections** | Google カレンダー連携トークン（現行） | `owner_id`(uniq), `calendar_id`, `access_token`, `refresh_token`, `expires_at` |
 | **booking_pages** | 予約ページ設定 | `owner_id`, `slug`(uniq), `duration_minutes`(30〜120), `buffer_before/after_minutes`(0〜60), `booking_range_months`(1〜6), `location_type`, `location_value`, `timezone`, `is_active`, `frozen`(降格時凍結・#174) |
-| **availability_settings** | 受付可能時間（曜日・時間帯） | `owner_id`, `day_of_week`(0-6), `start_time`, `end_time` |
+| **availability_settings** | 受付可能時間（曜日・時間帯）。**予約ページ単位**（#263） | `owner_id`, `booking_page_id`(**ページ単位**／null=旧オーナー共有行＝自前の設定を持たないページのフォールバック), `day_of_week`(0-6), `start_time`, `end_time` |
 | **bookings** | 予約 | `owner_id`, `booking_page_id`, `visitor_name/email`, `topic`, `guest_message`(相互質問・#21), `host_answer`(+`host_answer_at`／会員同士の相互質問へのホスト回答・#20), `visitor_birth_date`(+`_private`), `relationship_profile`(jsonb), `start_at/end_at`, `meeting_url`, `location_type`, `google_event_id`, `status`。※`birthday_message_opt_in` は廃止機能の遺物（#180） |
 | **questionnaire_questions** | 事前アンケート質問 | `booking_page_id`, `question_text`, `is_required`, `sort_order` |
 | **questionnaire_answers** | 事前アンケート回答 | `booking_id`, `question_id`, `answer_text` |

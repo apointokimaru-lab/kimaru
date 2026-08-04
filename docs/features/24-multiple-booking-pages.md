@@ -2,7 +2,7 @@
 
 [← 機能一覧に戻る](./README.md)
 
-- ステータス: ⚠️ 実装済（複数ページ保存・一覧・削除・`/b/{slug}` 公開解決。受付時間は当面オーナー共有）
+- ステータス: ✅ 実装済（複数ページ保存・一覧・削除・`/b/{slug}` 公開解決。**受付時間もページ単位**＝#263 で解消）
 - 対象プラン: 共通（保存数の上限がプランで異なる）
 - 仕様: [`../spec.md`](../spec.md) 主要機能 2〜7（予約設定）/ 13（プラン）
 
@@ -48,3 +48,14 @@
 - **保存数上限の実効**: 無料1 / Pro2 / プレミアム5（`_lib/plan-limits.js`）。上限超過は 403（`booking-page-save`）。プラン判定は [13](./13-plans.md) と連動。
 - **UI**: 予約ページの一覧・新規作成・編集・削除・URL コピー（`booking-settings.html`）。
 - **公開ページ**: slug で該当ページの設定・空き枠を解決して表示（`booking.html` / `availability`）。
+
+## 受付時間のページ分離（#263・2026-08-04）
+
+- 症状: A・B 2つの予約ページを作ると、A の公開ページに B の受付時間（曜日・時間帯）が出る。
+- 原因: `availability_settings` が **オーナー単位**で、`booking-page-save` が保存のたび `owner_id` 単位で全削除→再投入していたため、後から保存したページの受付時間で全ページが上書きされていた。
+- 対応: `availability_settings.booking_page_id` を追加し、保存・読み出しをページ単位に変更。
+  - 保存（`booking-page-save`）: `booking_page_id` 一致行だけ入れ替え。
+  - 読み出し（`_lib/availability-core.js` `pageAvailability`）: ページ専用行 → 無ければ `booking_page_id=null` の旧共有行 → 無ければ既定（平日10:00–18:00）。
+  - 既存データは `booking_page_id=null` のまま残し、まだ編集していないページのフォールバックとして機能する（強制移行しない）。
+  - 列が未適用の環境ではオーナー単位の旧挙動へデグレード（`alter table ... add column if not exists` を両DBへ手動適用すること）。
+- 回帰テスト: `scripts/test/unit.mjs` の「per-page availability」節（A→B 保存後に A の公開ページを検証）。

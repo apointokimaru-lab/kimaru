@@ -209,12 +209,19 @@
     }
 
     function show(el, on) { if (el) el.style.display = on ? '' : 'none'; }
+    // ?calendar=state_error で戻った直後（＝連携を始めた本人と完了した本人が一致しなかった）は初回のみエラーを優先表示。
+    let calendarFlowError = (() => { const v = new URLSearchParams(location.search).get('calendar'); return Boolean(v && v !== 'connected'); })();
     function applyCalendar(connected) {
       const statusEl = $('#calendar-status');
-      statusEl.textContent = connected
-        ? T("st.js.calendarConnected", "✓ Googleカレンダー連携済みです。空き枠判定・予定作成・Meet発行が有効です。")
-        : T("st.js.calendarDisconnected", "未連携です。連携すると空き枠判定・予定作成が有効になります。");
-      statusEl.className = 'message ' + (connected ? 'success' : '');
+      if (calendarFlowError) {
+        calendarFlowError = false;
+        setMsg(statusEl, T("st.js.calendarConnectError", "連携を完了できませんでした。ログインし直してから、もう一度お試しください。"), 'error');
+      } else {
+        statusEl.textContent = connected
+          ? T("st.js.calendarConnected", "✓ Googleカレンダー連携済みです。空き枠判定・予定作成・Meet発行が有効です。")
+          : T("st.js.calendarDisconnected", "未連携です。連携すると空き枠判定・予定作成が有効になります。");
+        statusEl.className = 'message ' + (connected ? 'success' : '');
+      }
       const badge = $('#calendar-badge');
       badge.textContent = connected ? T("st.js.badgeConnected", "連携済み") : T("st.js.badgeDisconnected", "未連携");
       badge.classList.toggle('on', connected);

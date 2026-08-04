@@ -691,23 +691,41 @@ section("Google auth: slug preservation / connect vs login");
 
   // (3) 連携モード: ログイン中は「別のGoogleアカウント」を選んでもアカウントが切り替わらない
   const startFn = requireCjs(path.join(repo, "netlify/functions/google-auth-start"));
-  const connectRes = await startFn.handler({ queryStringParameters: { connect: "1" } });
-  const loginRes = await startFn.handler({ queryStringParameters: {} });
+  const ownerCookie = sessionCookie(OWNER3.id).split(";")[0];
+  const connectRes = await startFn.handler({ queryStringParameters: { connect: "1" }, headers: { cookie: ownerCookie } });
+  const loginRes = await startFn.handler({ queryStringParameters: {}, headers: {} });
   const stateOf = (res) => decodeURIComponent(String(res.headers.Location).match(/[?&]state=([^&]+)/)[1]);
   const connectState = stateOf(connectRes);
-  ok("google-auth-start: connect=1 の state は 'c' で始まる", connectState.startsWith("c"));
+  ok("google-auth-start: connect=1 の state は 'c'＋署名ブロブ", connectState.startsWith("c") && connectState.includes("."));
   ok("google-auth-start: 通常ログインの state は 'l' で始まる", stateOf(loginRes).startsWith("l"));
+  const noSessionConnect = await startFn.handler({ queryStringParameters: { connect: "1" }, headers: {} });
+  ok("google-auth-start: 未ログインで connect=1 は通常ログインへフォールバック", stateOf(noSessionConnect).startsWith("l"));
 
   const cbFn = requireCjs(path.join(repo, "netlify/functions/google-auth-callback"));
   const stateCookie = String(connectRes.headers["Set-Cookie"]).split(";")[0];
   const ownersBefore = TABLES.owners.length;
   const cb = await cbFn.handler({
     queryStringParameters: { code: "x", state: connectState },
-    headers: { cookie: `${sessionCookie(OWNER3.id).split(";")[0]}; ${stateCookie}` },
+    headers: { cookie: `${ownerCookie}; ${stateCookie}` },
   });
   ok("連携モード: 別のGoogleアカウントを選んでも owner が増えない（アカウント切替が起きない）", TABLES.owners.length === ownersBefore);
   ok("連携モード: カレンダーはログイン中のアカウントに紐づく", TABLES.google_connections.length === 1 && TABLES.google_connections[0].owner_id === OWNER3.id);
   ok("連携モード: 設定画面へ戻す", String(cb.headers.Location).includes("/settings.html"));
+  ok("連携モード: セッションを張り直さない（既に有効なため）", !String(cb.multiValueHeaders["Set-Cookie"].join(" ")).includes("kimaru_session="));
+
+  // 【セキュリティ】アカウント連携CSRF: 攻撃者のセッションを植えられた被害者が連携を完了しても、
+  // 被害者のGoogleトークンが攻撃者のアカウントへ保存されてはいけない。
+  const ATTACKER = { id: "66666666-6666-6666-6666-666666666666", email: "attacker@evil.example", plan: "free", slug: "attacker" };
+  TABLES.owners.push(ATTACKER);
+  const connCountBefore = TABLES.google_connections.length;
+  const attacked = await cbFn.handler({
+    queryStringParameters: { code: "x", state: connectState }, // 被害者が正規に開始した state
+    headers: { cookie: `${sessionCookie(ATTACKER.id).split(";")[0]}; ${stateCookie}` }, // ただしセッションは攻撃者
+  });
+  ok("連携CSRF: state の owner とセッションの owner が不一致なら中断する", String(attacked.headers.Location).includes("calendar=state_error"));
+  ok("連携CSRF: トークンを保存しない", TABLES.google_connections.length === connCountBefore
+    && !TABLES.google_connections.some((c) => c.owner_id === ATTACKER.id));
+  ok("連携CSRF: ログイン扱いへフォールバックしない（owner を作らない）", !TABLES.owners.some((o) => o.email === "another.google@gmail.com"));
 
   // ログインモード（state="l...") は従来どおり Google のメールで解決して新規作成する
   const loginState = stateOf(loginRes);
@@ -726,6 +744,40 @@ section("Google auth: slug preservation / connect vs login");
     body: JSON.stringify({ slug: "up-page", title: "U", duration_minutes: 30, availability_settings: [{ day_of_week: 1, start_time: "10:00", end_time: "18:00", enabled: true }] }),
   });
   ok("booking-page-save: updated_at を書き込む", saved.statusCode === 200 && Boolean(JSON.parse(saved.body).booking_page.updated_at));
+
+  // (5) ログインCSRF: セッションを発行するエンドポイントはクロスサイト送信を拒否する。
+  //     これを許すと「攻撃者のアカウントで被害者をログイン状態にする」→ 連携フローの乗っ取りが成立する。
+  const { hashPassword } = requireCjs(path.join(repo, "netlify/functions/_lib/crypto"));
+  TABLES.owners.push({ id: "77777777-7777-7777-7777-777777777777", email: "csrf@example.com", plan: "free", slug: "csrf", password_hash: hashPassword("password123") });
+  const loginFn = requireCjs(path.join(repo, "netlify/functions/auth-login"));
+  const creds = JSON.stringify({ email: "csrf@example.com", password: "password123" });
+  const jsonHeaders = { "content-type": "application/json", origin: "https://kimaru-co.jp", host: "kimaru-co.jp" };
+
+  const sameSite = await loginFn.handler({ httpMethod: "POST", headers: jsonHeaders, body: creds });
+  ok("auth-login: 同一オリジンからの正規ログインは通る", sameSite.statusCode === 200);
+  const crossOrigin = await loginFn.handler({
+    httpMethod: "POST", headers: { ...jsonHeaders, origin: "https://evil.example" }, body: creds,
+  });
+  ok("auth-login: クロスオリジンの Origin は 403", crossOrigin.statusCode === 403);
+  const crossFetchSite = await loginFn.handler({
+    httpMethod: "POST", headers: { "content-type": "application/json", "sec-fetch-site": "cross-site", host: "kimaru-co.jp" }, body: creds,
+  });
+  ok("auth-login: Sec-Fetch-Site: cross-site は 403", crossFetchSite.statusCode === 403);
+  const noOrigin = await loginFn.handler({ httpMethod: "POST", headers: { "content-type": "application/json", host: "kimaru-co.jp" }, body: creds });
+  ok("auth-login: Origin 無し（curl等の非ブラウザ）は従来どおり通る", noOrigin.statusCode === 200);
+
+  // readJson: <form enctype="text/plain"> が作る「JSONとして妥当な」本文を解釈しない。
+  const { readJson } = requireCjs(path.join(repo, "netlify/functions/_lib/response"));
+  const formBody = '{"email":"attacker@evil.example","password":"pw","x":"="}'; // text/plain フォームが生成できる形
+  ok("readJson: application/json は従来どおりパースする",
+    readJson({ headers: { "content-type": "application/json" }, body: formBody }).email === "attacker@evil.example");
+  ok("readJson: text/plain は解釈しない（CSRFでJSON APIを叩けない）",
+    Object.keys(readJson({ headers: { "content-type": "text/plain" }, body: formBody })).length === 0);
+  ok("readJson: form-urlencoded / multipart も解釈しない",
+    Object.keys(readJson({ headers: { "content-type": "application/x-www-form-urlencoded" }, body: formBody })).length === 0
+    && Object.keys(readJson({ headers: { "content-type": "multipart/form-data; boundary=x" }, body: formBody })).length === 0);
+  ok("readJson: content-type 無し（サーバ間）は従来どおり",
+    readJson({ headers: {}, body: formBody }).email === "attacker@evil.example");
 }
 
 // ---------- 結果 ----------

@@ -6,8 +6,9 @@
 
 - **ベースパス**: `/api/*`
 - **実体**: ロジックは `netlify/functions/<name>.js`。`netlify.toml` の rewrite で `/api/*` → `/.netlify/functions/:splat`（**Netlify一本化**。旧 Vercel アダプタ `api/`・`lib/vercel-adapter.js`・`vercel.json` は削除済み）。
-- **データ形式**: リクエスト/レスポンスとも JSON。
+- **データ形式**: リクエスト/レスポンスとも JSON。`_lib/response.js` の `readJson` は **`text/plain` / `application/x-www-form-urlencoded` / `multipart/form-data` の本文を解釈しない**（`{}` を返す）。これらはクロスサイトの HTML フォームが送信できる content-type で、特に `<form enctype="text/plain">` は「JSON として妥当な」本文を作れてしまうため、CSRF で JSON API を叩かれないよう塞いでいる。※ `mcp-oauth-token.js` は RFC 6749 の form-urlencoded を自前で `URLSearchParams` で処理しており影響を受けない。
 - **認証**: セッション Cookie `kimaru_session`（HMAC 署名・HttpOnly・30日）。`/api/me` 等の「要」エンドポイントは Cookie 必須。ブラウザ側は `fetch(..., { credentials: "include" })`。
+- **ログインCSRF対策**: セッションを発行するエンドポイント（`auth-login` / `auth-register` / `operator-login`）は `_lib/csrf.js` の `isCrossSiteRequest(event)` でクロスサイト送信を 403 で弾く（`Sec-Fetch-Site: cross-site`、または `Origin` のホスト不一致）。`Origin` の無い非ブラウザ経由（curl・サーバ間）は従来どおり通す。これが無いと、攻撃サイトが被害者のブラウザを**攻撃者のアカウント**でログイン状態にでき、Google 連携などの後続フローを乗っ取る土台になる。
 - **エラー形式**: `{ "error": "<message>" }`。HTTP ステータスは 400（入力不正）/401（未認証）/403（権限・プラン制限）/405（メソッド不正）/500（サーバ）/503（未設定）。
 - **DB**: Supabase REST（`_lib/supabase.js`）。テーブルは [`spec.md`](./spec.md) / `supabase-schema.sql` 参照。
 - 画面との対応は [`screens.md`](./screens.md)。
@@ -20,13 +21,15 @@
 
 ### `GET /api/google-auth-start[?connect=1]` — 認証不要
 Google OAuth 認可画面へ 302 リダイレクト。スコープ: `openid email profile https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.freebusy`（最小権限。空き確認＝freebusy／予定の作成・更新・削除＝events。フルの calendar は要求しない）。
-- **`connect=1`（設定画面のカレンダー連携ボタン）**: CSRF 用 state の先頭に `c` を付けて用途を持ち回る（state は署名 cookie に保持するので改ざん不可）。`login.html` / `signup.html` からは付けない＝先頭 `l`。
+- state の**先頭1文字**で用途を持ち回る（state は署名 cookie `kimaru_oauth_state` に保持するので改ざん不可）:
+  - **`c` + `signBlob("gconnect", { o: ownerId })`** — 連携（設定画面の `?connect=1`）。ログイン中の owner id を**署名して載せ**、callback で本人一致を検証する（`zoom-auth-start.js` と同じ方式）。
+  - **`l` + ランダム** — ログイン／新規登録（`login.html` / `signup.html`）。`connect=1` でも未ログインならこちらへフォールバック。
 
 ### `GET /api/google-auth-callback?code=...` — 認証不要
-OAuth コールバック。`code` をトークン交換し、`google_connections` にトークンを暗号化保存。`kimaru_session` Cookie を発行してリダイレクト。
-- **連携モード（state 先頭 `c`）でログイン中**: そのアカウントにカレンダーを繋ぐだけで、**アカウントは切り替えない**。→ `/settings.html?calendar=connected`
-  （以前は常に Google のメールで owner を解決していたため、「別アカウントで再連携」が別アカウントへのログイン＝実質アカウント切替になっていた）
-- **ログインモード（state 先頭 `l`）／セッション切れ**: Google のメールで `owners` を upsert してログイン。→ `/dashboard.html`
+OAuth コールバック。`code` をトークン交換し、`google_connections` にトークンを暗号化保存。
+- **連携モード（state 先頭 `c`）**: `verifyBlob("gconnect", …)` の owner id と現在のセッションの owner の**一致を必須**とする。不一致・セッション切れなら**トークンを保存せず中断**し `/settings.html?calendar=state_error` へ。一致すれば、そのアカウントにカレンダーを繋ぐだけで**アカウントは切り替えず**、セッションも張り直さない → `/settings.html?calendar=connected`
+  - この検証が無いと、攻撃者のセッションを被害者のブラウザに植え付けたうえで連携させることで、**被害者のGoogleトークン（オフライン refresh_token 含む）を攻撃者のアカウントに紐づけられる**（アカウント連携CSRF）。フォールバックでログイン扱いにしてもいけない。
+- **ログインモード（state 先頭 `l`）**: Google のメールで `owners` を upsert してログイン、`kimaru_session` を発行 → `/dashboard.html`
 - `owners.slug` は**新規作成時のみ**採番する（`_lib/supabase.js` `ownerSlugCandidate`＝ローカル部＋ランダム5文字、衝突時は最大5回リトライ）。既存アカウントの slug は上書きしない（公開プロフィールURL `/u/{slug}` が切れる／unique 違反でログインが 500 になるため）
 - 既定の `booking_pages` は**作成しない**（ユーザーが予約設定で作成する）
 - 触る DB: `owners`, `google_connections`

@@ -95,9 +95,13 @@ function verifyOauthState(event, stateFromQuery) {
   if (!stateFromQuery) return false;
   const cookies = parseCookies(event.headers.cookie || event.headers.Cookie || "");
   const raw = cookies.kimaru_oauth_state;
-  if (!raw || !raw.includes(".")) return false;
-  const [value, signature] = raw.split(".");
-  if (!timingEqual(signature, sign(value))) return false;
+  if (!raw) return false;
+  // state 自体が "." を含む（連携モードの signBlob 形式 payload.signature）ため、
+  // 末尾の "." を署名の区切りとして扱う。verifyBlob と同じ切り出し方。
+  const index = raw.lastIndexOf(".");
+  if (index <= 0 || index === raw.length - 1) return false;
+  const value = raw.slice(0, index);
+  if (!timingEqual(raw.slice(index + 1), sign(value))) return false;
   return timingEqual(value, String(stateFromQuery));
 }
 

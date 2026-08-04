@@ -33,14 +33,34 @@
 
 ## ログイン と カレンダー連携 の区別（#265・2026-08-04）
 
-`google-auth-start` は用途を **state の先頭1文字**で持ち回る（state は署名 cookie に保持するので改ざん不可）。
+`google-auth-start` は用途を **state の先頭1文字**で持ち回る（state は署名 cookie `kimaru_oauth_state` に保持するので改ざん不可）。
 
 | 入口 | パラメータ | state | callback の挙動 | 遷移先 |
 |---|---|---|---|---|
-| `login.html` / `signup.html` | なし | `l…` | Google のメールで `owners` を upsert してログイン | `/dashboard.html` |
-| `settings.html`（カレンダー連携／別アカウントで再連携） | `?connect=1` | `c…` | **ログイン中ならそのアカウントにカレンダーを繋ぐだけ**（アカウントを切り替えない）。セッション切れならログイン扱いにフォールバック | `/settings.html?calendar=connected` |
+| `login.html` / `signup.html` | なし | `l` + ランダム | Google のメールで `owners` を upsert してログイン・`kimaru_session` を発行 | `/dashboard.html` |
+| `settings.html`（カレンダー連携／別アカウントで再連携） | `?connect=1` | `c` + `signBlob("gconnect", {o: ownerId})` | **state の owner とセッションの owner の一致を検証**したうえで、そのアカウントにカレンダーを繋ぐだけ（アカウントを切り替えない・セッションも張り直さない） | `/settings.html?calendar=connected` |
+
+`?connect=1` でも**未ログインなら `l`（通常ログイン）にフォールバック**するので、セッション切れで行き止まりにならない。
 
 修正前は用途を区別しておらず、常に Google のメールで owner を解決していたため、設定画面の「別アカウントで再連携」で別の Google アカウントを選ぶと、カレンダーが繋がるのではなく**そのメールの別アカウント（無ければ新規作成）にログインしてしまう**状態だった。
+
+### 連携モードは「開始した本人が完了したか」を必ず検証する（セキュリティ）
+
+`verifyOauthState`（cookie 照合）が保証するのは「**完了したブラウザ＝開始したブラウザ**」であって、「**完了したアカウント＝開始したアカウント**」ではない。連携モードは後者に依存するため、**owner id を署名して state に載せ、callback で現在のセッションと一致するかを検証する**（`zoom-auth-start.js` / `zoom-auth-callback.js` と同じ方式）。
+
+不一致・セッション切れの場合は**トークンを保存せずに中断**し `/settings.html?calendar=state_error` へ戻す。ここで「ログイン扱い」へフォールバックしてはならない。
+
+この検証が無いと、次のアカウント連携CSRFが成立する:
+
+1. 攻撃サイトがログインCSRFで被害者のブラウザに**攻撃者のセッション**を植え付ける
+2. `/api/google-auth-start?connect=1` へ誘導する
+3. 被害者は**本物の Google 同意画面**を承諾する（正規の連携と区別できない）
+4. callback が「セッションの owner」＝攻撃者にトークンを保存 → **被害者の Google のオフライン `refresh_token` が攻撃者のアカウントに紐づく**
+5. 攻撃者は自分のアカウントから、被害者のカレンダーに任意の予定を作成できる
+
+なお 1 の土台側も塞いである（`_lib/csrf.js` `isCrossSiteRequest` ＋ `_lib/response.js` `readJson` の content-type 制限。[api.md 共通仕様](../api.md) 参照）。
+
+> `oauthStateCookie` / `verifyOauthState` は `<state>.<署名>` 形式。連携モードの state 自体が `.` を含む（`signBlob` の `payload.signature`）ため、**最後の `.`** を署名の区切りとして切り出す（`verifyBlob` と同じ）。
 
 ### `owners.slug` を上書きしない
 

@@ -1,7 +1,7 @@
 const { json } = require("./_lib/response");
 const { appBaseUrl } = require("./_lib/config");
 const { exchangeCode, userInfo, saveGoogleConnection } = require("./_lib/google");
-const { sessionCookie, verifyOauthState, clearOauthStateCookie } = require("./_lib/crypto");
+const { sessionCookie, verifyOauthState, clearOauthStateCookie, verifyBlob } = require("./_lib/crypto");
 const { upsertOwner } = require("./_lib/supabase");
 const { currentOwner } = require("./_lib/auth");
 
@@ -31,15 +31,27 @@ exports.handler = async (event) => {
     if (!verifyOauthState(event, q.state)) {
       return redirectWithCookies(`${appBaseUrl()}/login.html?error=state`, [clearOauthStateCookie()]);
     }
+    // 設定画面からの「連携」(state 先頭 "c") は、フローを開始した本人が完了しているかを検証する。
+    // state に署名して載せた owner id と、いま操作しているセッションの owner の一致を必須にする。
+    // 一致しない＝別アカウントのセッションで連携を完了させられた（アカウント連携CSRF）ので、
+    // トークンを保存せずに中断する。ここで「ログイン扱い」へフォールバックしてはならない
+    // （被害者のGoogleトークンが攻撃者のアカウントに紐づく経路そのものになるため）。
+    const rawState = String(q.state || "");
+    const connectMode = rawState.startsWith("c");
+    let sessionOwner = null;
+    if (connectMode) {
+      const [signedOwner, blob] = await Promise.all([
+        currentOwner(event).catch(() => null),
+        Promise.resolve(verifyBlob("gconnect", rawState.slice(1), 600000)),
+      ]);
+      if (!signedOwner || !blob || blob.o !== signedOwner.id) {
+        return redirectWithCookies(`${appBaseUrl()}/settings.html?calendar=state_error#integrations`, [clearOauthStateCookie()]);
+      }
+      sessionOwner = signedOwner;
+    }
+
     const tokens = await exchangeCode(code);
     const profile = await userInfo(tokens.access_token);
-
-    // 設定画面からの「連携」(state 先頭 "c") でログイン中なら、そのアカウントにカレンダーを繋ぐだけにする。
-    // 以前は常に Google のメールで owner を解決していたため、「別アカウントで再連携」を押すと
-    // 連携ではなく別アカウントへのログイン（無ければ新規作成）になっていた。
-    // セッションが切れている場合は通常のログインとして扱い、操作が行き止まりにならないようにする。
-    const connectMode = String(q.state || "").startsWith("c");
-    const sessionOwner = connectMode ? await currentOwner(event).catch(() => null) : null;
     const owner = sessionOwner
       || await upsertOwner({ email: profile.email, name: profile.name || profile.email, avatar_url: profile.picture || null });
     // 利用停止アカウントはログイン不可（セッションを発行せずログイン画面へ戻す）。
@@ -48,9 +60,11 @@ exports.handler = async (event) => {
     }
     // 既定の予約ページは自動作成しない（ユーザーが予約設定で作成する）。
     await saveGoogleConnection(owner, tokens);
-    // 連携目的なら元の設定画面へ戻す（ログイン時はこれまでどおりホームへ）。
-    const next = sessionOwner ? "/settings.html?calendar=connected" : "/dashboard.html";
-    return redirectWithCookies(`${appBaseUrl()}${next}`, [sessionCookie(owner.id), clearOauthStateCookie()]);
+    // 連携モードは既に有効なセッションがあるので張り直さない（発行するのはログイン時だけ）。
+    if (sessionOwner) {
+      return redirectWithCookies(`${appBaseUrl()}/settings.html?calendar=connected#integrations`, [clearOauthStateCookie()]);
+    }
+    return redirectWithCookies(`${appBaseUrl()}/dashboard.html`, [sessionCookie(owner.id), clearOauthStateCookie()]);
   } catch (error) {
     return json(500, { error: "サーバーでエラーが発生しました。時間をおいて再度お試しください。" });
   }

@@ -62,8 +62,9 @@
           <p class="muted" style="font-size:13.5px" data-i18n="st.integrations.intro">Googleカレンダーと連携すると、予定と重ならない空き枠だけを公開し、予約時に予定＋Google Meet を自動作成します。</p>
           <p id="calendar-status" class="message" data-i18n="st.js.calendarChecking">連携状態を確認しています...</p>
           <div class="actions">
-            <a id="calendar-connect" class="btn btn-primary" href="/api/google-auth-start" data-i18n="st.integrations.connect">Googleカレンダーと連携する</a>
-            <a id="calendar-reconnect" class="btn btn-ghost" href="/api/google-auth-start" data-i18n="st.integrations.reconnect">別アカウントで再連携</a>
+            <!-- connect=1 ＝ ログイン中のアカウントにカレンダーを繋ぐ（別のGoogleアカウントを選んでもアカウントは切り替わらない）。 -->
+            <a id="calendar-connect" class="btn btn-primary" href="/api/google-auth-start?connect=1" data-i18n="st.integrations.connect">Googleカレンダーと連携する</a>
+            <a id="calendar-reconnect" class="btn btn-ghost" href="/api/google-auth-start?connect=1" data-i18n="st.integrations.reconnect">別アカウントで再連携</a>
           </div>
           <!-- Zoom 連携（ユーザー個別・user-level OAuth）。ホスト本人名義でミーティングURLを自動発行する。 -->
           <h2 style="font-family:var(--display);font-size:18px;margin:24px 0 12px;padding-top:20px;border-top:1px solid var(--line)" data-i18n="st.zoom.heading">Zoom連携</h2>

@@ -18,12 +18,18 @@
 
 ## 認証・セッション
 
-### `GET /api/google-auth-start` — 認証不要
+### `GET /api/google-auth-start[?connect=1]` — 認証不要
 Google OAuth 認可画面へ 302 リダイレクト。スコープ: `openid email profile https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.freebusy`（最小権限。空き確認＝freebusy／予定の作成・更新・削除＝events。フルの calendar は要求しない）。
+- **`connect=1`（設定画面のカレンダー連携ボタン）**: CSRF 用 state の先頭に `c` を付けて用途を持ち回る（state は署名 cookie に保持するので改ざん不可）。`login.html` / `signup.html` からは付けない＝先頭 `l`。
 
 ### `GET /api/google-auth-callback?code=...` — 認証不要
-OAuth コールバック。`code` をトークン交換し、`owners` を upsert・デフォルト `booking_pages` 作成・`google_connections` にトークン暗号化保存。`kimaru_session` Cookie を発行し `/dashboard.html` へリダイレクト。
-- 触る DB: `owners`, `booking_pages`, `google_connections`
+OAuth コールバック。`code` をトークン交換し、`google_connections` にトークンを暗号化保存。`kimaru_session` Cookie を発行してリダイレクト。
+- **連携モード（state 先頭 `c`）でログイン中**: そのアカウントにカレンダーを繋ぐだけで、**アカウントは切り替えない**。→ `/settings.html?calendar=connected`
+  （以前は常に Google のメールで owner を解決していたため、「別アカウントで再連携」が別アカウントへのログイン＝実質アカウント切替になっていた）
+- **ログインモード（state 先頭 `l`）／セッション切れ**: Google のメールで `owners` を upsert してログイン。→ `/dashboard.html`
+- `owners.slug` は**新規作成時のみ**採番する（`_lib/supabase.js` `ownerSlugCandidate`＝ローカル部＋ランダム5文字、衝突時は最大5回リトライ）。既存アカウントの slug は上書きしない（公開プロフィールURL `/u/{slug}` が切れる／unique 違反でログインが 500 になるため）
+- 既定の `booking_pages` は**作成しない**（ユーザーが予約設定で作成する）
+- 触る DB: `owners`, `google_connections`
 - 外部: Google OAuth token / userinfo
 
 ### `GET /api/me` — 要
@@ -102,7 +108,7 @@ OAuth コールバック。`code` をトークン交換し、`owners` を upsert
   - **無料は range 最大2ヶ月**（超過は 403）、質問は無料2問/Pro・プレミアム5問（超過は 403）
   - **保存数上限**: 無料1 / Pro2 / プレミアム5（凍結ページは上限カウント除外・#174 / 決定27。`_lib/plan-limits.js`）
   - 受付時間（availability）が0件なら 400
-- 処理: `booking_pages` を upsert → `questionnaire_questions` を全削除して再投入 → `availability_settings` を**このページぶんだけ**（`booking_page_id` 一致）削除して再投入（#263。以前は owner 単位で消していたため、ページBの保存がページAの受付時間を書き換えていた。`booking_page_id` 列が未適用の環境では owner 単位の旧挙動へデグレード）
+- 処理: `booking_pages` を upsert（`updated_at` も明示更新。DBトリガーが無く、`_lib/plan-freeze.js` の「直近更新のページを残す」判定が `updated_at.desc` を使うため）→ `questionnaire_questions` を全削除して再投入 → `availability_settings` を**このページぶんだけ**（`booking_page_id` 一致）削除して再投入（#263。以前は owner 単位で消していたため、ページBの保存がページAの受付時間を書き換えていた。`booking_page_id` 列が未適用の環境では owner 単位の旧挙動へデグレード）
 - 応答: `{ ok: true, booking_page, availability_settings, question_limit }`
 - DB: `booking_pages`, `questionnaire_questions`, `availability_settings`
 

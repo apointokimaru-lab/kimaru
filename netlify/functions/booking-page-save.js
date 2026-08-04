@@ -147,6 +147,9 @@ exports.handler = async (event) => {
       slot_interval_minutes: slotInterval,
       active: body.is_active !== false,
       is_active: body.is_active !== false,
+      // DBトリガーが無いので明示的に更新する。_lib/plan-freeze.js が降格時に
+      // 「直近更新のページを残す」判定へ updated_at.desc を使うため、動かないと作成順になってしまう。
+      updated_at: new Date().toISOString(),
     };
 
     const writePage = (data) => existing

@@ -42,7 +42,7 @@ erDiagram
 
 | テーブル | 役割 | 主なカラム |
 |---|---|---|
-| **owners** | 主アカウント（発行者）。プラン・Cat Key 状態を保持 | `email`(uniq), `name`, `slug`(uniq), `plan`(**free/pro/premium**), `invite_code`, `cat_key_disabled`, `cat_key_pending`, `trial_ends_at`, `password_hash`, `email_verified` |
+| **owners** | 主アカウント（発行者）。プラン・Cat Key 状態を保持 | `email`(uniq), `name`, `slug`(uniq／公開プロフィールURL `/u/{slug}`。**新規作成時のみ採番**し既存は上書きしない・#265), `plan`(**free/pro/premium**), `invite_code`, `cat_key_disabled`, `cat_key_pending`, `trial_ends_at`, `password_hash`, `email_verified` |
 | **profiles** | プロフィールシート | `owner_id`, `user_id`(legacy), `display_name`, `bio`, `profile_url` |
 | **google_connections** | Google カレンダー連携トークン（現行） | `owner_id`(uniq), `calendar_id`, `access_token`, `refresh_token`, `expires_at` |
 | **booking_pages** | 予約ページ設定 | `owner_id`, `slug`(uniq), `duration_minutes`(30〜120), `buffer_before/after_minutes`(0〜60), `booking_range_months`(1〜6), `location_type`, `location_value`, `timezone`, `is_active`, `frozen`(降格時凍結・#174) |

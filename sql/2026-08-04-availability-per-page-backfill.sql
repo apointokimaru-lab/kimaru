@@ -1,0 +1,73 @@
+-- =============================================================================
+-- 受付時間（availability_settings）をオーナー共有 → 予約ページ単位へ移行する backfill
+--   対象: #263「AとBの予約ページを作ると、Aの予約ページにBの受付時間が反映される」
+--   作成: 2026-08-04
+-- =============================================================================
+--
+-- 【これは任意（optional）です】
+--   不具合そのものは「コードのデプロイ」と supabase-schema.sql の
+--     alter table availability_settings add column if not exists booking_page_id ...
+--   だけで直ります。この backfill を実行しなくても、自前の受付時間を持たない予約ページは
+--   booking_page_id = null の旧共有行にフォールバックして今までどおり動きます
+--   （netlify/functions/_lib/availability-core.js の pageAvailability）。
+--
+--   この SQL の目的は「フォールバックに頼らず、1予約ページ＝1セットの状態を明示的に作る」こと。
+--   データの内容は変わらず、現在の共有設定を各ページへ複製するだけです。
+--
+-- 【⚠️ 実行タイミング: 必ずコードをデプロイした後】
+--   デプロイ前の（＝修正前の）コードは、予約ページを保存するたびに owner_id 単位で
+--   availability_settings を全削除して入れ直します。デプロイ前に backfill すると、
+--   誰かが1回保存しただけで複製した行が消えます。
+--
+-- 【適用先】dev（kimaru-dev）と本番の両方。Supabase の SQL エディタで実行。
+-- 【冪等性】手順2は not exists ガードにより何度実行しても重複しません。
+-- =============================================================================
+
+
+-- -----------------------------------------------------------------------------
+-- 1) 現状確認
+-- -----------------------------------------------------------------------------
+select count(*) filter (where booking_page_id is null)     as "共有行(旧)",
+       count(*) filter (where booking_page_id is not null) as "ページ別行",
+       count(*)                                            as "合計"
+from availability_settings;
+
+
+-- -----------------------------------------------------------------------------
+-- 2) backfill: 共有行を「自前の受付時間をまだ持たない予約ページ」へ複製する
+--    - 既にページ専用の行を持つページ（デプロイ後に保存済み）はスキップする
+--    - user_id は現行コードで未使用のためコピーしない（実データでも全行 null）
+-- -----------------------------------------------------------------------------
+insert into availability_settings (owner_id, booking_page_id, day_of_week, start_time, end_time)
+select a.owner_id, p.id, a.day_of_week, a.start_time, a.end_time
+from availability_settings a
+join booking_pages p on p.owner_id = a.owner_id
+where a.booking_page_id is null
+  and not exists (
+    select 1 from availability_settings b where b.booking_page_id = p.id
+  );
+
+
+-- -----------------------------------------------------------------------------
+-- 3) 検証: 受付時間の行が 0 件の予約ページが無いことを確認する
+--    （0 件のページは公開画面で既定の「平日 10:00-18:00」にフォールバックする）
+-- -----------------------------------------------------------------------------
+select p.slug, p.title, count(a.id) as "行数"
+from booking_pages p
+left join availability_settings a on a.booking_page_id = p.id
+group by p.slug, p.title
+order by "行数", p.slug;
+
+-- 想定結果（2026-08-04 時点の実データ）
+--   dev : 20行(全て共有) → 45行（共有20 + ページ別25）
+--   本番: 50行(全て共有) → 106行（共有50 + ページ別56）
+
+
+-- -----------------------------------------------------------------------------
+-- 4) 旧共有行の掃除（任意・手順3で 0 件のページが無いことを確認してから）
+--    実行すると状態が完全に「1ページ＝1セット」に揃う。
+--    実行しない場合も無害（未使用のまま残るだけ）。むしろ、Google連携で新規作成された
+--    予約ページ（初回保存前は受付時間の行を持たない）が既定値ではなく従来の共有設定を
+--    引き継ぐ保険として働く。
+-- -----------------------------------------------------------------------------
+-- delete from availability_settings where booking_page_id is null;

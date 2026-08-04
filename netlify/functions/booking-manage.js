@@ -37,7 +37,16 @@ async function rescheduleProblem(booking, start, end) {
   if (lead > 0 && start.getTime() < Date.now() + lead * 3600 * 1000) {
     return "受付開始までの時間（リードタイム）を満たしていません";
   }
-  const avail = await sb(`availability_settings?owner_id=${eq(booking.owner_id)}&select=day_of_week,start_time,end_time`).catch(() => []);
+  // 受付時間は予約ページ単位（#263）。この予約のページの行 → 無ければ旧オーナー共有行（列が無い環境も同じ経路）。
+  const availCols = "select=day_of_week,start_time,end_time";
+  let avail = page
+    ? await sb(`availability_settings?booking_page_id=${eq(page.id)}&${availCols}`).catch(() => null)
+    : null;
+  if (!avail || !avail.length) {
+    avail = await sb(`availability_settings?owner_id=${eq(booking.owner_id)}&booking_page_id=is.null&${availCols}`)
+      .catch(() => sb(`availability_settings?owner_id=${eq(booking.owner_id)}&${availCols}`))
+      .catch(() => []);
+  }
   if (Array.isArray(avail) && avail.length) {
     const toJst = (d) => { const j = new Date(d.getTime() + 9 * 3600 * 1000); return { dow: j.getUTCDay(), min: j.getUTCHours() * 60 + j.getUTCMinutes() }; };
     const hhmm = (t) => { const [h, m] = String(t || "0:0").split(":").map(Number); return (h || 0) * 60 + (m || 0); };

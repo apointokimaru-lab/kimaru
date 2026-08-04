@@ -20,7 +20,7 @@ exports.handler = async (event) => {
     if (!owner || owner.cat_key_disabled || (bookingPage && bookingPage.is_active === false)) {
       return json(200, { ...base, days: [] });
     }
-    const weekly = await core.ownerAvailability(owner).catch(() => []);
+    const weekly = await core.pageAvailability(owner, bookingPage).catch(() => []);
     const days = await core.availabilityDaysForMonth(owner, bookingPage, weekly, year, month);
     return json(200, { ...base, days });
   } catch (error) {

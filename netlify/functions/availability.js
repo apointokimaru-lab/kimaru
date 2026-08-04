@@ -48,7 +48,7 @@ exports.handler = async (event) => {
       duration_minutes: bookingPage?.duration_minutes || 30,
       location_type: bookingPage?.location_type || "google_meet",
     };
-    const weekly = await core.ownerAvailability(owner).catch(() => []);
+    const weekly = await core.pageAvailability(owner, bookingPage).catch(() => []);
     const axis = core.axisRange(weekly);
 
     // 受付停止中のページは空き枠を返さない。

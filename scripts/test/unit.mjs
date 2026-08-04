@@ -539,6 +539,90 @@ section("book.js host profile block (email/calendar)");
   ok("hostProfileTextLines: 値もURLも無ければ空", book.hostProfileTextLines(noneProfile, "X", "").length === 0);
 }
 
+// ---------- 14) 受付時間は予約ページ単位（#263: ページBの保存がページAに漏れない） ----------
+// Supabase REST を書き込み可のインメモリ表でスタブし、A→B の順に保存して A の公開ページを引く。
+section("per-page availability (booking-page-save / availability)");
+{
+  const OWNER2 = { id: "33333333-3333-3333-3333-333333333333", name: "複数ページ", email: "multi@example.com", plan: "premium", slug: "multi" };
+  const TABLES = { owners: [OWNER2], booking_pages: [], availability_settings: [], questionnaire_questions: [], bookings: [], google_connections: [] };
+  let seq = 0;
+  const matches = (row, params) => {
+    for (const [k, v] of params) {
+      if (["select", "order", "limit", "offset", "on_conflict"].includes(k)) continue;
+      if (v === "is.null") { if (row[k] != null) return false; continue; }
+      if (v.startsWith("eq.")) { if (String(row[k]) !== decodeURIComponent(v.slice(3))) return false; continue; }
+      // lt./gt. 等は空表の照合に影響しないので無視する。
+    }
+    return true;
+  };
+  globalThis.fetch = async (url, options = {}) => {
+    const u = new URL(url);
+    const table = u.pathname.replace("/rest/v1/", "").split("?")[0];
+    // 未マイグレーション環境の再現用に、列名がスタブ表に無ければ PostgREST 相当のエラーを返せるようにしておく。
+    const params = [...u.searchParams];
+    const rows = TABLES[table] || (TABLES[table] = []);
+    const method = (options.method || "GET").toUpperCase();
+    const body = options.body ? JSON.parse(options.body) : null;
+    let out = [];
+    if (method === "GET") {
+      out = rows.filter((r) => matches(r, params));
+    } else if (method === "POST") {
+      const list = Array.isArray(body) ? body : [body];
+      out = list.map((r) => ({ id: `${table}-${++seq}`, ...r }));
+      rows.push(...out);
+    } else if (method === "PATCH") {
+      out = rows.filter((r) => matches(r, params));
+      out.forEach((r) => Object.assign(r, body));
+    } else if (method === "DELETE") {
+      out = rows.filter((r) => matches(r, params));
+      TABLES[table] = rows.filter((r) => !out.includes(r));
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify(out) };
+  };
+
+  const saveFn = requireCjs(path.join(repo, "netlify/functions/booking-page-save"));
+  const pagesFn = requireCjs(path.join(repo, "netlify/functions/booking-pages"));
+  const availFn = requireCjs(path.join(repo, "netlify/functions/availability"));
+  const cookie2 = sessionCookie(OWNER2.id).split(";")[0];
+  const avail = (days, start, end) => days.map((d) => ({ day_of_week: d, start_time: start, end_time: end, enabled: true }));
+  const save = (payload) => saveFn.handler({ httpMethod: "POST", headers: { cookie: cookie2 }, body: JSON.stringify(payload) });
+
+  // ページA: 月〜金 10:00-18:00 ／ ページB: 土のみ 13:00-17:00
+  const resA = await save({ slug: "page-a", title: "A", duration_minutes: 30, availability_settings: avail([1, 2, 3, 4, 5], "10:00", "18:00") });
+  ok("ページAを保存できる", resA.statusCode === 200);
+  const resB = await save({ slug: "page-b", title: "B", duration_minutes: 60, availability_settings: avail([6], "13:00", "17:00") });
+  ok("ページBを保存できる", resB.statusCode === 200);
+
+  const pageAId = JSON.parse(resA.body).booking_page.id;
+  const rowsA = TABLES.availability_settings.filter((r) => r.booking_page_id === pageAId);
+  ok("保存後もページAの受付時間は月〜金5行のまま（Bの保存で消えない）", rowsA.length === 5 && rowsA.every((r) => r.start_time === "10:00"));
+  ok("受付時間の行はページごとに分かれる（合計6行）", TABLES.availability_settings.length === 6);
+
+  // 公開ページ（ゲスト側）: A は平日枠、B は土曜枠。
+  const guestA = JSON.parse((await availFn.handler({ queryStringParameters: { slug: "page-a" } })).body);
+  ok("公開ページA: 縦軸は10:00-18:00（Bの13:00-17:00に上書きされない）", guestA.axis.start_min === 600 && guestA.axis.end_min === 1080);
+  ok("公開ページA: 所要30分・タイトルAで解決される", guestA.host.duration_minutes === 30 && guestA.host.title === "A");
+  const guestB = JSON.parse((await availFn.handler({ queryStringParameters: { slug: "page-b" } })).body);
+  ok("公開ページB: 縦軸は13:00-17:00（自分の設定）", guestB.axis.start_min === 780 && guestB.axis.end_min === 1020);
+  const dows = (data) => new Set((data.slots || []).map((s) => new Date(new Date(s.start).getTime() + 9 * 3600000).getUTCDay()));
+  ok("公開ページBの枠は土曜だけ（Aの平日が混ざらない）", [...dows(guestB)].every((d) => d === 6));
+  ok("公開ページAの枠に土曜は含まれない", ![...dows(guestA)].includes(6));
+
+  // 設定画面の一覧: 各ページに自分の受付時間がぶら下がる。
+  const listBody = JSON.parse((await pagesFn.handler({ httpMethod: "GET", headers: { cookie: cookie2 }, queryStringParameters: {} })).body);
+  const byTitle = Object.fromEntries(listBody.pages.map((p) => [p.title, p]));
+  ok("一覧API: ページAに月〜金5行", byTitle.A.availability.length === 5);
+  ok("一覧API: ページBに土曜1行", byTitle.B.availability.length === 1 && byTitle.B.availability[0].day_of_week === 6);
+
+  // レガシー（booking_page_id=null）の共有行は、自前の設定が無いページのフォールバックとして残る。
+  TABLES.booking_pages.push({ id: "legacy-page", owner_id: OWNER2.id, slug: "page-legacy", title: "L", duration_minutes: 30, is_active: true, booking_range_months: 2 });
+  TABLES.availability_settings.push({ id: "legacy-av", owner_id: OWNER2.id, booking_page_id: null, day_of_week: 3, start_time: "09:00", end_time: "12:00" });
+  const guestL = JSON.parse((await availFn.handler({ queryStringParameters: { slug: "page-legacy" } })).body);
+  ok("未移行ページ: 共有(booking_page_id=null)の受付時間にフォールバック", guestL.axis.start_min === 540 && guestL.axis.end_min === 720);
+  const guestA2 = JSON.parse((await availFn.handler({ queryStringParameters: { slug: "page-a" } })).body);
+  ok("自前の設定があるページは共有行に引きずられない", guestA2.axis.start_min === 600 && guestA2.axis.end_min === 1080);
+}
+
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);
 if (fail) { console.log("FAILED: " + fails.join(" | ")); process.exit(1); }

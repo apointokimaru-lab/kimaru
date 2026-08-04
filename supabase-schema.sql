@@ -104,10 +104,14 @@ create table if not exists booking_pages (
   updated_at timestamptz not null default now()
 );
 
+-- 受付可能時間。booking_page_id が付いた行＝その予約ページ専用の受付時間（複数ページで別々に持てる）。
+-- booking_page_id が null の行はマイグレーション前の「オーナー共有」レガシー行で、
+-- 自前の行を持たない予約ページのフォールバックとして読まれる（_lib/availability-core.js pageAvailability）。
 create table if not exists availability_settings (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references users(id) on delete cascade,
   owner_id uuid references owners(id) on delete cascade,
+  booking_page_id uuid references booking_pages(id) on delete cascade,
   day_of_week int not null check (day_of_week between 0 and 6),
   start_time time not null,
   end_time time not null,
@@ -360,6 +364,10 @@ alter table booking_pages add column if not exists candidate_days int;
 alter table booking_pages add column if not exists slot_interval_minutes int;
 -- 無料降格時の超過ページ凍結フラグ（決定15・#174）。再昇格で復元。
 alter table booking_pages add column if not exists frozen boolean not null default false;
+-- 受付時間を予約ページ単位に（#263）。未適用の環境ではコード側がオーナー単位の旧挙動へデグレードする。
+-- 既存行は booking_page_id=null のまま＝「自前の受付時間を持たないページ」の共有フォールバックとして残る。
+alter table availability_settings add column if not exists booking_page_id uuid references booking_pages(id) on delete cascade;
+create index if not exists availability_settings_page_idx on availability_settings (booking_page_id);
 alter table questionnaire_questions add column if not exists frozen boolean not null default false;
 -- 事前アンケートの選択式回答（決定27・2026-06-19）。無料=text 固定、Pro・プレミアムで select/checkbox 可。
 alter table questionnaire_questions add column if not exists answer_type text not null default 'text';

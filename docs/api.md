@@ -58,7 +58,7 @@ OAuth コールバック。`code` をトークン交換し、`owners` を upsert
 
 ### `GET /api/availability` — 認証不要
 空き枠を返す（既存 Google 予定を除外）。
-- ロジック: `defaultOwner()` → `booking_pages`（duration/buffer/range）と `availability_settings`（曜日・時間帯）から枠生成 → Google `freeBusy` で busy と重なる枠を除外。タイムゾーンは Asia/Tokyo。最大80枠。
+- ロジック: `slug` → `booking_pages`（無ければ `defaultOwner()`）→ そのページの `booking_pages`（duration/buffer/range）と `availability_settings`（曜日・時間帯。**ページ単位**＝`booking_page_id` 一致行、無ければ `booking_page_id=null` の旧共有行）から枠生成 → Google `freeBusy` で busy と重なる枠を除外。タイムゾーンは Asia/Tokyo。最大80枠。
 - 応答: `{ slots: [{ start, end }] }`（ISO8601）
 - DB: `owners`, `booking_pages`, `availability_settings`
 - 外部: Google freeBusy
@@ -102,8 +102,15 @@ OAuth コールバック。`code` をトークン交換し、`owners` を upsert
   - **無料は range 最大2ヶ月**（超過は 403）、質問は無料2問/Pro・プレミアム5問（超過は 403）
   - **保存数上限**: 無料1 / Pro2 / プレミアム5（凍結ページは上限カウント除外・#174 / 決定27。`_lib/plan-limits.js`）
   - 受付時間（availability）が0件なら 400
-- 処理: `booking_pages` を upsert → `questionnaire_questions` を全削除して再投入 → `availability_settings` を全削除して再投入
+- 処理: `booking_pages` を upsert → `questionnaire_questions` を全削除して再投入 → `availability_settings` を**このページぶんだけ**（`booking_page_id` 一致）削除して再投入（#263。以前は owner 単位で消していたため、ページBの保存がページAの受付時間を書き換えていた。`booking_page_id` 列が未適用の環境では owner 単位の旧挙動へデグレード）
 - 応答: `{ ok: true, booking_page, availability_settings, question_limit }`
+- DB: `booking_pages`, `questionnaire_questions`, `availability_settings`
+
+### `GET / POST /api/booking-pages` — 要
+自分の予約ページ一覧（編集プレフィル用に全列＋ページ単位の事前アンケート・受付時間）／削除。
+- GET 応答: `{ pages: [{ ...booking_page, questionnaire_questions: [...], availability: [{day_of_week,start_time,end_time}] }], availability, default_availability }`
+  - `pages[].availability` は**そのページの受付時間**（自前の行が無ければ旧オーナー共有行）。`availability` は旧共有行、`default_availability` は新規ページ作成時の初期値（共有行→無ければ先頭ページの設定）。
+- POST body: `{ action: "delete", id }` → 質問を削除してからページを削除
 - DB: `booking_pages`, `questionnaire_questions`, `availability_settings`
 
 ### `GET /api/owner-bookings` — 要（無料も可・閲覧のみ）

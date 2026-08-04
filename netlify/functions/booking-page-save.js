@@ -181,11 +181,23 @@ exports.handler = async (event) => {
       }
     }
 
-    await sb(`availability_settings?owner_id=${eq(owner.id)}`, { method: "DELETE" });
-    await sb("availability_settings", {
-      method: "POST",
-      body: JSON.stringify(availability.map((setting) => ({ ...setting, owner_id: owner.id }))),
-    });
+    // 受付時間は予約ページ単位（#263）。このページの行だけ入れ替える。
+    // owner_id 単位で消していた頃は、ページBの保存がページAの受付時間まで書き換えてしまっていた。
+    // booking_page_id 列が未マイグレーションの環境では旧挙動（オーナー単位）へデグレードする。
+    try {
+      await sb(`availability_settings?booking_page_id=${eq(bookingPage.id)}`, { method: "DELETE" });
+      await sb("availability_settings", {
+        method: "POST",
+        body: JSON.stringify(availability.map((setting) => ({ ...setting, owner_id: owner.id, booking_page_id: bookingPage.id }))),
+      });
+    } catch (error) {
+      if (!/booking_page_id/.test(String(error.message || ""))) throw error;
+      await sb(`availability_settings?owner_id=${eq(owner.id)}`, { method: "DELETE" });
+      await sb("availability_settings", {
+        method: "POST",
+        body: JSON.stringify(availability.map((setting) => ({ ...setting, owner_id: owner.id }))),
+      });
+    }
 
     return json(200, { ok: true, booking_page: bookingPage, availability_settings: availability, question_limit: questionLimit });
   } catch (error) {

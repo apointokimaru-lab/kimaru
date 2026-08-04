@@ -254,6 +254,8 @@ HTML / JS / CSS のシンプル構成で、高速な web サービスを目指�
 
 - id
 - user_id
+- owner_id
+- booking_page_id（予約ページ単位の受付時間・#263。null＝旧オーナー共有行＝自前の設定を持たないページのフォールバック）
 - day_of_week
 - start_time
 - end_time

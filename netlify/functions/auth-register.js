@@ -3,6 +3,7 @@ const { sb, eq, findOwnerByEmail } = require("./_lib/supabase");
 const { sessionCookie, hashPassword, timedToken } = require("./_lib/crypto");
 const { appBaseUrl } = require("./_lib/config");
 const { sendMail } = require("./_lib/mail");
+const { isCrossSiteRequest } = require("./_lib/csrf");
 
 // メール確認メール（任意・非ブロッキング）。確認しなくても利用可。送信失敗は無視。
 async function sendVerifyEmail(owner) {
@@ -32,6 +33,8 @@ function makeSlug(email) {
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "許可されていない操作です" });
   try {
+    // 登録も成功時にセッションを発行するので、ログインCSRFと同じ経路で悪用できる。
+    if (isCrossSiteRequest(event)) return json(403, { error: "不正なリクエストです" });
     const body = readJson(event);
     const name = clean(body.name, 100);
     const email = clean(body.email).toLowerCase();

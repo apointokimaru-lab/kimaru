@@ -2,11 +2,15 @@ const { json, readJson } = require("./_lib/response");
 const { findOwnerByEmail } = require("./_lib/supabase");
 const { sessionCookie, verifyPassword } = require("./_lib/crypto");
 const { checkRateLimit, clientIp, RATE_LIMIT_MESSAGE } = require("./_lib/rate-limit");
+const { isCrossSiteRequest } = require("./_lib/csrf");
 
 // メール+パスワードでログイン（決定3）。
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "許可されていない操作です" });
   try {
+    // ログインCSRF対策：攻撃サイトが被害者のブラウザを「攻撃者のアカウント」でログインさせるのを防ぐ。
+    // 植え付けたセッションは Google 連携などの後続フローを乗っ取る土台になる。
+    if (isCrossSiteRequest(event)) return json(403, { error: "不正なリクエストです" });
     const body = readJson(event);
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");

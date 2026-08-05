@@ -77,6 +77,7 @@ function makeRenderer() {
   vm.createContext(ctx);
   vm.runInContext(`${escapeHtmlSrc}\n${dashSrc}`, ctx);
   return {
+    ctx, // 同じスライスに含まれる他の純粋関数（sortBookingsFor 等）もテストから使う
     render(bookings) {
       store["today-list"].innerHTML = "";
       store["upcoming-list"].innerHTML = "";
@@ -857,6 +858,45 @@ section("owner-bookings: ?id= includes a booking beyond the list cap");
   ok("上限外の予約にも管理リンクが付く（キャンセル導線が出る）", Boolean(hit && hit.manage_url && hit.manage_url.includes("?k=")));
   const other = JSON.parse((await ob.handler({ httpMethod: "GET", headers: { cookie: cookie4 }, queryStringParameters: { id: "manual-xxx" } })).body);
   ok("存在しない id を渡しても一覧は壊れない", other.bookings.length === 200);
+}
+
+// ---------- 20) 相手一覧の並び替え（app.js sortBookingsFor） ----------
+// 現状の一覧は「1行＝1予約」（顧客単位の集約は基盤刷新後）。予約行のままの並びを検証する。
+section("contacts list sorting (app.js)");
+{
+  const sortRows = R.ctx.sortBookingsFor;
+  const iso = (days) => new Date(Date.now() + days * 86400000).toISOString();
+  const rows = [
+    { visitor_name: "過去 太郎", start_at: iso(-3), created_at: iso(-10) },
+    { visitor_name: "未来 花子", start_at: iso(5), created_at: iso(-2) },
+    { visitor_name: "直近 次郎", start_at: iso(1), created_at: iso(-1) },
+    { visitor_name: "手動 三郎", start_at: null, manual: true, created_at: iso(-4) },
+    { visitor_name: "昨日 四郎", start_at: iso(-1), created_at: iso(-9) },
+  ];
+  const names = (mode) => sortRows(rows, mode).map((b) => b.visitor_name);
+
+  ok("upcoming: これからの面談が近い順で先頭", names("upcoming").slice(0, 2).join(",") === "直近 次郎,未来 花子");
+  ok("upcoming: 過ぎた面談は新しい順で後ろ", names("upcoming").slice(2, 4).join(",") === "昨日 四郎,過去 太郎");
+  ok("upcoming: 面談日が無い相手（手動追加）は末尾", names("upcoming")[4] === "手動 三郎");
+  ok("recent: 面談日の新しい順", names("recent").slice(0, 4).join(",") === "未来 花子,直近 次郎,昨日 四郎,過去 太郎");
+  ok("oldest: 面談日の古い順", names("oldest").slice(0, 4).join(",") === "過去 太郎,昨日 四郎,直近 次郎,未来 花子");
+  ok("oldest でも面談日が無い相手は末尾", names("oldest")[4] === "手動 三郎");
+  ok("created: 登録が新しい順", names("created").join(",") === "直近 次郎,未来 花子,手動 三郎,昨日 四郎,過去 太郎");
+  ok("並び替えは元の配列を壊さない", rows[0].visitor_name === "過去 太郎" && rows.length === 5);
+
+  const byName = sortRows([
+    { visitor_name: "", created_at: iso(-1) },
+    { visitor_name: "さくら", created_at: iso(-2) },
+    { visitor_name: "あおい", created_at: iso(-3) },
+  ], "name").map((b) => b.visitor_name);
+  ok("name: 名前順（空欄は末尾）", byName.join(",") === "あおい,さくら,");
+
+  const broken = sortRows([
+    { visitor_name: "壊れ 日付", start_at: "not-a-date", created_at: iso(-1) },
+    { visitor_name: "正常", start_at: iso(2), created_at: iso(-2) },
+  ], "upcoming").map((b) => b.visitor_name);
+  ok("不正な日時は面談日なし扱いで末尾（一覧を壊さない）", broken.join(",") === "正常,壊れ 日付");
+  ok("未知の並び順キーでも落ちない", Array.isArray(sortRows(rows, "unknown-mode")));
 }
 
 // ---------- 結果 ----------

@@ -595,9 +595,78 @@ function iconLink(svg, title, href, extraCls = "", label = "") {
   return `<a class="${cls}${extraCls}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}" href="${href}">${inner}</a>`;
 }
 
+// ===== 相手一覧の並び替え =====
+// 現時点の一覧は「1行＝1予約」（同じ相手の予約は行が分かれる）。顧客単位への集約は
+// 基盤刷新後の CRM 拡張で行う方針なので、ここでは予約行のまま並べ替えるだけにする。
+// そのため選択肢の文言も「次回面談/最終面談」ではなく「面談日」を基準にしている。
+const CONTACT_SORT_KEY = "kimaru.contactsSort";
+const CONTACT_SORTS = ["upcoming", "recent", "oldest", "name", "created"];
+let contactBookings = []; // 最後に取得した一覧（並び替えの再描画で使い回す）
+
+function contactSortMode() {
+  try {
+    const saved = localStorage.getItem(CONTACT_SORT_KEY);
+    if (CONTACT_SORTS.includes(saved)) return saved;
+  } catch (_) { /* localStorage 不可の環境は既定値 */ }
+  return "upcoming";
+}
+
+function sortBookingsFor(bookings, mode) {
+  // 手動追加の相手は面談日を持たない（start_at が null）。日時基準の並びでは末尾にまとめる。
+  const at = (b) => {
+    const value = b.start_at || b.start_time;
+    const time = value ? new Date(value).getTime() : NaN;
+    return Number.isFinite(time) ? time : null;
+  };
+  const addedAt = (b) => {
+    const time = new Date(b.created_at).getTime();
+    return Number.isFinite(time) ? time : 0;
+  };
+  const nameOf = (b) => String(b.visitor_name || b.guest_name || "");
+  const byAdded = (a, b) => addedAt(b) - addedAt(a);
+  const rows = bookings.slice();
+  const now = Date.now();
+
+  if (mode === "name") {
+    return rows.sort((a, b) => {
+      const [x, y] = [nameOf(a), nameOf(b)];
+      if (!x || !y) return (x ? 0 : 1) - (y ? 0 : 1) || byAdded(a, b);
+      return x.localeCompare(y, "ja") || byAdded(a, b);
+    });
+  }
+  if (mode === "created") return rows.sort(byAdded);
+
+  return rows.sort((a, b) => {
+    const [x, y] = [at(a), at(b)];
+    if (x === null || y === null) return (x === null ? 1 : 0) - (y === null ? 1 : 0) || byAdded(a, b);
+    if (mode === "oldest") return x - y;
+    if (mode === "recent") return y - x;
+    // upcoming（既定）: これからの面談を近い順に先頭へ。過ぎた面談は後ろに新しい順で続ける。
+    const [ax, ay] = [x >= now, y >= now];
+    if (ax !== ay) return ax ? -1 : 1;
+    return ax ? x - y : y - x;
+  });
+}
+
+// 並び替えの選択に応じて一覧を描き直す（検索は contacts.html の MutationObserver が再適用する）。
+function rerenderContacts() {
+  renderBookings(contactBookings);
+}
+
+function initContactSort() {
+  const select = $("#booking-sort");
+  if (!select) return;
+  select.value = contactSortMode();
+  select.addEventListener("change", () => {
+    try { localStorage.setItem(CONTACT_SORT_KEY, select.value); } catch (_) { /* 保存できなくても並びは効く */ }
+    rerenderContacts();
+  });
+}
+
 function renderBookings(bookings) {
   const list = $("#booking-list");
   if (!list) return;
+  bookings = sortBookingsFor(bookings, contactSortMode());
   if (!bookings.length) {
     list.innerHTML = `<tr><td colspan="5" class="empty-cell">${t("admin.noBookings")}</td></tr>`;
     return;
@@ -1115,7 +1184,13 @@ async function refreshAdmin() {
         try { contactNoteIds = new Set((await api("booking-note")).booking_ids || []); } catch (_) { /* 非致命 */ }
       }
       // 予約履歴（相手レコード）の閲覧は無料にも開放（決定19）。失敗しても致命にしない。
-      try { const bookings = await api("owner-bookings"); renderBookings(bookings.bookings || []); renderDashboardSchedule(bookings.bookings || []); renderDashboardTodos(bookings.bookings || []); } catch (_) { /* 非致命 */ }
+      try {
+        const bookings = await api("owner-bookings");
+        contactBookings = bookings.bookings || []; // 並び替えの再描画で使い回す
+        renderBookings(contactBookings);
+        renderDashboardSchedule(contactBookings);
+        renderDashboardTodos(contactBookings);
+      } catch (_) { /* 非致命 */ }
       // 面談メモ・印象スコア（appointment-log）は Pro/Premium 限定。
       if (isProPlan(me.owner.plan)) {
         try { const logs = await api("appointment-log"); renderLogs(logs.logs || []); renderLogAggregate(logs.logs || []); } catch (_) { /* 非致命 */ }
@@ -1135,6 +1210,7 @@ async function refreshAdmin() {
 }
 
 async function initAdmin() {
+  initContactSort(); // 一覧取得より先に選択状態を復元しておく（描画時にその並びで出す）
   await refreshAdmin();
   if (page === "dashboard") { loadDashboardShare(); loadDashboardProfileTodo(); }
   // ダッシュボード「＋ 新しい予約ページ」からの直リンク（?new=1）で作成画面を直接開く。

@@ -591,6 +591,10 @@ select{height:48px;padding-block:0}
 .crm-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .crm-toolbar .search{flex:1;min-width:220px;margin:0}
 .crm-toolbar .search input{margin:0}
+/* 並び順セレクト。検索欄と同じ高さで右隣に置き、狭い画面では検索の下へ折り返す。 */
+.crm-toolbar .sort{flex:0 0 auto;min-width:180px;margin:0}
+.crm-toolbar .sort select{margin:0}
+@media(max-width:600px){.crm-toolbar .sort{flex:1 1 100%}}
 .crm-toolbar-actions{flex-basis:100%;display:flex}
 .crm-count{font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
 .crm{display:grid;grid-template-columns:332px minmax(0,1fr);gap:18px;align-items:start}

@@ -72,6 +72,7 @@ const PAGES = [
   "index", "landing3", "plan", "login", "signup", "reset-password", "square", "pro-thanks",
   "dashboard", "contacts", "booking-settings", "profile", "settings", "schedule", "answers",
   "meeting?id=b-today", "booking?slug=taro", "public-profile?slug=taro", "manage-booking?id=b-today&t=tok",
+  "manage-booking?k=b-today.tok", // 新しい1パラメータ形式の管理リンク
   "answer-question?id=b-today&t=tok", "pending-questions", "ai-assist",
   "operator-login", "operators", "cat-key-admin", "privacy", "terms", "tokushoho",
 ];

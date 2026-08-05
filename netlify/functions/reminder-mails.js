@@ -3,7 +3,12 @@ const { optional, appBaseUrl } = require("./_lib/config");
 const { sb, eq } = require("./_lib/supabase");
 const { sendMail } = require("./_lib/mail");
 const { timingEqual } = require("./_lib/crypto");
-const { briefingUrl } = require("./_lib/booking-format");
+const { briefingUrl, manageUrl } = require("./_lib/booking-format");
+
+// 管理リンク生成は env 未設定で throw しうるので保護（失敗時 null＝リンク行を出さない）。
+function safeManageUrl(id) {
+  try { return id ? manageUrl(id) : null; } catch (_) { return null; }
+}
 
 // 予約開始の約22分前にゲストへ「お相手プロフィール付き」リマインダーメールを送る。
 // スケジューラ（Netlify Scheduled Functions / 外部cron）から ~5分間隔で叩く想定。
@@ -125,6 +130,11 @@ function buildMessage(booking, owner, profile, answers, isPro) {
       if (url) lines.push(`詳しいプロフィールはこちら: ${url}`);
     }
   }
+
+  // 予約管理リンク。確認メールを消したゲストの唯一の再取得手段になるので、リマインダーにも載せる
+  // （env 未設定などで生成に失敗しても、リマインダー本体は送る）。
+  const manage = safeManageUrl(booking.id);
+  if (manage) lines.push("", "▼ 予約の変更・キャンセルはこちら", manage);
 
   lines.push("", "良い時間になりますように。");
   return { subject: `まもなく面談です（${when}）`, text: lines.join("\n") };

@@ -27,7 +27,16 @@ function fmtRange(start, end) {
 }
 
 const params = new URLSearchParams(location.search);
-const state = { id: params.get("id") || "", t: params.get("t") || "", slug: "", week: 0, booking: null };
+// 管理リンクは ?k=<id>.<token> の1パラメータ形式（メールで `&` が切られても壊れない）。
+// 旧形式 ?id=&t= の送信済みリンクも引き続き開けるようにする。
+function linkCredentials() {
+  const k = params.get("k") || "";
+  const dot = k.indexOf(".");
+  if (dot > 0) return { id: k.slice(0, dot), t: k.slice(dot + 1) };
+  return { id: params.get("id") || "", t: params.get("t") || "" };
+}
+const cred = linkCredentials();
+const state = { id: cred.id, t: cred.t, slug: "", week: 0, booking: null };
 
 function row(label, value, primary) {
   return `<div${primary ? ' class="is-primary"' : ""}><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`;

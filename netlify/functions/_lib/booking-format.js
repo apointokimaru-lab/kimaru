@@ -22,8 +22,12 @@ function formatJst(iso) {
 }
 
 // ゲストがログイン不要でキャンセル/日程変更できる管理ページの絶対URL（署名トークン付き）。
+// メールはプレーンテキストで送るため、リンク化はメールクライアント任せになる。`&` で
+// リンクを切る・折り返すクライアントだと t が欠けてキャンセル不能になっていたので、
+// id とトークンを1パラメータ（?k=<id>.<token>）に統合して `&` を無くしている。
+// 旧形式 ?id=&t= のリンク（送信済みメール）も booking-manage.js が引き続き受け付ける。
 function manageUrl(bookingId) {
-  return `${appBaseUrl()}/manage-booking.html?id=${encodeURIComponent(bookingId)}&t=${encodeURIComponent(bookingToken(bookingId))}`;
+  return `${appBaseUrl()}/manage-booking.html?k=${encodeURIComponent(`${bookingId}.${bookingToken(bookingId)}`)}`;
 }
 
 // 会員同士の相互質問（#20）: ホストが予約者の質問に回答する回答ページの絶対URL（ホスト宛トークン付き）。

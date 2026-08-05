@@ -42,7 +42,17 @@ function manualToBooking(row) {
 exports.handler = async (event) => {
   try {
     const owner = await requireOwner(event);
-    const bookings = await sb(`bookings?owner_id=${eq(owner.id)}&order=start_at.desc&limit=50`);
+    // 一覧は start_at 降順で上限つき。上限が小さいと予約の多いホストで直近の予約が一覧から
+    // 溢れ、詳細画面（meeting.html は ?id をこの一覧から探す）が「見つかりません」になり、
+    // キャンセル・日程変更の導線ごと消えていた（50→200 に引き上げ）。
+    const bookings = await sb(`bookings?owner_id=${eq(owner.id)}&order=start_at.desc&limit=200`);
+    // さらに上限を超えても、?id= 指定の詳細画面だけは必ず開けるように該当行を足す
+    // （自分の予約に限定。UUID 以外の id では PostgREST が 400 を返すので無視する）。
+    const wantedId = String(event.queryStringParameters?.id || "").trim();
+    if (wantedId && !(bookings || []).some((b) => String(b.id) === wantedId)) {
+      const extra = await sb(`bookings?id=${eq(wantedId)}&owner_id=${eq(owner.id)}&limit=1`).catch(() => []);
+      if (extra && extra[0]) bookings.push(extra[0]);
+    }
     const manual = await sb(`manual_contacts?owner_id=${eq(owner.id)}&order=created_at.desc&limit=50`).catch(() => []);
 
     // 事前アンケート回答（questionnaire_answers）を各予約に添付。

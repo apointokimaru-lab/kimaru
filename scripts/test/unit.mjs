@@ -780,6 +780,85 @@ section("Google auth: slug preservation / connect vs login");
     readJson({ headers: {}, body: formBody }).email === "attacker@evil.example");
 }
 
+// ---------- 18) 管理リンク: 1パラメータ化（?k=<id>.<token>）と旧形式の後方互換 ----------
+// プレーンテキストメールで `&` を切るメールクライアントがあり、t が欠けるとキャンセル不能に
+// なっていた。新リンクは `&` を含まない。送信済みメールの ?id=&t= も引き続き開けること。
+section("manage link: single-param ?k= (mail-safe) + legacy ?id=&t=");
+{
+  const fmt = requireCjs(path.join(repo, "netlify/functions/_lib/booking-format"));
+  const manageLink = fmt.manageUrl("aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb");
+  ok("manageUrl に & が含まれない（メールでのリンク切断対策）", !manageLink.includes("&"));
+  ok("manageUrl は ?k=<id>.<token> 形式", /\?k=aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb\.[A-Za-z0-9_-]+$/.test(manageLink));
+
+  const MB = { id: "mb1", owner_id: OWNER.id, visitor_name: "管理 太郎", visitor_email: "", location_type: "google_meet", status: "confirmed", start_at: new Date(Date.now() + 86400000).toISOString(), end_at: new Date(Date.now() + 86400000 + 1800000).toISOString() };
+  const TB = { bookings: [MB], owners: [OWNER], booking_pages: [] };
+  globalThis.fetch = async (url, options = {}) => {
+    const u = new URL(url);
+    const table = u.pathname.replace("/rest/v1/", "").split("?")[0];
+    const rows = TB[table] || [];
+    const id = (u.searchParams.get("id") || "").replace("eq.", "");
+    const out = id ? rows.filter((r) => String(r.id) === decodeURIComponent(id)) : rows;
+    if ((options.method || "GET").toUpperCase() === "PATCH") out.forEach((r) => Object.assign(r, JSON.parse(options.body)));
+    return { ok: true, status: 200, text: async () => JSON.stringify(out) };
+  };
+
+  const bm = requireCjs(path.join(repo, "netlify/functions/booking-manage.js"));
+  const tok = cryptoLib.bookingToken("mb1");
+  const viaK = await bm.handler({ httpMethod: "GET", headers: {}, queryStringParameters: { k: `mb1.${tok}` } });
+  ok("新形式 ?k=<id>.<token> で予約を開ける", viaK.statusCode === 200 && JSON.parse(viaK.body).booking.id === "mb1");
+  const viaLegacy = await bm.handler({ httpMethod: "GET", headers: {}, queryStringParameters: { id: "mb1", t: tok } });
+  ok("旧形式 ?id=&t= も引き続き開ける（送信済みメール）", viaLegacy.statusCode === 200);
+  const tampered = await bm.handler({ httpMethod: "GET", headers: {}, queryStringParameters: { k: "mb1.wrong-token" } });
+  ok("トークン改ざんは 404", tampered.statusCode === 404);
+  const noDot = await bm.handler({ httpMethod: "GET", headers: {}, queryStringParameters: { k: "mb1" } });
+  ok("k にトークンが無ければ 404（id だけでは開けない）", noDot.statusCode === 404);
+  const cancelViaK = await bm.handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({ k: `mb1.${tok}`, action: "cancel" }) });
+  ok("新形式でキャンセルできる", cancelViaK.statusCode === 200 && MB.status === "cancelled");
+}
+
+// ---------- 19) owner-bookings: 一覧上限から溢れた予約も ?id= 指定なら返す ----------
+// meeting.html は ?id をこの一覧から探すため、溢れると詳細が「見つかりません」になり
+// キャンセル・日程変更の導線ごと消えていた。
+section("owner-bookings: ?id= includes a booking beyond the list cap");
+{
+  const OWNER4 = { id: "77777777-7777-7777-7777-777777777777", name: "多数予約", email: "many@example.com", plan: "free", slug: "many" };
+  const many = Array.from({ length: 205 }, (_, i) => ({
+    id: `bk-${String(i).padStart(3, "0")}`,
+    owner_id: OWNER4.id,
+    visitor_name: `相手${i}`,
+    status: "confirmed",
+    // i が小さいほど過去（start_at 降順の一覧では後ろに落ちる）
+    start_at: new Date(Date.now() - (205 - i) * 3600000).toISOString(),
+  }));
+  const TB2 = { bookings: many, owners: [OWNER4], manual_contacts: [], questionnaire_answers: [] };
+  // PostgREST 相当（order/limit を実際に効かせる）
+  globalThis.fetch = async (url) => {
+    const u = new URL(url);
+    const table = u.pathname.replace("/rest/v1/", "").split("?")[0];
+    let rows = (TB2[table] || []).slice();
+    for (const [k, v] of u.searchParams) {
+      if (["select", "order", "limit", "offset"].includes(k)) continue;
+      if (v.startsWith("eq.")) rows = rows.filter((r) => String(r[k]) === decodeURIComponent(v.slice(3)));
+      if (v.startsWith("in.")) rows = rows.filter((r) => v.slice(4, -1).split(",").includes(String(r[k])));
+    }
+    if (u.searchParams.get("order") === "start_at.desc") rows.sort((a, b) => new Date(b.start_at) - new Date(a.start_at));
+    const limit = Number(u.searchParams.get("limit"));
+    if (limit) rows = rows.slice(0, limit);
+    return { ok: true, status: 200, text: async () => JSON.stringify(rows) };
+  };
+
+  const ob = requireCjs(path.join(repo, "netlify/functions/owner-bookings.js"));
+  const cookie4 = sessionCookie(OWNER4.id).split(";")[0];
+  const plain = JSON.parse((await ob.handler({ httpMethod: "GET", headers: { cookie: cookie4 }, queryStringParameters: {} })).body);
+  ok("一覧は上限で打ち切られる（全件は返さない）", plain.bookings.length === 200 && !plain.bookings.some((b) => b.id === "bk-000"));
+  const targeted = JSON.parse((await ob.handler({ httpMethod: "GET", headers: { cookie: cookie4 }, queryStringParameters: { id: "bk-000" } })).body);
+  const hit = targeted.bookings.find((b) => b.id === "bk-000");
+  ok("?id= 指定なら上限外の予約も含まれる（詳細画面が開ける）", Boolean(hit));
+  ok("上限外の予約にも管理リンクが付く（キャンセル導線が出る）", Boolean(hit && hit.manage_url && hit.manage_url.includes("?k=")));
+  const other = JSON.parse((await ob.handler({ httpMethod: "GET", headers: { cookie: cookie4 }, queryStringParameters: { id: "manual-xxx" } })).body);
+  ok("存在しない id を渡しても一覧は壊れない", other.bookings.length === 200);
+}
+
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);
 if (fail) { console.log("FAILED: " + fails.join(" | ")); process.exit(1); }

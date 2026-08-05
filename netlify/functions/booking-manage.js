@@ -15,6 +15,17 @@ function parseDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+// 管理リンクの認証情報を取り出す。
+// 新形式: ?k=<id>.<token>（メールで `&` が切られてもリンクが壊れない）
+// 旧形式: ?id=<id>&t=<token>（送信済みメールのリンク・後方互換で継続サポート）
+// booking id は UUID でドットを含まないため、最初のドットで分割して曖昧さなく復元できる。
+function credentials(source) {
+  const k = clean(source?.k, 200);
+  const dot = k.indexOf(".");
+  if (dot > 0) return { id: k.slice(0, dot), token: k.slice(dot + 1) };
+  return { id: clean(source?.id, 64), token: String(source?.t || "") };
+}
+
 // 署名トークン検証つきで予約を取得（ログイン不要・id だけでは取れない）。
 async function loadBooking(id, token) {
   if (!id || !verifyBookingToken(id, token)) return null;
@@ -106,8 +117,8 @@ exports.handler = async (event) => {
   try {
     // 取得（管理ページ初期表示）
     if (event.httpMethod === "GET") {
-      const id = clean(event.queryStringParameters?.id, 64);
-      const booking = await loadBooking(id, event.queryStringParameters?.t || "");
+      const { id, token } = credentials(event.queryStringParameters);
+      const booking = await loadBooking(id, token);
       if (!booking) return json(404, { error: "予約が見つからないか、リンクが無効です" });
       const owner = await findOwnerById(booking.owner_id);
       const page = await bookingPageFor(booking);
@@ -117,8 +128,8 @@ exports.handler = async (event) => {
     // 操作（キャンセル / 日程変更）
     if (event.httpMethod === "POST") {
       const body = readJson(event);
-      const id = clean(body.id, 64);
-      const booking = await loadBooking(id, body.t);
+      const { id, token } = credentials(body);
+      const booking = await loadBooking(id, token);
       if (!booking) return json(404, { error: "予約が見つからないか、リンクが無効です" });
       const owner = await findOwnerById(booking.owner_id);
       const action = String(body.action || "");

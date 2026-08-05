@@ -1386,7 +1386,9 @@ async function initMeeting() {
   let allBookings = [];
   if (id) {
     try {
-      const data = await api("owner-bookings");
+      // ?id を渡すと、一覧の上限から溢れた予約でもサーバ側が該当行を必ず含めて返す
+      // （溢れるとキャンセル・日程変更の導線ごと消えていたため）。
+      const data = await api(`owner-bookings?id=${encodeURIComponent(id)}`);
       allBookings = data.bookings || [];
       booking = allBookings.find((b) => String(b.id) === String(id)) || null;
     } catch (_) { /* 非致命 */ }

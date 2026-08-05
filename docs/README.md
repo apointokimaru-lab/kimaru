@@ -18,6 +18,7 @@
 | [`plan-comparison.md`](./plan-comparison.md) | 無料版 / 有料版の説明資料（比較表） |
 | [`running-costs.md`](./running-costs.md) | ランニングコスト（インフラ固定費・決済/AI変動費・損益の目安） |
 | [`zoom-marketplace-submission.md`](./zoom-marketplace-submission.md) | Zoom Marketplace 公開申請の提出物（チェックリスト・Listing文面・審査手順・セキュリティ回答草案） |
+| [`kimaru_ai_bot_development_roadmap.md`](./kimaru_ai_bot_development_roadmap.md) | **開発ロードマップ**（開発順序・フルリプレイス方針・自作AI会議Bot・CRM/タスク拡張） |
 | [`pro-open-items.md`](./pro-open-items.md) | **Pro版で仕様が未確定・曖昧な点の洗い出し**（リリース前に埋める） |
 | [`screens.md`](./screens.md) | 画面・URL 一覧、API 概要 |
 | [`screen-flow.md`](./screen-flow.md) | 5アクター × 画面のアクセス権マトリクス・主要フロー |

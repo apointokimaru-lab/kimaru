@@ -138,6 +138,9 @@ h3{font-family:var(--display);font-weight:700;font-size:var(--fs-subhead);line-h
 #km-nav-toggle{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .nav-burger{display:none;width:42px;height:42px;border-radius:var(--radius-sm);border:1.5px solid var(--line-2);background:var(--surface);cursor:pointer;align-items:center;justify-content:center;flex-direction:column;gap:4px}
 .nav-burger span{display:block;width:18px;height:2px;background:var(--ink);border-radius:2px}
+/* メニュー展開時だけ出る「閉じる」。label なので JS なしで #km-nav-toggle を外して閉じる。 */
+.nav-close{display:none}
+.nav-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media(max-width:900px){
   .nav-burger{display:inline-flex}
   .site-header nav,.nav-links{
@@ -149,7 +152,12 @@ h3{font-family:var(--display);font-weight:700;font-size:var(--fs-subhead);line-h
   #km-nav-toggle:checked ~ nav,#km-nav-toggle:checked ~ .nav-links{display:flex}
   .site-header nav a,.nav-links a{width:100%;padding:11px 13px;font-size:15px}
   .lang-select{width:100%}
-  .nav-avatar{align-self:flex-start}
+  /* メニュー内のアバターは出さない（.site-header nav a{width:100%} に潰されて
+     「細いロゴ帯」に見えるため）。設定への導線は上の「設定」リンクが担う。 */
+  .site-header nav .nav-avatar{display:none}
+  .nav-close{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;min-height:46px;padding:0 16px;font-family:var(--sans);font-size:14px;font-weight:700;letter-spacing:.01em;color:var(--ink-2);background:var(--surface-2);border-radius:var(--radius-pill);cursor:pointer}
+  .nav-close::before{content:"×";font-size:19px;font-weight:400;line-height:1}
+  .nav-close:active{color:var(--accent-ink);background:var(--accent-soft)}
 }
 
 /* モバイル下部タブナビ（Edge Function 注入・ログイン中のみ）。

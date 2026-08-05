@@ -35,6 +35,7 @@ const OPERATOR_PATHS = [
 // 朱印ヘッダー。ナビ表示は body[data-auth]（.app-only/.guest-only）が担当。
 // <900px は CSS のみのハンバーガー（#km-nav-toggle チェックボックスハック）で開閉する（JSなし）。
 // 末尾の .bottom-nav はモバイル（<900px）のログイン中のみ表示される下部タブナビ。
+// .nav-close はメニュー展開時のみ出る「閉じる」（label→同じチェックボックスを外す＝CSSのみで閉じる）。
 // 現在ページの強調は直後の inline script が aria-current を付与（CSPは 'unsafe-inline' 許可済み）。
 const SITE_HEADER = `<header class="site-header">
     <a class="brand" href="/" data-i18n="common.brand"><span class="brand-dot"></span>キマル</a>
@@ -54,6 +55,7 @@ const SITE_HEADER = `<header class="site-header">
       <a class="app-only" href="/settings.html" data-i18n="nav.settings">設定</a>
       <select class="lang-select" data-language-select aria-label="Language"></select>
       <a class="app-only nav-avatar" href="/settings.html" aria-hidden="true">キ</a>
+      <label class="nav-close" for="km-nav-toggle" data-i18n="nav.close">閉じる</label>
     </nav>
   </header>
   <nav class="bottom-nav app-only" aria-label="Primary">
@@ -63,7 +65,7 @@ const SITE_HEADER = `<header class="site-header">
     <a href="/ai-assist.html" data-i18n="nav.aiAssist">AIアシスト</a>
     <a href="/settings.html" data-i18n="nav.settings">設定</a>
   </nav>
-  <script>(function(){var p=location.pathname;document.querySelectorAll(".bottom-nav a").forEach(function(a){if(a.getAttribute("href")===p)a.setAttribute("aria-current","page");});})();</script>`;
+  <script>(function(){var p=location.pathname;document.querySelectorAll(".bottom-nav a").forEach(function(a){if(a.getAttribute("href")===p)a.setAttribute("aria-current","page");});var c=document.querySelector(".nav-close");if(c){c.setAttribute("role","button");c.setAttribute("tabindex","0");c.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();var t=document.getElementById("km-nav-toggle");if(t)t.checked=false;}});}})();</script>`;
 
 // 共通フッター（法務リンク・全ページ共通）。目印 <!-- site-footer --> を置換。
 const SITE_FOOTER = `<footer class="foot footer">

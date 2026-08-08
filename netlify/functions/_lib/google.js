@@ -131,9 +131,11 @@ async function createBufferEvent(ownerId, { summary, startIso, endIso }) {
     description: "キマルの前後バッファ（自分用の目印）です。",
     start: { dateTime: startIso },
     end: { dateTime: endIso },
-    // 「予定なし(free)」にして freeBusy に出さない。空き枠計算はバッファ設定(前後バッファ)側で
-    // 一度だけ効かせるため、この予定を busy にすると二重にバッファが掛かってしまう。カレンダー上には表示される。
-    transparency: "transparent",
+    // バッファ予定は「予定あり(busy)」で作る。freeBusy に出るので、空き枠計算がこの時間を
+    // 障害物として扱う（#300）。以前は transparent（予定なし）にしていたため、キマル自身が
+    // 作ったバッファ予定をキマルの空き枠計算が見つけられず、その上に次の面談が入っていた。
+    // 次の予約が入れるのは「バッファ予定の終了時刻 ＋ その予約ページの前バッファ」以降になる。
+    transparency: "opaque",
     visibility: "private",
     reminders: { useDefault: false, overrides: [] }, // 通知不要
   };

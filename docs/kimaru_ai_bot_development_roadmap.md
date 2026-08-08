@@ -4,7 +4,7 @@
 作成日：2026年8月5日
 改訂：2026年8月6日（**開発順序の確定**・**フルリプレイス方針**の追加）
 
-[← AI会議Bot ドキュメント索引](./README.md)　|　[← docs 全体索引](../README.md)
+[← docs 索引](./README.md)
 
 ---
 
@@ -136,7 +136,7 @@ Step 1 を出した時点で、**サーバー・言語・実行基盤を刷新�
 
 ## 移行対象データ
 
-現行の実テーブル（正本は [`../supabase-schema.sql`](../../supabase-schema.sql)、解説は [`db-schema.md`](../db-schema.md)）。
+現行の実テーブル（正本は [`../supabase-schema.sql`](../supabase-schema.sql)、解説は [`db-schema.md`](./db-schema.md)）。
 
 **移行必須**
 
@@ -196,7 +196,7 @@ Step 1 を出した時点で、**サーバー・言語・実行基盤を刷新�
 
 > **選定の注意**: Zoom は現在 Marketplace 審査中で、Bot 用にスコープを追加すると**再審査**になる。審査への影響を避けるなら Google Meet 先行が安全。ただし Meet 側にも Bot 参加の制約・規約確認が必要なため、**着手前に両者の規約と技術的可否を調査して決める**。
 
-> **旧方針からの変更**: [`features/23-meeting-minutes.md`](../features/23-meeting-minutes.md) は 2026-06-03 に「自前で録音・文字起こしは作らず、既存の議事録AIと webhook 連携する」と結論していた。**本ロードマップはこれを上書きし、自作Botを採る。** 旧方針の記録は同ファイルに残す。
+> **旧方針からの変更**: [`features/23-meeting-minutes.md`](./features/23-meeting-minutes.md) は 2026-06-03 に「自前で録音・文字起こしは作らず、既存の議事録AIと webhook 連携する」と結論していた。**本ロードマップはこれを上書きし、自作Botを採る。** 旧方針の記録は同ファイルに残す。
 
 ## 処理フロー
 
@@ -339,7 +339,7 @@ Whisper系モデルで処理
 - 同意記録
 - 音声・文字・要約の削除機能
 - 監査ログ
-- **利用規約・プライバシーポリシーの改定**（[`legal/`](../legal/)）
+- **利用規約・プライバシーポリシーの改定**（[`legal/`](./legal/)）
 
 ## PoC評価指標
 
@@ -482,7 +482,7 @@ AI要約生成
 
 # Step 6：キマル会員同士の打ち合わせ機能（新スタック）
 
-会員同士が、相互にプロフィールを開示したうえで打ち合わせできるようにする。既存の「会員同士の相互質問」（[`features/20`](../features/20-member-mutual-questions.md)）と公開プロフィール `/u/{slug}` を土台にする。
+会員同士が、相互にプロフィールを開示したうえで打ち合わせできるようにする。既存の「会員同士の相互質問」（[`features/20`](./features/20-member-mutual-questions.md)）と公開プロフィール `/u/{slug}` を土台にする。
 
 ## プロフィール共有
 
@@ -701,7 +701,7 @@ customer.updated
 
 ## 9. 未決定事項
 
-着手前に埋める。決まったものは [`open-decisions.md`](../open-decisions.md) へ転記する。
+着手前に埋める。決まったものは [`open-decisions.md`](./open-decisions.md) へ転記する。
 
 基盤まわりの詳細な決定と未決定は [`infrastructure-review.md`](./infrastructure-review.md) に集約している。ここには本ロードマップ側の論点だけを残す。
 
@@ -709,7 +709,7 @@ customer.updated
 
 | 論点 | 決定 |
 |---|---|
-| 新スタックの実行基盤 | **AWS 東京**（ECS Fargate・SQS・EventBridge Scheduler・S3・Terraform）。正本は [`infrastructure-architecture.md`](./infrastructure-architecture.md) |
+| 新スタックの実行基盤 | **AWS 東京**（ECS Fargate・SQS・EventBridge Scheduler・S3・Terraform）。正本は [`kimaru_infrastructure_architecture_v2 (1).md`](./kimaru_infrastructure_architecture_v2%20(1).md) |
 | 言語 | **TypeScript 主軸／文字起こしのみ Python** |
 | DB | **Supabase を正式採用**（暫定ではない。再評価トリガーは review 2章） |
 | 移行方式 | **並行稼働 → カットオーバー**（機能単位の Strangler Fig） |

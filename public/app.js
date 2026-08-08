@@ -1016,14 +1016,28 @@ function closePageEditor() {
 function fillBookingPageForm(page) {
   const form = $("#booking-page-form");
   if (!form || !page) return;
-  const set = (name, value) => { if (form.elements[name] != null && value != null) form.elements[name].value = value; };
+  // 選択肢に無い値（旧UIや手動投入で入った値。例: バッファ15分）を select.value に代入すると、
+  // ブラウザは「選択なし」＝空表示にする。そのまま保存すると Number("")=0 に落ち、
+  // 設定が黙って消える（#300）。保存済みの値は必ず選択肢に足してから選ぶ。
+  const set = (name, value, unitKey) => {
+    const el = form.elements[name];
+    if (el == null || value == null) return;
+    const v = String(value);
+    if (el.tagName === "SELECT" && ![...el.options].some((option) => option.value === v)) {
+      const option = document.createElement("option");
+      option.value = v;
+      option.textContent = unitKey ? `${v}${t(unitKey)}` : v;
+      el.add(option);
+    }
+    el.value = value;
+  };
   set("page_id", page.id || "");
   set("slug", page.slug || "");
   set("title", page.title != null ? page.title : "");
   set("description", page.description != null ? page.description : "");
-  set("duration_minutes", String(page.duration_minutes || 30));
-  set("buffer_before_minutes", String(page.buffer_before_minutes != null ? page.buffer_before_minutes : 0));
-  set("buffer_after_minutes", String(page.buffer_after_minutes != null ? page.buffer_after_minutes : 0));
+  set("duration_minutes", String(page.duration_minutes || 30), "bs.unit.min");
+  set("buffer_before_minutes", String(page.buffer_before_minutes != null ? page.buffer_before_minutes : 0), "bs.unit.min");
+  set("buffer_after_minutes", String(page.buffer_after_minutes != null ? page.buffer_after_minutes : 0), "bs.unit.min");
   set("buffer_before_title", page.buffer_before_title != null ? page.buffer_before_title : "");
   set("buffer_after_title", page.buffer_after_title != null ? page.buffer_after_title : "");
   set("booking_range", rangeTokenFromPage(page));
@@ -1032,7 +1046,7 @@ function fillBookingPageForm(page) {
   set("location_value", page.location_value || "");
   set("accept_holidays", page.accept_holidays === false ? "false" : "true");
   set("lead_time_hours", String(page.lead_time_hours || 0));
-  set("slot_interval_minutes", String(page.slot_interval_minutes || 0));
+  set("slot_interval_minutes", String(page.slot_interval_minutes || 0), "bs.unit.min");
   // 事前アンケート（ページ単位・sort_order 順）を可変行で表示
   const questions = [...(page.questionnaire_questions || [])]
     .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))

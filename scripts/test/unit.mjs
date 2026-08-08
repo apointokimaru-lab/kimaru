@@ -624,6 +624,51 @@ section("per-page availability (booking-page-save / availability)");
   ok("自前の設定があるページは共有行に引きずられない", guestA2.axis.start_min === 600 && guestA2.axis.end_min === 1080);
 }
 
+// ---------- 14b) #300 前後バッファ: 選択肢外の旧データを弾かず保持する ----------
+// 本番には bufferBefore/After=15分 のページが存在する（UIの選択肢は10分刻み）。
+// 集合で弾くと編集画面から保存できず、設定が消える。範囲クランプで受ける。
+section("booking-page-save: buffer clamp (#300)");
+{
+  const OWNER_B = { id: "55555555-5555-5555-5555-555555555555", name: "バッファ", email: "buf@example.com", plan: "pro", slug: "buf" };
+  const TABLES = { owners: [OWNER_B], booking_pages: [], availability_settings: [], questionnaire_questions: [] };
+  let seq = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    const u = new URL(url);
+    const table = u.pathname.replace("/rest/v1/", "").split("?")[0];
+    const rows = TABLES[table] || (TABLES[table] = []);
+    const method = (options.method || "GET").toUpperCase();
+    const body = options.body ? JSON.parse(options.body) : null;
+    let out = [];
+    if (method === "GET") out = rows;
+    else if (method === "POST") { const list = Array.isArray(body) ? body : [body]; out = list.map((r) => ({ id: `${table}-${++seq}`, ...r })); rows.push(...out); }
+    else if (method === "PATCH") { out = rows; rows.forEach((r) => Object.assign(r, body)); }
+    else if (method === "DELETE") { out = rows; TABLES[table] = []; }
+    return { ok: true, status: 200, text: async () => JSON.stringify(out) };
+  };
+  const saveFn = requireCjs(path.join(repo, "netlify/functions/booking-page-save"));
+  const cookieB = sessionCookie(OWNER_B.id).split(";")[0];
+  const availability_settings = [{ day_of_week: 1, start_time: "10:00", end_time: "18:00", enabled: true }];
+  // 1ページを作ってから id 付きで更新する＝実際の「編集して保存」と同じ経路を通す。
+  let pageId = "";
+  const save = (over) => saveFn.handler({
+    httpMethod: "POST", headers: { cookie: cookieB },
+    body: JSON.stringify({ id: pageId || undefined, slug: "buf-page", title: "B", duration_minutes: 60, availability_settings, ...over }),
+  });
+  const savedBuffers = (res) => {
+    const p = JSON.parse(res.body).booking_page;
+    return p ? String([p.buffer_before_minutes, p.buffer_after_minutes]) : `HTTP ${res.statusCode}`;
+  };
+
+  const legacy = await save({ buffer_before_minutes: 15, buffer_after_minutes: 15 });
+  ok("選択肢外の15分でも保存できる（400にしない）", legacy.statusCode === 200);
+  ok("15分がそのまま保存される（0に落ちない）", savedBuffers(legacy) === "15,15");
+  pageId = JSON.parse(legacy.body).booking_page.id;
+
+  ok("通常の選択肢はそのまま", savedBuffers(await save({ buffer_before_minutes: 20, buffer_after_minutes: 0 })) === "20,0");
+  ok("範囲外は0〜60にクランプする", savedBuffers(await save({ buffer_before_minutes: 999, buffer_after_minutes: -30 })) === "60,0");
+  ok("数値でない入力は0になる", savedBuffers(await save({ buffer_before_minutes: "abc", buffer_after_minutes: null })) === "0,0");
+}
+
 // ---------- 15) Google連携: slug を壊さない／ログイン中はアカウントを切り替えない ----------
 // (1) upsertOwner が既存アカウントの slug を上書きしない（公開URL /u/{slug} が切れる・unique違反で500になる）
 // (2) 新規は衝突しにくいランダムサフィックス付き slug を採番し、衝突したらリトライする

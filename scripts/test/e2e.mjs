@@ -157,6 +157,48 @@ section("meeting: real briefing");
   await page.close();
 }
 
+// ===== 6) 予約ページの編集で設定が消えない（#300） =====
+// 保存済みの値が select の選択肢に無いと、代入しても「選択なし」＝空表示になり、
+// そのまま保存すると 0 に落ちて設定が消える。選択肢へ足してから選ぶこと。
+section("booking-settings: edit keeps out-of-list values (#300)");
+{
+  const PAGE = {
+    id: "p1", slug: "taro", title: "初回相談", description: "",
+    duration_minutes: 60, buffer_before_minutes: 15, buffer_after_minutes: 15, // 15分=UIの選択肢に無い旧データ（本番に実在）
+    location_type: "google_meet", location_value: "", booking_range_months: 2, candidate_days: 0,
+    accept_holidays: true, lead_time_hours: 18, slot_interval_minutes: 30, is_active: true,
+    questionnaire_questions: [], availability: [{ day_of_week: 1, start_time: "10:00:00", end_time: "18:00:00" }],
+  };
+  const page = await newPage();
+  let sent = null;
+  await page.route("**/api/**", (route) => {
+    const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+    if (name === "booking-page-save") { sent = JSON.parse(route.request().postData() || "{}"); }
+    const body = name === "booking-pages" ? { pages: [PAGE], availability: [], default_availability: [] }
+      : name === "booking-page-save" ? { ok: true, booking_page: PAGE }
+      : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  });
+  await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
+  await page.waitForSelector('[data-page-action="edit"]', { timeout: 8000 }).catch(() => {});
+  await page.click('[data-page-action="edit"]');
+  await page.waitForTimeout(300);
+  const form = await page.evaluate(() => {
+    const f = document.querySelector("#booking-page-form");
+    const g = (n) => { const e = f.elements[n]; return { value: e ? e.value : null, idx: e ? e.selectedIndex : null }; };
+    return { bufB: g("buffer_before_minutes"), bufA: g("buffer_after_minutes"), interval: g("slot_interval_minutes"), lead: g("lead_time_hours") };
+  });
+  ok("edit form shows stored buffer 15 (not blank)", form.bufB.value === "15" && form.bufB.idx >= 0);
+  ok("edit form shows stored after-buffer 15", form.bufA.value === "15" && form.bufA.idx >= 0);
+  ok("edit form shows stored interval 30", form.interval.value === "30");
+  ok("edit form shows stored lead time 18", form.lead.value === "18");
+  await page.click('#booking-page-form button[type="submit"]');
+  await page.waitForTimeout(400);
+  ok("saving unchanged keeps buffers (not reset to 0)", sent?.buffer_before_minutes === 15 && sent?.buffer_after_minutes === 15);
+  ok("saving unchanged keeps interval", sent?.slot_interval_minutes === 30);
+  await page.close();
+}
+
 await browser.close();
 server.close();
 console.log(`\n${fail === 0 ? "✅" : "❌"} e2e: ${pass} passed, ${fail} failed`);

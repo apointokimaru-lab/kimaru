@@ -669,6 +669,72 @@ section("booking-page-save: buffer clamp (#300)");
   ok("数値でない入力は0になる", savedBuffers(await save({ buffer_before_minutes: "abc", buffer_after_minutes: null })) === "0,0");
 }
 
+// ---------- 14c) #300 バッファ予定を「予定あり」で作り、空き枠計算の障害物にする ----------
+// 以前は transparency:"transparent"（予定なし）で作っていたため freeBusy に出ず、
+// キマル自身が作ったバッファ予定の上に次の面談が入っていた。
+section("buffer calendar event is busy (#300)");
+{
+  const OWNER_G = { id: "66666666-6666-6666-6666-666666666666", email: "buf-cal@example.com" };
+  process.env.TOKEN_ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY || "0".repeat(64);
+  const { encrypt } = requireCjs(path.join(repo, "netlify/functions/_lib/crypto.js"));
+  const sent = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const u = String(url);
+    if (u.includes("/rest/v1/google_connections")) {
+      return { ok: true, status: 200, text: async () => JSON.stringify([{
+        owner_id: OWNER_G.id,
+        access_token: encrypt("fake-access-token"),
+        refresh_token: encrypt("fake-refresh-token"),
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+      }]) };
+    }
+    if (u.includes("googleapis.com/calendar/v3/events") || u.includes("calendars/primary/events")) {
+      sent.push(JSON.parse(options.body || "{}"));
+      return { ok: true, status: 200, json: async () => ({ id: `ev-${sent.length}` }) };
+    }
+    return { ok: true, status: 200, text: async () => "[]", json: async () => ({}) };
+  };
+  const google = requireCjs(path.join(repo, "netlify/functions/_lib/google.js"));
+  await google.createBufferEventsFor(
+    OWNER_G.id,
+    { start_at: "2026-08-10T01:00:00.000Z", end_at: "2026-08-10T02:00:00.000Z" }, // JST 10:00-11:00
+    { buffer_before_minutes: 0, buffer_after_minutes: 30, buffer_before_title: "", buffer_after_title: "空き" }
+  );
+  ok("後バッファの予定が1件作られる", sent.length === 1);
+  ok("バッファ予定は「予定あり(busy)」で作る（freeBusyに出る）", sent[0]?.transparency !== "transparent");
+  ok("バッファ予定はホストのみ（ゲストを招待しない）", !sent[0]?.attendees);
+  ok("バッファ予定は面談の直後に置かれる", sent[0]?.start?.dateTime === "2026-08-10T02:00:00.000Z"
+    && sent[0]?.end?.dateTime === "2026-08-10T02:30:00.000Z");
+
+  // 仕様: 次の予約は「バッファ予定の終了 ＋ その予約ページの前バッファ」以降から入れる。
+  const core = requireCjs(path.join(repo, "netlify/functions/_lib/availability-core.js"));
+  const weekly = [{ day_of_week: 1, start_time: "10:00", end_time: "18:00" }];
+  const jst = (h, m) => new Date(Date.UTC(2026, 7, 10, h - 9, m)); // 2026-08-10(月)
+  // 面談 10:00-11:00 ＋ バッファ予定「空き」11:00-11:30 が busy に入っている状態
+  const busy = [
+    { start: jst(10, 0).toISOString(), end: jst(11, 0).toISOString() },
+    { start: jst(11, 0).toISOString(), end: jst(11, 30).toISOString() },
+  ];
+  const openAfter = (bufferBefore, interval) => {
+    const page = { duration_minutes: 60, buffer_before_minutes: bufferBefore, buffer_after_minutes: 30, slot_interval_minutes: interval };
+    const slots = core.generateSlots(weekly, page, jst(0, 0).getTime(), jst(24, 0).getTime());
+    const bB = bufferBefore * 60000, bA = 30 * 60000;
+    return slots
+      .filter((s) => !core.overlaps(s, busy, bB, bA) && new Date(s.start) >= jst(11, 0))
+      .map((s) => new Date(new Date(s.start).getTime() + 9 * 3600000).toISOString().slice(11, 16));
+  };
+  // 表示間隔=自動なら、枠のはしごが「所要＋前後バッファ」刻みなので規則どおりの時刻になる。
+  ok("自動・前0: バッファ予定の終了と同時(11:30)から予約できる", openAfter(0, null)[0] === "11:30");
+  ok("自動・前20分: バッファ予定の終了+20分(11:50)から予約できる", openAfter(20, null)[0] === "11:50");
+  // 固定間隔のときは刻みにも乗る必要があるので、規則を満たす最初の「刻み」になる。
+  // 肝心なのは、いずれの設定でもバッファ予定(11:00-11:30)の上に枠が出ないこと。
+  ok("固定30分・前0: 11:30から（刻みに一致）", openAfter(0, 30)[0] === "11:30");
+  ok("固定30分・前20分: 11:50は刻みに無いので12:00から", openAfter(20, 30)[0] === "12:00");
+  const invades = (list) => list.some((t) => t >= "11:00" && t < "11:30");
+  ok("どの設定でもバッファ予定(11:00-11:30)に枠が出ない",
+    ![openAfter(0, null), openAfter(20, null), openAfter(0, 30), openAfter(20, 30)].some(invades));
+}
+
 // ---------- 15) Google連携: slug を壊さない／ログイン中はアカウントを切り替えない ----------
 // (1) upsertOwner が既存アカウントの slug を上書きしない（公開URL /u/{slug} が切れる・unique違反で500になる）
 // (2) 新規は衝突しにくいランダムサフィックス付き slug を採番し、衝突したらリトライする

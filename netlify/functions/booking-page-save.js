@@ -4,7 +4,9 @@ const { sb, eq } = require("./_lib/supabase");
 const { planLimits } = require("./_lib/plan-limits");
 
 const allowedDurations = new Set([30, 40, 50, 60, 70, 80, 90, 100, 110, 120]);
-const allowedBuffers = new Set([0, 10, 20, 30, 40, 50, 60]);
+// UIの選択肢は10分刻みだが、旧データには端数（例: 15分）が入っている。
+// 集合で弾くと、編集画面がその値を出せず保存もできない＝設定が消える（#300）。範囲でクランプする。
+const BUFFER_MAX_MINUTES = 60;
 const allowedRanges = new Set([1, 2, 3, 4, 5, 6]); // 月数
 const allowedCandidateDays = new Set([7, 14, 21]); // 日数指定（月数より優先）
 const FREE_RANGE_LIMIT = 2; // 無料は2ヶ月先まで（3ヶ月以降はPro）
@@ -75,8 +77,9 @@ exports.handler = async (event) => {
     const limits = planLimits(owner.plan); // { pages, questions }
 
     const duration = intValue(body.duration_minutes, 30);
-    const bufferBefore = intValue(body.buffer_before_minutes, 0);
-    const bufferAfter = intValue(body.buffer_after_minutes, 0);
+    const clampBuffer = (value) => Math.min(Math.max(Math.round(intValue(value, 0)), 0), BUFFER_MAX_MINUTES);
+    const bufferBefore = clampBuffer(body.buffer_before_minutes);
+    const bufferAfter = clampBuffer(body.buffer_after_minutes);
     // 前後バッファをホスト専用のGoogleカレンダー予定にするときのタイトル（空=予定を作らない）。
     // バッファ0分の側はタイトルを保持しない（UIとサーバの整合）。
     const bufferBeforeTitle = bufferBefore > 0 ? String(body.buffer_before_title || "").trim().slice(0, 120) : "";
@@ -98,7 +101,6 @@ exports.handler = async (event) => {
     const slotInterval = intervalRaw > 0 ? Math.min(Math.max(intervalRaw, 5), 480) : null; // null=自動
 
     if (!allowedDurations.has(duration)) return json(400, { error: "予約時間は30〜120分の10分刻みで選択してください" });
-    if (!allowedBuffers.has(bufferBefore) || !allowedBuffers.has(bufferAfter)) return json(400, { error: "前後バッファは0〜60分の10分刻みで選択してください" });
     if (!candidateDays && !allowedRanges.has(requestedRange)) return json(400, { error: "予約枠の公開範囲の指定が正しくありません" });
     if (!isPro && !candidateDays && requestedRange > FREE_RANGE_LIMIT) return json(403, { error: "無料版で公開できるのは2ヶ月先までです。3ヶ月以降を公開するにはPro版が必要です" });
     if (questions.length > questionLimit) return json(403, { error: `現在のプランで設定できる質問は${questionLimit}問までです（無料2問／Pro・プレミアム5問）` });

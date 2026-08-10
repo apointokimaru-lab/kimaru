@@ -193,10 +193,15 @@ create table if not exists questionnaire_questions (
   created_at timestamptz not null default now()
 );
 
+-- 事前アンケートの回答。
+-- question_text は非正規化（#304）。予約ページを保存するたび questionnaire_questions は
+-- 全削除→再作成されるため、on delete set null で question_id が抜け、質問文を引けなくなる。
+-- 「その回答が何に対するものか」は回答の一部なので、回答時点の文言をここに控える。
 create table if not exists questionnaire_answers (
   id uuid primary key default gen_random_uuid(),
   booking_id uuid not null references bookings(id) on delete cascade,
   question_id uuid references questionnaire_questions(id) on delete set null,
+  question_text text not null default '',
   answer_text text not null default '',
   created_at timestamptz not null default now()
 );
@@ -405,3 +410,9 @@ create table if not exists rate_limit_hits (
   created_at timestamptz not null default now()
 );
 create index if not exists rate_limit_hits_key_created_idx on rate_limit_hits (key, created_at desc);
+
+-- 事前アンケート回答に質問文を控える（#304）。予約ページ保存のたびに質問行が作り直され、
+-- 過去の回答の question_id が null に落ちて質問文を引けなくなるため、回答時点の文言を保持する。
+-- 未適用の環境では book.js がこの列を落として保存し、owner-bookings.js は
+-- question_id 経由の埋め込みにフォールバックするので、適用前でも壊れない。
+alter table questionnaire_answers add column if not exists question_text text not null default '';

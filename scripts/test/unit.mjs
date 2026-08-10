@@ -410,6 +410,68 @@ ok("book → 200", bookRes.statusCode === 200);
 ok("booking row uses page's location_type (zoom, not body default)", insertedBooking?.location_type === "zoom");
 ok("zoom join_url saved to meeting_url", captured.patches.some((p) => p.table === "bookings" && p.body.meeting_url === "https://zoom.us/j/123"));
 
+// ---------- 9b) #304 事前アンケート回答に質問文を控える ----------
+// 予約ページを保存するたび questionnaire_questions は全削除→再作成されるため、
+// on delete set null で過去の回答の question_id が抜け、質問文を引けなくなる。
+// 回答時点の文言を questionnaire_answers.question_text に控えておく。
+section("book.js snapshots question_text into answers (#304)");
+{
+  DB.questionnaire_questions = [
+    { id: "q1", booking_page_id: "bp1", question_text: "ご予算感", sort_order: 1 },
+    { id: "q2", booking_page_id: "bp1", question_text: "現在のお悩み", sort_order: 2 },
+  ];
+  const answersOf = (posts) => posts.find((p) => p.table.startsWith("questionnaire_answers"))?.body || [];
+  const bookWith = async (extra) => {
+    captured.posts.length = 0;
+    const s = new Date(Date.now() + 6 * 86400000);
+    const res = await bookFn.handler({
+      httpMethod: "POST", headers: {},
+      body: JSON.stringify({
+        owner_slug: "tarou", visitor_name: "ゲスト 花子", visitor_email: "hanako2@example.com",
+        start: s.toISOString(), end: new Date(s.getTime() + 30 * 60000).toISOString(), ...extra,
+      }),
+    });
+    return { res, rows: answersOf(captured.posts) };
+  };
+
+  const { res, rows } = await bookWith({
+    answers: [
+      // question_id があるものは質問マスタの文言を採る（送信値は信用しない）
+      { question_id: "q1", question_text: "改ざんされた文言", answer_text: "50万円くらい" },
+      // id を持たない既定質問（質問未設定ページ）は送信値を使う
+      { question_id: null, question_text: "今回お話したい内容", answer_text: "初回のご相談" },
+    ],
+  });
+  ok("book → 200", res.statusCode === 200);
+  ok("回答2件が保存される", rows.length === 2);
+  ok("question_id 付きは質問マスタの文言を控える（送信値で上書きされない）",
+    rows[0]?.question_text === "ご予算感" && rows[0]?.answer_text === "50万円くらい");
+  ok("id なしの既定質問は送信された文言を控える",
+    rows[1]?.question_text === "今回お話したい内容" && rows[1]?.question_id === null);
+
+  // 列が未マイグレーションの環境: question_text を落として保存し直す（予約は成立させる）。
+  const prevFetch2 = globalThis.fetch;
+  const attempts = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const u = new URL(url);
+    if (u.hostname === "sb.unit.test" && u.pathname.includes("questionnaire_answers") && options.method === "POST") {
+      const body = JSON.parse(options.body || "[]");
+      attempts.push(body);
+      if (attempts.length === 1) {
+        return { ok: false, status: 400, text: async () => JSON.stringify({ message: 'column questionnaire_answers.question_text does not exist' }) };
+      }
+      return { ok: true, status: 201, text: async () => JSON.stringify(body) };
+    }
+    return prevFetch2(url, options);
+  };
+  const degraded = await bookWith({ answers: [{ question_id: "q1", question_text: "x", answer_text: "テスト回答" }] });
+  globalThis.fetch = prevFetch2;
+  ok("列が無くても予約は成立する", degraded.res.statusCode === 200);
+  ok("1回目は question_text 付きで試す", attempts[0]?.[0]?.question_text === "ご予算感");
+  ok("2回目は question_text を落として再送する",
+    attempts.length === 2 && !("question_text" in (attempts[1]?.[0] || { question_text: 1 })) && attempts[1]?.[0]?.answer_text === "テスト回答");
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";
@@ -709,7 +771,15 @@ section("buffer calendar event is busy (#300)");
   // 仕様: 次の予約は「バッファ予定の終了 ＋ その予約ページの前バッファ」以降から入れる。
   const core = requireCjs(path.join(repo, "netlify/functions/_lib/availability-core.js"));
   const weekly = [{ day_of_week: 1, start_time: "10:00", end_time: "18:00" }];
-  const jst = (h, m) => new Date(Date.UTC(2026, 7, 10, h - 9, m)); // 2026-08-10(月)
+  // generateSlots は現在時刻以前の枠を落とすので、日付を固定するとその日を過ぎた時点で
+  // テストが落ちる（実際に落ちた）。常に「4日以上先の月曜」を使って実行日に依存させない。
+  const monday = (() => {
+    for (let t = Date.now() + 4 * 86400000; ; t += 86400000) {
+      const p = core.tokyoParts(new Date(t));
+      if (p.day === 1) return p;
+    }
+  })();
+  const jst = (h, m) => new Date(Date.UTC(monday.year, monday.month, monday.date, h - 9, m));
   // 面談 10:00-11:00 ＋ バッファ予定「空き」11:00-11:30 が busy に入っている状態
   const busy = [
     { start: jst(10, 0).toISOString(), end: jst(11, 0).toISOString() },

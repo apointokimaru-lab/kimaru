@@ -56,24 +56,40 @@ exports.handler = async (event) => {
     const manual = await sb(`manual_contacts?owner_id=${eq(owner.id)}&order=created_at.desc&limit=50`).catch(() => []);
 
     // 事前アンケート回答（questionnaire_answers）を各予約に添付。
-    // answers 側に question_text 列は無く question_id で questionnaire_questions を参照するため、
-    // 埋め込み(select=...,questionnaire_questions(question_text))で質問文を取得する。
+    //
+    // 質問文の引き方は2段構え（#304）:
+    //  1) 回答側に控えてある question_text（回答時点の文言。book.js が非正規化で保存）
+    //  2) 無ければ question_id 経由の埋め込み（questionnaire_questions(question_text)）
+    // 1 を優先するのは、ホストが予約ページを保存するたび質問行が作り直され（全削除→再作成）、
+    // FK が on delete set null なので過去の回答の question_id が null に落ちるため。
+    // その状態で 2 だけに頼ると質問文が空になり、画面側の既定ラベル
+    //「今回お話したい内容」が全項目に並んでしまう（本番で発生。回答429件中298件が該当）。
     const ids = (bookings || []).map((b) => b.id).filter(Boolean);
     const answersByBooking = {};
+    const pushAnswer = (bookingId, questionText, answerText) => {
+      (answersByBooking[bookingId] = answersByBooking[bookingId] || []).push({ question_text: questionText || "", answer_text: answerText });
+    };
     if (ids.length) {
+      const filter = `questionnaire_answers?booking_id=in.(${ids.join(",")})`;
       try {
-        const rows = await sb(`questionnaire_answers?booking_id=in.(${ids.join(",")})&select=booking_id,answer_text,questionnaire_questions(question_text)`);
+        const rows = await sb(`${filter}&select=booking_id,answer_text,question_text,questionnaire_questions(question_text)`);
         for (const r of rows || []) {
-          (answersByBooking[r.booking_id] = answersByBooking[r.booking_id] || []).push({ question_text: (r.questionnaire_questions && r.questionnaire_questions.question_text) || "", answer_text: r.answer_text });
+          pushAnswer(r.booking_id, r.question_text || (r.questionnaire_questions && r.questionnaire_questions.question_text), r.answer_text);
         }
       } catch (_) {
-        // 埋め込み不可の環境向けフォールバック（質問文なしで回答のみ）。
+        // question_text 列が未マイグレーション → 埋め込みだけで引く。
         try {
-          const rows = await sb(`questionnaire_answers?booking_id=in.(${ids.join(",")})&select=booking_id,answer_text`);
+          const rows = await sb(`${filter}&select=booking_id,answer_text,questionnaire_questions(question_text)`);
           for (const r of rows || []) {
-            (answersByBooking[r.booking_id] = answersByBooking[r.booking_id] || []).push({ question_text: "", answer_text: r.answer_text });
+            pushAnswer(r.booking_id, r.questionnaire_questions && r.questionnaire_questions.question_text, r.answer_text);
           }
-        } catch (_2) { /* テーブル未作成: 回答なし扱い */ }
+        } catch (_2) {
+          // 埋め込みも不可な環境向けフォールバック（質問文なしで回答のみ）。
+          try {
+            const rows = await sb(`${filter}&select=booking_id,answer_text`);
+            for (const r of rows || []) pushAnswer(r.booking_id, "", r.answer_text);
+          } catch (_3) { /* テーブル未作成: 回答なし扱い */ }
+        }
       }
     }
 

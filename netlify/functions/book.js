@@ -266,17 +266,40 @@ exports.handler = async (event) => {
     }
 
     // 事前アンケート回答を保存（questionnaire_answers）。失敗してもブッキングは成立させる。
+    //
+    // question_text を回答側にも保存（非正規化）する理由（#304）:
+    // ホストが予約ページを保存するたび booking-page-save.js は questionnaire_questions を
+    // 全削除→再作成する。FK が on delete set null なので、過去の回答の question_id は
+    // その時点で null になり、質問文を引けなくなる（本番では回答429件中298件がこの状態だった）。
+    // 質問文は「その回答が何に対するものか」そのものなので、回答時点の文言を控えておく。
+    // 質問が後から書き換えられても、回答は当時聞かれた文言のまま残るのが正しい。
     const answers = Array.isArray(body.answers) ? body.answers : [];
     if (booking?.id && answers.length) {
+      // 質問文はクライアント任せにせず、まず予約ページの質問マスタから引く（権威ある文言）。
+      // 引けるのは question_id を持つ回答だけ。id を持たない「今回お話したい内容」
+      // （質問未設定ページの既定質問。booking-week.js が id:null で送る）は送信値を使う。
+      const textById = {};
+      if (bookingPage?.id) {
+        const qs = await sb(`questionnaire_questions?booking_page_id=${eq(bookingPage.id)}&select=id,question_text`).catch(() => []);
+        (qs || []).forEach((q) => { textById[q.id] = q.question_text; });
+      }
       const answerRows = answers
         .map((answer) => ({
           booking_id: booking.id,
           question_id: answer.question_id || null,
+          question_text: clean(textById[answer.question_id] || answer.question_text, 300),
           answer_text: clean(answer.answer_text, 2000),
         }))
         .filter((answer) => answer.answer_text);
       if (answerRows.length) {
-        await sb("questionnaire_answers", { method: "POST", body: JSON.stringify(answerRows) }).catch(() => {});
+        // question_text 列が未マイグレーションの環境では列を落として保存（従来どおり動く）。
+        await sb("questionnaire_answers", { method: "POST", body: JSON.stringify(answerRows) })
+          .catch((error) => {
+            if (!/question_text/.test(String(error.message || ""))) return;
+            const fallback = answerRows.map(({ question_text, ...rest }) => rest);
+            return sb("questionnaire_answers", { method: "POST", body: JSON.stringify(fallback) });
+          })
+          .catch(() => {});
       }
     }
 

@@ -746,6 +746,70 @@ section("booking-page-save: questions upsert keeps ids (#304)");
   ok("凍結行は送信されなくても削除しない", !deletes.some((d) => d.query.includes("q-frozen")));
 }
 
+// ---------- 14a-2) #304 受付時間も差分保存にする（全消しの瞬間を作らない） ----------
+// 全DELETE→全INSERT だと INSERT 失敗でそのページの受付時間が丸ごと消え、
+// 既定（平日10:00-18:00）にフォールバックして設定外の時間で予約を受けてしまう。
+section("booking-page-save: availability upsert by weekday (#304)");
+{
+  const OWNER_A = { id: "88888888-8888-8888-8888-888888888888", name: "A", email: "a@example.com", plan: "pro", slug: "a" };
+  const makeTables = () => ({
+    owners: [OWNER_A],
+    booking_pages: [{ id: "page-a", owner_id: OWNER_A.id, slug: "a-page", title: "A", is_active: true }],
+    questionnaire_questions: [],
+    availability_settings: [
+      { id: "av-mon", owner_id: OWNER_A.id, booking_page_id: "page-a", day_of_week: 1, start_time: "10:00", end_time: "18:00" },
+      { id: "av-tue", owner_id: OWNER_A.id, booking_page_id: "page-a", day_of_week: 2, start_time: "10:00", end_time: "18:00" },
+    ],
+  });
+  const run = async (settings) => {
+    const TABLES = makeTables();
+    const calls = [];
+    let seq = 0;
+    globalThis.fetch = async (url, options = {}) => {
+      const u = new URL(url);
+      const table = u.pathname.replace("/rest/v1/", "");
+      const method = (options.method || "GET").toUpperCase();
+      const body = options.body ? JSON.parse(options.body) : null;
+      const rows = TABLES[table] || (TABLES[table] = []);
+      if (table === "availability_settings") calls.push({ method, query: u.search, body });
+      let out = [];
+      if (method === "GET") out = rows;
+      else if (method === "POST") { const list = Array.isArray(body) ? body : [body]; out = list.map((r) => ({ id: `${table}-${++seq}`, ...r })); rows.push(...out); }
+      else out = rows;
+      return { ok: true, status: 200, text: async () => JSON.stringify(out) };
+    };
+    const saveFn = requireCjs(path.join(repo, "netlify/functions/booking-page-save"));
+    const res = await saveFn.handler({
+      httpMethod: "POST",
+      headers: { cookie: sessionCookie(OWNER_A.id).split(";")[0] },
+      body: JSON.stringify({ id: "page-a", slug: "a-page", title: "A", duration_minutes: 30, questions: [], availability_settings: settings }),
+    });
+    return { res, calls };
+  };
+
+  // 月=時間変更 / 火=据え置き / 水=新規追加。既存の月・火の行は作り直さない。
+  const a = await run([
+    { day_of_week: 1, start_time: "09:00", end_time: "17:00", enabled: true },
+    { day_of_week: 2, start_time: "10:00", end_time: "18:00", enabled: true },
+    { day_of_week: 3, start_time: "13:00", end_time: "16:00", enabled: true },
+  ]);
+  ok("保存できる", a.res.statusCode === 200);
+  ok("ページ単位の一括DELETEをしない", !a.calls.some((c) => c.method === "DELETE" && c.query.includes("booking_page_id")));
+  ok("オーナー単位の一括DELETEをしない", !a.calls.some((c) => c.method === "DELETE" && c.query.includes("owner_id")));
+  const patches = a.calls.filter((c) => c.method === "PATCH");
+  ok("既存の曜日は id 指定で更新される", patches.length === 2 && patches.every((p) => /id=eq\.av-(mon|tue)/.test(p.query)));
+  ok("月曜の時間が更新される", patches.some((p) => p.query.includes("av-mon") && p.body.start_time === "09:00" && p.body.end_time === "17:00"));
+  const posts = a.calls.filter((c) => c.method === "POST");
+  ok("新しい曜日だけ追加される", posts.length === 1 && posts[0].body.day_of_week === 3);
+  ok("追加行にページIDが入る", posts[0]?.body.booking_page_id === "page-a");
+
+  // 火曜をオフにしたら、その行だけ消える。
+  const b = await run([{ day_of_week: 1, start_time: "10:00", end_time: "18:00", enabled: true }]);
+  const deletes = b.calls.filter((c) => c.method === "DELETE");
+  ok("オフにした曜日だけ id 指定で削除される",
+    deletes.length === 1 && deletes[0].query.includes("av-tue") && !deletes[0].query.includes("av-mon"));
+}
+
 // ---------- 14b) #300 前後バッファ: 選択肢外の旧データを弾かず保持する ----------
 // 本番には bufferBefore/After=15分 のページが存在する（UIの選択肢は10分刻み）。
 // 集合で弾くと編集画面から保存できず、設定が消える。範囲クランプで受ける。

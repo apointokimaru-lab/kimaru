@@ -216,22 +216,52 @@ exports.handler = async (event) => {
       await sb(`questionnaire_questions?id=in.(${removedIds.join(",")})`, { method: "DELETE" });
     }
 
-    // 受付時間は予約ページ単位（#263）。このページの行だけ入れ替える。
-    // owner_id 単位で消していた頃は、ページBの保存がページAの受付時間まで書き換えてしまっていた。
-    // booking_page_id 列が未マイグレーションの環境では旧挙動（オーナー単位）へデグレードする。
+    // 受付時間は予約ページ単位（#263）。曜日をキーに「更新 / 追加 / 削除」で差分反映する。
+    //
+    // 以前は「このページの行を全DELETE → 全INSERT」だった。トランザクションが無いので
+    // INSERT 側で失敗するとそのページの受付時間が丸ごと消え、しかも pageAvailability が
+    // 「自前の行なし → オーナー共有行 → 既定（平日10:00-18:00）」とフォールバックするため、
+    // 設定していない曜日・時間で予約を受け付けてしまう。消える瞬間を作らないよう、
+    // 先に更新・追加を済ませ、最後に「オフにされた曜日」だけを消す。
+    const syncAvailability = async (existingRows, buildRow) => {
+      // 同じ曜日に複数行ある旧データがありうるので配列で持ち、先頭だけ使って残りは掃除する。
+      const byDay = new Map();
+      for (const row of existingRows || []) {
+        byDay.set(row.day_of_week, [...(byDay.get(row.day_of_week) || []), row]);
+      }
+      const staleIds = [];
+      for (const setting of availability) {
+        const [head, ...duplicates] = byDay.get(setting.day_of_week) || [];
+        duplicates.forEach((row) => staleIds.push(row.id));
+        if (head) {
+          await sb(`availability_settings?id=${eq(head.id)}`, {
+            method: "PATCH",
+            body: JSON.stringify({ start_time: setting.start_time, end_time: setting.end_time }),
+          });
+        } else {
+          await sb("availability_settings", { method: "POST", body: JSON.stringify(buildRow(setting)) });
+        }
+        byDay.delete(setting.day_of_week);
+      }
+      // 残ったキー＝送信されなかった曜日＝ホストがオフにした曜日。
+      for (const rows of byDay.values()) rows.forEach((row) => staleIds.push(row.id));
+      if (staleIds.length) {
+        await sb(`availability_settings?id=in.(${staleIds.join(",")})`, { method: "DELETE" });
+      }
+    };
+
     try {
-      await sb(`availability_settings?booking_page_id=${eq(bookingPage.id)}`, { method: "DELETE" });
-      await sb("availability_settings", {
-        method: "POST",
-        body: JSON.stringify(availability.map((setting) => ({ ...setting, owner_id: owner.id, booking_page_id: bookingPage.id }))),
-      });
+      const rows = await sb(`availability_settings?booking_page_id=${eq(bookingPage.id)}&select=id,day_of_week`);
+      await syncAvailability(rows, (setting) => ({ ...setting, owner_id: owner.id, booking_page_id: bookingPage.id }));
     } catch (error) {
-      if (!/booking_page_id/.test(String(error.message || ""))) throw error;
-      await sb(`availability_settings?owner_id=${eq(owner.id)}`, { method: "DELETE" });
-      await sb("availability_settings", {
-        method: "POST",
-        body: JSON.stringify(availability.map((setting) => ({ ...setting, owner_id: owner.id }))),
-      });
+      // booking_page_id 列そのものが無い環境だけ、オーナー単位の旧モデルへデグレードする。
+      // 列名を含むだけで分岐すると通信エラー等でも落ちてくるため、「列が無い」旨まで確認する。
+      // 旧分岐はここで owner_id 一括 DELETE をしており、他ページの受付時間まで消していた（#263の再発）。
+      // 差分反映に変えたので、誤ってこの分岐に入っても行が全消しになることはない。
+      const message = String(error.message || "");
+      if (!(/booking_page_id/.test(message) && /does not exist/i.test(message))) throw error;
+      const rows = await sb(`availability_settings?owner_id=${eq(owner.id)}&select=id,day_of_week`).catch(() => []);
+      await syncAvailability(rows, (setting) => ({ ...setting, owner_id: owner.id }));
     }
 
     return json(200, { ok: true, booking_page: bookingPage, availability_settings: availability, question_limit: questionLimit });

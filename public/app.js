@@ -760,13 +760,15 @@ function updateAvailabilityRows() {
   });
 }
 
+// 7曜日ぶんを常に送る。オフの曜日も enabled:false で送ることで、サーバ側は行を消さずに
+// 更新だけで済み、オフの間も設定していた時間が残る（オンに戻すと復活する）。#304
 function collectAvailabilitySettings(data) {
   return [0, 1, 2, 3, 4, 5, 6].map((day) => ({
     day_of_week: day,
     enabled: data[`availability_enabled_${day}`] === "on",
     start_time: data[`availability_start_${day}`] || "10:00",
     end_time: data[`availability_end_${day}`] || "18:00",
-  })).filter((setting) => setting.enabled);
+  }));
 }
 
 // 公開範囲ドロップダウンの値（"7d"/"14d"/"21d" or "1m".."6m"）を {months, days} に変換。
@@ -991,7 +993,9 @@ function applyAvailability(form, settings) {
     const start = form.elements[`availability_start_${day}`];
     const end = form.elements[`availability_end_${day}`];
     const s = byDay[day];
-    if (cb) cb.checked = Boolean(s);
+    // enabled 列がある行はその値でチェックを決める。列が無い旧データは「行があれば受付」。
+    // 時間はオフの曜日でも復元する（オンに戻したときに前の設定が戻る）。
+    if (cb) cb.checked = s ? s.enabled !== false : false;
     if (s && start && s.start_time) start.value = String(s.start_time).slice(0, 5);
     if (s && end && s.end_time) end.value = String(s.end_time).slice(0, 5);
   });

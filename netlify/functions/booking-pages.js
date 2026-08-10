@@ -19,8 +19,10 @@ exports.handler = async (event) => {
         .catch(() => sb(pagesQuery(baseCols, "id,question_text,is_required,sort_order")));
       // 受付時間は予約ページ単位（#263）。booking_page_id 付きの行を各ページへ、
       // 列が無い/未設定の旧データ（booking_page_id=null）はオーナー共有のフォールバックとして返す。
-      const cols = "booking_page_id,day_of_week,start_time,end_time";
+      // 設定画面はオフの曜日も見せる（チェックを外した状態＋当時の時間を復元するため）。
+      const cols = "booking_page_id,day_of_week,start_time,end_time,enabled";
       let rows = await sb(`availability_settings?owner_id=${eq(owner.id)}&select=${cols}&order=day_of_week.asc`)
+        .catch(() => sb(`availability_settings?owner_id=${eq(owner.id)}&select=booking_page_id,day_of_week,start_time,end_time&order=day_of_week.asc`))
         .catch(() => sb(`availability_settings?owner_id=${eq(owner.id)}&select=day_of_week,start_time,end_time&order=day_of_week.asc`))
         .catch(() => []);
       rows = rows || [];

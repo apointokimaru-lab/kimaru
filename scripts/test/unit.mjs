@@ -787,27 +787,95 @@ section("booking-page-save: availability upsert by weekday (#304)");
     return { res, calls };
   };
 
-  // 月=時間変更 / 火=据え置き / 水=新規追加。既存の月・火の行は作り直さない。
-  const a = await run([
-    { day_of_week: 1, start_time: "09:00", end_time: "17:00", enabled: true },
-    { day_of_week: 2, start_time: "10:00", end_time: "18:00", enabled: true },
-    { day_of_week: 3, start_time: "13:00", end_time: "16:00", enabled: true },
-  ]);
+  // 画面は7曜日ぶんを enabled 付きで送る。月=時間変更 / 火=オフ / 水=新規オン。
+  const week = (over) => [0, 1, 2, 3, 4, 5, 6].map((d) => ({
+    day_of_week: d, start_time: "10:00", end_time: "18:00", enabled: false, ...(over[d] || {}),
+  }));
+  const a = await run(week({
+    1: { start_time: "09:00", end_time: "17:00", enabled: true },
+    2: { enabled: false },
+    3: { start_time: "13:00", end_time: "16:00", enabled: true },
+  }));
   ok("保存できる", a.res.statusCode === 200);
-  ok("ページ単位の一括DELETEをしない", !a.calls.some((c) => c.method === "DELETE" && c.query.includes("booking_page_id")));
-  ok("オーナー単位の一括DELETEをしない", !a.calls.some((c) => c.method === "DELETE" && c.query.includes("owner_id")));
+  ok("一括DELETEをしない（ページ単位）", !a.calls.some((c) => c.method === "DELETE" && c.query.includes("booking_page_id")));
+  ok("一括DELETEをしない（オーナー単位）", !a.calls.some((c) => c.method === "DELETE" && c.query.includes("owner_id")));
+  ok("オフにしても行を消さない（DELETE が1件も出ない）", !a.calls.some((c) => c.method === "DELETE"));
   const patches = a.calls.filter((c) => c.method === "PATCH");
-  ok("既存の曜日は id 指定で更新される", patches.length === 2 && patches.every((p) => /id=eq\.av-(mon|tue)/.test(p.query)));
-  ok("月曜の時間が更新される", patches.some((p) => p.query.includes("av-mon") && p.body.start_time === "09:00" && p.body.end_time === "17:00"));
+  ok("既存の曜日は id 指定で更新される", patches.some((p) => p.query.includes("av-mon")) && patches.some((p) => p.query.includes("av-tue")));
+  ok("月曜の時間が更新される", patches.some((p) => p.query.includes("av-mon") && p.body.start_time === "09:00" && p.body.enabled === true));
+  ok("火曜はオフとして残る（時間は保持）", patches.some((p) => p.query.includes("av-tue") && p.body.enabled === false && p.body.start_time === "10:00"));
   const posts = a.calls.filter((c) => c.method === "POST");
-  ok("新しい曜日だけ追加される", posts.length === 1 && posts[0].body.day_of_week === 3);
-  ok("追加行にページIDが入る", posts[0]?.body.booking_page_id === "page-a");
+  ok("未作成の曜日は追加される（7曜日ぶん揃う）", posts.length === 5 && posts.every((x) => x.body.booking_page_id === "page-a"));
+  ok("追加行にも enabled が入る", posts.some((x) => x.body.day_of_week === 3 && x.body.enabled === true) && posts.some((x) => x.body.enabled === false));
 
-  // 火曜をオフにしたら、その行だけ消える。
-  const b = await run([{ day_of_week: 1, start_time: "10:00", end_time: "18:00", enabled: true }]);
-  const deletes = b.calls.filter((c) => c.method === "DELETE");
-  ok("オフにした曜日だけ id 指定で削除される",
-    deletes.length === 1 && deletes[0].query.includes("av-tue") && !deletes[0].query.includes("av-mon"));
+  // 全曜日オフは弾く（受付できないページを作らせない）。
+  const none = await run(week({}));
+  ok("全曜日オフは400で弾く", none.res.statusCode === 400);
+
+  // enabled 列が無い環境: 旧モデル（オフの曜日は行を消す）へデグレードする。
+  {
+    const TABLES = makeTables();
+    const calls = [];
+    let seq = 0;
+    globalThis.fetch = async (url, options = {}) => {
+      const u = new URL(url);
+      const table = u.pathname.replace("/rest/v1/", "");
+      const method = (options.method || "GET").toUpperCase();
+      const body = options.body ? JSON.parse(options.body) : null;
+      const rows = TABLES[table] || (TABLES[table] = []);
+      if (table === "availability_settings") {
+        if (method === "GET" && u.search.includes("enabled")) {
+          return { ok: false, status: 400, text: async () => JSON.stringify({ message: "column availability_settings.enabled does not exist" }) };
+        }
+        calls.push({ method, query: u.search, body });
+      }
+      let out = [];
+      if (method === "GET") out = rows;
+      else if (method === "POST") { const list = Array.isArray(body) ? body : [body]; out = list.map((r) => ({ id: `${table}-${++seq}`, ...r })); rows.push(...out); }
+      else out = rows;
+      return { ok: true, status: 200, text: async () => JSON.stringify(out) };
+    };
+    const saveFn = requireCjs(path.join(repo, "netlify/functions/booking-page-save"));
+    const res = await saveFn.handler({
+      httpMethod: "POST",
+      headers: { cookie: sessionCookie(OWNER_A.id).split(";")[0] },
+      body: JSON.stringify({ id: "page-a", slug: "a-page", title: "A", duration_minutes: 30, questions: [], availability_settings: week({ 1: { enabled: true } }) }),
+    });
+    ok("enabled 列が無くても保存できる", res.statusCode === 200);
+    ok("列が無い環境ではオフの曜日を削除する（旧挙動）", calls.some((c) => c.method === "DELETE" && c.query.includes("av-tue")));
+    ok("列が無い環境では enabled を書き込まない", !calls.some((c) => c.body && "enabled" in c.body));
+  }
+}
+
+// ---------- 14a-3) #304 枠生成はオンの曜日だけを読む ----------
+// JS側で絞ると漏れが「オフにした曜日で予約を受ける」事故になるため、クエリで絞る。
+section("availability-core reads only enabled weekdays (#304)");
+{
+  const core = requireCjs(path.join(repo, "netlify/functions/_lib/availability-core.js"));
+  const queries = [];
+  globalThis.fetch = async (url) => {
+    const u = new URL(url);
+    queries.push(u.search);
+    return { ok: true, status: 200, text: async () => JSON.stringify([{ day_of_week: 1, start_time: "10:00", end_time: "18:00" }]) };
+  };
+  await core.pageAvailability({ id: "own-1" }, { id: "page-x" });
+  ok("ページ単位の取得に enabled=is.true が付く", queries.some((q) => q.includes("booking_page_id=eq.page-x") && q.includes("enabled=is.true")));
+  queries.length = 0;
+  await core.ownerAvailability({ id: "own-1" });
+  ok("オーナー単位の取得にも enabled=is.true が付く", queries.some((q) => q.includes("enabled=is.true")));
+
+  // 列が無い環境ではフィルタ無しへフォールバックする（その時点では全行がオン扱いで正しい）。
+  queries.length = 0;
+  globalThis.fetch = async (url) => {
+    const u = new URL(url);
+    queries.push(u.search);
+    if (u.search.includes("enabled=is.true")) {
+      return { ok: false, status: 400, text: async () => JSON.stringify({ message: "column availability_settings.enabled does not exist" }) };
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify([{ day_of_week: 1, start_time: "10:00", end_time: "18:00" }]) };
+  };
+  const rows = await core.pageAvailability({ id: "own-1" }, { id: "page-x" });
+  ok("列が無ければフィルタ無しで読み直す", queries.length >= 2 && rows.length === 1);
 }
 
 // ---------- 14b) #300 前後バッファ: 選択肢外の旧データを弾かず保持する ----------

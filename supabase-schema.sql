@@ -115,6 +115,9 @@ create table if not exists availability_settings (
   day_of_week int not null check (day_of_week between 0 and 6),
   start_time time not null,
   end_time time not null,
+  -- 曜日のオン/オフは行の有無ではなくこの列で持つ（#304）。行を消さないので、
+  -- 曜日を一旦オフにしても設定していた時間が残り、オンに戻すとそのまま復活する。
+  enabled boolean not null default true,
   created_at timestamptz not null default now()
 );
 
@@ -416,3 +419,8 @@ create index if not exists rate_limit_hits_key_created_idx on rate_limit_hits (k
 -- 未適用の環境では book.js がこの列を落として保存し、owner-bookings.js は
 -- question_id 経由の埋め込みにフォールバックするので、適用前でも壊れない。
 alter table questionnaire_answers add column if not exists question_text text not null default '';
+
+-- 受付曜日のオン/オフをステータスで持つ（#304）。既存行はすべて「受け付ける」曜日なので default true。
+-- 未適用の環境では、読み出し側がフィルタ無しのクエリへ、保存側が旧挙動（オフの曜日は行を消す）へ
+-- デグレードするので、適用前でも壊れない。
+alter table availability_settings add column if not exists enabled boolean not null default true;

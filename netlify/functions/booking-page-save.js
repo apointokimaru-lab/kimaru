@@ -60,7 +60,6 @@ function normalizeAvailability(settings) {
       end_time: String(setting.end_time || "").slice(0, 5),
       enabled: setting.enabled !== false,
     }))
-    .filter((setting) => setting.enabled)
     .filter((setting) => setting.day_of_week >= 0 && setting.day_of_week <= 6)
     .filter((setting) => timePattern.test(setting.start_time) && timePattern.test(setting.end_time))
     .filter((setting) => timeToMinutes(setting.start_time) < timeToMinutes(setting.end_time))
@@ -68,6 +67,8 @@ function normalizeAvailability(settings) {
       day_of_week: setting.day_of_week,
       start_time: setting.start_time,
       end_time: setting.end_time,
+      // 曜日のオン/オフはステータスで持つ（#304）。オフの曜日も行を残し、時間を保持する。
+      enabled: setting.enabled,
     }));
 }
 
@@ -107,7 +108,7 @@ exports.handler = async (event) => {
     if (!candidateDays && !allowedRanges.has(requestedRange)) return json(400, { error: "予約枠の公開範囲の指定が正しくありません" });
     if (!isPro && !candidateDays && requestedRange > FREE_RANGE_LIMIT) return json(403, { error: "無料版で公開できるのは2ヶ月先までです。3ヶ月以降を公開するにはPro版が必要です" });
     if (questions.length > questionLimit) return json(403, { error: `現在のプランで設定できる質問は${questionLimit}問までです（無料2問／Pro・プレミアム5問）` });
-    if (!availability.length) return json(400, { error: "受付可能な曜日・時間帯を1つ以上設定してください" });
+    if (!availability.some((setting) => setting.enabled)) return json(400, { error: "受付可能な曜日・時間帯を1つ以上設定してください" });
 
     // 複数予約ページ対応: id 指定で編集、無ければ新規作成（slug はグローバル一意）。
     const requestedId = String(body.id || "").trim();
@@ -223,27 +224,42 @@ exports.handler = async (event) => {
     // 「自前の行なし → オーナー共有行 → 既定（平日10:00-18:00）」とフォールバックするため、
     // 設定していない曜日・時間で予約を受け付けてしまう。消える瞬間を作らないよう、
     // 先に更新・追加を済ませ、最後に「オフにされた曜日」だけを消す。
-    const syncAvailability = async (existingRows, buildRow) => {
+    // enabled 列があるかを取得時に判定する。あれば曜日行は消さず、オン/オフは列で持つ。
+    // 無い環境（未マイグレーション）だけ旧モデル＝「オフの曜日は行を消す」にデグレードする。
+    const readAvailability = async (query) => {
+      try {
+        return { rows: await sb(`${query}&select=id,day_of_week,enabled`), hasEnabled: true };
+      } catch (error) {
+        const message = String(error.message || "");
+        if (!(/enabled/.test(message) && /does not exist/i.test(message))) throw error;
+        return { rows: await sb(`${query}&select=id,day_of_week`), hasEnabled: false };
+      }
+    };
+
+    const syncAvailability = async ({ rows: existingRows, hasEnabled }, buildRow) => {
       // 同じ曜日に複数行ある旧データがありうるので配列で持ち、先頭だけ使って残りは掃除する。
       const byDay = new Map();
       for (const row of existingRows || []) {
         byDay.set(row.day_of_week, [...(byDay.get(row.day_of_week) || []), row]);
       }
       const staleIds = [];
-      for (const setting of availability) {
+      // enabled 列があれば7曜日ぶん全部を対象にする（オフの曜日も行として残す）。
+      // 無ければオンの曜日だけ書き、オフの曜日は下の「残ったキー」で消える。
+      const targets = hasEnabled ? availability : availability.filter((setting) => setting.enabled);
+      for (const setting of targets) {
         const [head, ...duplicates] = byDay.get(setting.day_of_week) || [];
         duplicates.forEach((row) => staleIds.push(row.id));
+        const values = { start_time: setting.start_time, end_time: setting.end_time };
+        if (hasEnabled) values.enabled = setting.enabled;
         if (head) {
-          await sb(`availability_settings?id=${eq(head.id)}`, {
-            method: "PATCH",
-            body: JSON.stringify({ start_time: setting.start_time, end_time: setting.end_time }),
-          });
+          await sb(`availability_settings?id=${eq(head.id)}`, { method: "PATCH", body: JSON.stringify(values) });
         } else {
-          await sb("availability_settings", { method: "POST", body: JSON.stringify(buildRow(setting)) });
+          await sb("availability_settings", { method: "POST", body: JSON.stringify({ ...buildRow(setting), ...values }) });
         }
         byDay.delete(setting.day_of_week);
       }
-      // 残ったキー＝送信されなかった曜日＝ホストがオフにした曜日。
+      // 残ったキー＝書き込み対象にならなかった曜日。enabled 列がある環境では
+      // 7曜日すべてを書くのでここは空になり、削除は起きない。
       for (const rows of byDay.values()) rows.forEach((row) => staleIds.push(row.id));
       if (staleIds.length) {
         await sb(`availability_settings?id=in.(${staleIds.join(",")})`, { method: "DELETE" });
@@ -251,8 +267,8 @@ exports.handler = async (event) => {
     };
 
     try {
-      const rows = await sb(`availability_settings?booking_page_id=${eq(bookingPage.id)}&select=id,day_of_week`);
-      await syncAvailability(rows, (setting) => ({ ...setting, owner_id: owner.id, booking_page_id: bookingPage.id }));
+      const found = await readAvailability(`availability_settings?booking_page_id=${eq(bookingPage.id)}`);
+      await syncAvailability(found, (setting) => ({ day_of_week: setting.day_of_week, owner_id: owner.id, booking_page_id: bookingPage.id }));
     } catch (error) {
       // booking_page_id 列そのものが無い環境だけ、オーナー単位の旧モデルへデグレードする。
       // 列名を含むだけで分岐すると通信エラー等でも落ちてくるため、「列が無い」旨まで確認する。
@@ -260,8 +276,9 @@ exports.handler = async (event) => {
       // 差分反映に変えたので、誤ってこの分岐に入っても行が全消しになることはない。
       const message = String(error.message || "");
       if (!(/booking_page_id/.test(message) && /does not exist/i.test(message))) throw error;
-      const rows = await sb(`availability_settings?owner_id=${eq(owner.id)}&select=id,day_of_week`).catch(() => []);
-      await syncAvailability(rows, (setting) => ({ ...setting, owner_id: owner.id }));
+      const found = await readAvailability(`availability_settings?owner_id=${eq(owner.id)}`)
+        .catch(() => ({ rows: [], hasEnabled: false }));
+      await syncAvailability(found, (setting) => ({ day_of_week: setting.day_of_week, owner_id: owner.id }));
     }
 
     return json(200, { ok: true, booking_page: bookingPage, availability_settings: availability, question_limit: questionLimit });

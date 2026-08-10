@@ -49,13 +49,19 @@ async function rescheduleProblem(booking, start, end) {
     return "受付開始までの時間（リードタイム）を満たしていません";
   }
   // 受付時間は予約ページ単位（#263）。この予約のページの行 → 無ければ旧オーナー共有行（列が無い環境も同じ経路）。
+  // 日程変更の判定にもオンの曜日だけを使う（#304）。未適用環境はフィルタ無しへ落とす。
   const availCols = "select=day_of_week,start_time,end_time";
+  const pickEnabled = (query) => sb(`${query}&enabled=is.true&${availCols}`).catch((error) => {
+    const message = String(error.message || "");
+    if (!(/enabled/.test(message) && /does not exist/i.test(message))) throw error;
+    return sb(`${query}&${availCols}`);
+  });
   let avail = page
-    ? await sb(`availability_settings?booking_page_id=${eq(page.id)}&${availCols}`).catch(() => null)
+    ? await pickEnabled(`availability_settings?booking_page_id=${eq(page.id)}`).catch(() => null)
     : null;
   if (!avail || !avail.length) {
-    avail = await sb(`availability_settings?owner_id=${eq(booking.owner_id)}&booking_page_id=is.null&${availCols}`)
-      .catch(() => sb(`availability_settings?owner_id=${eq(booking.owner_id)}&${availCols}`))
+    avail = await pickEnabled(`availability_settings?owner_id=${eq(booking.owner_id)}&booking_page_id=is.null`)
+      .catch(() => pickEnabled(`availability_settings?owner_id=${eq(booking.owner_id)}`))
       .catch(() => []);
   }
   if (Array.isArray(avail) && avail.length) {

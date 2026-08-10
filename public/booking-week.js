@@ -256,10 +256,12 @@ function buildBookingPayload(form) {
       question_id: field.dataset.questionId || null,
       question_text: field.dataset.questionText || "",
       answer_text: readQuestionField(field),
-    }))
-    .filter((answer) => answer.answer_text);
+    }));
+  // 未回答の任意項目も送る（#307）。落とすと質問そのものが記録から消え、
+  // 「何を聞いたか」が分からなくなる。空欄は空欄として残し、画面/メールで「未回答」と出す。
   data.answers = answers;
-  data.topic = answers[0]?.answer_text || "";
+  // topic は「相談内容」の代表値なので、空欄を飛ばして最初に埋まっている回答を採る。
+  data.topic = answers.find((answer) => answer.answer_text)?.answer_text || "";
   delete data.birth_date;
   return data;
 }

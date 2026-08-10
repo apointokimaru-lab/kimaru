@@ -81,7 +81,8 @@ async function ownerProfile(ownerId) {
 async function answersForBooking(bookingId) {
   try {
     const rows = await sb(`questionnaire_answers?booking_id=${eq(bookingId)}&select=question_text,answer_text`);
-    return (rows || []).filter((r) => r && r.answer_text);
+    // 未回答の任意項目も残す（#307）。本文側で「未回答」と出す。
+    return (rows || []).filter((r) => r && (r.question_text || r.answer_text));
   } catch (_) {
     return [];
   }
@@ -115,7 +116,7 @@ function buildMessage(booking, owner, profile, answers, isPro) {
 
   // 事前アンケート（質問と回答）— 全プラン
   const qa = (answers || [])
-    .map((a) => `Q. ${a.question_text || "質問"}\nA. ${a.answer_text}`)
+    .map((a) => `Q. ${a.question_text || "質問"}\nA. ${a.answer_text || "未回答"}`)
     .join("\n\n");
   if (qa) lines.push("", "― 事前アンケート ―", qa);
 

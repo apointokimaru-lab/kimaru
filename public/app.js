@@ -1420,7 +1420,14 @@ async function initSchedule() {
 function answerRows(b) {
   const rows = [];
   if (String(b.topic || "").trim()) rows.push([t("ans.q.topic"), b.topic]);
-  (b.answers || []).forEach((a) => { if (a && String(a.answer_text || "").trim()) rows.push([a.question_text || t("ans.q.topic"), a.answer_text]); });
+  // 未回答の任意項目も行として出す（#307）。答えが無かったことも記録なので、
+  // 質問ごと消すと「聞いたはずの質問が無い」ように見えてしまう。
+  (b.answers || []).forEach((a) => {
+    if (!a) return;
+    const text = String(a.answer_text || "").trim();
+    if (!text && !a.question_text) return; // 質問も答えも無い行は出さない
+    rows.push([a.question_text || t("ans.q.topic"), text || t("ans.a.unanswered")]);
+  });
   if (String(b.guest_message || "").trim()) rows.push([t("meeting.guestMessageLabel"), b.guest_message]);
   return rows;
 }

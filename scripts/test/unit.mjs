@@ -472,6 +472,45 @@ section("book.js snapshots question_text into answers (#304)");
     attempts.length === 2 && !("question_text" in (attempts[1]?.[0] || { question_text: 1 })) && attempts[1]?.[0]?.answer_text === "テスト回答");
 }
 
+// ---------- 9c) #307 未回答の任意項目を落とさない ----------
+// 空欄を捨てると、質問そのものが記録から消えて「聞いたのに載っていない」ように見える。
+section("unanswered optional questions are kept (#307)");
+{
+  const answered = { question_id: "q1", question_text: "現在の経営課題はありますか？", answer_text: "経営計画の立案" };
+  const blank = { question_id: "q3", question_text: "本日話たい内容はございますでしょうか？", answer_text: "" };
+
+  // (1) 保存: 空欄でも行として残る
+  DB.questionnaire_questions = [
+    { id: "q1", booking_page_id: "bp1", question_text: "現在の経営課題はありますか？", sort_order: 1 },
+    { id: "q3", booking_page_id: "bp1", question_text: "本日話たい内容はございますでしょうか？", sort_order: 3 },
+  ];
+  captured.posts.length = 0;
+  const s307 = new Date(Date.now() + 7 * 86400000);
+  const res307 = await bookFn.handler({
+    httpMethod: "POST", headers: {},
+    body: JSON.stringify({
+      owner_slug: "tarou", visitor_name: "ゲスト 三郎", visitor_email: "saburo@example.com",
+      start: s307.toISOString(), end: new Date(s307.getTime() + 30 * 60000).toISOString(),
+      answers: [answered, blank],
+    }),
+  });
+  const saved = captured.posts.find((p) => p.table.startsWith("questionnaire_answers"))?.body || [];
+  ok("book → 200", res307.statusCode === 200);
+  ok("未回答の任意項目も行として保存される", saved.length === 2);
+  ok("未回答は空文字で保存される（質問文は残る）",
+    saved[1]?.answer_text === "" && saved[1]?.question_text === "本日話たい内容はございますでしょうか？");
+
+  // (2) メール本文: 未回答と出す
+  const { answersSummary } = requireCjs(path.join(repo, "netlify/functions/_lib/booking-format.js"));
+  const summary = answersSummary([answered, blank]);
+  ok("メールに未回答の質問も載る", summary.includes("本日話たい内容はございますでしょうか？"));
+  ok("未回答は「A. 未回答」と出る", /A\. 未回答/.test(summary));
+  ok("回答済みはそのまま出る", summary.includes("A. 経営計画の立案"));
+
+  // (3) 質問も答えも無い行は出さない（旧データの空行対策）
+  ok("質問も答えも無い行は載せない", answersSummary([{ question_text: "", answer_text: "" }]) === "");
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";

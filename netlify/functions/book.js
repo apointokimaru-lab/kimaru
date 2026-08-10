@@ -290,7 +290,10 @@ exports.handler = async (event) => {
           question_text: clean(textById[answer.question_id] || answer.question_text, 300),
           answer_text: clean(answer.answer_text, 2000),
         }))
-        .filter((answer) => answer.answer_text);
+        // 未回答（任意項目）も行として残す（#307）。落とすと質問自体が記録から消えるため、
+        // 「どの質問に対して答えが無かったのか」が後から分からなくなる。
+        // ただし質問を特定できない行（idも文言も無い）は保存しない。
+        .filter((answer) => answer.question_id || answer.question_text);
       if (answerRows.length) {
         // question_text 列が未マイグレーションの環境では列を落として保存（従来どおり動く）。
         await sb("questionnaire_answers", { method: "POST", body: JSON.stringify(answerRows) })
@@ -305,8 +308,8 @@ exports.handler = async (event) => {
 
     // カレンダー予定の説明文に「事前アンケート（質問と回答）」＋相手（ホスト）のプロフィールを載せる。
     const qa = answers
-      .filter((a) => a && a.answer_text)
-      .map((a) => `Q. ${clean(a.question_text, 200) || "質問"}\nA. ${clean(a.answer_text, 2000)}`)
+      .filter((a) => a && (a.question_id || a.question_text))
+      .map((a) => `Q. ${clean(a.question_text, 200) || "質問"}\nA. ${clean(a.answer_text, 2000) || "未回答"}`)
       .join("\n\n");
     // 相手（ホスト）のプロフィール。ゲストのカレンダー予定（招待）にも同じ情報を載せる。
     const ownerProfile = await ownerProfileData(owner.id).catch(() => ({}));

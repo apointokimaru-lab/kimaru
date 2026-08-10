@@ -42,10 +42,12 @@ function briefingUrl(bookingId) {
 }
 
 // 事前アンケート回答の要約（メール本文用）。
+// 未回答の任意項目も「A. 未回答」として残す（#307）。答えが無かったことも情報なので、
+// 質問ごと消すと「聞いたのに載っていない」ように見えてしまう。
 function answersSummary(answers) {
   return (Array.isArray(answers) ? answers : [])
-    .filter((a) => a && a.answer_text)
-    .map((a) => `Q. ${String(a.question_text || "質問").slice(0, 200)}\nA. ${String(a.answer_text).slice(0, 1000)}`)
+    .filter((a) => a && (a.question_text || a.answer_text))
+    .map((a) => `Q. ${String(a.question_text || "質問").slice(0, 200)}\nA. ${String(a.answer_text || "").slice(0, 1000) || "未回答"}`)
     .join("\n\n");
 }
 

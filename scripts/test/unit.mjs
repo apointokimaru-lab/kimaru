@@ -410,6 +410,68 @@ ok("book → 200", bookRes.statusCode === 200);
 ok("booking row uses page's location_type (zoom, not body default)", insertedBooking?.location_type === "zoom");
 ok("zoom join_url saved to meeting_url", captured.patches.some((p) => p.table === "bookings" && p.body.meeting_url === "https://zoom.us/j/123"));
 
+// ---------- 9b) #304 事前アンケート回答に質問文を控える ----------
+// 予約ページを保存するたび questionnaire_questions は全削除→再作成されるため、
+// on delete set null で過去の回答の question_id が抜け、質問文を引けなくなる。
+// 回答時点の文言を questionnaire_answers.question_text に控えておく。
+section("book.js snapshots question_text into answers (#304)");
+{
+  DB.questionnaire_questions = [
+    { id: "q1", booking_page_id: "bp1", question_text: "ご予算感", sort_order: 1 },
+    { id: "q2", booking_page_id: "bp1", question_text: "現在のお悩み", sort_order: 2 },
+  ];
+  const answersOf = (posts) => posts.find((p) => p.table.startsWith("questionnaire_answers"))?.body || [];
+  const bookWith = async (extra) => {
+    captured.posts.length = 0;
+    const s = new Date(Date.now() + 6 * 86400000);
+    const res = await bookFn.handler({
+      httpMethod: "POST", headers: {},
+      body: JSON.stringify({
+        owner_slug: "tarou", visitor_name: "ゲスト 花子", visitor_email: "hanako2@example.com",
+        start: s.toISOString(), end: new Date(s.getTime() + 30 * 60000).toISOString(), ...extra,
+      }),
+    });
+    return { res, rows: answersOf(captured.posts) };
+  };
+
+  const { res, rows } = await bookWith({
+    answers: [
+      // question_id があるものは質問マスタの文言を採る（送信値は信用しない）
+      { question_id: "q1", question_text: "改ざんされた文言", answer_text: "50万円くらい" },
+      // id を持たない既定質問（質問未設定ページ）は送信値を使う
+      { question_id: null, question_text: "今回お話したい内容", answer_text: "初回のご相談" },
+    ],
+  });
+  ok("book → 200", res.statusCode === 200);
+  ok("回答2件が保存される", rows.length === 2);
+  ok("question_id 付きは質問マスタの文言を控える（送信値で上書きされない）",
+    rows[0]?.question_text === "ご予算感" && rows[0]?.answer_text === "50万円くらい");
+  ok("id なしの既定質問は送信された文言を控える",
+    rows[1]?.question_text === "今回お話したい内容" && rows[1]?.question_id === null);
+
+  // 列が未マイグレーションの環境: question_text を落として保存し直す（予約は成立させる）。
+  const prevFetch2 = globalThis.fetch;
+  const attempts = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const u = new URL(url);
+    if (u.hostname === "sb.unit.test" && u.pathname.includes("questionnaire_answers") && options.method === "POST") {
+      const body = JSON.parse(options.body || "[]");
+      attempts.push(body);
+      if (attempts.length === 1) {
+        return { ok: false, status: 400, text: async () => JSON.stringify({ message: 'column questionnaire_answers.question_text does not exist' }) };
+      }
+      return { ok: true, status: 201, text: async () => JSON.stringify(body) };
+    }
+    return prevFetch2(url, options);
+  };
+  const degraded = await bookWith({ answers: [{ question_id: "q1", question_text: "x", answer_text: "テスト回答" }] });
+  globalThis.fetch = prevFetch2;
+  ok("列が無くても予約は成立する", degraded.res.statusCode === 200);
+  ok("1回目は question_text 付きで試す", attempts[0]?.[0]?.question_text === "ご予算感");
+  ok("2回目は question_text を落として再送する",
+    attempts.length === 2 && !("question_text" in (attempts[1]?.[0] || { question_text: 1 })) && attempts[1]?.[0]?.answer_text === "テスト回答");
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";
@@ -624,6 +686,198 @@ section("per-page availability (booking-page-save / availability)");
   ok("自前の設定があるページは共有行に引きずられない", guestA2.axis.start_min === 600 && guestA2.axis.end_min === 1080);
 }
 
+// ---------- 14a) #304 事前アンケートの質問は差分保存（更新/追加/削除）にする ----------
+// 全削除→再作成だと保存のたびに質問のUUIDが変わり、過去の回答の question_id が
+// on delete set null で切れてしまう。既存行のIDを保つこと。
+section("booking-page-save: questions upsert keeps ids (#304)");
+{
+  const OWNER_Q = { id: "77777777-7777-7777-7777-777777777777", name: "Q", email: "q@example.com", plan: "pro", slug: "q" };
+  const TABLES = {
+    owners: [OWNER_Q],
+    booking_pages: [{ id: "page-q", owner_id: OWNER_Q.id, slug: "q-page", title: "Q", is_active: true }],
+    questionnaire_questions: [
+      { id: "q-keep", booking_page_id: "page-q", question_text: "ご予算感", sort_order: 1, frozen: false },
+      { id: "q-drop", booking_page_id: "page-q", question_text: "消される質問", sort_order: 2, frozen: false },
+      { id: "q-frozen", booking_page_id: "page-q", question_text: "凍結ぶん", sort_order: 3, frozen: true },
+    ],
+    availability_settings: [],
+  };
+  const calls = [];
+  let seq = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    const u = new URL(url);
+    const table = u.pathname.replace("/rest/v1/", "");
+    const method = (options.method || "GET").toUpperCase();
+    const body = options.body ? JSON.parse(options.body) : null;
+    const rows = TABLES[table] || (TABLES[table] = []);
+    if (table === "questionnaire_questions") calls.push({ method, query: u.search, body });
+    let out = [];
+    if (method === "GET") out = rows;
+    else if (method === "POST") { const list = Array.isArray(body) ? body : [body]; out = list.map((r) => ({ id: `${table}-${++seq}`, ...r })); rows.push(...out); }
+    else if (method === "PATCH") { out = rows; }
+    else if (method === "DELETE") { out = rows; }
+    return { ok: true, status: 200, text: async () => JSON.stringify(out) };
+  };
+  const saveFn = requireCjs(path.join(repo, "netlify/functions/booking-page-save"));
+  const res = await saveFn.handler({
+    httpMethod: "POST",
+    headers: { cookie: sessionCookie(OWNER_Q.id).split(";")[0] },
+    body: JSON.stringify({
+      id: "page-q", slug: "q-page", title: "Q", duration_minutes: 30,
+      availability_settings: [{ day_of_week: 1, start_time: "10:00", end_time: "18:00", enabled: true }],
+      questions: [
+        { id: "q-keep", question_text: "ご予算感（改訂）", is_required: true },  // 既存 → 更新
+        { question_text: "新しい質問", is_required: false },                     // id 無し → 追加
+        // q-drop は送らない → 削除 ／ q-frozen は画面に出ないので送られない → 温存
+      ],
+    }),
+  });
+  ok("保存できる", res.statusCode === 200);
+  const patches = calls.filter((c) => c.method === "PATCH");
+  const posts = calls.filter((c) => c.method === "POST");
+  const deletes = calls.filter((c) => c.method === "DELETE");
+  ok("全削除しない（DELETE は booking_page_id 一括ではない）",
+    !deletes.some((d) => d.query.includes("booking_page_id")));
+  ok("既存の質問は id 指定で更新される", patches.length === 1 && patches[0].query.includes("q-keep"));
+  ok("更新時に id 列そのものは書き込まない", patches[0] && !("id" in patches[0].body));
+  ok("更新内容が反映される", patches[0]?.body.question_text === "ご予算感（改訂）");
+  ok("新規の質問は追加される", posts.length === 1 && posts[0].body.question_text === "新しい質問");
+  ok("送信されなかった質問は削除される", deletes.some((d) => d.query.includes("q-drop")));
+  ok("凍結行は送信されなくても削除しない", !deletes.some((d) => d.query.includes("q-frozen")));
+}
+
+// ---------- 14a-2) #304 受付時間も差分保存にする（全消しの瞬間を作らない） ----------
+// 全DELETE→全INSERT だと INSERT 失敗でそのページの受付時間が丸ごと消え、
+// 既定（平日10:00-18:00）にフォールバックして設定外の時間で予約を受けてしまう。
+section("booking-page-save: availability upsert by weekday (#304)");
+{
+  const OWNER_A = { id: "88888888-8888-8888-8888-888888888888", name: "A", email: "a@example.com", plan: "pro", slug: "a" };
+  const makeTables = () => ({
+    owners: [OWNER_A],
+    booking_pages: [{ id: "page-a", owner_id: OWNER_A.id, slug: "a-page", title: "A", is_active: true }],
+    questionnaire_questions: [],
+    availability_settings: [
+      { id: "av-mon", owner_id: OWNER_A.id, booking_page_id: "page-a", day_of_week: 1, start_time: "10:00", end_time: "18:00" },
+      { id: "av-tue", owner_id: OWNER_A.id, booking_page_id: "page-a", day_of_week: 2, start_time: "10:00", end_time: "18:00" },
+    ],
+  });
+  const run = async (settings) => {
+    const TABLES = makeTables();
+    const calls = [];
+    let seq = 0;
+    globalThis.fetch = async (url, options = {}) => {
+      const u = new URL(url);
+      const table = u.pathname.replace("/rest/v1/", "");
+      const method = (options.method || "GET").toUpperCase();
+      const body = options.body ? JSON.parse(options.body) : null;
+      const rows = TABLES[table] || (TABLES[table] = []);
+      if (table === "availability_settings") calls.push({ method, query: u.search, body });
+      let out = [];
+      if (method === "GET") out = rows;
+      else if (method === "POST") { const list = Array.isArray(body) ? body : [body]; out = list.map((r) => ({ id: `${table}-${++seq}`, ...r })); rows.push(...out); }
+      else out = rows;
+      return { ok: true, status: 200, text: async () => JSON.stringify(out) };
+    };
+    const saveFn = requireCjs(path.join(repo, "netlify/functions/booking-page-save"));
+    const res = await saveFn.handler({
+      httpMethod: "POST",
+      headers: { cookie: sessionCookie(OWNER_A.id).split(";")[0] },
+      body: JSON.stringify({ id: "page-a", slug: "a-page", title: "A", duration_minutes: 30, questions: [], availability_settings: settings }),
+    });
+    return { res, calls };
+  };
+
+  // 画面は7曜日ぶんを enabled 付きで送る。月=時間変更 / 火=オフ / 水=新規オン。
+  const week = (over) => [0, 1, 2, 3, 4, 5, 6].map((d) => ({
+    day_of_week: d, start_time: "10:00", end_time: "18:00", enabled: false, ...(over[d] || {}),
+  }));
+  const a = await run(week({
+    1: { start_time: "09:00", end_time: "17:00", enabled: true },
+    2: { enabled: false },
+    3: { start_time: "13:00", end_time: "16:00", enabled: true },
+  }));
+  ok("保存できる", a.res.statusCode === 200);
+  ok("一括DELETEをしない（ページ単位）", !a.calls.some((c) => c.method === "DELETE" && c.query.includes("booking_page_id")));
+  ok("一括DELETEをしない（オーナー単位）", !a.calls.some((c) => c.method === "DELETE" && c.query.includes("owner_id")));
+  ok("オフにしても行を消さない（DELETE が1件も出ない）", !a.calls.some((c) => c.method === "DELETE"));
+  const patches = a.calls.filter((c) => c.method === "PATCH");
+  ok("既存の曜日は id 指定で更新される", patches.some((p) => p.query.includes("av-mon")) && patches.some((p) => p.query.includes("av-tue")));
+  ok("月曜の時間が更新される", patches.some((p) => p.query.includes("av-mon") && p.body.start_time === "09:00" && p.body.enabled === true));
+  ok("火曜はオフとして残る（時間は保持）", patches.some((p) => p.query.includes("av-tue") && p.body.enabled === false && p.body.start_time === "10:00"));
+  const posts = a.calls.filter((c) => c.method === "POST");
+  ok("未作成の曜日は追加される（7曜日ぶん揃う）", posts.length === 5 && posts.every((x) => x.body.booking_page_id === "page-a"));
+  ok("追加行にも enabled が入る", posts.some((x) => x.body.day_of_week === 3 && x.body.enabled === true) && posts.some((x) => x.body.enabled === false));
+
+  // 全曜日オフは弾く（受付できないページを作らせない）。
+  const none = await run(week({}));
+  ok("全曜日オフは400で弾く", none.res.statusCode === 400);
+
+  // enabled 列が無い環境: 旧モデル（オフの曜日は行を消す）へデグレードする。
+  {
+    const TABLES = makeTables();
+    const calls = [];
+    let seq = 0;
+    globalThis.fetch = async (url, options = {}) => {
+      const u = new URL(url);
+      const table = u.pathname.replace("/rest/v1/", "");
+      const method = (options.method || "GET").toUpperCase();
+      const body = options.body ? JSON.parse(options.body) : null;
+      const rows = TABLES[table] || (TABLES[table] = []);
+      if (table === "availability_settings") {
+        if (method === "GET" && u.search.includes("enabled")) {
+          return { ok: false, status: 400, text: async () => JSON.stringify({ message: "column availability_settings.enabled does not exist" }) };
+        }
+        calls.push({ method, query: u.search, body });
+      }
+      let out = [];
+      if (method === "GET") out = rows;
+      else if (method === "POST") { const list = Array.isArray(body) ? body : [body]; out = list.map((r) => ({ id: `${table}-${++seq}`, ...r })); rows.push(...out); }
+      else out = rows;
+      return { ok: true, status: 200, text: async () => JSON.stringify(out) };
+    };
+    const saveFn = requireCjs(path.join(repo, "netlify/functions/booking-page-save"));
+    const res = await saveFn.handler({
+      httpMethod: "POST",
+      headers: { cookie: sessionCookie(OWNER_A.id).split(";")[0] },
+      body: JSON.stringify({ id: "page-a", slug: "a-page", title: "A", duration_minutes: 30, questions: [], availability_settings: week({ 1: { enabled: true } }) }),
+    });
+    ok("enabled 列が無くても保存できる", res.statusCode === 200);
+    ok("列が無い環境ではオフの曜日を削除する（旧挙動）", calls.some((c) => c.method === "DELETE" && c.query.includes("av-tue")));
+    ok("列が無い環境では enabled を書き込まない", !calls.some((c) => c.body && "enabled" in c.body));
+  }
+}
+
+// ---------- 14a-3) #304 枠生成はオンの曜日だけを読む ----------
+// JS側で絞ると漏れが「オフにした曜日で予約を受ける」事故になるため、クエリで絞る。
+section("availability-core reads only enabled weekdays (#304)");
+{
+  const core = requireCjs(path.join(repo, "netlify/functions/_lib/availability-core.js"));
+  const queries = [];
+  globalThis.fetch = async (url) => {
+    const u = new URL(url);
+    queries.push(u.search);
+    return { ok: true, status: 200, text: async () => JSON.stringify([{ day_of_week: 1, start_time: "10:00", end_time: "18:00" }]) };
+  };
+  await core.pageAvailability({ id: "own-1" }, { id: "page-x" });
+  ok("ページ単位の取得に enabled=is.true が付く", queries.some((q) => q.includes("booking_page_id=eq.page-x") && q.includes("enabled=is.true")));
+  queries.length = 0;
+  await core.ownerAvailability({ id: "own-1" });
+  ok("オーナー単位の取得にも enabled=is.true が付く", queries.some((q) => q.includes("enabled=is.true")));
+
+  // 列が無い環境ではフィルタ無しへフォールバックする（その時点では全行がオン扱いで正しい）。
+  queries.length = 0;
+  globalThis.fetch = async (url) => {
+    const u = new URL(url);
+    queries.push(u.search);
+    if (u.search.includes("enabled=is.true")) {
+      return { ok: false, status: 400, text: async () => JSON.stringify({ message: "column availability_settings.enabled does not exist" }) };
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify([{ day_of_week: 1, start_time: "10:00", end_time: "18:00" }]) };
+  };
+  const rows = await core.pageAvailability({ id: "own-1" }, { id: "page-x" });
+  ok("列が無ければフィルタ無しで読み直す", queries.length >= 2 && rows.length === 1);
+}
+
 // ---------- 14b) #300 前後バッファ: 選択肢外の旧データを弾かず保持する ----------
 // 本番には bufferBefore/After=15分 のページが存在する（UIの選択肢は10分刻み）。
 // 集合で弾くと編集画面から保存できず、設定が消える。範囲クランプで受ける。
@@ -709,7 +963,15 @@ section("buffer calendar event is busy (#300)");
   // 仕様: 次の予約は「バッファ予定の終了 ＋ その予約ページの前バッファ」以降から入れる。
   const core = requireCjs(path.join(repo, "netlify/functions/_lib/availability-core.js"));
   const weekly = [{ day_of_week: 1, start_time: "10:00", end_time: "18:00" }];
-  const jst = (h, m) => new Date(Date.UTC(2026, 7, 10, h - 9, m)); // 2026-08-10(月)
+  // generateSlots は現在時刻以前の枠を落とすので、日付を固定するとその日を過ぎた時点で
+  // テストが落ちる（実際に落ちた）。常に「4日以上先の月曜」を使って実行日に依存させない。
+  const monday = (() => {
+    for (let t = Date.now() + 4 * 86400000; ; t += 86400000) {
+      const p = core.tokyoParts(new Date(t));
+      if (p.day === 1) return p;
+    }
+  })();
+  const jst = (h, m) => new Date(Date.UTC(monday.year, monday.month, monday.date, h - 9, m));
   // 面談 10:00-11:00 ＋ バッファ予定「空き」11:00-11:30 が busy に入っている状態
   const busy = [
     { start: jst(10, 0).toISOString(), end: jst(11, 0).toISOString() },

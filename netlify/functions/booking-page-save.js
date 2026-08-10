@@ -35,6 +35,9 @@ function normalizeQuestion(question, index, allowChoice) {
     if (!options.length) answerType = "text";
   }
   return {
+    // 既存行のID（画面が保存済み質問に付けて返す）。差分保存で「更新」に回す目印であって
+    // DBへ書く値ではないので、書き込み前に必ず取り除く（#304）。
+    id: String(question.id || "").trim() || null,
     question_text: String(question.question_text || "").trim(),
     is_required: Boolean(question.is_required),
     answer_type: answerType,
@@ -57,7 +60,6 @@ function normalizeAvailability(settings) {
       end_time: String(setting.end_time || "").slice(0, 5),
       enabled: setting.enabled !== false,
     }))
-    .filter((setting) => setting.enabled)
     .filter((setting) => setting.day_of_week >= 0 && setting.day_of_week <= 6)
     .filter((setting) => timePattern.test(setting.start_time) && timePattern.test(setting.end_time))
     .filter((setting) => timeToMinutes(setting.start_time) < timeToMinutes(setting.end_time))
@@ -65,6 +67,8 @@ function normalizeAvailability(settings) {
       day_of_week: setting.day_of_week,
       start_time: setting.start_time,
       end_time: setting.end_time,
+      // 曜日のオン/オフはステータスで持つ（#304）。オフの曜日も行を残し、時間を保持する。
+      enabled: setting.enabled,
     }));
 }
 
@@ -104,7 +108,7 @@ exports.handler = async (event) => {
     if (!candidateDays && !allowedRanges.has(requestedRange)) return json(400, { error: "予約枠の公開範囲の指定が正しくありません" });
     if (!isPro && !candidateDays && requestedRange > FREE_RANGE_LIMIT) return json(403, { error: "無料版で公開できるのは2ヶ月先までです。3ヶ月以降を公開するにはPro版が必要です" });
     if (questions.length > questionLimit) return json(403, { error: `現在のプランで設定できる質問は${questionLimit}問までです（無料2問／Pro・プレミアム5問）` });
-    if (!availability.length) return json(400, { error: "受付可能な曜日・時間帯を1つ以上設定してください" });
+    if (!availability.some((setting) => setting.enabled)) return json(400, { error: "受付可能な曜日・時間帯を1つ以上設定してください" });
 
     // 複数予約ページ対応: id 指定で編集、無ければ新規作成（slug はグローバル一意）。
     const requestedId = String(body.id || "").trim();
@@ -173,35 +177,108 @@ exports.handler = async (event) => {
     }
     const bookingPage = saved[0];
 
-    await sb(`questionnaire_questions?booking_page_id=${eq(bookingPage.id)}`, { method: "DELETE" });
-    if (questions.length) {
-      const rows = questions.map((question) => ({ ...question, booking_page_id: bookingPage.id }));
+    // 事前アンケートの質問は「更新 / 追加 / 削除」の差分で反映する（#304）。
+    // 以前は全削除→再作成していたため、保存のたびに質問のUUIDが変わり、
+    // questionnaire_answers.question_id が FK の on delete set null で null に落ちて、
+    // 過去の回答から質問文を引けなくなっていた（本番で回答429件中298件が該当）。
+    // 既存行のIDを保つことで、質問を編集しても過去の回答との紐付けが切れない。
+    const existingQuestions = await sb(`questionnaire_questions?booking_page_id=${eq(bookingPage.id)}&select=id,frozen`)
+      .catch(() => sb(`questionnaire_questions?booking_page_id=${eq(bookingPage.id)}&select=id`))
+      .catch(() => []);
+    const existingIds = new Set((existingQuestions || []).map((row) => row.id));
+    // 凍結行（プラン降格で超過したぶん・#174）は編集画面に出ないため送信内容にも含まれない。
+    // 「送信内容に無い＝削除」の対象から外し、温存する。
+    const frozenIds = new Set((existingQuestions || []).filter((row) => row.frozen).map((row) => row.id));
+
+    // answer_type/options 列が未マイグレーションの環境では型情報を落として書き込む（自由入力として動作）。
+    const writeQuestion = async (target, method, row) => {
       try {
-        await sb("questionnaire_questions", { method: "POST", body: JSON.stringify(rows) });
+        return await sb(target, { method, body: JSON.stringify(row) });
       } catch (error) {
-        // answer_type/options 列が未マイグレーションの環境では型情報を落として保存（自由入力として動作）。
         if (!/answer_type|options/.test(String(error.message || ""))) throw error;
-        const fallback = rows.map(({ answer_type, options, ...rest }) => rest);
-        await sb("questionnaire_questions", { method: "POST", body: JSON.stringify(fallback) });
+        const { answer_type, options, ...rest } = row;
+        return sb(target, { method, body: JSON.stringify(rest) });
+      }
+    };
+
+    const keptIds = new Set();
+    for (const question of questions) {
+      const { id, ...row } = question;
+      // 他ページのIDを送られても existingIds に無いので、更新ではなく追加に落ちる。
+      if (id && existingIds.has(id)) {
+        keptIds.add(id);
+        await writeQuestion(`questionnaire_questions?id=${eq(id)}`, "PATCH", row);
+      } else {
+        await writeQuestion("questionnaire_questions", "POST", { ...row, booking_page_id: bookingPage.id });
       }
     }
+    const removedIds = [...existingIds].filter((id) => !keptIds.has(id) && !frozenIds.has(id));
+    if (removedIds.length) {
+      await sb(`questionnaire_questions?id=in.(${removedIds.join(",")})`, { method: "DELETE" });
+    }
 
-    // 受付時間は予約ページ単位（#263）。このページの行だけ入れ替える。
-    // owner_id 単位で消していた頃は、ページBの保存がページAの受付時間まで書き換えてしまっていた。
-    // booking_page_id 列が未マイグレーションの環境では旧挙動（オーナー単位）へデグレードする。
+    // 受付時間は予約ページ単位（#263）。曜日をキーに「更新 / 追加 / 削除」で差分反映する。
+    //
+    // 以前は「このページの行を全DELETE → 全INSERT」だった。トランザクションが無いので
+    // INSERT 側で失敗するとそのページの受付時間が丸ごと消え、しかも pageAvailability が
+    // 「自前の行なし → オーナー共有行 → 既定（平日10:00-18:00）」とフォールバックするため、
+    // 設定していない曜日・時間で予約を受け付けてしまう。消える瞬間を作らないよう、
+    // 先に更新・追加を済ませ、最後に「オフにされた曜日」だけを消す。
+    // enabled 列があるかを取得時に判定する。あれば曜日行は消さず、オン/オフは列で持つ。
+    // 無い環境（未マイグレーション）だけ旧モデル＝「オフの曜日は行を消す」にデグレードする。
+    const readAvailability = async (query) => {
+      try {
+        return { rows: await sb(`${query}&select=id,day_of_week,enabled`), hasEnabled: true };
+      } catch (error) {
+        const message = String(error.message || "");
+        if (!(/enabled/.test(message) && /does not exist/i.test(message))) throw error;
+        return { rows: await sb(`${query}&select=id,day_of_week`), hasEnabled: false };
+      }
+    };
+
+    const syncAvailability = async ({ rows: existingRows, hasEnabled }, buildRow) => {
+      // 同じ曜日に複数行ある旧データがありうるので配列で持ち、先頭だけ使って残りは掃除する。
+      const byDay = new Map();
+      for (const row of existingRows || []) {
+        byDay.set(row.day_of_week, [...(byDay.get(row.day_of_week) || []), row]);
+      }
+      const staleIds = [];
+      // enabled 列があれば7曜日ぶん全部を対象にする（オフの曜日も行として残す）。
+      // 無ければオンの曜日だけ書き、オフの曜日は下の「残ったキー」で消える。
+      const targets = hasEnabled ? availability : availability.filter((setting) => setting.enabled);
+      for (const setting of targets) {
+        const [head, ...duplicates] = byDay.get(setting.day_of_week) || [];
+        duplicates.forEach((row) => staleIds.push(row.id));
+        const values = { start_time: setting.start_time, end_time: setting.end_time };
+        if (hasEnabled) values.enabled = setting.enabled;
+        if (head) {
+          await sb(`availability_settings?id=${eq(head.id)}`, { method: "PATCH", body: JSON.stringify(values) });
+        } else {
+          await sb("availability_settings", { method: "POST", body: JSON.stringify({ ...buildRow(setting), ...values }) });
+        }
+        byDay.delete(setting.day_of_week);
+      }
+      // 残ったキー＝書き込み対象にならなかった曜日。enabled 列がある環境では
+      // 7曜日すべてを書くのでここは空になり、削除は起きない。
+      for (const rows of byDay.values()) rows.forEach((row) => staleIds.push(row.id));
+      if (staleIds.length) {
+        await sb(`availability_settings?id=in.(${staleIds.join(",")})`, { method: "DELETE" });
+      }
+    };
+
     try {
-      await sb(`availability_settings?booking_page_id=${eq(bookingPage.id)}`, { method: "DELETE" });
-      await sb("availability_settings", {
-        method: "POST",
-        body: JSON.stringify(availability.map((setting) => ({ ...setting, owner_id: owner.id, booking_page_id: bookingPage.id }))),
-      });
+      const found = await readAvailability(`availability_settings?booking_page_id=${eq(bookingPage.id)}`);
+      await syncAvailability(found, (setting) => ({ day_of_week: setting.day_of_week, owner_id: owner.id, booking_page_id: bookingPage.id }));
     } catch (error) {
-      if (!/booking_page_id/.test(String(error.message || ""))) throw error;
-      await sb(`availability_settings?owner_id=${eq(owner.id)}`, { method: "DELETE" });
-      await sb("availability_settings", {
-        method: "POST",
-        body: JSON.stringify(availability.map((setting) => ({ ...setting, owner_id: owner.id }))),
-      });
+      // booking_page_id 列そのものが無い環境だけ、オーナー単位の旧モデルへデグレードする。
+      // 列名を含むだけで分岐すると通信エラー等でも落ちてくるため、「列が無い」旨まで確認する。
+      // 旧分岐はここで owner_id 一括 DELETE をしており、他ページの受付時間まで消していた（#263の再発）。
+      // 差分反映に変えたので、誤ってこの分岐に入っても行が全消しになることはない。
+      const message = String(error.message || "");
+      if (!(/booking_page_id/.test(message) && /does not exist/i.test(message))) throw error;
+      const found = await readAvailability(`availability_settings?owner_id=${eq(owner.id)}`)
+        .catch(() => ({ rows: [], hasEnabled: false }));
+      await syncAvailability(found, (setting) => ({ day_of_week: setting.day_of_week, owner_id: owner.id }));
     }
 
     return json(200, { ok: true, booking_page: bookingPage, availability_settings: availability, question_limit: questionLimit });

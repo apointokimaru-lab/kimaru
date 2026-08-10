@@ -167,7 +167,10 @@ section("booking-settings: edit keeps out-of-list values (#300)");
     duration_minutes: 60, buffer_before_minutes: 15, buffer_after_minutes: 15, // 15分=UIの選択肢に無い旧データ（本番に実在）
     location_type: "google_meet", location_value: "", booking_range_months: 2, candidate_days: 0,
     accept_holidays: true, lead_time_hours: 18, slot_interval_minutes: 30, is_active: true,
-    questionnaire_questions: [], availability: [{ day_of_week: 1, start_time: "10:00:00", end_time: "18:00:00" }],
+    // 保存済み質問には id が付いてくる。保存時にそのまま返さないとサーバ側で
+    // 「追加」扱いになり、質問のUUIDが変わって過去の回答との紐付けが切れる（#304）。
+    questionnaire_questions: [{ id: "q-1", question_text: "ご予算感", is_required: true, answer_type: "text", options: [], sort_order: 1 }],
+    availability: [{ day_of_week: 1, start_time: "10:00:00", end_time: "18:00:00" }],
   };
   const page = await newPage();
   let sent = null;
@@ -196,6 +199,9 @@ section("booking-settings: edit keeps out-of-list values (#300)");
   await page.waitForTimeout(400);
   ok("saving unchanged keeps buffers (not reset to 0)", sent?.buffer_before_minutes === 15 && sent?.buffer_after_minutes === 15);
   ok("saving unchanged keeps interval", sent?.slot_interval_minutes === 30);
+  // #304: 保存済み質問の id を往復させる（サーバ側の「更新」判定に使う）
+  ok("existing question keeps its id on save", sent?.questions?.[0]?.id === "q-1");
+  ok("existing question keeps its text", sent?.questions?.[0]?.question_text === "ご予算感");
   await page.close();
 }
 

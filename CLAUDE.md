@@ -6,6 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 キマル (Kimaru) — a Japanese, free-first 1-on-1 scheduling tool. Static HTML/CSS/vanilla JS frontend + serverless functions + Supabase. **No build step, no test framework, no linter.** The product is built incrementally; the working language is Japanese.
 
+## 作業ルール（厳守）
+
+1. **必ずブランチを切る。main で直接作業しない。** ブランチ名は `<prefix>/issue-<番号>-<短い説明>`。prefix は issue のラベルから決める:
+
+   | issue のラベル | prefix | 例 |
+   |---|---|---|
+   | `bug` | `fix/` | `fix/issue-300-buffer-busy` |
+   | `enhancement` / `実装` | `feat/` | `feat/issue-42-contact-export` |
+   | `documentation` | `docs/` | `docs/issue-51-db-schema` |
+   | 画面・UIの設計変更 | `design/` | `design/issue-77-pricing-table` |
+   | 上記以外（整理・撤去・設定） | `chore/` | `chore/issue-88-drop-legacy-api` |
+
+   issue 番号が無い依頼は、先に issue を立てるか番号なし（`fix/booking-cancel-reachability` 形式）にするかを確認してから着手する。
+
+2. **PR 作成までが担当範囲。マージはユーザーが行う。** `gh pr create` は実行してよいが、**`gh pr merge` は実行しない**。PR 本文には「症状 / 原因 / 修正 / 確認したこと / 残る穴」を書く。
+
+3. **本番デプロイは明示指示があったときだけ。** 手順は「Hosting」節（ロック解除を忘れると無言で失敗する）。
+
+4. **コメントは密に書く。** このリポジトリは「なぜこの処理が必要か」を日本語コメントで残す慣習（手本: `_lib/supabase.js` の headers 合成順、`booking-pages.js` の列フォールバック、`availability-core.js` の枠生成条件、`google.js` の `transparency`）。新しいコードにも次の2点を書く:
+   - **なぜ必要か** — どの不具合・どの仕様のためか。分かれば issue/PR 番号も添える
+   - **何をしているか** — 非自明な条件・境界・順序、および「素直に書くとなぜ壊れるか」
+
+   自明な処理を逐語訳しただけのコメントは不要。
+
 ## Commands
 
 ```bash
@@ -72,6 +96,14 @@ Vanilla JS, no framework. i18n is attribute-driven: `data-i18n` / `data-i18n-pla
 ### Scheduled jobs
 リマインダー（予約22分前）は **Netlify Scheduled Functions** で起動する。コアは `reminder-mails.js` の `run()` に切り出し、`reminder-scheduled.js` が呼ぶ。スケジュールは `netlify.toml` の `[functions."reminder-scheduled"] schedule="*/5 * * * *"`。`run()` 元の HTTP エンドポイント（`/api/reminder-mails?dry_run=1`。認証 `REMINDER_CRON_SECRET` or `CRON_SECRET`）はローカル確認用に残る。メール送信は `_lib/mail.js`（Gmail→Resend、未設定時は送信スキップ）。リマインダーは無料=基本／Pro=プロフィール付き（`owner.plan` で出し分け）。**誕生日メールの自動送信は廃止（決定17・#180）— 生年月日入力と占いベース相手分析は継続。**
 
+### 空き枠の計算（`netlify/functions/_lib/availability-core.js`）
+`availability.js`(5日窓) と `availability-days.js`(月カレンダー) が共用するコア。触る前に押さえること:
+
+- **枠の刻み**: `step = slot_interval_minutes > 0 ? その値 : 所要 + 前バッファ + 後バッファ`。表示間隔に固定値を選ぶと「所要＋バッファ」刻みのはしごが効かなくなるため、バッファの保護はカレンダー側（下記）に依存する。
+- **前バッファ / 後バッファの意味**: 前バッファ＝その予約の**前**に空けておく時間、後バッファ＝**後**に空けておく時間。**次の予約が入れるのは「直前の予定（バッファ予定を含む）の終了時刻 ＋ その予約ページの前バッファ」以降**。`overlaps()` は候補枠のほうを前後バッファぶん広げ、busy（既存予定の生の時間）と突き合わせる。busy 側は広げない（二重に掛けない）。
+- **バッファ予定は「予定あり(busy)」で作る**（`_lib/google.js` `createBufferEvent` の `transparency:"opaque"`）。`"transparent"`（予定なし）にすると **freeBusy API に返らず**、キマル自身が作ったバッファ予定の上に次の面談が入る（#300）。バッファ予定名（`buffer_*_title`）が未設定のページはバッファ予定自体が作られないので、この保護は効かず、はしご側だけが頼りになる。
+- busy の出どころは Google の freeBusy ＋ `bookings`（そのオーナーの全予約・ページ横断・生の時間）。ページをまたいでもダブルブッキングはしないが、**バッファ値はページごと**で、見ているページの設定だけが効く。
+
 ### 予約のキャンセル・日程変更
 ゲストは確認メール/完了画面の管理リンク（`/manage-booking.html?id=&t=`、`t` は `bookingToken`=booking idのHMAC）から、ログイン不要でキャンセル・日程変更できる（`booking-manage.js`）。リスケは同一bookingを更新し、Googleイベントは新規作成成功時のみ旧を削除して差し替え。新規予約・キャンセル・変更時はホストへも通知メール（`book.js sendHostNotification`）。
 
@@ -91,6 +123,23 @@ Lazyweb is a **third-party external service**; anything passed to a `lazyweb_*` 
 ## Hosting — Netlify only
 本番ホストは **Netlify 一本化**（2026-06 決定。Vercel対応は廃止＝`vercel.json`/`api/`/`lib/vercel-adapter.js` を削除済み）。`npm run dev`(=`netlify dev`)/`npm run deploy`。`netlify.toml` が `/api/*`→`/.netlify/functions/`、`/b/*`→`booking.html` をルーティング。Edge Function（`netlify/edge-functions/`）が認証ゲート＋ヘッダー注入を担う。
 
+### 本番デプロイ（公開ロック運用・明示指示のときだけ）
+本番（project `apointkimaru` / `kimaru-co.jp` / site_id `53c244ba-ea99-4dfa-9d76-b8d4b611af02`）は**公開固定(locked)**。ロック中の `npm run deploy` は `Deployments are "locked" for production context` で**失敗し、何も公開されない**（「デプロイしたのに反映されない」の典型原因）。必ず3段で行う:
+
+```bash
+# 1) 現在公開中のデプロイidと施錠状態を見る（published_deploy.id / .locked）
+npx netlify api getSite --data '{"site_id":"53c244ba-ea99-4dfa-9d76-b8d4b611af02"}'
+# 2) 解錠 → デプロイ → 施錠（3の deploy_id は 2 の出力の Unique deploy URL / Build logs URL に出る新しいid）
+npx netlify api unlockDeploy --data '{"deploy_id":"<現在公開中のid>"}'
+npm run deploy
+npx netlify api lockDeploy --data '{"deploy_id":"<新デプロイのid>"}'
+```
+
+デプロイ後は `curl -s https://kimaru-co.jp/app.js | diff - public/app.js` のように**静的アセットが一致するか**で反映を確認できる（Functions は外から覗けない）。
+
+### 本番と dev の env / DB
+ローカル `.env` は **dev Supabase** を指す。本番の値は `npx netlify env:get NAME --context production`（`--context` を省くと dev を見るので別物が返る）。一部（`RESEND_API_KEY` など）は `***` にマスクされ、スクリプトからは使えない。env の変更は**再デプロイなしで稼働中の Function に反映される**。
+
 ## Required env vars
 `APP_BASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY`. Optional: `ADMIN_SECRET` (operator console — unset → operator login 500); `SQUARE_WEBHOOK_SHARED_SECRET`, `SQUARE_PREMIUM_PLAN_ID` (premium grant), `SQUARE_ACCESS_TOKEN`/`SQUARE_LOCATION_ID`/`SQUARE_PRO_PLAN_ID`/`SQUARE_ENV`/`SQUARE_STATIC_PRO_LINK` (dynamic per-user checkout link — falls back to static link if unset); `ZOOM_*` (Zoom auto-issue); mail vars (`RESEND_API_KEY`, `BIRTHDAY_EMAIL_FROM`, `BIRTHDAY_EMAIL_REPLY_TO`, `BIRTHDAY_CRON_SECRET`/`CRON_SECRET`, `TRANSACTIONAL_EMAIL_FROM`, `MARKETING_EMAIL_FROM`, `RESEND_WEBHOOK_SECRET`); AI-assist vars (`OPENAI_API_KEY`, `OPENAI_MODEL`, `AI_ASSIST_MONTHLY_LIMIT`). Missing a required var makes the relevant function throw at request time. See `.env.example`.
 
@@ -101,3 +150,5 @@ Lazyweb is a **third-party external service**; anything passed to a `lazyweb_*` 
 - CommonJS (`require`/`module.exports`); handlers export `{ handler }`.
 - UI/copy is Japanese and must avoid poker-specific wording (general-audience product).
 - Don't re-introduce Vercel or rewrite the DB schema without explicit instruction.
+- **`<select>` の選択肢とサーバの許容値は必ず対応させる。** 保存済みの値が `<option>` に無いと `select.value = v` は「選択なし」になり（空表示・`selectedIndex = -1`）、そのまま保存すると `Number("") = 0` に落ちて**設定が黙って消える**（#300）。`app.js` の `fillBookingPageForm` は選択肢に無い保存済みの値を option として足す実装。サーバ側も、集合判定で弾くと画面から直せない値になるため、バッファのように**範囲クランプ**を選ぶ（`booking-page-save.js`）。
+- 本番データを読むスクリプトを書くときは Supabase REST を直に叩いてよい（読み取りのみ）。書き込み・削除は必ず確認を取る。

@@ -874,7 +874,9 @@ function questionRowHtml(q) {
         <button type="button" class="button secondary mini q-option-add">${escapeHtml(t("bs.q.optionAdd"))}</button>
       </div>
     </div>` : "";
-  return `<div class="q-row" data-answer-type="${type}">
+  // data-qid は保存済み質問のID。保存時にサーバへ返すことで、同じ行が更新扱いになり
+  // 質問のUUIDが変わらない（変わると過去の回答の question_id が切れる・#304）。
+  return `<div class="q-row" data-qid="${escapeHtml(obj.id || "")}" data-answer-type="${type}">
     <div class="q-row-main"><input class="question-input" placeholder="${placeholder}" value="${textVal}" /><label class="q-required"><input type="checkbox" class="question-required"${required ? " checked" : ""} />${reqLabel}</label><button type="button" class="button secondary question-remove">${del}</button></div>${choiceUi}
   </div>`;
 }
@@ -896,7 +898,8 @@ function collectQuestions() {
       if (!ANSWER_TYPES.includes(answer_type)) answer_type = "text";
       const options = answer_type === "text" ? [] : [...row.querySelectorAll(".q-option-input")].map((el) => el.value.trim()).filter(Boolean);
       const is_required = !!row.querySelector(".question-required")?.checked;
-      return { question_text, answer_type, options, is_required };
+      // id 付きで返した行はサーバ側で更新される（新規行は id 無し＝追加）。
+      return { id: row.dataset.qid || undefined, question_text, answer_type, options, is_required };
     })
     .filter((q) => q.question_text);
 }
@@ -1050,7 +1053,7 @@ function fillBookingPageForm(page) {
   // 事前アンケート（ページ単位・sort_order 順）を可変行で表示
   const questions = [...(page.questionnaire_questions || [])]
     .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-    .map((q) => ({ question_text: q.question_text, answer_type: q.answer_type || "text", options: Array.isArray(q.options) ? q.options : [], is_required: q.is_required !== false }));
+    .map((q) => ({ id: q.id, question_text: q.question_text, answer_type: q.answer_type || "text", options: Array.isArray(q.options) ? q.options : [], is_required: q.is_required !== false }));
   renderQuestionRows(questions);
   // 受付時間は予約ページ単位（#263）。このページ専用の設定が無ければ旧オーナー共有設定を出す。
   applyAvailability(form, page.availability && page.availability.length ? page.availability : ownerAvailability);

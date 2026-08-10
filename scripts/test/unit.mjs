@@ -686,6 +686,66 @@ section("per-page availability (booking-page-save / availability)");
   ok("自前の設定があるページは共有行に引きずられない", guestA2.axis.start_min === 600 && guestA2.axis.end_min === 1080);
 }
 
+// ---------- 14a) #304 事前アンケートの質問は差分保存（更新/追加/削除）にする ----------
+// 全削除→再作成だと保存のたびに質問のUUIDが変わり、過去の回答の question_id が
+// on delete set null で切れてしまう。既存行のIDを保つこと。
+section("booking-page-save: questions upsert keeps ids (#304)");
+{
+  const OWNER_Q = { id: "77777777-7777-7777-7777-777777777777", name: "Q", email: "q@example.com", plan: "pro", slug: "q" };
+  const TABLES = {
+    owners: [OWNER_Q],
+    booking_pages: [{ id: "page-q", owner_id: OWNER_Q.id, slug: "q-page", title: "Q", is_active: true }],
+    questionnaire_questions: [
+      { id: "q-keep", booking_page_id: "page-q", question_text: "ご予算感", sort_order: 1, frozen: false },
+      { id: "q-drop", booking_page_id: "page-q", question_text: "消される質問", sort_order: 2, frozen: false },
+      { id: "q-frozen", booking_page_id: "page-q", question_text: "凍結ぶん", sort_order: 3, frozen: true },
+    ],
+    availability_settings: [],
+  };
+  const calls = [];
+  let seq = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    const u = new URL(url);
+    const table = u.pathname.replace("/rest/v1/", "");
+    const method = (options.method || "GET").toUpperCase();
+    const body = options.body ? JSON.parse(options.body) : null;
+    const rows = TABLES[table] || (TABLES[table] = []);
+    if (table === "questionnaire_questions") calls.push({ method, query: u.search, body });
+    let out = [];
+    if (method === "GET") out = rows;
+    else if (method === "POST") { const list = Array.isArray(body) ? body : [body]; out = list.map((r) => ({ id: `${table}-${++seq}`, ...r })); rows.push(...out); }
+    else if (method === "PATCH") { out = rows; }
+    else if (method === "DELETE") { out = rows; }
+    return { ok: true, status: 200, text: async () => JSON.stringify(out) };
+  };
+  const saveFn = requireCjs(path.join(repo, "netlify/functions/booking-page-save"));
+  const res = await saveFn.handler({
+    httpMethod: "POST",
+    headers: { cookie: sessionCookie(OWNER_Q.id).split(";")[0] },
+    body: JSON.stringify({
+      id: "page-q", slug: "q-page", title: "Q", duration_minutes: 30,
+      availability_settings: [{ day_of_week: 1, start_time: "10:00", end_time: "18:00", enabled: true }],
+      questions: [
+        { id: "q-keep", question_text: "ご予算感（改訂）", is_required: true },  // 既存 → 更新
+        { question_text: "新しい質問", is_required: false },                     // id 無し → 追加
+        // q-drop は送らない → 削除 ／ q-frozen は画面に出ないので送られない → 温存
+      ],
+    }),
+  });
+  ok("保存できる", res.statusCode === 200);
+  const patches = calls.filter((c) => c.method === "PATCH");
+  const posts = calls.filter((c) => c.method === "POST");
+  const deletes = calls.filter((c) => c.method === "DELETE");
+  ok("全削除しない（DELETE は booking_page_id 一括ではない）",
+    !deletes.some((d) => d.query.includes("booking_page_id")));
+  ok("既存の質問は id 指定で更新される", patches.length === 1 && patches[0].query.includes("q-keep"));
+  ok("更新時に id 列そのものは書き込まない", patches[0] && !("id" in patches[0].body));
+  ok("更新内容が反映される", patches[0]?.body.question_text === "ご予算感（改訂）");
+  ok("新規の質問は追加される", posts.length === 1 && posts[0].body.question_text === "新しい質問");
+  ok("送信されなかった質問は削除される", deletes.some((d) => d.query.includes("q-drop")));
+  ok("凍結行は送信されなくても削除しない", !deletes.some((d) => d.query.includes("q-frozen")));
+}
+
 // ---------- 14b) #300 前後バッファ: 選択肢外の旧データを弾かず保持する ----------
 // 本番には bufferBefore/After=15分 のページが存在する（UIの選択肢は10分刻み）。
 // 集合で弾くと編集画面から保存できず、設定が消える。範囲クランプで受ける。

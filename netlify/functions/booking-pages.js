@@ -13,10 +13,10 @@ exports.handler = async (event) => {
       const withTitles = `${baseCols},buffer_before_title,buffer_after_title`;
       const pagesQuery = (cols, qcols) => `booking_pages?owner_id=${eq(owner.id)}&select=${cols},questionnaire_questions(${qcols})&order=created_at.asc`;
       // buffer_*_title / answer_type / options が未マイグレーションの環境では順に列を落としてフォールバック。
-      const pages = await sb(pagesQuery(withTitles, "question_text,is_required,sort_order,answer_type,options"))
-        .catch(() => sb(pagesQuery(withTitles, "question_text,is_required,sort_order")))
-        .catch(() => sb(pagesQuery(baseCols, "question_text,is_required,sort_order,answer_type,options")))
-        .catch(() => sb(pagesQuery(baseCols, "question_text,is_required,sort_order")));
+      const pages = await sb(pagesQuery(withTitles, "id,question_text,is_required,sort_order,answer_type,options"))
+        .catch(() => sb(pagesQuery(withTitles, "id,question_text,is_required,sort_order")))
+        .catch(() => sb(pagesQuery(baseCols, "id,question_text,is_required,sort_order,answer_type,options")))
+        .catch(() => sb(pagesQuery(baseCols, "id,question_text,is_required,sort_order")));
       // 受付時間は予約ページ単位（#263）。booking_page_id 付きの行を各ページへ、
       // 列が無い/未設定の旧データ（booking_page_id=null）はオーナー共有のフォールバックとして返す。
       const cols = "booking_page_id,day_of_week,start_time,end_time";

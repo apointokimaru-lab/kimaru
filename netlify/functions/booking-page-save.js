@@ -35,6 +35,9 @@ function normalizeQuestion(question, index, allowChoice) {
     if (!options.length) answerType = "text";
   }
   return {
+    // 既存行のID（画面が保存済み質問に付けて返す）。差分保存で「更新」に回す目印であって
+    // DBへ書く値ではないので、書き込み前に必ず取り除く（#304）。
+    id: String(question.id || "").trim() || null,
     question_text: String(question.question_text || "").trim(),
     is_required: Boolean(question.is_required),
     answer_type: answerType,
@@ -173,17 +176,44 @@ exports.handler = async (event) => {
     }
     const bookingPage = saved[0];
 
-    await sb(`questionnaire_questions?booking_page_id=${eq(bookingPage.id)}`, { method: "DELETE" });
-    if (questions.length) {
-      const rows = questions.map((question) => ({ ...question, booking_page_id: bookingPage.id }));
+    // 事前アンケートの質問は「更新 / 追加 / 削除」の差分で反映する（#304）。
+    // 以前は全削除→再作成していたため、保存のたびに質問のUUIDが変わり、
+    // questionnaire_answers.question_id が FK の on delete set null で null に落ちて、
+    // 過去の回答から質問文を引けなくなっていた（本番で回答429件中298件が該当）。
+    // 既存行のIDを保つことで、質問を編集しても過去の回答との紐付けが切れない。
+    const existingQuestions = await sb(`questionnaire_questions?booking_page_id=${eq(bookingPage.id)}&select=id,frozen`)
+      .catch(() => sb(`questionnaire_questions?booking_page_id=${eq(bookingPage.id)}&select=id`))
+      .catch(() => []);
+    const existingIds = new Set((existingQuestions || []).map((row) => row.id));
+    // 凍結行（プラン降格で超過したぶん・#174）は編集画面に出ないため送信内容にも含まれない。
+    // 「送信内容に無い＝削除」の対象から外し、温存する。
+    const frozenIds = new Set((existingQuestions || []).filter((row) => row.frozen).map((row) => row.id));
+
+    // answer_type/options 列が未マイグレーションの環境では型情報を落として書き込む（自由入力として動作）。
+    const writeQuestion = async (target, method, row) => {
       try {
-        await sb("questionnaire_questions", { method: "POST", body: JSON.stringify(rows) });
+        return await sb(target, { method, body: JSON.stringify(row) });
       } catch (error) {
-        // answer_type/options 列が未マイグレーションの環境では型情報を落として保存（自由入力として動作）。
         if (!/answer_type|options/.test(String(error.message || ""))) throw error;
-        const fallback = rows.map(({ answer_type, options, ...rest }) => rest);
-        await sb("questionnaire_questions", { method: "POST", body: JSON.stringify(fallback) });
+        const { answer_type, options, ...rest } = row;
+        return sb(target, { method, body: JSON.stringify(rest) });
       }
+    };
+
+    const keptIds = new Set();
+    for (const question of questions) {
+      const { id, ...row } = question;
+      // 他ページのIDを送られても existingIds に無いので、更新ではなく追加に落ちる。
+      if (id && existingIds.has(id)) {
+        keptIds.add(id);
+        await writeQuestion(`questionnaire_questions?id=${eq(id)}`, "PATCH", row);
+      } else {
+        await writeQuestion("questionnaire_questions", "POST", { ...row, booking_page_id: bookingPage.id });
+      }
+    }
+    const removedIds = [...existingIds].filter((id) => !keptIds.has(id) && !frozenIds.has(id));
+    if (removedIds.length) {
+      await sb(`questionnaire_questions?id=in.(${removedIds.join(",")})`, { method: "DELETE" });
     }
 
     // 受付時間は予約ページ単位（#263）。このページの行だけ入れ替える。

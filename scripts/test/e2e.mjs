@@ -61,6 +61,9 @@ async function newPage() {
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   page._errors = errors;
+  const requests = [];
+  page.on("request", (r) => requests.push(r.url()));
+  page._requests = requests;
   await page.addInitScript(() => { try { localStorage.clear(); } catch (e) {} });
   return page;
 }
@@ -105,6 +108,10 @@ section("dashboard: real data");
   ok("share copy button visible", await page.locator("#share-copy").isVisible());
   const week = await page.textContent("#todo-week-count").catch(() => "");
   ok("todo-week-count is numeric", /^\d+$/.test(week.trim()));
+  // 「回答待ちの質問」は停止中（#314）。要対応に出さず、APIも叩かない。
+  ok("no pending-questions link in todos", (await page.locator('a[href="/pending-questions.html"]').count()) === 0);
+  ok("no 回答待ちの質問 row", !(await page.textContent(".todo")).includes("回答待ち"));
+  ok("pending-answers API is not called", !page._requests.some((u) => u.includes("/api/pending-answers")));
   await page.close();
 }
 

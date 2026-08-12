@@ -31,7 +31,7 @@ const base = `http://localhost:${server.address().port}`;
 const now = new Date();
 const iso = (off, h, m) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + off, h, m).toISOString();
 const MOCK_BOOKINGS = [
-  { id: "b-today", visitor_name: "モック 太郎", visitor_email: "taro@example.com", topic: "初回相談したい", start_at: iso(0, 14, 0), end_at: iso(0, 14, 30), location_type: "google_meet", meeting_url: "https://meet.google.com/mock-today", manage_url: "/manage-booking.html?id=b-today&t=tok", status: "confirmed", answers: [{ question_text: "ご予算感", answer_text: "未定" }] },
+  { id: "b-today", visitor_name: "モック 太郎", visitor_email: "taro@example.com", topic: "初回相談したい", start_at: iso(0, 14, 0), end_at: iso(0, 14, 30), location_type: "google_meet", meeting_url: "https://meet.google.com/mock-today", manage_url: "/manage-booking.html?id=b-today&t=tok", status: "confirmed", answers: [{ question_text: "ご相談の背景", answer_text: "初回相談したい" }, { question_text: "ご予算感", answer_text: "未定" }] },
   { id: "b-up", visitor_name: "モック 花子", visitor_email: "hana@example.com", topic: "採用の相談", start_at: iso(2, 11, 0), end_at: iso(2, 11, 30), location_type: "zoom", manage_url: "/manage-booking.html?id=b-up&t=tok2", status: "confirmed", answers: [] },
   { id: "b-cancel", visitor_name: "キャンセル 三郎", start_at: iso(0, 16, 0), end_at: iso(0, 16, 30), status: "cancelled", answers: [] },
 ];
@@ -132,6 +132,13 @@ section("answers: real cards + mark read");
   const cards = await page.locator("#ans-list .ans-card").count();
   ok("answer cards rendered from real data", cards >= 1);
   ok("answers show mock guest", (await page.textContent("#ans-list")).includes("モック 太郎"));
+  // bookings.topic は実在しない質問なので、回答履歴のどこにも「今回お話したい内容」を出さない（#312）。
+  const ansText = await page.textContent("#ans-list");
+  ok("no 今回お話したい内容 row anywhere", !ansText.includes("今回お話したい内容"));
+  ok("real question label is shown instead", ansText.includes("ご相談の背景"));
+  ok("the answer itself is shown once", (ansText.match(/初回相談したい/g) || []).length === 1);
+  // topic しか持たない予約（回答レコード無し）は、回答一覧に出さない。
+  ok("booking without answer records is not listed", !ansText.includes("モック 花子"));
   const unreadBefore = Number(await page.textContent("#unread-count"));
   await page.locator("#ans-list [data-mark-read]").first().click();
   await page.waitForTimeout(150);
@@ -154,6 +161,27 @@ section("meeting: real briefing");
   await page.waitForFunction(() => document.querySelector("#meeting-memos")?.textContent?.includes("丁寧な問い合わせ"), null, { timeout: 8000 }).catch(() => {});
   ok("memo shows conversation note (booking_notes)", (await page.textContent("#meeting-memos")).includes("丁寧な問い合わせ"));
   ok("memo add button opens note editor", await (async () => { await page.click("#meeting-note-add"); await page.waitForTimeout(200); const vis = await page.locator("#note-edit-modal").isVisible(); await page.locator("#note-edit-modal [data-note-close]").first().click().catch(() => {}); return vis; })());
+  ok("meeting survey has no 今回お話したい内容 row", !(await page.textContent("#meeting-survey")).includes("今回お話したい内容"));
+  await page.close();
+}
+
+// ===== 5b) 回答レコードが無い面談は「アンケートが未設定です」 =====
+section("meeting: no questionnaire message (#312)");
+{
+  const page = await newPage();
+  await page.route("**/api/**", (route) => {
+    const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+    const body = name === "owner-bookings"
+      ? { bookings: [{ ...MOCK_BOOKINGS[0], topic: "初回相談したい", answers: [] }] }
+      : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  });
+  await page.goto(`${base}/meeting.html?id=b-today`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(500);
+  const survey = await page.textContent("#meeting-survey");
+  ok("shows アンケートが未設定です", survey.includes("アンケートが未設定です"));
+  ok("does not fall back to topic", !survey.includes("初回相談したい"));
+  ok("no JS exception", page._errors.length === 0);
   await page.close();
 }
 
@@ -202,6 +230,25 @@ section("booking-settings: edit keeps out-of-list values (#300)");
   // #304: 保存済み質問の id を往復させる（サーバ側の「更新」判定に使う）
   ok("existing question keeps its id on save", sent?.questions?.[0]?.id === "q-1");
   ok("existing question keeps its text", sent?.questions?.[0]?.question_text === "ご予算感");
+  await page.close();
+}
+
+// ===== 7) 質問ゼロの予約ページはアンケート欄を出さない（#312） =====
+section("booking page with no questions shows no questionnaire");
+{
+  const page = await newPage();
+  await page.route("**/api/**", (route) => {
+    const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+    const body = name === "availability"
+      ? { host: { title: "初回相談", duration_minutes: 30, location_type: "google_meet", slug: "taro" }, questions: [], slots: [], axis: { start_min: 600, end_min: 1080 } }
+      : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  });
+  await page.goto(`${base}/booking.html?slug=taro`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(500);
+  ok("no questionnaire field is rendered", (await page.locator("#questionnaire-fields .q-field").count()) === 0);
+  ok("no default 今回お話したい内容 question", !(await bodyText(page)).includes("今回お話したい内容"));
+  ok("no JS exception", page._errors.length === 0);
   await page.close();
 }
 

@@ -496,9 +496,11 @@ function markAnswerRead(id, read) {
   if (read) s.add(String(id)); else s.delete(String(id));
   try { localStorage.setItem(ANSWERS_READ_KEY, JSON.stringify([...s])); } catch (_) {}
 }
+// 「回答あり」の判定。topic はもう画面に出さないので数え方から外す（#312）。
+// 数だけ増えて回答一覧に出ない、という食い違いを防ぐ。
 function bookingHasAnswer(b) {
-  return !b.manual && (!b.status || b.status === "confirmed") &&
-    Boolean(String(b.topic || "").trim() || String(b.guest_message || "").trim());
+  const hasAnswer = (b.answers || []).some((a) => a && (String(a.answer_text || "").trim() || String(a.question_text || "").trim()));
+  return !b.manual && (!b.status || b.status === "confirmed") && Boolean(hasAnswer || String(b.guest_message || "").trim());
 }
 
 // ダッシュボード「要対応」を実データで更新（今週の予約件数＋範囲・未読アンケート件数）。
@@ -1419,14 +1421,19 @@ async function initSchedule() {
 // 予約から「事前アンケート回答」行を作る（topic ＋ 質問回答 ＋ メッセージ）。
 function answerRows(b) {
   const rows = [];
-  if (String(b.topic || "").trim()) rows.push([t("ans.q.topic"), b.topic]);
+  // bookings.topic はアンケート1問目の回答をコピーした値で、独立した質問ではない。
+  // それを「今回お話したい内容」という実在しない質問名で先頭に出していたため、
+  // 回答履歴の先頭に必ずこの行が現れていた（#312）。ここでは一切出さない。
+  // topic 自体は相手一覧の表示やZoomミーティング名などで引き続き使う。
   // 未回答の任意項目も行として出す（#307）。答えが無かったことも記録なので、
   // 質問ごと消すと「聞いたはずの質問が無い」ように見えてしまう。
   (b.answers || []).forEach((a) => {
     if (!a) return;
     const text = String(a.answer_text || "").trim();
     if (!text && !a.question_text) return; // 質問も答えも無い行は出さない
-    rows.push([a.question_text || t("ans.q.topic"), text || t("ans.a.unanswered")]);
+    // 質問文が残っていない旧データ（質問行が削除され question_id が切れたぶん・#304）は、
+    // 実在しない「今回お話したい内容」ではなく、記録が無いことが分かるラベルにする。
+    rows.push([a.question_text || t("ans.q.unknown"), text || t("ans.a.unanswered")]);
   });
   if (String(b.guest_message || "").trim()) rows.push([t("meeting.guestMessageLabel"), b.guest_message]);
   return rows;

@@ -50,6 +50,12 @@
   to = "/booking.html"
   status = 200
 
+# ピンポイント日程調整リンク（#303）。/p/<token> は専用画面へ流す（token はJS側でパスから読む）。
+[[redirects]]
+  from = "/p/*"
+  to = "/pinpoint.html"
+  status = 200
+
 [[redirects]]
   from = "/u/*"
   to = "/public-profile.html"

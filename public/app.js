@@ -967,6 +967,7 @@ function renderBookingPages(pages) {
       <div class="actions">
         <a class="button secondary" href="${escapeHtml(bookingPageUrl(p.slug))}" target="_blank" rel="noopener">${escapeHtml(t("bs.list.open"))}</a>
         <button class="button secondary" type="button" data-page-action="copy" data-slug="${escapeHtml(p.slug)}">${escapeHtml(t("bs.list.copyUrl"))}</button>
+        <button class="button secondary" type="button" data-page-action="pinpoint" data-slug="${escapeHtml(p.slug)}" data-id="${escapeHtml(p.id)}">${escapeHtml(t("pp.button"))}</button>
         <button class="button secondary" type="button" data-page-action="edit" data-id="${escapeHtml(p.id)}">${escapeHtml(t("bs.list.edit"))}</button>
         <button class="button secondary" type="button" data-page-action="delete" data-id="${escapeHtml(p.id)}">${escapeHtml(t("bs.delete"))}</button>
       </div>
@@ -1173,6 +1174,99 @@ function wireNoteModals() {
   });
 }
 
+// ===== ピンポイント日程調整リンク（#303）=====
+// 空き枠APIから候補を出し、選んだものだけを提示するリンクを発行する。
+// 候補は「キマルが算出した空き枠」に限る（受付時間・バッファ・カレンダーとの整合を崩さないため）。
+let ppPageId = "";
+let ppSlug = "";
+let ppStart = null;              // 表示中の5日間の先頭日（"YYYY-MM-DD"）
+const ppChosen = new Map();      // start(ISO) -> {start, end}。ページを送っても選択を保持する。
+
+function ppSetMessage(text, kind) { setMessage("#pp-message", text, kind); }
+
+async function ppLoad(startYmd) {
+  const box = $("#pp-slots");
+  if (!box) return;
+  box.innerHTML = `<p class="muted">${escapeHtml(t("bs.list.loading"))}</p>`;
+  try {
+    const q = startYmd ? `&start=${encodeURIComponent(startYmd)}` : "";
+    const data = await api(`availability?slug=${encodeURIComponent(ppSlug)}${q}`);
+    ppStart = data.range_start || startYmd || null;
+    const label = $("#pp-range");
+    if (label) label.textContent = ppStart || "";
+    const slots = Array.isArray(data.slots) ? data.slots : [];
+    if (!slots.length) {
+      box.innerHTML = `<p class="muted">${escapeHtml(t("pp.noSlots"))}</p>`;
+      return;
+    }
+    // 日ごとにまとめて出す。チェック状態は ppChosen から復元する。
+    const byDay = new Map();
+    slots.forEach((slot) => {
+      const key = formatSlot(slot.start).slice(0, 10);
+      byDay.set(key, [...(byDay.get(key) || []), slot]);
+    });
+    box.innerHTML = [...byDay.entries()].map(([day, list]) => `
+      <div style="margin-bottom:10px">
+        <p class="eyebrow">${escapeHtml(day)}</p>
+        ${list.map((slot) => `<label class="checkbox-label"><input type="checkbox" data-pp-slot value="${escapeHtml(slot.start)}" data-end="${escapeHtml(slot.end)}"${ppChosen.has(slot.start) ? " checked" : ""} /><span>${escapeHtml(formatSlot(slot.start))}</span></label>`).join("")}
+      </div>`).join("");
+    box.querySelectorAll("[data-pp-slot]").forEach((input) => {
+      input.addEventListener("change", () => {
+        if (input.checked) ppChosen.set(input.value, { start: input.value, end: input.dataset.end });
+        else ppChosen.delete(input.value);
+        ppSetMessage(ppChosen.size ? t("pp.selected").replace("{n}", String(ppChosen.size)) : "");
+      });
+    });
+  } catch (error) {
+    box.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function openPinpoint(pageId, slug) {
+  ppPageId = pageId; ppSlug = slug; ppStart = null;
+  ppChosen.clear();
+  const modal = $("#pp-modal");
+  if (!modal) return;
+  modal.hidden = false;
+  const result = $("#pp-result"); if (result) result.hidden = true;
+  const hold = $("#pp-hold"); if (hold) hold.checked = false;
+  ppSetMessage("");
+  ppLoad(null);
+}
+
+function bindPinpoint() {
+  $("#pp-close")?.addEventListener("click", () => { const m = $("#pp-modal"); if (m) m.hidden = true; });
+  $("#pp-prev")?.addEventListener("click", () => { if (ppStart) ppLoad(shiftYmdDays(ppStart, -5)); });
+  $("#pp-next")?.addEventListener("click", () => { if (ppStart) ppLoad(shiftYmdDays(ppStart, 5)); });
+  $("#pp-copy")?.addEventListener("click", () => {
+    const url = $("#pp-url")?.value || "";
+    navigator.clipboard?.writeText(url).catch(() => {});
+    ppSetMessage(t("pp.copied"), "success");
+  });
+  $("#pp-create")?.addEventListener("click", async () => {
+    if (!ppChosen.size) { ppSetMessage(t("pp.needSlot"), "error"); return; }
+    ppSetMessage(t("pp.creating"));
+    try {
+      const res = await api("pinpoint-create", {
+        method: "POST",
+        body: JSON.stringify({ booking_page_id: ppPageId, slots: [...ppChosen.values()], hold_slots: Boolean($("#pp-hold")?.checked) }),
+      });
+      const input = $("#pp-url"); if (input) input.value = res.url || "";
+      const result = $("#pp-result"); if (result) result.hidden = false;
+      ppSetMessage(t("pp.created"), "success");
+    } catch (error) {
+      ppSetMessage(error.message, "error");
+    }
+  });
+}
+
+// "YYYY-MM-DD" を日数ぶんずらす。
+function shiftYmdDays(ymd, delta) {
+  const [y, m, d] = String(ymd).split("-").map(Number);
+  const dt = new Date(y, (m || 1) - 1, (d || 1) + delta);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
 function clearBookingPageForm() {
   const form = $("#booking-page-form");
   if (!form) return;
@@ -1250,6 +1344,7 @@ async function initAdmin() {
   $("#booking-page-form")?.querySelector('select[name="buffer_before_minutes"]')?.addEventListener("change", updateBookingPageControls);
   $("#booking-page-form")?.querySelector('select[name="buffer_after_minutes"]')?.addEventListener("change", updateBookingPageControls);
   $("#booking-page-new")?.addEventListener("click", clearBookingPageForm);
+  bindPinpoint();
   $("#add-question")?.addEventListener("click", addQuestionRow);
   $("#question-list")?.addEventListener("click", (event) => {
     if (event.target.closest(".question-remove")) {
@@ -1291,6 +1386,8 @@ async function initAdmin() {
       const url = bookingPageUrl(button.dataset.slug);
       navigator.clipboard?.writeText(url).catch(() => {});
       setMessage("#booking-list-message", `URLをコピーしました: ${url}`, "success");
+    } else if (action === "pinpoint") {
+      openPinpoint(button.dataset.id, button.dataset.slug);
     } else if (action === "edit") {
       fillBookingPageForm(pages.find((p) => p.id === button.dataset.id));
     } else if (action === "delete") {

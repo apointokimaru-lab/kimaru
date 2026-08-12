@@ -19,6 +19,8 @@ const section = (n) => console.log("\n# " + n);
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split("?")[0]);
   if (p === "/") p = "/index.html";
+  // netlify.toml の rewrite 相当。/b/<slug> と /p/<token> は booking.html を返す。
+  if (/^\/(b|p)\//.test(p)) p = "/booking.html";
   const file = path.join(pub, p);
   if (!file.startsWith(pub) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); return res.end("nf"); }
   res.writeHead(200, { "content-type": MIME[path.extname(file)] || "text/plain" });
@@ -257,6 +259,78 @@ section("booking page with no questions shows no questionnaire");
   ok("no default 今回お話したい内容 question", !(await bodyText(page)).includes("今回お話したい内容"));
   ok("no JS exception", page._errors.length === 0);
   await page.close();
+}
+
+// ===== 8) ピンポイント日程調整（#303） =====
+section("pinpoint scheduling link (#303)");
+{
+  const future = new Date(Date.now() + 5 * 86400000);
+  future.setHours(14, 0, 0, 0);
+  const SLOTS = [
+    { start: future.toISOString(), end: new Date(future.getTime() + 1800000).toISOString() },
+    { start: new Date(future.getTime() + 86400000).toISOString(), end: new Date(future.getTime() + 86400000 + 1800000).toISOString() },
+  ];
+  // --- ゲスト: /p/<token> は候補一覧＋ラジオで出る ---
+  {
+    const page = await newPage();
+    let booked = null;
+    await page.route("**/api/**", (route) => {
+      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      if (name === "book") { booked = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, manage_url: "/manage-booking.html?k=x" }) }); }
+      const body = name === "pinpoint"
+        ? { token: "toke2e", slots: SLOTS, questions: [], host: { slug: "taro", title: "初回相談", duration_minutes: 30, location_type: "google_meet", name: "テスト オーナー" } }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    // /p/* は booking.html を返す（netlify.toml の rewrite 相当）
+    await page.goto(`${base}/p/toke2e`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    const radios = await page.locator('input[name="pp-slot"]').count();
+    ok("pinpoint shows candidate radios", radios === 2);
+    ok("week calendar is hidden", !(await page.locator("#weekcal").isVisible().catch(() => false)));
+    await page.locator('input[name="pp-slot"]').first().check();
+    await page.waitForTimeout(200);
+    ok("selecting a candidate reveals the form", await page.locator("#booking-form").isVisible());
+    ok("selected slot label is filled", (await page.textContent("#selected-slot")).includes("〜"));
+    await page.fill('input[name="visitor_name"]', "ピン 太郎");
+    await page.fill('input[name="visitor_email"]', "pin@example.com");
+    await page.locator("#booking-form").evaluate((f) => f.requestSubmit());
+    await page.waitForTimeout(300);
+    await page.click("#confirm-book").catch(() => {});
+    await page.waitForTimeout(400);
+    ok("booking payload carries pinpoint_token", booked?.pinpoint_token === "toke2e");
+    ok("booking payload uses the chosen slot", booked?.start === SLOTS[0].start);
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
+  // --- ホスト: 予約ページ一覧からリンクを発行できる ---
+  {
+    const page = await newPage();
+    let created = null;
+    await page.route("**/api/**", (route) => {
+      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      if (name === "pinpoint-create") { created = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, url: "https://kimaru-co.jp/p/tok-new" }) }); }
+      const body = name === "availability" ? { slots: SLOTS, range_start: "2026-09-01", questions: [], host: {} }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
+    await page.waitForSelector('[data-page-action="pinpoint"]', { timeout: 8000 }).catch(() => {});
+    ok("pinpoint button is next to copy button", (await page.locator('[data-page-action="pinpoint"]').count()) === 1);
+    await page.click('[data-page-action="pinpoint"]');
+    await page.waitForTimeout(400);
+    ok("picker modal opens", await page.locator("#pp-modal").isVisible());
+    ok("available slots are listed as checkboxes", (await page.locator("[data-pp-slot]").count()) === 2);
+    await page.locator("[data-pp-slot]").first().check();
+    await page.locator("#pp-hold").check();
+    await page.click("#pp-create");
+    await page.waitForTimeout(400);
+    ok("create request carries the chosen slot", created?.slots?.length === 1 && created.slots[0].start === SLOTS[0].start);
+    ok("create request carries hold flag", created?.hold_slots === true);
+    ok("issued url is shown for copying", (await page.inputValue("#pp-url")).includes("/p/tok-new"));
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
 }
 
 await browser.close();

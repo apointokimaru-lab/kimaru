@@ -212,6 +212,31 @@
       </form>
       <p id="booking-page-message" class="message"></p>
     </section>
+
+    <!-- ピンポイント日程調整リンクの作成（#303）。空き枠から候補を選んで /p/ リンクを発行する。 -->
+    <div id="pp-modal" class="modal" hidden>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="pp-title">
+        <h2 id="pp-title" data-i18n="pp.title">ピンポイント日程調整リンクを作成</h2>
+        <p class="muted" data-i18n="pp.desc">提示したい候補を選んでリンクを作ります。相手はこの候補からだけ選べます。</p>
+        <div class="form-actions" style="justify-content:space-between;align-items:center">
+          <button type="button" class="button secondary" id="pp-prev" data-i18n="pp.prev">← 前の5日</button>
+          <span id="pp-range" class="muted"></span>
+          <button type="button" class="button secondary" id="pp-next" data-i18n="pp.next">次の5日 →</button>
+        </div>
+        <div id="pp-slots" style="max-height:46vh;overflow:auto;margin:12px 0"></div>
+        <label class="checkbox-label"><input type="checkbox" id="pp-hold" /><span data-i18n="pp.hold">選んだ候補を他の予約から押さえる</span></label>
+        <p class="field-note muted" data-i18n="pp.holdNote">押さえると、通常の予約ページからこの時間は選べなくなります。押さえない場合は先着順です。</p>
+        <p id="pp-message" class="message"></p>
+        <div id="pp-result" hidden>
+          <label><span data-i18n="pp.url">日程調整リンク</span><input id="pp-url" readonly /></label>
+          <div class="form-actions"><button type="button" class="button primary" id="pp-copy" data-i18n="pp.copy">URLをコピー</button></div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="button primary" id="pp-create" data-i18n="pp.create">リンクを作成</button>
+          <button type="button" class="button secondary" id="pp-close" data-i18n="pp.close">閉じる</button>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- site-footer -->

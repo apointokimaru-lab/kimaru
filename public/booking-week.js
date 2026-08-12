@@ -265,7 +265,17 @@ function buildBookingPayload(form) {
   // topic は「相談内容」の代表値なので、空欄を飛ばして最初に埋まっている回答を採る。
   data.topic = answers.find((answer) => answer.answer_text)?.answer_text || "";
   delete data.birth_date;
+  // ピンポイント経由なら、どのリンクから来たかをサーバへ渡す。
+  // サーバは候補に含まれる時刻かを検証し、候補外の予約を成立させない（#303）。
+  if (pinpointToken) data.pinpoint_token = pinpointToken;
   return data;
+}
+
+// ピンポイント日程調整リンク（#303）。/p/<token> のときだけ候補一覧モードで動く。
+function resolvePinpointToken() {
+  // 文字種で切らずに次の / まで採る。途中で切れると別トークンとして送られ 404 になる。
+  const m = location.pathname.match(/^\/p\/([^/?#]+)/);
+  return m ? m[1] : "";
 }
 
 function resolveSlug() {
@@ -276,6 +286,7 @@ function resolveSlug() {
 }
 
 let bookingSlug = "demo";
+let pinpointToken = ""; // 空でなければピンポイントモード
 let currentStart = null; // 表示中の5日間の先頭日（"YYYY-MM-DD" JST）
 let pageMinDate = null;  // 予約可能な最古日（これより過去は表示しない）
 let pageMaxDate = null;  // 受付上限日
@@ -567,12 +578,66 @@ function proceedToConfirm(form) {
   goToStep(2);
 }
 
+// ピンポイント: 提示された候補をラジオで並べる。カレンダー操作は不要なので週表は出さない。
+function renderPinpointSlots(slots, form) {
+  const grid = $("#slot-grid");
+  if (!grid) return;
+  if (!slots.length) {
+    grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.pinpoint.empty", "空いている候補がありません。お手数ですが主催者にご連絡ください。"))}</p>`;
+    return;
+  }
+  grid.innerHTML = `<div class="pp-list" role="radiogroup" aria-label="${escapeHtml(t("booking.pinpoint.heading", "候補の日程"))}">${
+    slots.map((slot, i) => `<label class="pp-item"><input type="radio" name="pp-slot" value="${i}" /><span>${escapeHtml(fmtSlotRange(slot.start, slot.end))}</span></label>`).join("")
+  }</div>`;
+  grid.querySelectorAll('input[name="pp-slot"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      const slot = slots[Number(input.value)];
+      if (!slot) return;
+      grid.querySelectorAll(".pp-item").forEach((el) => el.classList.remove("sel"));
+      input.closest(".pp-item")?.classList.add("sel");
+      selectSlot(slot, null, form);
+    });
+  });
+}
+
+async function initPinpoint(form) {
+  // 週送り・月カレンダーはピンポイントでは使わないので、まとめて隠す。
+  ["#weekcal", "#prev-days", "#next-days", "#range-btn"].forEach((sel) => { const el = $(sel); if (el) el.style.display = "none"; });
+  const grid = $("#slot-grid");
+  if (grid) grid.innerHTML = `<div class="week-loading" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span>${escapeHtml(t("booking.week.loading", "空き枠を読み込み中..."))}</span></div>`;
+  try {
+    const data = await api(`pinpoint?token=${encodeURIComponent(pinpointToken)}`);
+    if (data.paused) {
+      if (grid) grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.paused", "現在、予約の受付を停止しています。"))}</p>`;
+      return;
+    }
+    currentHost = data.host || null;
+    if (currentHost) renderHost(currentHost);
+    // 予約先の解決は通常どおり slug で行う（book.js は owner_slug から予約ページを引く）。
+    bookingSlug = (data.host && data.host.slug) || bookingSlug;
+    if (form.elements.owner_slug) form.elements.owner_slug.value = bookingSlug;
+    renderQuestions(data.questions || []);
+    pinpointSlots = Array.isArray(data.slots) ? data.slots : [];
+    renderPinpointSlots(pinpointSlots, form);
+  } catch (error) {
+    if (grid) grid.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+let pinpointSlots = [];
+
 async function initBooking() {
   const grid = $("#slot-grid");
   const form = $("#booking-form");
   if (!grid || !form) return;
+  pinpointToken = resolvePinpointToken();
   bookingSlug = resolveSlug();
   if (form.elements.owner_slug) form.elements.owner_slug.value = bookingSlug;
+  if (pinpointToken) {
+    await withBusy(() => initPinpoint(form));
+    bindBookingSteps(form);
+    return;
+  }
   // 5日送り（前は最古日で無効化＝過去へ行けない。サーバも最古日にクランプ）。
   $("#prev-days")?.addEventListener("click", () => { if (currentStart) withBusy(() => loadDays(shiftYmd(currentStart, -5), false)); });
   $("#next-days")?.addEventListener("click", () => { if (currentStart) withBusy(() => loadDays(shiftYmd(currentStart, 5), false)); });
@@ -591,7 +656,11 @@ async function initBooking() {
     withBusy(() => loadDays(pick.getAttribute("data-pick"), false));
   });
   await withBusy(() => loadDays(null, true));
+  bindBookingSteps(form);
+}
 
+// 入力→確認→確定の結線。通常の予約とピンポイントで共用する。
+function bindBookingSteps(form) {
   // STEP1: 入力 → 確認へ（お名前/メールはブラウザ標準バリデーション後に submit が発火）
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -627,7 +696,9 @@ async function initBooking() {
   document.addEventListener("kimaru:languagechange", () => {
     if (currentHost) renderHost(currentHost);
     // 5日グリッドを再取得して再描画（曜日見出し・範囲ラベルなどを反映）。
-    withBusy(() => loadDays(currentStart, false));
+    // ピンポイントは週表を使わないので、候補一覧を描き直すだけにする。
+    if (pinpointToken) renderPinpointSlots(pinpointSlots, form);
+    else withBusy(() => loadDays(currentStart, false));
     // 選択中の日程ラベルを更新。
     const selectedLabel = document.getElementById("selected-slot");
     if (selectedLabel && form.elements.start.value) {

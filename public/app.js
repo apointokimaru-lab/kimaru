@@ -1419,11 +1419,17 @@ async function initSchedule() {
 // 予約から「事前アンケート回答」行を作る（topic ＋ 質問回答 ＋ メッセージ）。
 function answerRows(b) {
   const rows = [];
-  if (String(b.topic || "").trim()) rows.push([t("ans.q.topic"), b.topic]);
+  const answers = (b.answers || []).filter(Boolean);
+  // bookings.topic はアンケート1問目の回答をコピーしたもの（booking-week.js）で、
+  // 独立した質問ではない。そのまま「今回お話したい内容」というラベルで出すと、
+  // 同じ答えが2行並ぶ。回答側に同じ内容があるときは出さない。
+  // topic が回答と一致しない旧データ（独立した自由記述だった頃のもの）だけ残す。
+  const topic = String(b.topic || "").trim();
+  const topicInAnswers = answers.some((a) => String(a.answer_text || "").trim() === topic);
+  if (topic && !topicInAnswers) rows.push([t("ans.q.topic"), topic]);
   // 未回答の任意項目も行として出す（#307）。答えが無かったことも記録なので、
   // 質問ごと消すと「聞いたはずの質問が無い」ように見えてしまう。
-  (b.answers || []).forEach((a) => {
-    if (!a) return;
+  answers.forEach((a) => {
     const text = String(a.answer_text || "").trim();
     if (!text && !a.question_text) return; // 質問も答えも無い行は出さない
     rows.push([a.question_text || t("ans.q.topic"), text || t("ans.a.unanswered")]);

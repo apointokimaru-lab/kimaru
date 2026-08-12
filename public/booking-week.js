@@ -91,9 +91,11 @@ function renderQuestions(questions) {
   const container = document.getElementById("questionnaire-fields");
   if (!container) return;
   bookingQuestions = Array.isArray(questions) ? questions : [];
-  const list = bookingQuestions.length
-    ? bookingQuestions
-    : [{ id: null, question_text: t("booking.form.topic", "今回お話したい内容"), is_required: true, answer_type: "text", options: [] }];
+  // 質問が0件の予約ページでは、アンケート欄そのものを出さない（#312）。
+  // 以前は「今回お話したい内容」という既定質問を自動で1問足していたが、
+  // ホストが設定していない質問をゲストに必須で答えさせることになるためやめた。
+  // 回答レコードも作られないので、回答一覧にも出ない。
+  const list = bookingQuestions;
   container.innerHTML = list
     .map((question, index) => {
       const required = Boolean(question.is_required);

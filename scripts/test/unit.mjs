@@ -511,6 +511,35 @@ section("unanswered optional questions are kept (#307)");
   ok("質問も答えも無い行は載せない", answersSummary([{ question_text: "", answer_text: "" }]) === "");
 }
 
+// ---------- 9d) #314 停止中の画面はURL直打ちでも開かせない ----------
+// Edge Function（auth-gate）は e2e の静的サーバでは動かないので、ハンドラを直接呼んで確かめる。
+section("edge auth-gate blocks disabled pages (#314)");
+{
+  const gate = (await import(new URL("../../netlify/edge-functions/auth-gate.js", import.meta.url))).default;
+  const call = async (path, cookie) => {
+    const request = new Request(`https://kimaru-co.jp${path}`, { headers: cookie ? { cookie } : {} });
+    // context.next() が呼ばれたら「素通り」＝ブロックしていない。
+    let passedThrough = false;
+    const context = { next: async () => { passedThrough = true; return new Response("ok", { headers: { "content-type": "text/plain" } }); } };
+    const res = await gate(request, context);
+    return { status: res.status, location: res.headers.get("location") || "", passedThrough };
+  };
+
+  const anon = await call("/pending-questions.html");
+  ok("未ログインでも回答待ち画面はダッシュボードへ戻す", anon.status === 302 && anon.location.endsWith("/dashboard.html"));
+  ok("ログイン画面へは飛ばさない", !anon.location.includes("login"));
+  ok("ページ本体を返さない（素通りしない）", anon.passedThrough === false);
+
+  const loggedIn = await call("/pending-questions.html", `kimaru_session=${sessionCookie(OWNER.id).split(";")[0].split("=")[1]}`);
+  ok("ログイン中でも回答待ち画面は開かせない", loggedIn.status === 302 && loggedIn.location.endsWith("/dashboard.html"));
+
+  // 停止対象でないページは従来どおり（未ログインならログインへ、それ以外は素通り）。
+  const other = await call("/dashboard.html");
+  ok("他の保護ページは従来どおりログイン画面へ", other.status === 302 && other.location.includes("/login.html"));
+  const pub = await call("/index.html");
+  ok("公開ページは素通りする", pub.passedThrough === true);
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";

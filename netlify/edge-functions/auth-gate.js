@@ -24,6 +24,13 @@ const PROTECTED_PATHS = [
   "/pending-questions.html",
 ];
 
+// 仕様が固まるまで停止している画面（#314）。ログインの有無にかかわらずダッシュボードへ戻す。
+// ファイル自体（public/pending-questions.html）とAPIは残してあるので、
+// 再開するときはこの配列から外すだけでよい。導線（ダッシュボードの要対応）も別途戻すこと。
+const DISABLED_PATHS = [
+  "/pending-questions.html",
+];
+
 // 運営向け画面：運営セッション（kimaru_admin_session）が必須。ユーザーログインとは無関係。
 const OPERATOR_PATHS = [
   "/cat-key-admin.html",
@@ -150,6 +157,12 @@ export default async (request, context) => {
   const path = url.pathname;
   const authed = await verifyCookie(request, "kimaru_session", false);
   const operator = await verifyCookie(request, "kimaru_admin_session", true);
+
+  // ⓪ 停止中の画面は、URL直打ちでも開かせない（ダッシュボードへ戻す）。
+  // 認証判定より先に行う。未ログインならログイン画面ではなくここで完結させたいため。
+  if (DISABLED_PATHS.includes(path)) {
+    return Response.redirect(new URL("/dashboard.html", url.origin).toString(), 302);
+  }
 
   // ① 運営ページの保護（ユーザーログインではなく運営セッションを要求）
   if (OPERATOR_PATHS.includes(path) && !operator) {

@@ -529,6 +529,29 @@ select{height:48px;padding-block:0}
 .wk-slot{position:absolute;left:5px;right:5px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 9px;font-family:var(--mono);font-size:11.5px;font-weight:700;line-height:1.25;text-align:left;cursor:pointer;box-shadow:0 8px 16px -10px rgba(222,74,46,.75);transition:filter .12s ease}
 .wk-slot:hover{filter:brightness(1.07)}
 .wk-slot.sel{box-shadow:0 0 0 3px var(--surface),0 0 0 6px rgba(222,74,46,.5)}
+.wk-slot .wk-slot-t{display:block}
+.wk-slot .wk-slot-e{display:block;font-size:10px;opacity:.85}
+
+/* ===== ピンポイント候補選択（#303・ホスト側）=====
+   予約画面と同じ週グリッドを使うが、ここでの操作は「選ぶ」ではなく「候補に入れる」。
+   未選択＝白抜き / 選択済み＝朱ベタ＋✓ と塗りを反転させ、どれを相手に出すかを一目で分かるようにする
+   （全部が朱ベタの予約画面のままだと、選んだ枠が見分けられない）。 */
+.wk-grid.is-picker .wk-slot{background:var(--surface);color:var(--accent-ink);border:1.5px solid var(--accent);box-shadow:none}
+.wk-grid.is-picker .wk-slot:hover{background:var(--accent-soft);filter:none}
+/* ✓ は時刻の文字に重ならないよう右に場所を空けてから置く（枠が細いスマホで重なるため）。 */
+.wk-grid.is-picker .wk-slot.is-picked{background:var(--accent);color:#fff;border-color:var(--accent);padding-right:18px;box-shadow:0 8px 16px -10px rgba(222,74,46,.75)}
+.wk-grid.is-picker .wk-slot.is-picked::after{content:"✓";position:absolute;top:3px;right:4px;font-size:10px;line-height:1}
+.wk-grid.is-picker .wk-slot:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+
+.pp-chips{display:flex;flex-wrap:wrap;gap:8px}
+.pp-chip{display:inline-flex;align-items:center;gap:8px;padding:7px 8px 7px 13px;border-radius:var(--radius-pill);background:var(--accent-soft);color:var(--accent-ink);font-family:var(--mono);font-size:12.5px;font-weight:700}
+.pp-chip button{border:0;background:transparent;color:var(--accent-ink);font-size:13px;line-height:1;cursor:pointer;padding:2px 4px;border-radius:50%}
+.pp-chip button:hover{background:var(--accent);color:#fff}
+/* 発行トレイ。グリッドが縦に長いので、選択件数と発行ボタンは画面下に貼り付けて常に見えるようにする。
+   スマホは画面が狭く、貼り付けるとグリッドを覆ってしまうので通常配置に戻す。 */
+.pp-tray{position:sticky;bottom:18px;box-shadow:var(--shadow-lg)}
+@media (max-width:680px){.pp-tray{position:static}}
+
 @media (max-width:680px){
   .weekcal{--hh:52px}
   .wk-grid{grid-template-columns:40px repeat(5,minmax(0,1fr)) 40px}
@@ -538,6 +561,9 @@ select{height:48px;padding-block:0}
   .wk-headcell{font-size:11px;gap:3px}.wk-headcell .d{font-size:13px}
   .wk-slot{font-size:9.5px;padding:4px 5px;left:3px;right:3px}
   .wk-axis .hr{right:4px;font-size:9.5px}
+  /* スマホは枠が細く、✓を置くと時刻に重なる。塗り（白抜き↔朱ベタ）だけで区別する。 */
+  .wk-grid.is-picker .wk-slot.is-picked{padding-right:5px}
+  .wk-grid.is-picker .wk-slot.is-picked::after{content:none}
 }
 
 /* ===== モーダル（予約完了など） ===== */

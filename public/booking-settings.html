@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="bs.pageTitle">キマル - 予約ページ設定</title>
   <link rel="stylesheet" href="/styles.css" />
+  <!-- 週タイムグリッド（.weekcal / .wk-* / 月カレンダー）のスタイルはここに入っている。
+       ピンポイントの候補選択で、ゲストの予約画面と同じ見た目を使うため読み込む（#303）。 -->
+  <link rel="stylesheet" href="/booking-redesign.css" />
   <script src="/page-busy.js"></script>
 </head>
 <body data-page="admin" data-booking-settings="true" data-i18n-title="bs.pageTitle">
@@ -213,27 +216,82 @@
       <p id="booking-page-message" class="message"></p>
     </section>
 
-    <!-- ピンポイント日程調整リンクの作成（#303）。空き枠から候補を選んで /p/ リンクを発行する。 -->
-    <div id="pp-modal" class="modal" hidden>
-      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="pp-title">
-        <h2 id="pp-title" data-i18n="pp.title">ピンポイント日程調整リンクを作成</h2>
-        <p class="muted" data-i18n="pp.desc">提示したい候補を選んでリンクを作ります。相手はこの候補からだけ選べます。</p>
-        <div class="form-actions" style="justify-content:space-between;align-items:center">
-          <button type="button" class="button secondary" id="pp-prev" data-i18n="pp.prev">← 前の5日</button>
-          <span id="pp-range" class="muted"></span>
-          <button type="button" class="button secondary" id="pp-next" data-i18n="pp.next">次の5日 →</button>
+    <!-- ピンポイント候補選択（#303）。一覧・編集と同じく全幅の画面として切り替える。
+         ゲストの予約画面と同じ5日タイムグリッドを使い、押した枠がそのまま候補になる（複数可）。 -->
+    <section id="pinpoint-view" class="panel settings-section editor-view" aria-labelledby="pp-title" hidden>
+      <div class="section-head">
+        <div>
+          <h2 id="pp-title" data-i18n="pin.title">候補の日程を選ぶ</h2>
+          <!-- 予約ページ名を差し込むので data-i18n は付けない（textContent を上書きされると {title} が残る）。
+               言語切替時は app.js 側で入れ直す。 -->
+          <p id="pp-page-name" class="muted">空き枠から選びます。選んだ枠だけが相手に見えます。</p>
         </div>
-        <div id="pp-slots" style="max-height:46vh;overflow:auto;margin:12px 0"></div>
-        <label class="checkbox-label"><input type="checkbox" id="pp-hold" /><span data-i18n="pp.hold">選んだ候補を他の予約から押さえる</span></label>
-        <p class="field-note muted" data-i18n="pp.holdNote">押さえると、通常の予約ページからこの時間は選べなくなります。押さえない場合は先着順です。</p>
-        <p id="pp-message" class="message"></p>
-        <div id="pp-result" hidden>
-          <label><span data-i18n="pp.url">日程調整リンク</span><input id="pp-url" readonly /></label>
-          <div class="form-actions"><button type="button" class="button primary" id="pp-copy" data-i18n="pp.copy">URLをコピー</button></div>
+        <button type="button" id="pp-back" class="button secondary" data-i18n="pin.back">← 一覧に戻る</button>
+      </div>
+
+      <!-- 5日単位のタイムグリッド。上部バー: [‹ 前の5日] [範囲ボタン=月カレンダー] [次の5日 ›] -->
+      <div id="pp-weekcal" class="weekcal" style="display:none">
+        <div class="weekcal-top">
+          <button type="button" id="pp-prev" class="wk-nav" aria-label="前の5日"><span class="wk-ar" aria-hidden="true">‹</span><span class="wk-nav-tx" data-i18n="booking.week.prev5">前の5日</span></button>
+          <button type="button" id="pp-range-btn" class="rangebtn" aria-haspopup="dialog">
+            <span class="cal-ic" aria-hidden="true">📅</span>
+            <span id="pp-range-label">—</span>
+            <span class="chev" aria-hidden="true">▼</span>
+          </button>
+          <button type="button" id="pp-next" class="wk-nav" aria-label="次の5日"><span class="wk-nav-tx" data-i18n="booking.week.next5">次の5日</span><span class="wk-ar" aria-hidden="true">›</span></button>
         </div>
-        <div class="form-actions">
-          <button type="button" class="button primary" id="pp-create" data-i18n="pp.create">リンクを作成</button>
-          <button type="button" class="button secondary" id="pp-close" data-i18n="pp.close">閉じる</button>
+        <div id="pp-grid" class="wk-grid is-picker"></div>
+        <p class="pp-hint field-note muted" data-i18n="pin.hint">枠を押すと候補に入ります。もう一度押すと外れます。</p>
+      </div>
+
+      <!-- 読み込み中・空き枠なしのステータス表示 -->
+      <div id="pp-status" class="slot-grid"></div>
+
+      <!-- 発行トレイ。選んだ候補・押さえ方・発行ボタンを1か所にまとめる。 -->
+      <div class="pp-tray">
+        <div class="pp-tray-main">
+          <p class="eyebrow"><span data-i18n="pin.count">選んだ候補</span> <span id="pp-count">0</span></p>
+          <div id="pp-chips" class="pp-chips"></div>
+        </div>
+        <div class="pp-tray-side">
+          <label><span data-i18n="pin.holdLabel">候補の枠</span>
+            <select id="pp-hold">
+              <option value="none" data-i18n="pin.holdOff">押さえない（先着順）</option>
+              <option value="hold" data-i18n="pin.holdOn">押さえる（他の予約を入れない）</option>
+            </select>
+          </label>
+          <p class="field-note muted" data-i18n="pin.holdNote">押さえると、通常の予約ページからこの時間は選べなくなります。</p>
+          <div class="form-actions"><button type="button" class="button primary" id="pp-create" data-i18n="pin.create">リンクを作成</button></div>
+        </div>
+      </div>
+      <p id="pp-message" class="message" role="status"></p>
+
+      <div id="pp-result" class="pp-result" hidden>
+        <p class="eyebrow" data-i18n="pin.resultTitle">作成しました</p>
+        <div class="pp-result-row">
+          <input id="pp-url" readonly />
+          <button type="button" class="button secondary" id="pp-copy" data-i18n="pin.copy">URLをコピー</button>
+        </div>
+        <p class="field-note muted" data-i18n="pin.resultNote">このURLを相手に送ってください。候補が埋まるまで何人でも開けます。</p>
+      </div>
+    </section>
+
+    <!-- 月カレンダー（範囲/日付を押すと開く。空き枠のある日を選ぶとその日から5日間を表示） -->
+    <div class="modal-overlay" id="pp-cal-modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-label="日付を選ぶ">
+        <button class="modal-close" type="button" id="pp-cal-close" aria-label="閉じる">✕</button>
+        <div class="cal">
+          <div class="cal-head">
+            <button class="cal-nav" type="button" id="pp-cal-prev" aria-label="前の月">‹</button>
+            <div class="cal-title" id="pp-cal-title"></div>
+            <button class="cal-nav" type="button" id="pp-cal-next" aria-label="次の月">›</button>
+          </div>
+          <div class="cal-grid" id="pp-cal-dow"></div>
+          <div class="cal-grid" id="pp-cal-days"></div>
+          <div class="cal-legend">
+            <span class="lg"><span class="dot"></span><span data-i18n="booking.cal.hasSlot">予約枠あり</span></span>
+            <span class="lg" data-i18n="booking.cal.noSlot">グレー＝空きなし</span>
+          </div>
         </div>
       </div>
     </div>
@@ -242,6 +300,8 @@
   <!-- site-footer -->
 
   <script src="/i18n.js" defer></script>
+  <!-- ピンポイント候補選択の週グリッド描画（予約画面と共用）。app.js より先に読む。 -->
+  <script src="/week-grid.js" defer></script>
   <script src="/app.js" defer></script>
   <script>
     // Googleカレンダー未連携のときだけ連携を促す（連携済みなら何も出さない）。

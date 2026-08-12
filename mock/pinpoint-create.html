@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mock - ピンポイント候補選択（キマル）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/mock.css" />
+</head>
+<body>
+<!-- mock: プレースホルダ内容のみ（mock/README.md のルール参照）。
+     #303 ピンポイント日程調整。ホストが「候補の日程」を選ぶ画面。
+     ゲストの予約画面と同じ週タイムグリッドを使い、押した枠が候補になる（複数可）。 -->
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="/"><span class="brand-dot"></span>キマル</a>
+    <div style="display:flex;gap:14px;align-items:center">
+      <span class="muted" style="font-size:13px;font-weight:600">予約ページ設定</span>
+      <span class="muted" style="font-size:13px;font-weight:600">日本語</span>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+
+  <section class="pagehead">
+    <span class="eyebrow">Pinpoint</span>
+    <div class="row-between" style="margin:12px 0 6px">
+      <h1 style="margin:0">候補の日程を選ぶ</h1>
+      <a class="btn btn-ghost" href="/booking-settings.html">← 予約ページ一覧</a>
+    </div>
+    <p class="sub muted" style="margin:0">
+      「初回相談（50分 / Google Meet）」の空き枠から選びます。選んだ枠だけが相手に見えます。
+    </p>
+  </section>
+
+  <!-- 予約画面と同じ週タイムグリッド。違いは「押すと候補に入る（複数選べる）」ところだけ。
+       未選択＝白抜き（まだ選べる枠）／選択済み＝朱ベタ＋✓（決まった候補）で、
+       どちらが候補かをひと目で分かるようにしている。 -->
+  <div class="panel weekcal">
+    <div class="weekcal-top">
+      <button class="wk-nav" type="button" aria-label="前の5日">‹<span class="wk-nav-tx"> 前の5日</span></button>
+      <button class="rangebtn" type="button" data-cal-open>
+        <span class="cal-ic">📅</span>
+        <span id="rangeLabel">6月22日 – 26日</span>
+        <span class="chev">▼</span>
+      </button>
+      <button class="wk-nav" type="button" aria-label="次の5日"><span class="wk-nav-tx">次の5日 </span>›</button>
+    </div>
+
+    <div class="wk-grid is-picker" id="ppGrid">
+      <div class="wk-navcell"></div>
+      <div class="wk-headcell tappable" data-cal-open><span class="d">22</span>月</div>
+      <div class="wk-headcell tappable" data-cal-open><span class="d">23</span>火</div>
+      <div class="wk-headcell tappable" data-cal-open><span class="d">24</span>水</div>
+      <div class="wk-headcell tappable" data-cal-open><span class="d">25</span>木</div>
+      <div class="wk-headcell tappable" data-cal-open><span class="d">26</span>金</div>
+      <div class="wk-navcell"></div>
+
+      <div class="wk-axis">
+        <span class="hr" style="top:calc(var(--hh)*0)">17:00</span>
+        <span class="hr" style="top:calc(var(--hh)*1)">18:00</span>
+        <span class="hr" style="top:calc(var(--hh)*2)">19:00</span>
+        <span class="hr" style="top:calc(var(--hh)*3)">20:00</span>
+        <span class="hr" style="top:calc(var(--hh)*4)">21:00</span>
+        <span class="hr" style="top:calc(var(--hh)*5)">22:00</span>
+        <span class="hr" style="top:calc(var(--hh)*6)">23:00</span>
+        <span class="hr" style="top:calc(var(--hh)*7)">24:00</span>
+      </div>
+
+      <!-- 22 月: 空き枠なし -->
+      <div class="wk-day"></div>
+      <!-- 23 火 -->
+      <div class="wk-day">
+        <button class="wk-slot" type="button" data-label="6/23(火) 19:30〜20:20" style="top:calc(var(--hh)*2.5);height:calc(var(--hh)*.83)"><span class="wk-slot-t">19:30</span><span class="wk-slot-e">20:20</span></button>
+        <button class="wk-slot is-picked" type="button" data-label="6/23(火) 20:30〜21:20" style="top:calc(var(--hh)*3.5);height:calc(var(--hh)*.83)"><span class="wk-slot-t">20:30</span><span class="wk-slot-e">21:20</span></button>
+        <button class="wk-slot" type="button" data-label="6/23(火) 21:30〜22:20" style="top:calc(var(--hh)*4.5);height:calc(var(--hh)*.83)"><span class="wk-slot-t">21:30</span><span class="wk-slot-e">22:20</span></button>
+      </div>
+      <!-- 24 水: 空き枠なし -->
+      <div class="wk-day"></div>
+      <!-- 25 木 -->
+      <div class="wk-day">
+        <button class="wk-slot is-picked" type="button" data-label="6/25(木) 18:30〜19:20" style="top:calc(var(--hh)*1.5);height:calc(var(--hh)*.83)"><span class="wk-slot-t">18:30</span><span class="wk-slot-e">19:20</span></button>
+        <button class="wk-slot" type="button" data-label="6/25(木) 19:30〜20:20" style="top:calc(var(--hh)*2.5);height:calc(var(--hh)*.83)"><span class="wk-slot-t">19:30</span><span class="wk-slot-e">20:20</span></button>
+        <button class="wk-slot" type="button" data-label="6/25(木) 20:30〜21:20" style="top:calc(var(--hh)*3.5);height:calc(var(--hh)*.83)"><span class="wk-slot-t">20:30</span><span class="wk-slot-e">21:20</span></button>
+        <button class="wk-slot" type="button" data-label="6/25(木) 21:30〜22:20" style="top:calc(var(--hh)*4.5);height:calc(var(--hh)*.83)"><span class="wk-slot-t">21:30</span><span class="wk-slot-e">22:20</span></button>
+      </div>
+      <!-- 26 金 -->
+      <div class="wk-day">
+        <button class="wk-slot" type="button" data-label="6/26(金) 19:30〜20:20" style="top:calc(var(--hh)*2.5);height:calc(var(--hh)*.83)"><span class="wk-slot-t">19:30</span><span class="wk-slot-e">20:20</span></button>
+      </div>
+
+      <div class="wk-axis">
+        <span class="hr" style="top:calc(var(--hh)*0)">17:00</span>
+        <span class="hr" style="top:calc(var(--hh)*1)">18:00</span>
+        <span class="hr" style="top:calc(var(--hh)*2)">19:00</span>
+        <span class="hr" style="top:calc(var(--hh)*3)">20:00</span>
+        <span class="hr" style="top:calc(var(--hh)*4)">21:00</span>
+        <span class="hr" style="top:calc(var(--hh)*5)">22:00</span>
+        <span class="hr" style="top:calc(var(--hh)*6)">23:00</span>
+        <span class="hr" style="top:calc(var(--hh)*7)">24:00</span>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:16px">枠を押すと候補に入ります。もう一度押すと外れます。</p>
+  </div>
+
+  <!-- 発行トレイ。選んだ候補・押さえ方・発行ボタンを1か所にまとめ、
+       スクロールしても常に見えるよう画面下に貼り付ける（予約設定の保存バーと同じ作り）。 -->
+  <div class="panel pp-tray">
+    <div class="row-between" style="align-items:flex-start">
+      <div style="flex:1;min-width:260px">
+        <p class="eyebrow" style="margin-bottom:8px">選んだ候補 <span id="ppCount">2</span>件</p>
+        <div class="pp-chips" id="ppChips">
+          <span class="pp-chip">6/23(火) 20:30〜21:20<button type="button" aria-label="候補から外す">✕</button></span>
+          <span class="pp-chip">6/25(木) 18:30〜19:20<button type="button" aria-label="候補から外す">✕</button></span>
+        </div>
+      </div>
+      <div style="min-width:240px">
+        <div class="field" style="margin-bottom:6px">
+          <label for="ppHold">候補の枠</label>
+          <select id="ppHold">
+            <option>押さえない（先着順）</option>
+            <option>押さえる（他の予約を入れない）</option>
+          </select>
+        </div>
+        <p class="field-note">押さえると、通常の予約ページからこの時間は選べなくなります。</p>
+      </div>
+    </div>
+    <div class="row-between" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn btn-primary" type="button" id="ppCreate">リンクを作成</button>
+    </div>
+  </div>
+
+  <!-- 発行後。URLは「送る」までが仕事なので、コピー導線を主役にする。 -->
+  <div class="panel" id="ppResult" style="margin-top:18px">
+    <p class="eyebrow" style="margin-bottom:10px">作成しました</p>
+    <div class="row-between" style="gap:10px">
+      <input class="input" type="text" readonly value="https://kimaru-co.jp/p/8f2c1ab9d4" style="flex:1;min-width:240px" />
+      <button class="btn btn-ghost" type="button">URLをコピー</button>
+    </div>
+    <p class="field-note" style="margin-top:10px">このURLを相手に送ってください。候補が埋まるまで何人でも開けます。</p>
+  </div>
+
+  <!-- 月カレンダー（範囲/日付を押すと開く）。予約画面と同じ部品。 -->
+  <div class="modal-overlay" id="calModal" hidden>
+    <div class="modal" style="text-align:left">
+      <button class="modal-close" type="button" data-cal-close>✕</button>
+      <div class="cal">
+        <div class="cal-head">
+          <button class="cal-nav" type="button" aria-label="前の月">‹</button>
+          <div class="cal-title">2026年6月</div>
+          <button class="cal-nav" type="button" aria-label="次の月">›</button>
+        </div>
+        <div class="cal-grid">
+          <div class="cal-dow">日</div><div class="cal-dow">月</div><div class="cal-dow">火</div>
+          <div class="cal-dow">水</div><div class="cal-dow">木</div><div class="cal-dow">金</div><div class="cal-dow">土</div>
+        </div>
+        <div class="cal-grid" id="calDays"></div>
+        <div class="cal-legend">
+          <span class="lg"><span class="dot"></span>予約枠あり</span>
+          <span class="lg">グレー＝空きなし</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // 枠の候補トグル → チップと件数を作り直す（モックなので枠のラベル文字をそのまま使う）。
+  const grid = document.getElementById('ppGrid');
+  const chips = document.getElementById('ppChips');
+  const count = document.getElementById('ppCount');
+  function refresh() {
+    const picked = [...grid.querySelectorAll('.wk-slot.is-picked')];
+    count.textContent = picked.length;
+    chips.innerHTML = picked.map((b) => `<span class="pp-chip">${b.dataset.label}<button type="button" aria-label="候補から外す">✕</button></span>`).join('')
+      || '<span class="muted" style="font-size:13.5px">枠を押して候補を選んでください。</span>';
+  }
+  grid.addEventListener('click', (e) => {
+    const slot = e.target.closest('.wk-slot');
+    if (!slot) return;
+    slot.classList.toggle('is-picked');
+    refresh();
+  });
+  chips.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') return;
+    const label = e.target.parentElement.textContent.replace('✕', '').trim();
+    grid.querySelectorAll('.wk-slot.is-picked').forEach((b) => { if (b.dataset.label === label) b.classList.remove('is-picked'); });
+    refresh();
+  });
+  // 月カレンダーの開閉（予約画面と同じ挙動）
+  const modal = document.getElementById('calModal');
+  document.querySelectorAll('[data-cal-open]').forEach((el) => el.addEventListener('click', () => { modal.hidden = false; }));
+  document.querySelector('[data-cal-close]')?.addEventListener('click', () => { modal.hidden = true; });
+  // 月カレンダーの日付（モックの固定値）
+  const days = document.getElementById('calDays');
+  const has = new Set([23, 25, 26, 29, 30]);
+  let html = '';
+  for (let i = 0; i < 1; i++) html += '<div class="cal-day empty"></div>';
+  for (let d = 1; d <= 30; d++) html += `<div class="cal-day ${has.has(d) ? 'has-slot' : 'no-slot'}">${d}<span class="dot"></span></div>`;
+  days.innerHTML = html;
+  refresh();
+</script>
+</body>
+</html>

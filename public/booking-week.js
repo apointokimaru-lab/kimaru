@@ -298,88 +298,28 @@ function ymdStr(y, m0, d) { return `${y}-${pad2(m0 + 1)}-${pad2(d)}`; }
 function dateFromYmd(str, addDays = 0) { const p = parseYmd(str); return new Date(p.y, p.m, p.d + addDays); }
 function shiftYmd(str, deltaDays) { const dt = dateFromYmd(str, deltaDays); return ymdStr(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
 function todayYmd() { const d = new Date(); return ymdStr(d.getFullYear(), d.getMonth(), d.getDate()); }
-// ISO(UTC) → JST の年月日・その日の分。
-function jstFields(iso) {
-  const t2 = new Date(iso).getTime() + 9 * 3600 * 1000;
-  const u = new Date(t2);
-  return { y: u.getUTCFullYear(), m: u.getUTCMonth(), d: u.getUTCDate(), min: u.getUTCHours() * 60 + u.getUTCMinutes() };
-}
-function fmtMin(min) { return `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`; }
-function weekdayShort(date) { return new Intl.DateTimeFormat(currentLocale(), { weekday: "short" }).format(date).replace("曜日", ""); }
-
+// ISO→JSTの分換算・時刻表記・曜日名はグリッド描画側（week-grid.js）が持つ。
+// ここで持つと同じ計算が二重になるので、範囲ラベルもそちらのものを使う。
 function rangeLabelText(startYmd, days) {
-  const start = dateFromYmd(startYmd, 0);
-  const end = dateFromYmd(startYmd, (days || 5) - 1);
-  const locale = currentLocale();
-  const startTxt = new Intl.DateTimeFormat(locale, { month: "long", day: "numeric" }).format(start);
-  const sameMonth = start.getMonth() === end.getMonth();
-  const endTxt = new Intl.DateTimeFormat(locale, sameMonth ? { day: "numeric" } : { month: "long", day: "numeric" }).format(end);
-  return `${startTxt} – ${endTxt}`;
+  return window.KimaruWeekGrid ? window.KimaruWeekGrid.rangeLabelText(startYmd, days) : "";
 }
 
-// 5日タイムグリッドの描画。空き枠が無い日も列を出す（軸は稼働時間帯）。
+// 5日タイムグリッドの描画。実体は week-grid.js（ホストのピンポイント候補選択と共用）。
+// ここでは「1つだけ選ぶ」という予約画面の意味づけだけを渡す。
 function renderGrid(data) {
   const grid = $("#wk-grid");
   const weekcal = $("#weekcal");
   const form = $("#booking-form");
-  if (!grid) return;
-  const axis = data.axis || { start_min: 600, end_min: 1080 };
-  const startHour = Math.max(0, Math.floor(axis.start_min / 60));
-  const endHour = Math.min(24, Math.max(startHour + 1, Math.ceil(axis.end_min / 60)));
-  const hours = endHour - startHour;
-  const days = Number(data.days) || 5;
-  const cols = Array.from({ length: days }, (_, i) => dateFromYmd(data.range_start, i));
-  const colKey = (dt) => `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
-  const byCol = new Map(cols.map((dt) => [colKey(dt), []]));
-  (data.slots || []).forEach((s) => {
-    const j = jstFields(s.start);
-    const key = `${j.y}-${j.m}-${j.d}`;
-    if (byCol.has(key)) byCol.get(key).push({ start: s.start, end: s.end, startMin: j.min, endMin: jstFields(s.end).min });
-  });
-  // 表示間隔（=隣接枠の最小間隔）に応じて縦軸(--hh)を伸ばし、短い間隔でも各枠に読みやすい高さを確保する。
-  if (weekcal) {
-    let step = Infinity;
-    byCol.forEach((list) => {
-      const mins = list.map((s) => s.startMin).sort((a, b) => a - b);
-      for (let i = 1; i < mins.length; i++) { const d = mins[i] - mins[i - 1]; if (d > 0 && d < step) step = d; }
-    });
-    if (!isFinite(step)) step = 60;
-    weekcal.style.removeProperty("--hh");
-    const baseHH = parseFloat(getComputedStyle(weekcal).getPropertyValue("--hh")) || 56;
-    const SLOT_MIN = 42; // 1枠の最低高さ(px)。間隔が短いほど --hh を伸ばす。
-    const hh = Math.max(baseHH, Math.min(120, Math.round((SLOT_MIN * 60) / step)));
-    weekcal.style.setProperty("--hh", `${hh}px`);
-  }
-  let axisLabels = "";
-  for (let h = startHour; h <= endHour; h++) axisLabels += `<span class="hr" style="top:calc(var(--hh)*${h - startHour})">${pad2(h)}:00</span>`;
-  const axisHtml = `<div class="wk-axis" style="min-height:calc(var(--hh)*${hours})">${axisLabels}</div>`;
-  const headHtml = cols.map((dt) => `<div class="wk-headcell tappable" data-cal-open><span class="d">${dt.getDate()}</span>${escapeHtml(weekdayShort(dt))}</div>`).join("");
-  const actionLabel = t("booking.week.book", "予約する");
-  const dayColsHtml = cols.map((dt) => {
-    const list = (byCol.get(colKey(dt)) || []).slice().sort((a, b) => a.startMin - b.startMin);
-    const blocks = list.map((s, i) => {
-      const top = (s.startMin - startHour * 60) / 60;
-      const durH = (s.endMin - s.startMin) / 60;
-      // 表示間隔が所要より短いと枠が重なるため、高さは「次の枠の開始まで(=表示間隔)」を超えないようにする。
-      const gapH = (i + 1 < list.length) ? (list[i + 1].startMin - s.startMin) / 60 : durH;
-      const height = Math.min(durH, gapH);
-      // 低い枠は開始時刻のみ表示（終了は所要から自明）。2行が収まらず重なるのを防ぐ。
-      const compact = height < 0.62;
-      const label = compact
-        ? `<span class="wk-slot-t">${escapeHtml(fmtMin(s.startMin))}</span>`
-        : `<span class="wk-slot-t">${escapeHtml(fmtMin(s.startMin))}</span><span class="wk-slot-e">${escapeHtml(fmtMin(s.endMin))}</span>`;
-      return `<button type="button" class="wk-slot${compact ? " is-compact" : ""}" data-start="${escapeHtml(s.start)}" data-end="${escapeHtml(s.end)}" title="${escapeHtml(actionLabel)}" style="top:calc(var(--hh)*${top.toFixed(3)});height:calc(var(--hh)*${height.toFixed(3)})">${label}</button>`;
-    }).join("");
-    return `<div class="wk-day" style="min-height:calc(var(--hh)*${hours})">${blocks}</div>`;
-  }).join("");
-  grid.innerHTML = `<div class="wk-navcell"></div>${headHtml}<div class="wk-navcell"></div>${axisHtml}${dayColsHtml}${axisHtml}`;
-  grid._slots = data.slots || [];
+  if (!grid || !window.KimaruWeekGrid) return;
   const selectedStart = form && form.elements.start.value;
-  grid.querySelectorAll(".wk-slot").forEach((btn) => {
-    btn.addEventListener("click", () => selectSlot({ start: btn.dataset.start, end: btn.dataset.end }, btn, form));
-    if (selectedStart && btn.dataset.start === selectedStart) btn.classList.add("sel");
+  window.KimaruWeekGrid.render({
+    grid,
+    weekcal,
+    data,
+    actionLabel: t("booking.week.book", "予約する"),
+    isSelected: (slot) => Boolean(selectedStart) && slot.start === selectedStart,
+    onPick: (slot, button) => selectSlot(slot, button, form),
   });
-  if (weekcal) weekcal.style.display = "";
 }
 
 function updateNav(data) {

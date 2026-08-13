@@ -35,11 +35,8 @@
               <dd><span id="plan-badge" class="plan-badge">—</span></dd>
               <a class="btn btn-ghost" href="/plan.html" style="min-height:38px;padding:0 16px" data-i18n="st.account.upgrade">アップグレード</a>
             </div>
-            <div class="r">
-              <dt data-i18n="st.integrations.eyebrow">Google連携</dt>
-              <dd><span id="calendar-badge" class="conn" data-i18n="st.js.checking">確認中…</span></dd>
-              <button id="calendar-disconnect" class="btn btn-ghost" type="button" style="min-height:38px;padding:0 16px" data-i18n="st.integrations.disconnectShort">解除</button>
-            </div>
+            <!-- Google連携の行は削除（#321）。下の「外部連携」で Google・Zoom とも
+                 状態の確認・連携・解除ができ、同じ操作が2か所にあると迷うため。 -->
           </dl>
 
           <!-- メール変更フォーム -->
@@ -65,6 +62,8 @@
             <!-- connect=1 ＝ ログイン中のアカウントにカレンダーを繋ぐ（別のGoogleアカウントを選んでもアカウントは切り替わらない）。 -->
             <a id="calendar-connect" class="btn btn-primary" href="/api/google-auth-start?connect=1" data-i18n="st.integrations.connect">Googleカレンダーと連携する</a>
             <a id="calendar-reconnect" class="btn btn-ghost" href="/api/google-auth-start?connect=1" data-i18n="st.integrations.reconnect">別アカウントで再連携</a>
+            <!-- 解除ボタンはログイン情報の行から移設（#321）。移設しないと Google だけ解除できなくなる。 -->
+            <button id="calendar-disconnect" class="btn btn-ghost" type="button" data-i18n="st.integrations.disconnect" style="display:none">連携を解除する</button>
           </div>
           <!-- Zoom 連携（ユーザー個別・user-level OAuth）。ホスト本人名義でミーティングURLを自動発行する。 -->
           <h2 style="font-family:var(--display);font-size:18px;margin:24px 0 12px;padding-top:20px;border-top:1px solid var(--line)" data-i18n="st.zoom.heading">Zoom連携</h2>
@@ -220,10 +219,7 @@
           : T("st.js.calendarDisconnected", "未連携です。連携すると空き枠判定・予定作成が有効になります。");
         statusEl.className = 'message ' + (connected ? 'success' : '');
       }
-      const badge = $('#calendar-badge');
-      badge.textContent = connected ? T("st.js.badgeConnected", "連携済み") : T("st.js.badgeDisconnected", "未連携");
-      badge.classList.toggle('on', connected);
-      badge.classList.toggle('is-on', connected);
+      // 連携状態のバッジはログイン情報の行ごと削除した（#321）。状態は上の #calendar-status が出す。
       show($('#calendar-connect'), !connected);
       show($('#calendar-reconnect'), connected);
       show($('#calendar-disconnect'), connected);

@@ -351,7 +351,8 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
 .rangebtn .cal-ic{font-size:15px;line-height:1}
 .rangebtn .chev{color:var(--muted);font-size:11px}
 
-.wk-grid{display:grid;grid-template-columns:46px repeat(5,minmax(0,1fr)) 46px}
+/* 時間軸は右端の1列だけ（#321）。左にも置くと日の列がその分細くなる。 */
+.wk-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) 46px}
 .wk-navcell{display:block}
 .wk-headcell{display:flex;align-items:baseline;justify-content:center;gap:5px;padding:6px 0 12px;font-size:13px;font-weight:700;color:var(--ink-2)}
 .wk-headcell .d{font-family:var(--display);font-size:16px;color:var(--ink)}
@@ -457,7 +458,7 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
 
 @media (max-width:680px){
   .weekcal{--hh:50px}
-  .wk-grid{grid-template-columns:38px repeat(5,minmax(0,1fr)) 38px}
+  .wk-grid{grid-template-columns:repeat(5,minmax(0,1fr)) 38px}
   .weekcal-top{gap:6px}
   .wk-nav{height:38px;padding:0 9px;font-size:11.5px;gap:3px}
   .wk-nav .wk-ar{font-size:18px}

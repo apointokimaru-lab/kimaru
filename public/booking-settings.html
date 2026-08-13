@@ -40,7 +40,7 @@
       <div class="section-head">
         <div>
           <h2 data-i18n="bs.list.heading">予約ページ</h2>
-          <p class="muted" data-i18n="bs.list.desc">設定違いのページを使い分けられます（無料1つ／Pro2つ／プレミアム・猫5つまで）。各ページの「開く / URLをコピー / 編集」で操作できます。曜日ごとの受付時間とカレンダーの予定から、空いている枠だけが表示されます。</p>
+          <p class="muted" data-i18n="bs.list.desc">用途ごとに予約ページを分けられます。相手に送るのはURLだけ。空いている枠は、設定した受付時間とカレンダーの予定から自動で決まります。</p>
         </div>
         <button type="button" id="booking-page-new" class="button primary" data-i18n="bs.list.new">＋ 予約ページを作成</button>
       </div>
@@ -64,9 +64,9 @@
         <div class="editor-section">
           <p class="eyebrow" data-i18n="bs.basic.eyebrow">基本情報</p>
           <label><span data-i18n="bs.basic.title">予約ページ名（タイトル）</span><input name="title" placeholder="〇〇との面談" data-i18n-placeholder="bs.basic.titlePlaceholder" required /></label>
-          <p class="form-note muted" data-i18n="bs.basic.titleNote">※◯◯の所はご自身の名前を入力して下さい。</p>
+          <p class="form-note muted" data-i18n="bs.basic.titleNote">相手に見える見出しです。「初回相談」「30分の面談」など、何の時間かが分かる名前にしてください。</p>
           <label><span data-i18n="bs.basic.slug">公開URL（slug）</span><input name="slug" id="booking-page-slug" placeholder="例: taro-1on1（空欄なら自動生成）" data-i18n-placeholder="bs.basic.slugPlaceholder" pattern="[a-z0-9-]{3,40}" /></label>
-          <p class="form-note muted">公開ページは <code>/b/（slug）</code> で開けます。無料1つ・Pro2つ・プレミアム5つまで保存できます。</p>
+          <p class="form-note muted" data-i18n="bs.basic.slugNote">予約ページのURLをお好みの文字列にできます。空欄なら自動で決まります。</p>
           <label><span data-i18n="bs.basic.description">説明文</span><textarea name="description" rows="3" placeholder="予約ページに表示する案内文を入力します。例：初回相談、面談、オンライン打ち合わせなど" data-i18n-placeholder="bs.basic.descriptionPlaceholder"></textarea></label>
           <label><span data-i18n="bs.basic.status">受付状態</span>
             <select name="is_active">
@@ -74,7 +74,7 @@
               <option value="false" data-i18n="bs.basic.statusPaused">受付停止中（ページは残すが予約を受け付けない）</option>
             </select>
           </label>
-          <p class="form-note muted" data-i18n="bs.basic.statusNote">「受付停止中」にすると、削除せずに一時的に予約を止められます。停止中は公開ページに空き枠が表示されません。</p>
+          <p class="form-note muted" data-i18n="bs.basic.statusNote">「受付停止中」にすると、削除せずに一時的に予約を止められます。停止中の予約ページを開くと、ページが見つからない画面になります。</p>
         </div>
 
         <div class="editor-section">
@@ -121,7 +121,8 @@
           <label class="buffer-title-field" data-buffer-title="after" hidden><span data-i18n="bs.time.bufferAfterTitle">後バッファのカレンダー予定名</span>
             <input type="text" name="buffer_after_title" maxlength="120" autocomplete="off" data-i18n-placeholder="bs.time.bufferAfterTitlePh" placeholder="例：記録・片付け" />
           </label>
-          <p class="form-note muted" data-i18n="bs.time.bufferTitleHint">予定名を入力すると、その前後の時間があなたのGoogleカレンダーに自分だけの予定として登録されます（予約した相手には表示されません）。空欄なら予定は作らず、空き枠を塞ぐだけです。</p>
+          <!-- バッファを設定していないときは予定名の欄ごと出ないので、この注記も一緒に隠す（#321・updateBookingPageControls）。 -->
+          <p id="buffer-title-hint" class="form-note muted" data-i18n="bs.time.bufferTitleHint" hidden>入力した予定名で、その前後の時間があなたのGoogleカレンダーに自分だけの予定として登録されます（予約した相手には表示されません）。</p>
           <label><span data-i18n="bs.time.range">予約枠の公開範囲</span>
             <select name="booking_range" id="booking-range-select">
               <option value="7d" data-i18n="bs.range.7d">今日から7日先まで公開</option>
@@ -193,7 +194,7 @@
         <div class="availability-box">
           <p class="eyebrow" data-i18n="bs.avail.eyebrow">受付時間</p>
           <h3 data-i18n="bs.avail.heading">曜日ごとの受付時間</h3>
-          <p class="muted" data-i18n="bs.avail.desc">予約を受け付ける曜日と時間帯を設定します。休みにする曜日はチェックを外してください。この設定はこの予約ページだけに適用され、ほかの予約ページには影響しません。</p>
+          <p class="muted" data-i18n="bs.avail.desc">予約を受け付ける曜日と時間帯を設定します。休みにする曜日はチェックを外してください。</p>
           <div class="availability-grid">
             <label class="availability-row"><input type="checkbox" name="availability_enabled_1" checked /><span data-i18n="bs.day.mon">月曜日</span> <input type="time" name="availability_start_1" value="10:00" /> <span data-i18n="bs.day.from">から</span> <input type="time" name="availability_end_1" value="18:00" /></label>
             <label class="availability-row"><input type="checkbox" name="availability_enabled_2" checked /><span data-i18n="bs.day.tue">火曜日</span> <input type="time" name="availability_start_2" value="10:00" /> <span data-i18n="bs.day.from">から</span> <input type="time" name="availability_end_2" value="18:00" /></label>

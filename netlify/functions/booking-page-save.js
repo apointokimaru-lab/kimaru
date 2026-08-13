@@ -88,6 +88,10 @@ exports.handler = async (event) => {
     // バッファ0分の側はタイトルを保持しない（UIとサーバの整合）。
     const bufferBeforeTitle = bufferBefore > 0 ? String(body.buffer_before_title || "").trim().slice(0, 120) : "";
     const bufferAfterTitle = bufferAfter > 0 ? String(body.buffer_after_title || "").trim().slice(0, 120) : "";
+    // バッファを設定したら予定名は必須（#321）。空のまま保存できると createBufferEvent が動かず、
+    // 「バッファを設定したのにカレンダーに予定が出ない」状態になる（画面側でも required にしている）。
+    if (bufferBefore > 0 && !bufferBeforeTitle) return json(400, { error: "前バッファのカレンダー予定名を入力してください" });
+    if (bufferAfter > 0 && !bufferAfterTitle) return json(400, { error: "後バッファのカレンダー予定名を入力してください" });
     const requestedRange = intValue(body.booking_range_months, 2);
     const locationType = allowedLocationTypes.has(body.location_type) ? body.location_type : "google_meet";
     const questions = Array.isArray(body.questions) ? body.questions.map((q, i) => normalizeQuestion(q, i, isPro)).filter((q) => q.question_text) : [];

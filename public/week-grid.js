@@ -111,7 +111,9 @@
       }).join("");
       return `<div class="wk-day" style="min-height:calc(var(--hh)*${hours})">${blocks}</div>`;
     }).join("");
-    grid.innerHTML = `<div class="wk-navcell"></div>${headHtml}<div class="wk-navcell"></div>${axisHtml}${dayColsHtml}${axisHtml}`;
+    // 時間軸は右側だけにする（#321）。左右に同じ目盛りを置くと、その分だけ日の列が細くなる。
+    // 残すのは右側。ラベルが右寄せ（.wk-axis .hr{right:8px}）で、隣の列との境界に時刻が並ぶため。
+    grid.innerHTML = `${headHtml}<div class="wk-navcell"></div>${dayColsHtml}${axisHtml}`;
     grid._slots = data.slots || [];
     grid.querySelectorAll(".wk-slot").forEach((btn) => {
       const slot = { start: btn.dataset.start, end: btn.dataset.end };

@@ -1422,7 +1422,9 @@ function bindPinpoint() {
         body: JSON.stringify({
           booking_page_id: ppPageId,
           slots: [...ppChosen.values()],
-          hold_slots: $("#pp-hold")?.value === "hold",
+          // 「候補の枠を押さえる」は再設計まで停止（#319）。プルダウンは隠してあるので常に false。
+          // 再開時は $("#pp-hold")?.value === "hold" に戻す（サーバ側も同時に戻すこと）。
+          hold_slots: false,
         }),
       });
       const input = $("#pp-url"); if (input) input.value = res.url || "";

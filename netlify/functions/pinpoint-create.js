@@ -30,7 +30,9 @@ exports.handler = async (event) => {
       booking_page_id: page.id,
       token: pinpoint.newToken(),
       slots,
-      hold_slots: body.hold_slots === true || body.hold_slots === "true",
+      // 「候補の枠を押さえる」は再設計まで停止（#319）。画面を隠すだけだと直接POSTで押さえられるので、
+      // ここでも body を見ずに false で固定する。再開時は body.hold_slots を読む形に戻す。
+      hold_slots: false,
       is_active: true,
     };
 

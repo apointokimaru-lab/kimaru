@@ -1,7 +1,9 @@
 // ピンポイント日程調整リンクの発行（#303）。ホスト専用。
 // 予約ページの設定（所要・バッファ・質問・開催方法）を流用し、提示する候補枠だけを絞る。
 const { json, readJson } = require("./_lib/response");
-const { requireOwner } = require("./_lib/auth");
+// 当面はプレミアム限定で配信する（#303）。発行だけを絞り、ゲスト側の /p/ は絞らない
+// ＝すでに送ったリンクは、あとでプランが下がっても相手の画面で切れないようにする。
+const { requirePremiumOwner } = require("./_lib/auth");
 const { sb, eq } = require("./_lib/supabase");
 const { appBaseUrl } = require("./_lib/config");
 const pinpoint = require("./_lib/pinpoint");
@@ -9,7 +11,7 @@ const pinpoint = require("./_lib/pinpoint");
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "許可されていない操作です" });
   try {
-    const owner = await requireOwner(event);
+    const owner = await requirePremiumOwner(event);
     const body = readJson(event);
 
     // 予約ページは必ず自分のものに限定する（他人のページの設定でリンクを作らせない）。

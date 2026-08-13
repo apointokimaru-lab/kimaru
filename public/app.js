@@ -789,6 +789,7 @@ function rangeTokenFromPage(page) {
 
 // premium は pro の全機能を含む上位プラン。プラン判定はこのヘルパで統一する。
 function isProPlan(plan) { return plan === "pro" || plan === "premium"; }
+function isPremiumPlan(plan) { return plan === "premium"; }
 
 function updateBookingPageControls() {
   const isPro = isProPlan(currentOwner?.plan);
@@ -959,6 +960,10 @@ function renderBookingPages(pages) {
     el.innerHTML = `<p class="muted">${escapeHtml(t("bs.list.empty"))}</p>`;
     return;
   }
+  // ピンポイントリンクは当面プレミアム限定で配信する（#303）。
+  // CSS の .premium-feature は display:block になるため、横並びのボタン列では使えない。
+  // ここは行ごとの描画なので、出す・出さないを描画時に決める（サーバ側 pinpoint-create.js でも 403 で止める）。
+  const showPinpoint = isPremiumPlan(currentOwner?.plan);
   el.innerHTML = pages.map((p) => `
     <article class="list-item${p.is_active === false ? " is-paused" : ""}">
       <strong>${escapeHtml(p.title || t("bs.list.untitled"))}${p.is_active === false ? `<span class="pause-badge">${escapeHtml(t("bs.list.paused"))}</span>` : ""}</strong>
@@ -967,7 +972,7 @@ function renderBookingPages(pages) {
       <div class="actions">
         <a class="button secondary" href="${escapeHtml(bookingPageUrl(p.slug))}" target="_blank" rel="noopener">${escapeHtml(t("bs.list.open"))}</a>
         <button class="button secondary" type="button" data-page-action="copy" data-slug="${escapeHtml(p.slug)}">${escapeHtml(t("bs.list.copyUrl"))}</button>
-        <button class="button secondary" type="button" data-page-action="pinpoint" data-slug="${escapeHtml(p.slug)}" data-id="${escapeHtml(p.id)}">${escapeHtml(t("pin.button"))}</button>
+        ${showPinpoint ? `<button class="button secondary" type="button" data-page-action="pinpoint" data-slug="${escapeHtml(p.slug)}" data-id="${escapeHtml(p.id)}">${escapeHtml(t("pin.button"))}</button>` : ""}
         <button class="button secondary" type="button" data-page-action="edit" data-id="${escapeHtml(p.id)}">${escapeHtml(t("bs.list.edit"))}</button>
         <button class="button secondary" type="button" data-page-action="delete" data-id="${escapeHtml(p.id)}">${escapeHtml(t("bs.delete"))}</button>
       </div>

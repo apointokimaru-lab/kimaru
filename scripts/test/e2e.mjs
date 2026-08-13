@@ -347,7 +347,9 @@ section("pinpoint scheduling link (#303)");
     await page.route("**/api/**", (route) => {
       const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
       if (name === "pinpoint-create") { created = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, url: "https://kimaru-co.jp/p/tok-new" }) }); }
-      const body = name === "availability" ? { slots: SLOTS, range_start: ymd, days: 5, questions: [], host: {}, hasPrev: false, hasNext: true }
+      // 当面プレミアム限定で配信するので、ホスト側の確認はプレミアムで行う（既定モックは pro）。
+      const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "premium" } }
+        : name === "availability" ? { slots: SLOTS, range_start: ymd, days: 5, questions: [], host: {}, hasPrev: false, hasNext: true }
         : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
     });
@@ -377,6 +379,16 @@ section("pinpoint scheduling link (#303)");
     await page.click("#pp-back");
     await page.waitForTimeout(200);
     ok("back returns to the list", await page.locator("#list-view").isVisible() && !(await page.locator("#pinpoint-view").isVisible()));
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
+  // --- プレミアム限定の配信（#303）: pro には導線が出ない ---
+  {
+    const page = await newPage();
+    await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
+    await page.waitForSelector("#booking-pages-list .list-item", { timeout: 8000 }).catch(() => {});
+    ok("pro sees the page list", (await page.locator("#booking-pages-list .list-item").count()) === 1);
+    ok("pro does not see the pinpoint button", (await page.locator('[data-page-action="pinpoint"]').count()) === 0);
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }

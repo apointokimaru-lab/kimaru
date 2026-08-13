@@ -8,8 +8,7 @@
 //   [langs]     カンマ区切り。既定 "ja"。例) "ja,en,zh-TW"
 //   [viewports] "desktop" | "mobile" | "both"（既定 both）
 //   [plan]      free|pro|premium（任意。?plan= を付ける）
-//   先頭に "mock" を付けると mock/ を優先（資産は public/ にフォールバック）。
-// 出力: /tmp/kimaru-shots/<page>[-mock][-plan]-{desktop,mobile}-<lang>.png
+// 出力: /tmp/kimaru-shots/<page>[-plan]-{desktop,mobile}-<lang>.png
 // 末尾に各ページの console error / pageerror を要約表示（/api 失敗は静的サーバ由来として除外）。
 import { chromium } from "playwright";
 import http from "node:http";
@@ -21,14 +20,12 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MIME = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
 
 const argv = process.argv.slice(2);
-const isMock = argv[0] === "mock";
-if (isMock) argv.shift();
 const pagesArg = argv[0];
 const langs = (argv[1] || "ja").split(",").map((s) => s.trim()).filter(Boolean);
 const vpArg = (argv[2] || "both").toLowerCase();
 const plan = argv[3] || "";
 
-const roots = isMock ? [path.join(repo, "mock"), path.join(repo, "public")] : [path.join(repo, "public")];
+const roots = [path.join(repo, "public")];
 
 function resolveFile(urlPath) {
   for (const root of roots) {
@@ -59,7 +56,7 @@ const port = server.address().port;
 
 const outDir = "/tmp/kimaru-shots";
 fs.mkdirSync(outDir, { recursive: true });
-const suffix = (isMock ? "-mock" : "") + (plan ? `-${plan}` : "");
+const suffix = plan ? `-${plan}` : "";
 
 // /api や favicon の失敗はスタティックサーバ由来なので無視する。
 // 汎用文言 "Failed to load resource" は response ハンドラが URL 付きで拾うので console 側では落とす。

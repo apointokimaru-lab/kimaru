@@ -360,7 +360,8 @@ section("pinpoint scheduling link (#303)");
     await page.waitForTimeout(500);
     ok("picker screen replaces the list", await page.locator("#pinpoint-view").isVisible() && !(await page.locator("#list-view").isVisible()));
     ok("slots are shown on the week calendar", (await page.locator("#pp-grid .wk-slot").count()) === 2);
-    ok("hold is a select, not a checkbox", (await page.locator("#pp-hold").evaluate((el) => el.tagName)) === "SELECT");
+    // 「候補の枠を押さえる」は再設計まで非表示（#319）。DOM には残すが画面には出さない。
+    ok("hold control is hidden", (await page.locator("#pp-hold-field").count()) === 1 && !(await page.locator("#pp-hold-field").isVisible()));
     // 枠を押す＝候補に入る／もう一度押す＝外れる
     await page.locator("#pp-grid .wk-slot").first().click();
     await page.waitForTimeout(150);
@@ -370,11 +371,10 @@ section("pinpoint scheduling link (#303)");
     await page.waitForTimeout(150);
     ok("clicking again removes it", (await page.locator("#pp-grid .wk-slot.is-picked").count()) === 0);
     await page.locator("#pp-grid .wk-slot").first().click();
-    await page.selectOption("#pp-hold", "hold");
     await page.click("#pp-create");
     await page.waitForTimeout(400);
     ok("create request carries the chosen slot", created?.slots?.length === 1 && created.slots[0].start === SLOTS[0].start);
-    ok("create request carries hold flag", created?.hold_slots === true);
+    ok("create request never holds slots (#319)", created?.hold_slots === false);
     ok("issued url is shown for copying", (await page.inputValue("#pp-url")).includes("/p/tok-new"));
     await page.click("#pp-back");
     await page.waitForTimeout(200);

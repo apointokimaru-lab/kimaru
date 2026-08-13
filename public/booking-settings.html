@@ -254,13 +254,17 @@
           <div id="pp-chips" class="pp-chips"></div>
         </div>
         <div class="pp-tray-side">
-          <label><span data-i18n="pin.holdLabel">候補の枠</span>
-            <select id="pp-hold">
-              <option value="none" data-i18n="pin.holdOff">押さえない（先着順）</option>
-              <option value="hold" data-i18n="pin.holdOn">押さえる（他の予約を入れない）</option>
-            </select>
-          </label>
-          <p class="field-note muted" data-i18n="pin.holdNote">押さえると、通常の予約ページからこの時間は選べなくなります。</p>
+          <!-- 「候補の枠を押さえる」は再設計まで非表示（#319）。予約成立時に押さえが解除されず、
+               外す画面も無いため。DOM には残す（再開は hidden を外すだけ。app.js が #pp-hold を参照する）。 -->
+          <div id="pp-hold-field" hidden>
+            <label><span data-i18n="pin.holdLabel">候補の枠</span>
+              <select id="pp-hold">
+                <option value="none" data-i18n="pin.holdOff">押さえない（先着順）</option>
+                <option value="hold" data-i18n="pin.holdOn">押さえる（他の予約を入れない）</option>
+              </select>
+            </label>
+            <p class="field-note muted" data-i18n="pin.holdNote">押さえると、通常の予約ページからこの時間は選べなくなります。</p>
+          </div>
           <div class="form-actions"><button type="button" class="button primary" id="pp-create" data-i18n="pin.create">リンクを作成</button></div>
         </div>
       </div>

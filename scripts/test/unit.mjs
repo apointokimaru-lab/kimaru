@@ -576,11 +576,11 @@ section("pinpoint scheduling link (#303)");
     const table = new URL(url).pathname.replace("/rest/v1/", "").split("?")[0];
     return { ok: true, status: 200, text: async () => JSON.stringify(TABLES[table] || []) };
   };
+  // #319: 押さえ機能は再設計まで停止中。hold_slots=true のリンクが残っていても押さえない。
+  // 再開したら（_lib/pinpoint.js の HOLD_ENABLED を true に戻したら）、
+  // 「hold のリンクだけ busy／自分自身は除外」の検証をここに戻すこと。
   const held = await pin.heldBusyFor(OWNER.id);
-  ok("hold のリンクだけ busy になる", held.length === 1 && held[0].start === "2026-09-02T01:00:00.000Z");
-  ok("hold でないリンクは押さえない", !held.some((b) => b.start.startsWith("2026-09-03")));
-  const heldExcept = await pin.heldBusyFor(OWNER.id, { exceptId: "pl-hold" });
-  ok("自分自身の押さえは除外される", heldExcept.length === 0);
+  ok("押さえは停止中なので busy を返さない (#319)", held.length === 0);
   globalThis.fetch = prevFetch;
 }
 

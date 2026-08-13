@@ -519,6 +519,8 @@ function proceedToConfirm(form) {
 }
 
 // ピンポイント: 提示された候補をラジオで並べる。カレンダー操作は不要なので週表は出さない。
+// 日付は「見出しに1回」、行は時間だけ。1行ごとに「2026年8月14日(金) 09:00〜09:30」を出すと
+// 同じ日付が縦に何度も並び、行ごとの違い（＝時間）が読み取れなくなる（#303 レビュー指摘）。
 function renderPinpointSlots(slots, form) {
   const grid = $("#slot-grid");
   if (!grid) return;
@@ -526,12 +528,35 @@ function renderPinpointSlots(slots, form) {
     grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.pinpoint.empty", "空いている候補がありません。お手数ですが主催者にご連絡ください。"))}</p>`;
     return;
   }
+  // 日付でグループ化。候補は開始時刻順に並んでいる前提なので、直前のグループと同じ日かだけを見る
+  // （Map でまとめると挿入順に依存して日付が前後するため、あえて素直に前と比べる）。
+  const groups = [];
+  slots.forEach((slot, index) => {
+    const start = new Date(slot.start);
+    const key = `${start.getFullYear()}/${start.getMonth()}/${start.getDate()}`;
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.items.push({ slot, index });
+    else groups.push({ key, label: jpDate(start), items: [{ slot, index }] });
+  });
+
   grid.innerHTML = `<div class="pp-list" role="radiogroup" aria-label="${escapeHtml(t("booking.pinpoint.heading", "候補の日程"))}">${
-    slots.map((slot, i) => `<label class="pp-item"><input type="radio" name="pp-slot" value="${i}" /><span>${escapeHtml(fmtSlotRange(slot.start, slot.end))}</span></label>`).join("")
+    groups.map((group) => `<div class="pp-day"><p class="pp-daylabel">${escapeHtml(group.label)}</p><div class="pp-times">${
+      group.items.map(({ slot, index }) => {
+        // 画面には時間しか出さないぶん、読み上げには日付を含む全文を aria-label で渡す。
+        const full = fmtSlotRange(slot.start, slot.end);
+        return `<label class="pp-item"><input type="radio" name="pp-slot" value="${index}" aria-label="${escapeHtml(full)}" /><span class="pp-mark" aria-hidden="true"></span><span class="pp-time">${escapeHtml(timeText(new Date(slot.start)))}<span class="pp-dash" aria-hidden="true">〜</span>${escapeHtml(timeText(new Date(slot.end)))}</span></label>`;
+      }).join("")
+    }</div></div>`).join("")
   }</div>`;
+
   grid.querySelectorAll('input[name="pp-slot"]').forEach((input) => {
+    // 言語切替で描き直したときに選択が消えないよう、フォームに入っている枠に印を戻す。
+    const slot = slots[Number(input.value)];
+    if (slot && form?.elements.start.value === slot.start) {
+      input.checked = true;
+      input.closest(".pp-item")?.classList.add("sel");
+    }
     input.addEventListener("change", () => {
-      const slot = slots[Number(input.value)];
       if (!slot) return;
       grid.querySelectorAll(".pp-item").forEach((el) => el.classList.remove("sel"));
       input.closest(".pp-item")?.classList.add("sel");
@@ -540,9 +565,26 @@ function renderPinpointSlots(slots, form) {
   });
 }
 
+// ピンポイントは「主催者が選んだ数枠から選ぶ」画面で、通常の「5日間の空き枠」ではない。
+// 見出しが「5日間の空き枠から選ぶ」のままだと、出ている数枠が全部だと分からない（#303 レビュー指摘）。
+// textContent だけ書き換えると言語切替で元のキーに戻るので、data-i18n の値ごと差し替える。
+function retitleForPinpoint() {
+  [
+    ['[data-i18n="booking.slots.eyebrow"]', "booking.pinpoint.eyebrow", "主催者からの候補"],
+    ['[data-i18n="booking.slots.heading"]', "booking.pinpoint.slotsHeading", "候補の日程から選ぶ"],
+    ['[data-i18n="booking.intro.li2"]', "booking.pinpoint.intro", "主催者が選んだ候補から都合のよい時間を選べます"],
+  ].forEach(([selector, key, fallback]) => {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    el.dataset.i18n = key;
+    el.textContent = t(key, fallback);
+  });
+}
+
 async function initPinpoint(form) {
   // 週送り・月カレンダーはピンポイントでは使わないので、まとめて隠す。
   ["#weekcal", "#prev-days", "#next-days", "#range-btn"].forEach((sel) => { const el = $(sel); if (el) el.style.display = "none"; });
+  retitleForPinpoint();
   const grid = $("#slot-grid");
   if (grid) grid.innerHTML = `<div class="week-loading" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span>${escapeHtml(t("booking.week.loading", "空き枠を読み込み中..."))}</span></div>`;
   try {

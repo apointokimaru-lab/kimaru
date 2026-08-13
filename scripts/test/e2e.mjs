@@ -317,8 +317,14 @@ section("pinpoint scheduling link (#303)");
     const radios = await page.locator('input[name="pp-slot"]').count();
     ok("pinpoint shows candidate radios", radios === 2);
     ok("week calendar is hidden", !(await page.locator("#weekcal").isVisible().catch(() => false)));
-    await page.locator('input[name="pp-slot"]').first().check();
+    // 候補は日付ごとにまとめ、日付は見出しに1回だけ出す（行は時間のみ）。SLOTS は別日の2件。
+    ok("candidates are grouped by date", (await page.locator(".pp-daylabel").count()) === 2);
+    ok("rows show only the time range", /^\d{2}:\d{2}〜\d{2}:\d{2}$/.test((await page.locator(".pp-item .pp-time").first().textContent()).replace(/\s/g, "")));
+    ok("heading says these are the host's candidates", (await page.textContent('[data-i18n="booking.pinpoint.slotsHeading"]')).includes("候補"));
+    // ラジオ本体は見た目を .pp-mark に譲って隠してあるので、実ユーザーと同じくラベルを押す。
+    await page.locator(".pp-item").first().click();
     await page.waitForTimeout(200);
+    ok("selecting a candidate marks the row", (await page.locator(".pp-item.sel").count()) === 1);
     ok("selecting a candidate reveals the form", await page.locator("#booking-form").isVisible());
     ok("selected slot label is filled", (await page.textContent("#selected-slot")).includes("〜"));
     await page.fill('input[name="visitor_name"]', "ピン 太郎");

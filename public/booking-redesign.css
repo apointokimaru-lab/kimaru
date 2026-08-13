@@ -412,9 +412,8 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
 .pp-hint{margin-top:18px}
 
 /* 発行トレイ。選んだ候補・押さえ方・発行ボタンを1か所に。
-   グリッドが縦に長いので、選択件数と発行ボタンは下に貼り付けて常に見えるようにする。
-   スマホは画面が狭く、貼り付けるとグリッドを覆ってしまうので通常配置に戻す。 */
-.pp-tray{position:sticky;bottom:18px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;margin-top:18px;padding:18px;background:var(--surface-2);border-radius:var(--radius);box-shadow:var(--shadow)}
+   当初は画面下に貼り付け（sticky）ていたが、グリッドの上に浮いて邪魔になるため通常配置に戻した（#303 レビュー指摘）。 */
+.pp-tray{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;margin-top:18px;padding:18px;background:var(--surface-2);border-radius:var(--radius);box-shadow:var(--shadow)}
 .pp-tray-main{flex:1 1 280px;min-width:0}
 .pp-tray-side{flex:0 1 300px;display:grid;gap:8px}
 .pp-tray-side .form-actions{margin:0;justify-content:flex-end}
@@ -425,6 +424,36 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
 .pp-result{margin-top:16px;padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius)}
 .pp-result-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px}
 .pp-result-row input{flex:1 1 240px}
+
+/* ===== ピンポイント: ゲストが候補から1つ選ぶ（/p/・#303 レビュー指摘）=====
+   .pp-item は <label> なので、共通の label{display:grid;gap:7px} が効いて
+   ラジオと時刻が縦積みになり「どの丸がどの時間か」が分からなくなっていた。
+   ここで display:flex に上書きするのが修正の本体。
+   選択肢は日付見出し＋時間だけの行に分け、開催方法の選択カード（.method-opt）と
+   同じ「丸印＋朱の面」で選択を示して、画面内で選び方の作法を揃える。 */
+.pp-list{display:grid;gap:22px;margin:10px 0 14px}
+.pp-day{display:grid;gap:10px}
+/* 日付は見出しに1回だけ。右へ伸びる罫線で日の切れ目を示す（朱印の1px罫の語彙）。 */
+.pp-daylabel{display:flex;align-items:center;gap:12px;margin:0;font-family:var(--display);font-size:15px;font-weight:700;color:var(--ink)}
+.pp-daylabel::after{content:"";flex:1;height:1px;background:var(--line)}
+/* 同じ日に複数の候補があるとき、PCでは横に詰めて一望できるようにする（1列だと縦に間延びする）。
+   スマホは幅が足りず自然に1列へ落ちる。 */
+.pp-times{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+
+.pp-item{position:relative;display:flex;align-items:center;gap:13px;min-height:56px;margin:0;padding:0 16px;border:1.5px solid var(--line-2);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink-2);font-size:16px;font-weight:700;cursor:pointer;transition:border-color .12s,background .12s,color .12s}
+.pp-item:hover{border-color:var(--accent);background:var(--accent-soft)}
+/* ラジオ本体は見た目を .pp-mark に任せる。display:none にすると Tab も矢印キーも効かなくなるので、
+   位置だけ潰して残す（label 内なので押下判定はラベル全体が担う）。 */
+.pp-item input{position:absolute;width:1px;height:1px;opacity:0;margin:0;pointer-events:none}
+.pp-mark{position:relative;flex:none;width:20px;height:20px;border:2px solid var(--line-2);border-radius:50%;background:var(--surface)}
+.pp-time{display:flex;align-items:baseline;gap:7px;font-size:17px}
+.pp-dash{color:var(--muted);font-weight:400}
+
+.pp-item.sel{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
+.pp-item.sel .pp-mark{border-color:var(--accent)}
+.pp-item.sel .pp-mark::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--accent)}
+.pp-item.sel .pp-dash{color:var(--accent-ink);opacity:.6}
+.pp-item:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
 
 @media (max-width:680px){
   .weekcal{--hh:50px}
@@ -438,7 +467,6 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
   .wk-slot .wk-slot-t{font-size:10.5px}.wk-slot .wk-slot-e{font-size:8.5px}
   .wk-axis .hr{right:4px;font-size:9.5px}
   .cal-day{font-size:13.5px}
-  .pp-tray{position:static}
   /* スマホは枠が細く、✓を置くと時刻に重なる。塗り（白抜き↔朱ベタ）だけで区別する。 */
   .wk-grid.is-picker .wk-slot.is-picked{padding-right:5px}
   .wk-grid.is-picker .wk-slot.is-picked::after{content:none}

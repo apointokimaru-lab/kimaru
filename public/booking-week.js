@@ -265,7 +265,17 @@ function buildBookingPayload(form) {
   // topic は「相談内容」の代表値なので、空欄を飛ばして最初に埋まっている回答を採る。
   data.topic = answers.find((answer) => answer.answer_text)?.answer_text || "";
   delete data.birth_date;
+  // ピンポイント経由なら、どのリンクから来たかをサーバへ渡す。
+  // サーバは候補に含まれる時刻かを検証し、候補外の予約を成立させない（#303）。
+  if (pinpointToken) data.pinpoint_token = pinpointToken;
   return data;
+}
+
+// ピンポイント日程調整リンク（#303）。/p/<token> のときだけ候補一覧モードで動く。
+function resolvePinpointToken() {
+  // 文字種で切らずに次の / まで採る。途中で切れると別トークンとして送られ 404 になる。
+  const m = location.pathname.match(/^\/p\/([^/?#]+)/);
+  return m ? m[1] : "";
 }
 
 function resolveSlug() {
@@ -276,6 +286,7 @@ function resolveSlug() {
 }
 
 let bookingSlug = "demo";
+let pinpointToken = ""; // 空でなければピンポイントモード
 let currentStart = null; // 表示中の5日間の先頭日（"YYYY-MM-DD" JST）
 let pageMinDate = null;  // 予約可能な最古日（これより過去は表示しない）
 let pageMaxDate = null;  // 受付上限日
@@ -287,88 +298,28 @@ function ymdStr(y, m0, d) { return `${y}-${pad2(m0 + 1)}-${pad2(d)}`; }
 function dateFromYmd(str, addDays = 0) { const p = parseYmd(str); return new Date(p.y, p.m, p.d + addDays); }
 function shiftYmd(str, deltaDays) { const dt = dateFromYmd(str, deltaDays); return ymdStr(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
 function todayYmd() { const d = new Date(); return ymdStr(d.getFullYear(), d.getMonth(), d.getDate()); }
-// ISO(UTC) → JST の年月日・その日の分。
-function jstFields(iso) {
-  const t2 = new Date(iso).getTime() + 9 * 3600 * 1000;
-  const u = new Date(t2);
-  return { y: u.getUTCFullYear(), m: u.getUTCMonth(), d: u.getUTCDate(), min: u.getUTCHours() * 60 + u.getUTCMinutes() };
-}
-function fmtMin(min) { return `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`; }
-function weekdayShort(date) { return new Intl.DateTimeFormat(currentLocale(), { weekday: "short" }).format(date).replace("曜日", ""); }
-
+// ISO→JSTの分換算・時刻表記・曜日名はグリッド描画側（week-grid.js）が持つ。
+// ここで持つと同じ計算が二重になるので、範囲ラベルもそちらのものを使う。
 function rangeLabelText(startYmd, days) {
-  const start = dateFromYmd(startYmd, 0);
-  const end = dateFromYmd(startYmd, (days || 5) - 1);
-  const locale = currentLocale();
-  const startTxt = new Intl.DateTimeFormat(locale, { month: "long", day: "numeric" }).format(start);
-  const sameMonth = start.getMonth() === end.getMonth();
-  const endTxt = new Intl.DateTimeFormat(locale, sameMonth ? { day: "numeric" } : { month: "long", day: "numeric" }).format(end);
-  return `${startTxt} – ${endTxt}`;
+  return window.KimaruWeekGrid ? window.KimaruWeekGrid.rangeLabelText(startYmd, days) : "";
 }
 
-// 5日タイムグリッドの描画。空き枠が無い日も列を出す（軸は稼働時間帯）。
+// 5日タイムグリッドの描画。実体は week-grid.js（ホストのピンポイント候補選択と共用）。
+// ここでは「1つだけ選ぶ」という予約画面の意味づけだけを渡す。
 function renderGrid(data) {
   const grid = $("#wk-grid");
   const weekcal = $("#weekcal");
   const form = $("#booking-form");
-  if (!grid) return;
-  const axis = data.axis || { start_min: 600, end_min: 1080 };
-  const startHour = Math.max(0, Math.floor(axis.start_min / 60));
-  const endHour = Math.min(24, Math.max(startHour + 1, Math.ceil(axis.end_min / 60)));
-  const hours = endHour - startHour;
-  const days = Number(data.days) || 5;
-  const cols = Array.from({ length: days }, (_, i) => dateFromYmd(data.range_start, i));
-  const colKey = (dt) => `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
-  const byCol = new Map(cols.map((dt) => [colKey(dt), []]));
-  (data.slots || []).forEach((s) => {
-    const j = jstFields(s.start);
-    const key = `${j.y}-${j.m}-${j.d}`;
-    if (byCol.has(key)) byCol.get(key).push({ start: s.start, end: s.end, startMin: j.min, endMin: jstFields(s.end).min });
-  });
-  // 表示間隔（=隣接枠の最小間隔）に応じて縦軸(--hh)を伸ばし、短い間隔でも各枠に読みやすい高さを確保する。
-  if (weekcal) {
-    let step = Infinity;
-    byCol.forEach((list) => {
-      const mins = list.map((s) => s.startMin).sort((a, b) => a - b);
-      for (let i = 1; i < mins.length; i++) { const d = mins[i] - mins[i - 1]; if (d > 0 && d < step) step = d; }
-    });
-    if (!isFinite(step)) step = 60;
-    weekcal.style.removeProperty("--hh");
-    const baseHH = parseFloat(getComputedStyle(weekcal).getPropertyValue("--hh")) || 56;
-    const SLOT_MIN = 42; // 1枠の最低高さ(px)。間隔が短いほど --hh を伸ばす。
-    const hh = Math.max(baseHH, Math.min(120, Math.round((SLOT_MIN * 60) / step)));
-    weekcal.style.setProperty("--hh", `${hh}px`);
-  }
-  let axisLabels = "";
-  for (let h = startHour; h <= endHour; h++) axisLabels += `<span class="hr" style="top:calc(var(--hh)*${h - startHour})">${pad2(h)}:00</span>`;
-  const axisHtml = `<div class="wk-axis" style="min-height:calc(var(--hh)*${hours})">${axisLabels}</div>`;
-  const headHtml = cols.map((dt) => `<div class="wk-headcell tappable" data-cal-open><span class="d">${dt.getDate()}</span>${escapeHtml(weekdayShort(dt))}</div>`).join("");
-  const actionLabel = t("booking.week.book", "予約する");
-  const dayColsHtml = cols.map((dt) => {
-    const list = (byCol.get(colKey(dt)) || []).slice().sort((a, b) => a.startMin - b.startMin);
-    const blocks = list.map((s, i) => {
-      const top = (s.startMin - startHour * 60) / 60;
-      const durH = (s.endMin - s.startMin) / 60;
-      // 表示間隔が所要より短いと枠が重なるため、高さは「次の枠の開始まで(=表示間隔)」を超えないようにする。
-      const gapH = (i + 1 < list.length) ? (list[i + 1].startMin - s.startMin) / 60 : durH;
-      const height = Math.min(durH, gapH);
-      // 低い枠は開始時刻のみ表示（終了は所要から自明）。2行が収まらず重なるのを防ぐ。
-      const compact = height < 0.62;
-      const label = compact
-        ? `<span class="wk-slot-t">${escapeHtml(fmtMin(s.startMin))}</span>`
-        : `<span class="wk-slot-t">${escapeHtml(fmtMin(s.startMin))}</span><span class="wk-slot-e">${escapeHtml(fmtMin(s.endMin))}</span>`;
-      return `<button type="button" class="wk-slot${compact ? " is-compact" : ""}" data-start="${escapeHtml(s.start)}" data-end="${escapeHtml(s.end)}" title="${escapeHtml(actionLabel)}" style="top:calc(var(--hh)*${top.toFixed(3)});height:calc(var(--hh)*${height.toFixed(3)})">${label}</button>`;
-    }).join("");
-    return `<div class="wk-day" style="min-height:calc(var(--hh)*${hours})">${blocks}</div>`;
-  }).join("");
-  grid.innerHTML = `<div class="wk-navcell"></div>${headHtml}<div class="wk-navcell"></div>${axisHtml}${dayColsHtml}${axisHtml}`;
-  grid._slots = data.slots || [];
+  if (!grid || !window.KimaruWeekGrid) return;
   const selectedStart = form && form.elements.start.value;
-  grid.querySelectorAll(".wk-slot").forEach((btn) => {
-    btn.addEventListener("click", () => selectSlot({ start: btn.dataset.start, end: btn.dataset.end }, btn, form));
-    if (selectedStart && btn.dataset.start === selectedStart) btn.classList.add("sel");
+  window.KimaruWeekGrid.render({
+    grid,
+    weekcal,
+    data,
+    actionLabel: t("booking.week.book", "予約する"),
+    isSelected: (slot) => Boolean(selectedStart) && slot.start === selectedStart,
+    onPick: (slot, button) => selectSlot(slot, button, form),
   });
-  if (weekcal) weekcal.style.display = "";
 }
 
 function updateNav(data) {
@@ -567,12 +518,108 @@ function proceedToConfirm(form) {
   goToStep(2);
 }
 
+// ピンポイント: 提示された候補をラジオで並べる。カレンダー操作は不要なので週表は出さない。
+// 日付は「見出しに1回」、行は時間だけ。1行ごとに「2026年8月14日(金) 09:00〜09:30」を出すと
+// 同じ日付が縦に何度も並び、行ごとの違い（＝時間）が読み取れなくなる（#303 レビュー指摘）。
+function renderPinpointSlots(slots, form) {
+  const grid = $("#slot-grid");
+  if (!grid) return;
+  if (!slots.length) {
+    grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.pinpoint.empty", "空いている候補がありません。お手数ですが主催者にご連絡ください。"))}</p>`;
+    return;
+  }
+  // 日付でグループ化。候補は開始時刻順に並んでいる前提なので、直前のグループと同じ日かだけを見る
+  // （Map でまとめると挿入順に依存して日付が前後するため、あえて素直に前と比べる）。
+  const groups = [];
+  slots.forEach((slot, index) => {
+    const start = new Date(slot.start);
+    const key = `${start.getFullYear()}/${start.getMonth()}/${start.getDate()}`;
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.items.push({ slot, index });
+    else groups.push({ key, label: jpDate(start), items: [{ slot, index }] });
+  });
+
+  grid.innerHTML = `<div class="pp-list" role="radiogroup" aria-label="${escapeHtml(t("booking.pinpoint.heading", "候補の日程"))}">${
+    groups.map((group) => `<div class="pp-day"><p class="pp-daylabel">${escapeHtml(group.label)}</p><div class="pp-times">${
+      group.items.map(({ slot, index }) => {
+        // 画面には時間しか出さないぶん、読み上げには日付を含む全文を aria-label で渡す。
+        const full = fmtSlotRange(slot.start, slot.end);
+        return `<label class="pp-item"><input type="radio" name="pp-slot" value="${index}" aria-label="${escapeHtml(full)}" /><span class="pp-mark" aria-hidden="true"></span><span class="pp-time">${escapeHtml(timeText(new Date(slot.start)))}<span class="pp-dash" aria-hidden="true">〜</span>${escapeHtml(timeText(new Date(slot.end)))}</span></label>`;
+      }).join("")
+    }</div></div>`).join("")
+  }</div>`;
+
+  grid.querySelectorAll('input[name="pp-slot"]').forEach((input) => {
+    // 言語切替で描き直したときに選択が消えないよう、フォームに入っている枠に印を戻す。
+    const slot = slots[Number(input.value)];
+    if (slot && form?.elements.start.value === slot.start) {
+      input.checked = true;
+      input.closest(".pp-item")?.classList.add("sel");
+    }
+    input.addEventListener("change", () => {
+      if (!slot) return;
+      grid.querySelectorAll(".pp-item").forEach((el) => el.classList.remove("sel"));
+      input.closest(".pp-item")?.classList.add("sel");
+      selectSlot(slot, null, form);
+    });
+  });
+}
+
+// ピンポイントは「主催者が選んだ数枠から選ぶ」画面で、通常の「5日間の空き枠」ではない。
+// 見出しが「5日間の空き枠から選ぶ」のままだと、出ている数枠が全部だと分からない（#303 レビュー指摘）。
+// textContent だけ書き換えると言語切替で元のキーに戻るので、data-i18n の値ごと差し替える。
+function retitleForPinpoint() {
+  [
+    ['[data-i18n="booking.slots.eyebrow"]', "booking.pinpoint.eyebrow", "主催者からの候補"],
+    ['[data-i18n="booking.slots.heading"]', "booking.pinpoint.slotsHeading", "候補の日程から選ぶ"],
+    ['[data-i18n="booking.intro.li2"]', "booking.pinpoint.intro", "主催者が選んだ候補から都合のよい時間を選べます"],
+  ].forEach(([selector, key, fallback]) => {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    el.dataset.i18n = key;
+    el.textContent = t(key, fallback);
+  });
+}
+
+async function initPinpoint(form) {
+  // 週送り・月カレンダーはピンポイントでは使わないので、まとめて隠す。
+  ["#weekcal", "#prev-days", "#next-days", "#range-btn"].forEach((sel) => { const el = $(sel); if (el) el.style.display = "none"; });
+  retitleForPinpoint();
+  const grid = $("#slot-grid");
+  if (grid) grid.innerHTML = `<div class="week-loading" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span>${escapeHtml(t("booking.week.loading", "空き枠を読み込み中..."))}</span></div>`;
+  try {
+    const data = await api(`pinpoint?token=${encodeURIComponent(pinpointToken)}`);
+    if (data.paused) {
+      if (grid) grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.paused", "現在、予約の受付を停止しています。"))}</p>`;
+      return;
+    }
+    currentHost = data.host || null;
+    if (currentHost) renderHost(currentHost);
+    // 予約先の解決は通常どおり slug で行う（book.js は owner_slug から予約ページを引く）。
+    bookingSlug = (data.host && data.host.slug) || bookingSlug;
+    if (form.elements.owner_slug) form.elements.owner_slug.value = bookingSlug;
+    renderQuestions(data.questions || []);
+    pinpointSlots = Array.isArray(data.slots) ? data.slots : [];
+    renderPinpointSlots(pinpointSlots, form);
+  } catch (error) {
+    if (grid) grid.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+let pinpointSlots = [];
+
 async function initBooking() {
   const grid = $("#slot-grid");
   const form = $("#booking-form");
   if (!grid || !form) return;
+  pinpointToken = resolvePinpointToken();
   bookingSlug = resolveSlug();
   if (form.elements.owner_slug) form.elements.owner_slug.value = bookingSlug;
+  if (pinpointToken) {
+    await withBusy(() => initPinpoint(form));
+    bindBookingSteps(form);
+    return;
+  }
   // 5日送り（前は最古日で無効化＝過去へ行けない。サーバも最古日にクランプ）。
   $("#prev-days")?.addEventListener("click", () => { if (currentStart) withBusy(() => loadDays(shiftYmd(currentStart, -5), false)); });
   $("#next-days")?.addEventListener("click", () => { if (currentStart) withBusy(() => loadDays(shiftYmd(currentStart, 5), false)); });
@@ -591,7 +638,11 @@ async function initBooking() {
     withBusy(() => loadDays(pick.getAttribute("data-pick"), false));
   });
   await withBusy(() => loadDays(null, true));
+  bindBookingSteps(form);
+}
 
+// 入力→確認→確定の結線。通常の予約とピンポイントで共用する。
+function bindBookingSteps(form) {
   // STEP1: 入力 → 確認へ（お名前/メールはブラウザ標準バリデーション後に submit が発火）
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -627,7 +678,9 @@ async function initBooking() {
   document.addEventListener("kimaru:languagechange", () => {
     if (currentHost) renderHost(currentHost);
     // 5日グリッドを再取得して再描画（曜日見出し・範囲ラベルなどを反映）。
-    withBusy(() => loadDays(currentStart, false));
+    // ピンポイントは週表を使わないので、候補一覧を描き直すだけにする。
+    if (pinpointToken) renderPinpointSlots(pinpointSlots, form);
+    else withBusy(() => loadDays(currentStart, false));
     // 選択中の日程ラベルを更新。
     const selectedLabel = document.getElementById("selected-slot");
     if (selectedLabel && form.elements.start.value) {

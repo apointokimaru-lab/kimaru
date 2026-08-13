@@ -3,6 +3,7 @@
 const { sb, eq, defaultOwner, findOwnerById } = require("./supabase");
 const { freebusy } = require("./google");
 const { isJapaneseHoliday } = require("./holidays");
+const pinpoint = require("./pinpoint");
 
 const DEFAULT_WEEKLY_AVAILABILITY = [1, 2, 3, 4, 5].map((day) => ({ day_of_week: day, start_time: "10:00", end_time: "18:00" }));
 const TOKYO_OFFSET_MINUTES = 9 * 60;
@@ -103,20 +104,32 @@ async function ownerBookingBusy(ownerId, fromIso, toIso) {
   }
 }
 
-// 指定窓の空き枠（busy＋前後バッファ適用済み）。owner未連携/失敗時は生成枠をそのまま返す。
-async function openSlotsForWindow(owner, bookingPage, weeklySettings, fromTime, toTime) {
-  const slots = generateSlots(weeklySettings, bookingPage, fromTime, toTime);
-  if (!slots.length || !owner?.id) return slots;
+// 指定窓で「埋まっている時間」を集める。Googleカレンダー＋既存予約＋ピンポイントの押さえ枠。
+// 空き枠計算（openSlotsForWindow）と、ピンポイントの候補チェック（pinpoint.js）で共用する。
+// options.exceptPinpointId は「自分自身のリンク」。自分で押さえた枠を自分の画面から
+// 消してしまわないよう、そのリンクの押さえだけ除外する（#303）。
+async function busyForWindow(owner, bookingPage, fromTime, toTime, options = {}) {
+  if (!owner?.id) return [];
   const bufferBeforeMs = Math.max(0, Number(bookingPage?.buffer_before_minutes || 0)) * 60 * 1000;
   const bufferAfterMs = Math.max(0, Number(bookingPage?.buffer_after_minutes || 0)) * 60 * 1000;
   // 候補枠は開始前に bufferBefore、終了後に bufferAfter ぶん広がるので、その方向に取得窓も広げる。
   const busyFromIso = new Date(fromTime - bufferBeforeMs - DAY_MS).toISOString();
   const busyToIso = new Date(toTime + bufferAfterMs + DAY_MS).toISOString();
-  const [calendarBusy, bookingBusy] = await Promise.all([
+  const [calendarBusy, bookingBusy, heldBusy] = await Promise.all([
     freebusy(owner.id, busyFromIso, busyToIso).catch(() => []),
     ownerBookingBusy(owner.id, busyFromIso, busyToIso),
+    pinpoint.heldBusyFor(owner.id, { exceptId: options.exceptPinpointId || null }),
   ]);
-  const busy = [...calendarBusy, ...bookingBusy];
+  return [...calendarBusy, ...bookingBusy, ...heldBusy];
+}
+
+// 指定窓の空き枠（busy＋前後バッファ適用済み）。owner未連携/失敗時は生成枠をそのまま返す。
+async function openSlotsForWindow(owner, bookingPage, weeklySettings, fromTime, toTime, options = {}) {
+  const slots = generateSlots(weeklySettings, bookingPage, fromTime, toTime);
+  if (!slots.length || !owner?.id) return slots;
+  const bufferBeforeMs = Math.max(0, Number(bookingPage?.buffer_before_minutes || 0)) * 60 * 1000;
+  const bufferAfterMs = Math.max(0, Number(bookingPage?.buffer_after_minutes || 0)) * 60 * 1000;
+  const busy = await busyForWindow(owner, bookingPage, fromTime, toTime, options);
   return slots.filter((slot) => !overlaps(slot, busy, bufferBeforeMs, bufferAfterMs));
 }
 
@@ -237,7 +250,7 @@ async function bookingPageQuestions(bookingPage) {
 module.exports = {
   DEFAULT_WEEKLY_AVAILABILITY, DAY_MS,
   timeToMinutes, tokyoParts, tokyoLocalDateToUtc, tokyoStartOfDayMs, isoDate, addMonths,
-  generateSlots, overlaps, ownerBookingBusy, openSlotsForWindow,
+  generateSlots, overlaps, ownerBookingBusy, busyForWindow, openSlotsForWindow,
   bookingBounds, axisRange, slotsToMonthDays, availabilityDaysForMonth,
   ownerBookingPage, ownerAvailability, pageAvailability, resolveOwnerAndPage, bookingPageQuestions,
 };

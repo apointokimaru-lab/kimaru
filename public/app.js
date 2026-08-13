@@ -789,6 +789,7 @@ function rangeTokenFromPage(page) {
 
 // premium は pro の全機能を含む上位プラン。プラン判定はこのヘルパで統一する。
 function isProPlan(plan) { return plan === "pro" || plan === "premium"; }
+function isPremiumPlan(plan) { return plan === "premium"; }
 
 function updateBookingPageControls() {
   const isPro = isProPlan(currentOwner?.plan);
@@ -959,6 +960,10 @@ function renderBookingPages(pages) {
     el.innerHTML = `<p class="muted">${escapeHtml(t("bs.list.empty"))}</p>`;
     return;
   }
+  // ピンポイントリンクは当面プレミアム限定で配信する（#303）。
+  // CSS の .premium-feature は display:block になるため、横並びのボタン列では使えない。
+  // ここは行ごとの描画なので、出す・出さないを描画時に決める（サーバ側 pinpoint-create.js でも 403 で止める）。
+  const showPinpoint = isPremiumPlan(currentOwner?.plan);
   el.innerHTML = pages.map((p) => `
     <article class="list-item${p.is_active === false ? " is-paused" : ""}">
       <strong>${escapeHtml(p.title || t("bs.list.untitled"))}${p.is_active === false ? `<span class="pause-badge">${escapeHtml(t("bs.list.paused"))}</span>` : ""}</strong>
@@ -967,6 +972,7 @@ function renderBookingPages(pages) {
       <div class="actions">
         <a class="button secondary" href="${escapeHtml(bookingPageUrl(p.slug))}" target="_blank" rel="noopener">${escapeHtml(t("bs.list.open"))}</a>
         <button class="button secondary" type="button" data-page-action="copy" data-slug="${escapeHtml(p.slug)}">${escapeHtml(t("bs.list.copyUrl"))}</button>
+        ${showPinpoint ? `<button class="button secondary" type="button" data-page-action="pinpoint" data-slug="${escapeHtml(p.slug)}" data-id="${escapeHtml(p.id)}">${escapeHtml(t("pin.button"))}</button>` : ""}
         <button class="button secondary" type="button" data-page-action="edit" data-id="${escapeHtml(p.id)}">${escapeHtml(t("bs.list.edit"))}</button>
         <button class="button secondary" type="button" data-page-action="delete" data-id="${escapeHtml(p.id)}">${escapeHtml(t("bs.delete"))}</button>
       </div>
@@ -1010,6 +1016,9 @@ function openPageEditor() {
   setMessage("#booking-page-message", "");
   const list = $("#list-view");
   if (list) list.hidden = true;
+  // 3つの画面（一覧／編集／ピンポイント候補選択）は同時に出さない。
+  const pinpointView = $("#pinpoint-view");
+  if (pinpointView) pinpointView.hidden = true;
   editor.hidden = false;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -1173,6 +1182,258 @@ function wireNoteModals() {
   });
 }
 
+// ===== ピンポイント日程調整リンク（#303）=====
+// 一覧の「ピンポイントリンク」から候補選択画面へ切り替え、ゲストの予約画面と同じ5日タイムグリッドで
+// 候補を選ばせる（枠を押すと候補に入る／もう一度押すと外れる）。選び終えたら /p/ リンクを発行する。
+// 候補は「キマルが算出した空き枠」に限る（受付時間・バッファ・カレンダーとの整合を崩さないため）。
+let ppPageId = "";
+let ppSlug = "";
+let ppPageTitle = "";            // 見出しに出す予約ページ名（言語切替で入れ直すため保持）
+let ppStart = null;              // 表示中の5日間の先頭日（"YYYY-MM-DD"）
+let ppMinDate = null;            // 予約可能な最古日（月カレンダーの下限）
+let ppMaxDate = null;            // 受付上限日（月カレンダーの上限）
+let ppCalYear = 0, ppCalMonth = 0;
+const ppChosen = new Map();      // start(ISO) -> {start, end}。日を送っても選択を保持する。
+
+function ppSetMessage(text, kind) { setMessage("#pp-message", text, kind); }
+function ppStatus(html) { const el = $("#pp-status"); if (el) el.innerHTML = html; }
+
+// チップの表記は「8月15日(土) 15:00〜15:50」。終了時刻まで出さないと、
+// 所要を変えたページで「どの枠を出したのか」がホスト自身にも読み取れない。
+function ppSlotLabel(slot) {
+  const end = new Date(slot.end);
+  const endText = Number.isNaN(end.getTime())
+    ? ""
+    : `〜${new Intl.DateTimeFormat(window.KimaruI18n?.getLanguage() || "ja", { hour: "2-digit", minute: "2-digit" }).format(end)}`;
+  return `${formatSlot(slot.start)}${endText}`;
+}
+
+// 候補チップと件数の描画。表示は時刻順（ゲストに見える並び）に揃える。
+function ppRenderChips() {
+  const box = $("#pp-chips");
+  const count = $("#pp-count");
+  const chosen = [...ppChosen.values()].sort((a, b) => new Date(a.start) - new Date(b.start));
+  if (count) count.textContent = t("pin.countUnit").replace("{n}", String(chosen.length));
+  if (!box) return;
+  if (!chosen.length) {
+    box.innerHTML = `<span class="muted">${escapeHtml(t("pin.empty"))}</span>`;
+    return;
+  }
+  box.innerHTML = chosen.map((slot) => `
+    <span class="pp-chip">${escapeHtml(ppSlotLabel(slot))}
+      <button type="button" data-pp-remove="${escapeHtml(slot.start)}" aria-label="${escapeHtml(t("pin.remove"))}">✕</button>
+    </span>`).join("");
+}
+
+// 候補のトグル。グリッドの見た目（.is-picked）も同時に切り替える（再描画せず即座に反応させる）。
+function ppToggleSlot(slot, button) {
+  if (ppChosen.has(slot.start)) ppChosen.delete(slot.start);
+  else ppChosen.set(slot.start, { start: slot.start, end: slot.end });
+  const picked = ppChosen.has(slot.start);
+  if (button) {
+    button.classList.toggle("is-picked", picked);
+    button.setAttribute("aria-pressed", picked ? "true" : "false");
+  }
+  ppSetMessage("");
+  ppRenderChips();
+}
+
+async function ppLoadDays(startYmd) {
+  const grid = $("#pp-grid");
+  const weekcal = $("#pp-weekcal");
+  if (!grid || !window.KimaruWeekGrid) return;
+  ppStatus(`<p class="muted">${escapeHtml(t("bs.list.loading"))}</p>`);
+  try {
+    const q = startYmd ? `&start=${encodeURIComponent(startYmd)}` : "";
+    const data = await api(`availability?slug=${encodeURIComponent(ppSlug)}${q}`);
+    ppStart = data.range_start || startYmd || window.KimaruWeekGrid.todayYmd();
+    data.range_start = ppStart; // range_start 欠落時も描画を壊さない（NaN日付でIntlが例外化するのを防ぐ）
+    ppMinDate = data.min_date || null;
+    ppMaxDate = data.max_date || null;
+    // 受付停止中のページはサーバ側でもリンクを作れないので、ここで理由を出して終わる。
+    if (data.suspended || data.paused) {
+      if (weekcal) weekcal.style.display = "none";
+      ppStatus(`<p class="muted">${escapeHtml(t("pin.pausedPage"))}</p>`);
+      return;
+    }
+    window.KimaruWeekGrid.render({
+      grid,
+      weekcal,
+      data,
+      picker: true,
+      actionLabel: t("pin.slotAction"),
+      isSelected: (slot) => ppChosen.has(slot.start),
+      onPick: ppToggleSlot,
+    });
+    const label = $("#pp-range-label");
+    if (label) label.textContent = window.KimaruWeekGrid.rangeLabelText(ppStart, Number(data.days) || 5);
+    const prev = $("#pp-prev"); if (prev) prev.disabled = !data.hasPrev;
+    const next = $("#pp-next"); if (next) next.disabled = !data.hasNext;
+    ppStatus((data.slots || []).length ? "" : `<p class="muted">${escapeHtml(t("pin.noSlots"))}</p>`);
+  } catch (error) {
+    if (weekcal) weekcal.style.display = "none";
+    ppStatus(`<p class="muted">${escapeHtml(error.message)}</p>`);
+  }
+}
+
+// --- 月カレンダー（範囲ボタン/日付ヘッダーで開く → 空き枠のある日を選ぶ → その日から5日間）---
+function ppRenderCalendar(data) {
+  const wrap = $("#pp-cal-days");
+  if (!wrap || !window.KimaruWeekGrid) return;
+  const { parseYmd, ymdStr } = window.KimaruWeekGrid;
+  const has = new Set((data.days || []).map(Number));
+  const minD = ppMinDate ? parseYmd(ppMinDate) : null;
+  const maxD = ppMaxDate ? parseYmd(ppMaxDate) : null;
+  const startDow = new Date(ppCalYear, ppCalMonth - 1, 1).getDay();
+  const count = new Date(ppCalYear, ppCalMonth, 0).getDate();
+  const inRange = (d) => {
+    const cur = new Date(ppCalYear, ppCalMonth - 1, d).getTime();
+    if (minD && cur < new Date(minD.y, minD.m, minD.d).getTime()) return false;
+    if (maxD && cur > new Date(maxD.y, maxD.m, maxD.d).getTime()) return false;
+    return true;
+  };
+  let html = "";
+  for (let i = 0; i < startDow; i++) html += `<div class="cal-day empty"></div>`;
+  for (let d = 1; d <= count; d++) {
+    const ok = has.has(d) && inRange(d);
+    const attr = ok ? ` data-pp-pick="${ymdStr(ppCalYear, ppCalMonth - 1, d)}"` : " disabled";
+    html += `<button type="button" class="cal-day ${ok ? "has-slot" : "no-slot"}"${attr}>${d}<span class="dot"></span></button>`;
+  }
+  wrap.innerHTML = html;
+  const ym = ppCalYear * 12 + (ppCalMonth - 1);
+  const prevM = $("#pp-cal-prev");
+  const nextM = $("#pp-cal-next");
+  if (prevM) prevM.disabled = minD ? ym <= minD.y * 12 + minD.m : false;
+  if (nextM) nextM.disabled = maxD ? ym >= maxD.y * 12 + maxD.m : false;
+}
+
+async function ppLoadCalendarMonth() {
+  const wrap = $("#pp-cal-days");
+  const title = $("#pp-cal-title");
+  const locale = window.KimaruWeekGrid ? window.KimaruWeekGrid.currentLocale() : "ja-JP";
+  if (title) title.textContent = new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(new Date(ppCalYear, ppCalMonth - 1, 1));
+  if (wrap) wrap.innerHTML = `<div class="cal-loading"><span class="spinner" aria-hidden="true"></span></div>`;
+  try {
+    const data = await api(`availability-days?slug=${encodeURIComponent(ppSlug)}&year=${ppCalYear}&month=${ppCalMonth}`);
+    ppRenderCalendar(data);
+  } catch (_) {
+    if (wrap) wrap.innerHTML = `<p class="muted">${escapeHtml(t("booking.cal.error"))}</p>`;
+  }
+}
+
+async function ppOpenCalendar() {
+  if (!window.KimaruWeekGrid) return;
+  const row = $("#pp-cal-dow");
+  if (row) {
+    const locale = window.KimaruWeekGrid.currentLocale();
+    let html = "";
+    // 2023-01-01 は日曜。曜日名はロケール依存（Intl）。
+    for (let i = 0; i < 7; i++) html += `<div class="cal-dow">${escapeHtml(new Intl.DateTimeFormat(locale, { weekday: "narrow" }).format(new Date(2023, 0, 1 + i)))}</div>`;
+    row.innerHTML = html;
+  }
+  const anchor = ppStart || ppMinDate || window.KimaruWeekGrid.todayYmd();
+  const p = window.KimaruWeekGrid.parseYmd(anchor);
+  ppCalYear = p.y;
+  ppCalMonth = p.m + 1;
+  await ppLoadCalendarMonth();
+  const modal = $("#pp-cal-modal");
+  if (modal) modal.hidden = false;
+}
+function ppCloseCalendar() { const m = $("#pp-cal-modal"); if (m) m.hidden = true; }
+
+function ppRenderHeading() {
+  const name = $("#pp-page-name");
+  if (name) name.textContent = t("pin.desc").replace("{title}", ppPageTitle || t("bs.list.untitled"));
+}
+
+function openPinpointView(pageId, slug, title) {
+  const view = $("#pinpoint-view");
+  if (!view) return;
+  ppPageId = pageId; ppSlug = slug; ppPageTitle = title || ""; ppStart = null;
+  ppChosen.clear();
+  ppRenderChips();
+  const list = $("#list-view");
+  if (list) list.hidden = true;
+  const editor = $("#page-editor");
+  if (editor) editor.hidden = true;
+  view.hidden = false;
+  ppRenderHeading();
+  const result = $("#pp-result"); if (result) result.hidden = true;
+  const hold = $("#pp-hold"); if (hold) hold.value = "none";
+  ppSetMessage("");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  ppLoadDays(null);
+}
+
+function closePinpointView() {
+  const view = $("#pinpoint-view");
+  const list = $("#list-view");
+  if (view) view.hidden = true;
+  if (list) list.hidden = false;
+  ppCloseCalendar();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function bindPinpoint() {
+  $("#pp-back")?.addEventListener("click", closePinpointView);
+  // 言語切替。曜日見出し・範囲ラベルはグリッドを描き直さないと直らないので、開いているときだけ再取得する。
+  document.addEventListener("kimaru:languagechange", () => {
+    if ($("#pinpoint-view")?.hidden !== false) return;
+    ppRenderHeading();
+    ppRenderChips();
+    ppLoadDays(ppStart);
+  });
+  $("#pp-prev")?.addEventListener("click", () => { if (ppStart) ppLoadDays(window.KimaruWeekGrid.shiftYmd(ppStart, -5)); });
+  $("#pp-next")?.addEventListener("click", () => { if (ppStart) ppLoadDays(window.KimaruWeekGrid.shiftYmd(ppStart, 5)); });
+  // 範囲ボタン／日付ヘッダーで月カレンダーを開く（予約画面と同じ操作）。
+  $("#pp-range-btn")?.addEventListener("click", ppOpenCalendar);
+  $("#pp-grid")?.addEventListener("click", (event) => { if (event.target.closest("[data-cal-open]")) ppOpenCalendar(); });
+  $("#pp-cal-close")?.addEventListener("click", ppCloseCalendar);
+  $("#pp-cal-modal")?.addEventListener("click", (event) => { if (event.target.id === "pp-cal-modal") ppCloseCalendar(); });
+  $("#pp-cal-prev")?.addEventListener("click", () => { ppCalMonth -= 1; if (ppCalMonth < 1) { ppCalMonth = 12; ppCalYear -= 1; } ppLoadCalendarMonth(); });
+  $("#pp-cal-next")?.addEventListener("click", () => { ppCalMonth += 1; if (ppCalMonth > 12) { ppCalMonth = 1; ppCalYear += 1; } ppLoadCalendarMonth(); });
+  $("#pp-cal-days")?.addEventListener("click", (event) => {
+    const pick = event.target.closest("[data-pp-pick]");
+    if (!pick) return;
+    ppCloseCalendar();
+    ppLoadDays(pick.getAttribute("data-pp-pick"));
+  });
+  // チップの✕で候補から外す（グリッド外の日を選んだ後でも取り消せるようにする）。
+  $("#pp-chips")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-pp-remove]");
+    if (!button) return;
+    const start = button.getAttribute("data-pp-remove");
+    ppChosen.delete(start);
+    const slot = $("#pp-grid")?.querySelector(`.wk-slot[data-start="${CSS.escape(start)}"]`);
+    if (slot) { slot.classList.remove("is-picked"); slot.setAttribute("aria-pressed", "false"); }
+    ppRenderChips();
+  });
+  $("#pp-copy")?.addEventListener("click", () => {
+    const url = $("#pp-url")?.value || "";
+    navigator.clipboard?.writeText(url).catch(() => {});
+    ppSetMessage(t("pin.copied"), "success");
+  });
+  $("#pp-create")?.addEventListener("click", async () => {
+    if (!ppChosen.size) { ppSetMessage(t("pin.needSlot"), "error"); return; }
+    ppSetMessage(t("pin.creating"));
+    try {
+      const res = await api("pinpoint-create", {
+        method: "POST",
+        body: JSON.stringify({
+          booking_page_id: ppPageId,
+          slots: [...ppChosen.values()],
+          hold_slots: $("#pp-hold")?.value === "hold",
+        }),
+      });
+      const input = $("#pp-url"); if (input) input.value = res.url || "";
+      const result = $("#pp-result"); if (result) result.hidden = false;
+      ppSetMessage(t("pin.created"), "success");
+    } catch (error) {
+      ppSetMessage(error.message, "error");
+    }
+  });
+}
+
 function clearBookingPageForm() {
   const form = $("#booking-page-form");
   if (!form) return;
@@ -1250,6 +1511,7 @@ async function initAdmin() {
   $("#booking-page-form")?.querySelector('select[name="buffer_before_minutes"]')?.addEventListener("change", updateBookingPageControls);
   $("#booking-page-form")?.querySelector('select[name="buffer_after_minutes"]')?.addEventListener("change", updateBookingPageControls);
   $("#booking-page-new")?.addEventListener("click", clearBookingPageForm);
+  bindPinpoint();
   $("#add-question")?.addEventListener("click", addQuestionRow);
   $("#question-list")?.addEventListener("click", (event) => {
     if (event.target.closest(".question-remove")) {
@@ -1291,6 +1553,9 @@ async function initAdmin() {
       const url = bookingPageUrl(button.dataset.slug);
       navigator.clipboard?.writeText(url).catch(() => {});
       setMessage("#booking-list-message", `URLをコピーしました: ${url}`, "success");
+    } else if (action === "pinpoint") {
+      const target = pages.find((p) => p.id === button.dataset.id);
+      openPinpointView(button.dataset.id, button.dataset.slug, target?.title || "");
     } else if (action === "edit") {
       fillBookingPageForm(pages.find((p) => p.id === button.dataset.id));
     } else if (action === "delete") {

@@ -424,3 +424,19 @@ alter table questionnaire_answers add column if not exists question_text text no
 -- 未適用の環境では、読み出し側がフィルタ無しのクエリへ、保存側が旧挙動（オフの曜日は行を消す）へ
 -- デグレードするので、適用前でも壊れない。
 alter table availability_settings add column if not exists enabled boolean not null default true;
+
+-- ピンポイント日程調整リンク（#303）。ホストが選んだ数枠だけを提示する /p/<token> 用。
+-- slots は発行時のスナップショット（受付時間や所要を後から変えても打診済みの候補は変えない）。
+-- hold_slots=true のリンクの候補は、通常の予約ページの空き枠計算で busy として扱う。
+-- テーブル未適用の環境ではリンク発行APIが失敗するだけで、既存の予約導線は壊れない。
+create table if not exists pinpoint_links (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references owners(id) on delete cascade,
+  booking_page_id uuid not null references booking_pages(id) on delete cascade,
+  token text not null unique,
+  slots jsonb not null default '[]'::jsonb,
+  hold_slots boolean not null default false,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create index if not exists pinpoint_links_owner_idx on pinpoint_links (owner_id, is_active);

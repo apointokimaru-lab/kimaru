@@ -540,6 +540,78 @@ section("edge auth-gate blocks disabled pages (#314)");
   ok("公開ページは素通りする", pub.passedThrough === true);
 }
 
+// ---------- 9e) #303 ピンポイント日程調整リンク ----------
+section("pinpoint scheduling link (#303)");
+{
+  const pin = requireCjs(path.join(repo, "netlify/functions/_lib/pinpoint.js"));
+  const iso = (offsetMs) => new Date(Date.now() + offsetMs).toISOString();
+  const H = 3600000;
+
+  // 候補枠の正規化: 過去・壊れた値・重複を落とし、開始が早い順に並べる。
+  const slots = pin.normalizeSlots([
+    { start: iso(48 * H), end: iso(48 * H + 1800000) },
+    { start: iso(24 * H), end: iso(24 * H + 1800000) },
+    { start: iso(24 * H), end: iso(24 * H + 1800000) }, // 重複
+    { start: iso(-24 * H), end: iso(-24 * H + 1800000) }, // 過去
+    { start: "こわれた値", end: iso(72 * H) },
+    { start: iso(72 * H), end: iso(71 * H) }, // 終了が開始より前
+  ]);
+  ok("過去・重複・壊れた候補を落とす", slots.length === 2);
+  ok("開始が早い順に並ぶ", new Date(slots[0].start) < new Date(slots[1].start));
+  ok("上限を超えない", pin.normalizeSlots(Array.from({ length: 50 }, (_, i) => ({ start: iso((i + 1) * H), end: iso((i + 1) * H + 1800000) }))).length === pin.MAX_SLOTS);
+
+  // 候補に含まれるかの判定（秒のずれは無視する）。
+  const link = { id: "pl1", slots: [{ start: "2026-09-01T05:00:00.000Z", end: "2026-09-01T05:30:00.000Z" }] };
+  ok("候補と同じ時刻は通す", pin.includesSlot(link, "2026-09-01T05:00:00.000Z"));
+  ok("秒のずれは許容する", pin.includesSlot(link, "2026-09-01T05:00:45.000Z"));
+  ok("候補外の時刻は弾く", !pin.includesSlot(link, "2026-09-01T06:00:00.000Z"));
+
+  // 押さえ枠: hold のリンクだけ busy になり、自分自身は除外される。
+  const TABLES = { pinpoint_links: [
+    { id: "pl-hold", owner_id: OWNER.id, hold_slots: true, is_active: true, slots: [{ start: "2026-09-02T01:00:00.000Z", end: "2026-09-02T01:30:00.000Z" }] },
+    { id: "pl-free", owner_id: OWNER.id, hold_slots: false, is_active: true, slots: [{ start: "2026-09-03T01:00:00.000Z", end: "2026-09-03T01:30:00.000Z" }] },
+  ] };
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const table = new URL(url).pathname.replace("/rest/v1/", "").split("?")[0];
+    return { ok: true, status: 200, text: async () => JSON.stringify(TABLES[table] || []) };
+  };
+  const held = await pin.heldBusyFor(OWNER.id);
+  ok("hold のリンクだけ busy になる", held.length === 1 && held[0].start === "2026-09-02T01:00:00.000Z");
+  ok("hold でないリンクは押さえない", !held.some((b) => b.start.startsWith("2026-09-03")));
+  const heldExcept = await pin.heldBusyFor(OWNER.id, { exceptId: "pl-hold" });
+  ok("自分自身の押さえは除外される", heldExcept.length === 0);
+  globalThis.fetch = prevFetch;
+}
+
+// ---------- 9f) #303 候補外の時刻では予約できない ----------
+section("pinpoint booking rejects slots outside candidates (#303)");
+{
+  const okSlot = new Date(Date.now() + 5 * 86400000);
+  okSlot.setUTCMinutes(0, 0, 0);
+  const ngSlot = new Date(okSlot.getTime() + 3 * 3600000);
+  DB.pinpoint_links = [{
+    id: "pl-book", owner_id: OWNER.id, booking_page_id: "bp1", token: "tok-abc", is_active: true, hold_slots: false,
+    slots: [{ start: okSlot.toISOString(), end: new Date(okSlot.getTime() + 1800000).toISOString() }],
+  }];
+  const bookVia = async (start, token) => bookFn.handler({
+    httpMethod: "POST", headers: {},
+    body: JSON.stringify({
+      owner_slug: "tarou", visitor_name: "ピン 太郎", visitor_email: "pin@example.com",
+      start: start.toISOString(), end: new Date(start.getTime() + 1800000).toISOString(),
+      pinpoint_token: token,
+    }),
+  });
+  const bad = await bookVia(ngSlot, "tok-abc");
+  ok("候補外の時刻は400で弾く", bad.statusCode === 400 && JSON.parse(bad.body).error.includes("候補"));
+  const unknown = await bookVia(okSlot, "存在しないトークン");
+  ok("存在しないトークンは404", unknown.statusCode === 404);
+  const good = await bookVia(okSlot, "tok-abc");
+  ok("候補内の時刻は予約できる", good.statusCode === 200);
+  const noToken = await bookVia(ngSlot, "");
+  ok("トークン無しの通常予約は従来どおり通る", noToken.statusCode === 200);
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";

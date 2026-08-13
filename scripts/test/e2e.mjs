@@ -19,6 +19,8 @@ const section = (n) => console.log("\n# " + n);
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split("?")[0]);
   if (p === "/") p = "/index.html";
+  // netlify.toml の rewrite 相当。/b/<slug> と /p/<token> は booking.html を返す。
+  if (/^\/(b|p)\//.test(p)) p = "/booking.html";
   const file = path.join(pub, p);
   if (!file.startsWith(pub) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); return res.end("nf"); }
   res.writeHead(200, { "content-type": MIME[path.extname(file)] || "text/plain" });
@@ -257,6 +259,139 @@ section("booking page with no questions shows no questionnaire");
   ok("no default 今回お話したい内容 question", !(await bodyText(page)).includes("今回お話したい内容"));
   ok("no JS exception", page._errors.length === 0);
   await page.close();
+}
+
+// ===== 8) ゲストの5日グリッド（週表の描画は week-grid.js をホストと共用）=====
+section("guest week grid renders slots (shared week-grid.js)");
+{
+  const day = new Date(Date.now() + 2 * 86400000);
+  day.setHours(11, 0, 0, 0);
+  const ymd = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+  const gridSlots = [
+    { start: day.toISOString(), end: new Date(day.getTime() + 1800000).toISOString() },
+    { start: new Date(day.getTime() + 86400000).toISOString(), end: new Date(day.getTime() + 86400000 + 1800000).toISOString() },
+  ];
+  const page = await newPage();
+  await page.route("**/api/**", (route) => {
+    const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+    const body = name === "availability"
+      ? { host: { title: "初回相談", duration_minutes: 30, location_type: "google_meet", slug: "taro" }, questions: [], slots: gridSlots, range_start: ymd, days: 5, axis: { start_min: 600, end_min: 1080 }, hasPrev: false, hasNext: true }
+      : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  });
+  await page.goto(`${base}/booking.html?slug=taro`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(600);
+  ok("week grid shows the open slots", (await page.locator("#wk-grid .wk-slot").count()) === 2);
+  await page.locator("#wk-grid .wk-slot").first().click();
+  await page.waitForTimeout(200);
+  ok("picking a slot marks it selected", (await page.locator("#wk-grid .wk-slot.sel").count()) === 1);
+  ok("picking a slot fills the form", (await page.inputValue('#booking-form input[name="start"]')) === gridSlots[0].start);
+  ok("no JS exception", page._errors.length === 0);
+  await page.close();
+}
+
+// ===== 9) ピンポイント日程調整（#303） =====
+section("pinpoint scheduling link (#303)");
+{
+  const future = new Date(Date.now() + 5 * 86400000);
+  future.setHours(14, 0, 0, 0);
+  const SLOTS = [
+    { start: future.toISOString(), end: new Date(future.getTime() + 1800000).toISOString() },
+    { start: new Date(future.getTime() + 86400000).toISOString(), end: new Date(future.getTime() + 86400000 + 1800000).toISOString() },
+  ];
+  // --- ゲスト: /p/<token> は候補一覧＋ラジオで出る ---
+  {
+    const page = await newPage();
+    let booked = null;
+    await page.route("**/api/**", (route) => {
+      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      if (name === "book") { booked = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, manage_url: "/manage-booking.html?k=x" }) }); }
+      const body = name === "pinpoint"
+        ? { token: "toke2e", slots: SLOTS, questions: [], host: { slug: "taro", title: "初回相談", duration_minutes: 30, location_type: "google_meet", name: "テスト オーナー" } }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    // /p/* は booking.html を返す（netlify.toml の rewrite 相当）
+    await page.goto(`${base}/p/toke2e`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    const radios = await page.locator('input[name="pp-slot"]').count();
+    ok("pinpoint shows candidate radios", radios === 2);
+    ok("week calendar is hidden", !(await page.locator("#weekcal").isVisible().catch(() => false)));
+    // 候補は日付ごとにまとめ、日付は見出しに1回だけ出す（行は時間のみ）。SLOTS は別日の2件。
+    ok("candidates are grouped by date", (await page.locator(".pp-daylabel").count()) === 2);
+    ok("rows show only the time range", /^\d{2}:\d{2}〜\d{2}:\d{2}$/.test((await page.locator(".pp-item .pp-time").first().textContent()).replace(/\s/g, "")));
+    ok("heading says these are the host's candidates", (await page.textContent('[data-i18n="booking.pinpoint.slotsHeading"]')).includes("候補"));
+    // ラジオ本体は見た目を .pp-mark に譲って隠してあるので、実ユーザーと同じくラベルを押す。
+    await page.locator(".pp-item").first().click();
+    await page.waitForTimeout(200);
+    ok("selecting a candidate marks the row", (await page.locator(".pp-item.sel").count()) === 1);
+    ok("selecting a candidate reveals the form", await page.locator("#booking-form").isVisible());
+    ok("selected slot label is filled", (await page.textContent("#selected-slot")).includes("〜"));
+    await page.fill('input[name="visitor_name"]', "ピン 太郎");
+    await page.fill('input[name="visitor_email"]', "pin@example.com");
+    await page.locator("#booking-form").evaluate((f) => f.requestSubmit());
+    await page.waitForTimeout(300);
+    await page.click("#confirm-book").catch(() => {});
+    await page.waitForTimeout(400);
+    ok("booking payload carries pinpoint_token", booked?.pinpoint_token === "toke2e");
+    ok("booking payload uses the chosen slot", booked?.start === SLOTS[0].start);
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
+  // --- ホスト: 一覧 → 候補選択画面（予約と同じカレンダー）→ リンク発行 ---
+  {
+    const page = await newPage();
+    let created = null;
+    // グリッドは range_start から5日分の列に枠を割り振るので、先頭日を候補の初日に合わせる。
+    const ymd = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, "0")}-${String(future.getDate()).padStart(2, "0")}`;
+    await page.route("**/api/**", (route) => {
+      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      if (name === "pinpoint-create") { created = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, url: "https://kimaru-co.jp/p/tok-new" }) }); }
+      // 当面プレミアム限定で配信するので、ホスト側の確認はプレミアムで行う（既定モックは pro）。
+      const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "premium" } }
+        : name === "availability" ? { slots: SLOTS, range_start: ymd, days: 5, questions: [], host: {}, hasPrev: false, hasNext: true }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
+    await page.waitForSelector('[data-page-action="pinpoint"]', { timeout: 8000 }).catch(() => {});
+    ok("pinpoint button is next to copy button", (await page.locator('[data-page-action="pinpoint"]').count()) === 1);
+    await page.click('[data-page-action="pinpoint"]');
+    await page.waitForTimeout(500);
+    ok("picker screen replaces the list", await page.locator("#pinpoint-view").isVisible() && !(await page.locator("#list-view").isVisible()));
+    ok("slots are shown on the week calendar", (await page.locator("#pp-grid .wk-slot").count()) === 2);
+    ok("hold is a select, not a checkbox", (await page.locator("#pp-hold").evaluate((el) => el.tagName)) === "SELECT");
+    // 枠を押す＝候補に入る／もう一度押す＝外れる
+    await page.locator("#pp-grid .wk-slot").first().click();
+    await page.waitForTimeout(150);
+    ok("clicking a slot marks it as a candidate", (await page.locator("#pp-grid .wk-slot.is-picked").count()) === 1);
+    ok("chosen candidate appears as a chip", (await page.locator("#pp-chips .pp-chip").count()) === 1);
+    await page.locator("#pp-grid .wk-slot").first().click();
+    await page.waitForTimeout(150);
+    ok("clicking again removes it", (await page.locator("#pp-grid .wk-slot.is-picked").count()) === 0);
+    await page.locator("#pp-grid .wk-slot").first().click();
+    await page.selectOption("#pp-hold", "hold");
+    await page.click("#pp-create");
+    await page.waitForTimeout(400);
+    ok("create request carries the chosen slot", created?.slots?.length === 1 && created.slots[0].start === SLOTS[0].start);
+    ok("create request carries hold flag", created?.hold_slots === true);
+    ok("issued url is shown for copying", (await page.inputValue("#pp-url")).includes("/p/tok-new"));
+    await page.click("#pp-back");
+    await page.waitForTimeout(200);
+    ok("back returns to the list", await page.locator("#list-view").isVisible() && !(await page.locator("#pinpoint-view").isVisible()));
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
+  // --- プレミアム限定の配信（#303）: pro には導線が出ない ---
+  {
+    const page = await newPage();
+    await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
+    await page.waitForSelector("#booking-pages-list .list-item", { timeout: 8000 }).catch(() => {});
+    ok("pro sees the page list", (await page.locator("#booking-pages-list .list-item").count()) === 1);
+    ok("pro does not see the pinpoint button", (await page.locator('[data-page-action="pinpoint"]').count()) === 0);
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
 }
 
 await browser.close();

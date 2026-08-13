@@ -3,6 +3,7 @@ const { sb, eq, defaultOwner, findOwnerById, findOwnerByEmail } = require("./_li
 const { createCalendarEvent, createBufferEventsFor } = require("./_lib/google");
 const { checkRateLimit, clientIp, RATE_LIMIT_MESSAGE } = require("./_lib/rate-limit");
 const zoom = require("./_lib/zoom");
+const pinpoint = require("./_lib/pinpoint");
 const { sendMail } = require("./_lib/mail");
 const { appBaseUrl } = require("./_lib/config");
 const { LOCATION_LABELS, formatJst, manageUrl, answerUrl, answersSummary } = require("./_lib/booking-format");
@@ -205,6 +206,20 @@ exports.handler = async (event) => {
     // 利用停止（cat_key_disabled）アカウントの予約ページは予約不可。
     if (owner.cat_key_disabled) return json(403, { error: "このページは現在ご利用いただけません。" });
     if (bookingPage && bookingPage.is_active === false) return json(400, { error: "このページは現在、予約の受付を停止しています" });
+
+    // ピンポイント日程調整リンク（#303）経由の予約は、提示した候補の中からしか取らせない。
+    // 画面が候補だけを出していても、候補外の時刻を直接POSTされうるのでサーバ側で検証する。
+    let pinpointLink = null;
+    if (String(body.pinpoint_token || "").trim()) {
+      pinpointLink = await pinpoint.findByToken(body.pinpoint_token);
+      if (!pinpointLink) return json(404, { error: "この日程調整リンクは見つかりませんでした" });
+      if (!bookingPage || pinpointLink.booking_page_id !== bookingPage.id) {
+        return json(400, { error: "この日程調整リンクではこの予約ページを利用できません" });
+      }
+      if (!pinpoint.includesSlot(pinpointLink, start.toISOString())) {
+        return json(400, { error: "選択された日程は候補に含まれていません。画面を開き直してお選びください" });
+      }
+    }
     const relationshipContext = parseRelationshipContext(body.filter_request);
     const birthDatePrivate = body.birth_date_private === "yes" || body.birth_date_private === true;
     const storedRelationshipContext = sanitizePrivateBirthDate(relationshipContext, birthDatePrivate);

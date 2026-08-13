@@ -50,6 +50,14 @@
   to = "/booking.html"
   status = 200
 
+# ピンポイント日程調整リンク（#303）。/p/<token> も booking.html を使う。
+# 候補の出し方（週表→ラジオ一覧）だけ差し替え、質問・確認・完了は通常の予約と同じ画面を通す。
+# token は JS がパスから読む。
+[[redirects]]
+  from = "/p/*"
+  to = "/booking.html"
+  status = 200
+
 [[redirects]]
   from = "/u/*"
   to = "/public-profile.html"

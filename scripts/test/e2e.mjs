@@ -113,6 +113,9 @@ section("dashboard: real data");
   ok("new page button sits next to the heading", (await page.locator('.side-card-head a[href="/booking-settings.html?new=1"]').count()) === 1);
   const week = await page.textContent("#todo-week-count").catch(() => "");
   ok("todo-week-count is numeric", /^\d+$/.test(week.trim()));
+  // #321: 今週の予約は件数があるときだけ出す（モックは今日の予約あり）
+  ok("this week's row is shown when there are bookings", await page.locator("#todo-week").isVisible());
+  ok("empty note is hidden when there is something to do", !(await page.locator("#todo-empty").isVisible()));
   // 「回答待ちの質問」は停止中（#314）。要対応に出さず、APIも叩かない。
   ok("no pending-questions link in todos", (await page.locator('a[href="/pending-questions.html"]').count()) === 0);
   ok("no 回答待ちの質問 row", !(await page.textContent(".todo")).includes("回答待ち"));
@@ -355,6 +358,25 @@ section("#321 copy and layout fixes");
     await page.waitForTimeout(300);
     ok("last page shows the remainder", (await page.locator("#ans-list .ans-card").count()) === 3);
     ok("next is disabled on the last page", await page.locator('#ans-pager [data-page-step="1"]').isDisabled());
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
+  // --- ダッシュボード「要対応」: 何も無いときは0を並べず、代わりに一文だけ出す ---
+  {
+    const page = await newPage();
+    await page.route("**/api/**", (route) => {
+      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 予約ゼロ・プロフィール全項目入力済み＝要対応が1つも無い状態
+      const body = name === "owner-bookings" ? { bookings: [] }
+        : name === "profile" ? { profile: { profile_name: "a", profile_title: "a", profile_strengths: "a", profile_style: "a", profile_offer: "a", profile_values: "a", profile_goal: "a" } }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    await page.goto(`${base}/dashboard.html`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    ok("this week's row is hidden at zero (#321)", !(await page.locator("#todo-week").isVisible()));
+    ok("no zero rows are left in the todo card", (await page.locator(".todo a.has:visible").count()) === 0);
+    ok("empty note is shown instead", await page.locator("#todo-empty").isVisible());
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }

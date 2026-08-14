@@ -517,6 +517,9 @@ function renderDashboardTodos(allBookings) {
   const weekCount = confirmed.filter((b) => { const d = new Date(b.start_at || b.start_time); return d >= weekStart && d < weekEnd; }).length;
   const weekCnt = document.getElementById("todo-week-count");
   if (weekCnt) weekCnt.textContent = String(weekCount);
+  // 0件のときは出さない（#321）。他の2項目と同じ扱いにする。
+  // 「要対応」に0が並ぶと、対応すべきものがあるのか無いのかが読み取れない。
+  weekRow.style.display = weekCount > 0 ? "" : "none";
   const locale = window.KimaruI18n?.getLanguage() || "ja";
   const fmt = (d) => new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric" }).format(d);
   const desc = document.getElementById("todo-week-desc");
@@ -528,6 +531,20 @@ function renderDashboardTodos(allBookings) {
   const aCnt = document.getElementById("todo-answers-count");
   if (aCnt) aCnt.textContent = String(unread);
   if (aRow) aRow.style.display = unread > 0 ? "" : "none";
+  updateDashboardTodoEmpty();
+}
+
+// 「要対応」の項目が1つも無いときの表示（#321）。
+// 見出しだけのカードが残ると、読み込みに失敗したのか本当に無いのかが分からない。
+// 項目は2か所（renderDashboardTodos / loadDashboardProfileTodo）で出し入れするので、
+// どちらから呼ばれても現在の表示状態だけを見て判断する。
+function updateDashboardTodoEmpty() {
+  const empty = document.getElementById("todo-empty");
+  if (!empty) return;
+  const anyVisible = ["todo-answers", "todo-profile", "todo-week"]
+    .map((id) => document.getElementById(id))
+    .some((el) => el && el.style.display !== "none");
+  empty.style.display = anyVisible ? "none" : "";
 }
 
 // ダッシュボード「予約ページを共有」カード：先頭の予約ページURL＋動作するコピー。
@@ -573,6 +590,7 @@ async function loadDashboardProfileTodo() {
     const cnt = document.getElementById("todo-profile-count");
     if (cnt) cnt.textContent = String(missing);
     row.style.display = missing > 0 ? "" : "none";
+    updateDashboardTodoEmpty();
   } catch (_) { /* 非致命 */ }
 }
 

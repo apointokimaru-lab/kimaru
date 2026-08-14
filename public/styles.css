@@ -198,13 +198,17 @@ h3{font-family:var(--display);font-weight:700;font-size:var(--fs-subhead);line-h
    PCでは1行、スマホでは「コピー・編集・削除／ピンポイント・開く」の2段に割る。
    自然な折り返しに任せるとボタンの文字数で段の切れ目が変わり、並びが不安定に見えるため。
    .list-item span{display:block} が効いてしまうので、消す側もこの詳細度で書く。 */
+/* 1行に5つ並ぶので、通常のボタン（46px高・--fs-label）より一回り小さくする。
+   既定サイズのままだと、スマホでは3つ目の「削除」から段が落ちる。 */
+.list-item .actions{gap:8px;margin-top:16px}
+.list-item .actions .button{min-height:38px;padding:0 14px;font-size:13px}
 .list-item .actions .actions-break{display:none}
 @media(max-width:680px){
-  .list-item .actions{gap:8px}
   .list-item .actions .actions-break{display:block;flex-basis:100%;width:100%;height:0;margin:0}
-  /* 2段目の2つは長いので、横幅を折半して収める。1つずつ折り返すと3段になってしまう。
-     文字は折り返してよいが単語の途中では割らない（keep-all は共通ルールで指定済み）。 */
-  .list-item .actions .actions-break~.button{flex:1 1 0;min-width:0;padding:0 12px;font-size:13px;white-space:normal;line-height:1.25}
+  /* 2段目の2つは横幅を折半して収める（1つずつ折り返すと3段になる）。
+     「ピンポイントリンクを作成」は幅を超えるので、この2つだけ word-break を通常に戻して
+     折り返せるようにする。共通の keep-all のままだと折り返せず、ボタンから文字がはみ出す。 */
+  .list-item .actions .actions-break~.button{flex:1 1 0;min-width:0;padding:0 10px;font-size:12.5px;white-space:normal;word-break:normal;line-height:1.25;align-self:stretch}
 }
 .form-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
 .form-actions-row{display:flex;gap:12px;flex-wrap:wrap}
@@ -216,9 +220,30 @@ h3{font-family:var(--display);font-weight:700;font-size:var(--fs-subhead);line-h
 .panel,.card,.form-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:clamp(20px,2.4vw,30px);box-shadow:var(--shadow);transition:transform .18s ease,box-shadow .18s ease}
 .card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
 .panel+.panel{margin-top:18px}
+
+/* スマホは画面幅をめいっぱい使う（#321）。
+   もとは「左右32pxの余白 → カードの枠線 → カードの内側余白 → さらに入れ子のカードの枠線と余白」と
+   4重に内側へ寄っていて、入力欄が実際の画面よりだいぶ狭かった。
+   カードを画面端まで伸ばし（負のマージンで shell の余白を打ち消す）、左右の枠線・角丸・影を外す。
+   上下の枠線だけ残すのは、全部外すとセクションの切れ目が分からなくなるため。
+   入れ子のカード（.editor-section など）は枠も余白も外して、外側のカードに寄せる。 */
 .profile-card{background:var(--surface);border-color:var(--line)}
 .soft-box,.questionnaire-box,.availability-box,.editor-section{padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);box-shadow:var(--shadow)}
 .questionnaire-box,.availability-box,.editor-section{display:grid;gap:12px}
+
+/* スマホは画面幅をめいっぱい使う（#321）。
+   もとは「左右32pxの余白 → パネルの枠 → パネルの内側余白 → 入れ子カードの枠 → その内側余白」と
+   4重に内側へ寄っていて、入力欄が実際の画面よりだいぶ狭かった。
+   左右の余白を16pxに詰め（パネルのフルブリードは下の「面のフラット化」ブロックが担当）、
+   入れ子のカードは枠も余白も外して外側のパネルに寄せる。
+   ※ .editor-section 等の定義より後に置くこと（前に置くと base に上書きされる）。 */
+@media(max-width:680px){
+  :root{--gutter:0px}
+  .shell{padding:28px 16px}
+  .soft-box,.questionnaire-box,.availability-box,.editor-section{border:0;border-radius:0;box-shadow:none;padding:0}
+  /* 枠を外したぶん、セクションの切れ目は間隔と1本の罫で示す。 */
+  .editor-section+.editor-section{margin-top:22px;padding-top:22px;border-top:1px solid var(--line)}
+}
 .availability-grid{display:grid;gap:10px}
 .card-step{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent)}
 .note{padding:13px 15px;border-radius:var(--radius-sm);background:var(--accent-soft);color:var(--accent-ink);font-size:var(--fs-note);font-weight:600}
@@ -1197,7 +1222,9 @@ body.modal-open{overflow:hidden}
    ボタン・朱スタンプ・選択リング等のアクセント影は操作の手がかりとして残す。 */
 @media(max-width:680px){
   :root{--shadow:0 0 0 rgba(25,26,28,0);--shadow-lg:0 0 0 rgba(25,26,28,0)}
-  .panel{margin-inline:-20px;border-radius:0;border-left:0;border-right:0;padding:20px}
+  /* margin-inline は .shell の左右余白と同じ値にすること（#321 で 20px→16px）。
+     ずれると画面端に帯が残るか、逆に横スクロールが出る。 */
+  .panel{margin-inline:-16px;border-radius:0;border-left:0;border-right:0;padding:20px 16px}
   .panel+.panel{margin-top:12px}
   .authwrap{display:block;min-height:0;padding:28px 0}
   .authcard{width:auto;border-radius:0;border-left:0;border-right:0;padding:26px 20px}

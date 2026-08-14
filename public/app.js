@@ -535,17 +535,12 @@ async function loadDashboardShare() {
   const urlEl = document.getElementById("share-url");
   if (!urlEl) return;
   const copyBtn = document.getElementById("share-copy");
-  const previewBtn = document.getElementById("share-preview");
   try {
     const data = await api("booking-pages");
     const slug = (data.pages || [])[0]?.slug;
     if (slug) {
       urlEl.textContent = bookingPageUrl(slug);
-      // プレビュー＝実際のゲスト向けページを開く。ページが無い間は非表示。
-      if (previewBtn) {
-        previewBtn.href = bookingPageUrl(slug);
-        previewBtn.style.display = "";
-      }
+      // プレビューボタンは削除（#321）。URLをコピーして開けば同じものが見られる。
       if (copyBtn) {
         copyBtn.style.display = "";
         if (!copyBtn.dataset.wired) {
@@ -562,7 +557,6 @@ async function loadDashboardShare() {
     } else {
       urlEl.textContent = t("dash.share.none");
       if (copyBtn) copyBtn.style.display = "none";
-      if (previewBtn) previewBtn.style.display = "none";
     }
   } catch (_) { /* 非致命 */ }
 }

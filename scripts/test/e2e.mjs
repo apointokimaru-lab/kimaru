@@ -108,6 +108,9 @@ section("dashboard: real data");
   const share = await page.textContent("#share-url").catch(() => "");
   ok("share-url shows real booking page url", /\/b\/taro$/.test(share.trim()));
   ok("share copy button visible", await page.locator("#share-copy").isVisible());
+  // #321: プレビューは削除し、「＋ 新しい予約ページ」は見出しの横へ
+  ok("no preview button in the share card", (await page.locator("#share-preview").count()) === 0);
+  ok("new page button sits next to the heading", (await page.locator('.side-card-head a[href="/booking-settings.html?new=1"]').count()) === 1);
   const week = await page.textContent("#todo-week-count").catch(() => "");
   ok("todo-week-count is numeric", /^\d+$/.test(week.trim()));
   // 「回答待ちの質問」は停止中（#314）。要対応に出さず、APIも叩かない。

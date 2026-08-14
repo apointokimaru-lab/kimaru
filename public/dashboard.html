@@ -44,14 +44,15 @@
       <aside>
         <!-- 予約ページを共有（booking-pages 実データ：app.js loadDashboardShare） -->
         <div class="side-card">
-          <h3 data-i18n="dash.share.heading">予約ページを共有</h3>
+          <!-- 見出しの横に「＋ 新しい予約ページ」を置く（#321）。プレビューは削除
+               （下のURLをコピーして開けば同じものが見られ、ボタンが1段増えるだけだった）。 -->
+          <div class="side-card-head">
+            <h3 data-i18n="dash.share.heading">予約ページを共有</h3>
+            <a class="button secondary btn-sm" href="/booking-settings.html?new=1" data-i18n="dash.share.new">＋ 新しい予約ページ</a>
+          </div>
           <div class="share">
             <code id="share-url">—</code>
             <button id="share-copy" class="button primary btn-sm" type="button" data-i18n="dash.share.copy">コピー</button>
-          </div>
-          <div class="form-actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-            <a id="share-preview" class="button secondary btn-sm" href="/booking-settings.html" target="_blank" rel="noopener" style="display:none" data-i18n="dash.share.preview">プレビュー</a>
-            <a class="button secondary btn-sm" href="/booking-settings.html?new=1" data-i18n="dash.share.new">＋ 新しい予約ページ</a>
           </div>
         </div>
 

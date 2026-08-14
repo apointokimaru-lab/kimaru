@@ -387,6 +387,8 @@ section("#321 copy and layout fixes");
     await page.waitForTimeout(400);
     ok("no duplicate Google row in account info", (await page.locator("#calendar-badge").count()) === 0);
     ok("disconnect lives in the integrations panel", (await page.locator("#integrations #calendar-disconnect").count()) === 1);
+    // #321: 解約枠の「Squareを開く」は削除（squareup.com のトップに飛ぶだけで解約にたどり着けなかった）
+    ok("no dead link to squareup.com", (await page.locator('a[href="https://squareup.com/"]').count()) === 0);
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }

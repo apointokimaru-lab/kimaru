@@ -1394,6 +1394,7 @@ function openPinpointView(pageId, slug, title) {
   const result = $("#pp-result"); if (result) result.hidden = true;
   const hold = $("#pp-hold"); if (hold) hold.value = "none";
   const holdTitle = $("#pp-hold-title"); if (holdTitle) holdTitle.value = "";
+  const expires = $("#pp-expires"); if (expires) expires.value = "7";
   ppSyncHoldTitle();
   ppSetMessage("");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1481,6 +1482,7 @@ function bindPinpoint() {
           slots: [...ppChosen.values()],
           hold_slots: hold,
           hold_title: holdTitle,
+          expires_days: Number($("#pp-expires")?.value || 7),
         }),
       });
       const input = $("#pp-url"); if (input) input.value = res.url || "";

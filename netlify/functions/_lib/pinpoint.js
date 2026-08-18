@@ -33,12 +33,37 @@ function normalizeSlots(input, { now = Date.now() } = {}) {
     .slice(0, MAX_SLOTS);
 }
 
-async function findByToken(token) {
+// リンクの有効期限（#326）。選べるのは3日か1週間の2つだけ。
+// 期限は「リンクの有効期限」で、候補の日時とは独立している。期限3日のリンクに10日後の
+// 候補が入っていてよく、期限が来ればリンク側が切れる（候補が未来でも予約できない）。
+const EXPIRES_DAY_CHOICES = [3, 7];
+const DEFAULT_EXPIRES_DAYS = 7;
+function expiresAtFrom(days, { now = Date.now() } = {}) {
+  const value = Number(days);
+  // 選択肢外は既定に寄せる。集合判定で弾くと画面から直せない値になるため（#300 の教訓）。
+  const chosen = EXPIRES_DAY_CHOICES.includes(value) ? value : DEFAULT_EXPIRES_DAYS;
+  return new Date(now + chosen * 86400000).toISOString();
+}
+
+// 期限切れかどうか。expires_at が無い（列未適用・#326 より前に発行済み）なら無期限として扱う。
+function isExpired(link, { now = Date.now() } = {}) {
+  if (!link?.expires_at) return false;
+  const at = new Date(link.expires_at).getTime();
+  return isFinite(at) && at <= now;
+}
+
+// トークンからリンクを引く。
+// 既定では期限切れも「無い」ものとして返さない（book.js など、うっかり期限切れを通しては
+// 困る側を既定で守るため）。ゲスト向けの取得APIだけが allowExpired で受け取り、
+// 「期限が切れています」と出し分ける。
+async function findByToken(token, { allowExpired = false } = {}) {
   const value = String(token || "").trim();
   if (!value) return null;
   const rows = await sb(`pinpoint_links?token=${eq(value)}&limit=1`).catch(() => []);
   const link = (rows || [])[0] || null;
-  return link && link.is_active !== false ? link : null;
+  if (!link || link.is_active === false) return null;
+  if (!allowExpired && isExpired(link)) return null;
+  return link;
 }
 
 // 開始時刻がこのリンクの候補に含まれるか。候補外の時刻をPOSTされても成立させないための検証。
@@ -56,9 +81,15 @@ function includesSlot(link, startIso) {
 // テーブル未適用・取得失敗のときは空配列（＝押さえなし）にデグレードし、予約導線は止めない。
 async function heldBusyFor(ownerId, { exceptId = null } = {}) {
   if (!ownerId) return [];
-  const rows = await sb(`pinpoint_links?owner_id=${eq(ownerId)}&is_active=is.true&select=id,slots,hold_slots`).catch(() => []);
+  // select を指定せず全列取る。expires_at を名指しすると、列が未適用の環境では
+  // PostgREST がエラーを返し、catch で「押さえゼロ」に落ちて全リンクの押さえが消える（#326）。
+  // 行数はオーナーあたり数件なので、全列取って JS 側で絞るほうが安全。
+  const rows = await sb(`pinpoint_links?owner_id=${eq(ownerId)}&is_active=is.true`).catch(() => []);
   return (rows || [])
     .filter((row) => row.hold_slots && row.id !== exceptId)
+    // 期限切れのリンクは押さえを解く。期限が来たら枠は他の予約に開放されるべきなので、
+    // Google予定の削除（pinpoint-expire）を待たずにキマル側の押さえも外す。
+    .filter((row) => !isExpired(row))
     .flatMap((row) => (Array.isArray(row.slots) ? row.slots : []))
     .filter((slot) => slot && slot.start && slot.end);
 }
@@ -156,6 +187,8 @@ module.exports = {
   newToken,
   normalizeSlots,
   normalizeHoldTitle,
+  expiresAtFrom,
+  isExpired,
   findByToken,
   includesSlot,
   heldBusyFor,
@@ -165,4 +198,6 @@ module.exports = {
   subtractHold,
   MAX_SLOTS,
   MAX_HOLD_TITLE,
+  EXPIRES_DAY_CHOICES,
+  DEFAULT_EXPIRES_DAYS,
 };

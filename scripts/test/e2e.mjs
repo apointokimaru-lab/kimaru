@@ -442,6 +442,24 @@ section("pinpoint scheduling link (#303)");
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }
+  // --- ゲスト: 期限切れのリンク（#326）は404に飛ばさず、切れたことを伝える ---
+  {
+    const page = await newPage();
+    await page.route("**/api/**", (route) => {
+      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const body = name === "pinpoint" ? { expired: true, slots: [], questions: [], host: null }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    // /p/* は booking.html を返す（netlify.toml の rewrite 相当）。トークンはパスから読む。
+    await page.goto(`${base}/p/tokexp`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    ok("expired link stays on the page (not 404)", !page.url().includes("404"));
+    ok("expired link says it expired", (await page.textContent("#slot-grid")).includes("有効期限"));
+    ok("expired link tells the guest to contact the host", (await page.textContent("#slot-grid")).includes("主催者"));
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
   // --- ホスト: 一覧 → 候補選択画面（予約と同じカレンダー）→ リンク発行 ---
   {
     const page = await newPage();
@@ -492,7 +510,14 @@ section("pinpoint scheduling link (#303)");
     ok("create request carries the chosen slot", created?.slots?.length === 1 && created.slots[0].start === SLOTS[0].start);
     ok("create request carries hold flag", created?.hold_slots === true);
     ok("create request carries the calendar event name", created?.hold_title === "仮おさえ");
+    // 有効期限（#326）: 既定は1週間。3日も選べる。
+    ok("expiry defaults to one week", created?.expires_days === 7);
     ok("issued url is shown for copying", (await page.inputValue("#pp-url")).includes("/p/tok-new"));
+    ok("expiry offers three days and one week", (await page.locator("#pp-expires option").count()) === 2);
+    await page.selectOption("#pp-expires", "3");
+    await page.click("#pp-create");
+    await page.waitForTimeout(400);
+    ok("choosing three days is sent through", created?.expires_days === 3);
     await page.click("#pp-back");
     await page.waitForTimeout(200);
     ok("back returns to the list", await page.locator("#list-view").isVisible() && !(await page.locator("#pinpoint-view").isVisible()));

@@ -141,6 +141,11 @@ async function releaseHold(link) {
   return removed;
 }
 
+// このリンクが作った押さえ予定のイベントID。Googleの予定から自分の押さえだけを除くのに使う（#334）。
+function holdEventIdsOf(link) {
+  return holdEventsOf(link).map((event) => event.event_id).filter(Boolean);
+}
+
 // hold_events 列の値を安全に取り出す。列が未適用の環境では undefined になるので空配列にする。
 function holdEventsOf(link) {
   const rows = Array.isArray(link?.hold_events) ? link.hold_events : [];
@@ -195,6 +200,7 @@ module.exports = {
   createHoldEvents,
   releaseHold,
   holdEventsOf,
+  holdEventIdsOf,
   subtractHold,
   MAX_SLOTS,
   MAX_HOLD_TITLE,

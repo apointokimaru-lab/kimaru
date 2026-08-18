@@ -1,7 +1,7 @@
 // 空き枠計算の共有コア。availability.js（5日窓）と availability-days.js（月カレンダー）で共用。
 // JST基準・リードタイム・前後バッファ・Google/既存予約の突き合わせをここに集約する。
 const { sb, eq, defaultOwner, findOwnerById } = require("./supabase");
-const { freebusy } = require("./google");
+const { freebusy, eventsBusy } = require("./google");
 const { isJapaneseHoliday } = require("./holidays");
 const pinpoint = require("./pinpoint");
 
@@ -108,10 +108,17 @@ async function ownerBookingBusy(ownerId, fromIso, toIso) {
 // 空き枠計算（openSlotsForWindow）と、ピンポイントの候補チェック（pinpoint.js）で共用する。
 //
 // options.exceptPinpoint は「自分自身のリンク」の行。自分で押さえた枠を自分の画面から
-// 消してしまわないよう、そのリンクの押さえだけ除外する（#303）。除外は2段いる（#325）:
-//   1. heldBusyFor から外す      … キマル内部の押さえ
-//   2. 集めた busy から差し引く  … Googleカレンダーに実在する押さえ予定
-// 2 を省くと、押さえ予定を freeBusy が返すせいで /p/<token> の候補が全部消える。
+// 消してしまわないよう、そのリンクの押さえだけ除外する（#303）。除外は2段いる:
+//   1. heldBusyFor から外す        … キマル内部の押さえ
+//   2. Googleの予定から自分の押さえを除く … カレンダーに実在する押さえ予定
+// 2 を省くと、押さえ予定を Google が返すせいで /p/<token> の候補が全部消える（#325）。
+//
+// 2 の実現方法は、除外するものがあるかどうかで変える（#334）:
+//   - 除外あり（ピンポイント）… events API で予定を1件ずつ取り、イベントIDで押さえだけ外す
+//   - 除外なし（通常の予約）  … freeBusy（軽いので据え置き）
+// freeBusy を使わない理由: 重なり合う予定をマージして1本で返し、イベントIDも返さないため、
+// 「押さえ13:00-14:00」と「バッファ13:00-13:30」が1本になり、押さえを時間で引くと
+// バッファまで消える。バッファで埋まった時間が「空き」に見えていた（#334）。
 async function busyForWindow(owner, bookingPage, fromTime, toTime, options = {}) {
   if (!owner?.id) return [];
   const exceptLink = options.exceptPinpoint || null;
@@ -121,12 +128,27 @@ async function busyForWindow(owner, bookingPage, fromTime, toTime, options = {})
   const busyFromIso = new Date(fromTime - bufferBeforeMs - DAY_MS).toISOString();
   const busyToIso = new Date(toTime + bufferAfterMs + DAY_MS).toISOString();
   const [calendarBusy, bookingBusy, heldBusy] = await Promise.all([
-    freebusy(owner.id, busyFromIso, busyToIso).catch(() => []),
+    calendarBusyFor(owner.id, busyFromIso, busyToIso, exceptLink),
     ownerBookingBusy(owner.id, busyFromIso, busyToIso),
     pinpoint.heldBusyFor(owner.id, { exceptId: exceptLink?.id || null }),
   ]);
-  const busy = [...calendarBusy, ...bookingBusy, ...heldBusy];
-  return exceptLink ? pinpoint.subtractHold(busy, exceptLink) : busy;
+  return [...calendarBusy, ...bookingBusy, ...heldBusy];
+}
+
+// Googleカレンダー側の busy。除外したい押さえがあるときだけ events API を使う（#334）。
+// events が失敗したら freeBusy ＋ 時間での差し引きに落とす。取れないより、精度が落ちても
+// 従来どおり動くほうがよい（押さえと重なる予定を取りこぼす可能性は残るが、#334 以前と同じ）。
+async function calendarBusyFor(ownerId, fromIso, toIso, exceptLink) {
+  const excludeEventIds = exceptLink ? pinpoint.holdEventIdsOf(exceptLink) : [];
+  if (exceptLink) {
+    try {
+      return await eventsBusy(ownerId, fromIso, toIso, { excludeEventIds });
+    } catch (_) {
+      const busy = await freebusy(ownerId, fromIso, toIso).catch(() => []);
+      return pinpoint.subtractHold(busy, exceptLink);
+    }
+  }
+  return freebusy(ownerId, fromIso, toIso).catch(() => []);
 }
 
 // 指定窓の空き枠（busy＋前後バッファ適用済み）。owner未連携/失敗時は生成枠をそのまま返す。

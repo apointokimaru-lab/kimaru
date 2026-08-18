@@ -86,6 +86,45 @@ async function freebusy(ownerId, timeMin, timeMax) {
   return data.calendars?.primary?.busy || [];
 }
 
+// 指定窓の予定を busy 区間として返す。freeBusy と違い**イベント単位**で取れるので、
+// 「この予定だけ除いて空きを見たい」ができる（#334）。
+//
+// なぜ要るか: freeBusy は重なり合う予定をマージして1本の区間で返し、イベントIDも返さない。
+// ピンポイント（/p/<token>）は自分の押さえだけを除外したいのに、押さえとバッファが重なると
+// マージされた1本を丸ごと引くことになり、バッファで埋まっている時間が「空き」に見えていた。
+//
+// freeBusy と同じ意味になるよう、除外の条件を合わせる:
+//   - status:"cancelled" は予定ではない
+//   - transparency:"transparent"（予定なし）は空き時間を塞がない（既定は opaque）
+//   - 終日予定は start.date/end.date で来る。transparency を尊重するので、
+//     「予定なし」の終日予定（Googleの既定）が丸一日を塞ぐことはない
+async function eventsBusy(ownerId, timeMin, timeMax, { excludeEventIds = [] } = {}) {
+  const accessToken = await accessTokenForOwner(ownerId);
+  if (!accessToken) return [];
+  const skip = new Set(excludeEventIds.filter(Boolean));
+  const params = new URLSearchParams({
+    timeMin,
+    timeMax,
+    singleEvents: "true", // 繰り返し予定を実体に展開する（展開しないと個々の発生を判定できない）
+    maxResults: "2500",
+  });
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || "Googleカレンダーの予定取得に失敗しました");
+  return (data.items || [])
+    .filter((event) => event && event.status !== "cancelled")
+    .filter((event) => event.transparency !== "transparent")
+    .filter((event) => !skip.has(event.id))
+    .map((event) => ({
+      start: event.start?.dateTime || event.start?.date,
+      end: event.end?.dateTime || event.end?.date,
+    }))
+    .filter((item) => item.start && item.end);
+}
+
 async function createCalendarEvent(ownerId, booking) {
   const accessToken = await accessTokenForOwner(ownerId);
   if (!accessToken) return null;
@@ -201,4 +240,4 @@ async function deleteCalendarEvent(ownerId, eventId) {
   throw new Error(data.error?.message || "Googleカレンダーの予定削除に失敗しました");
 }
 
-module.exports = { googleAuthUrl, exchangeCode, userInfo, saveGoogleConnection, freebusy, createCalendarEvent, createBufferEvent, createBufferEventsFor, deleteCalendarEvent };
+module.exports = { googleAuthUrl, exchangeCode, userInfo, saveGoogleConnection, freebusy, eventsBusy, createCalendarEvent, createBufferEvent, createBufferEventsFor, deleteCalendarEvent };

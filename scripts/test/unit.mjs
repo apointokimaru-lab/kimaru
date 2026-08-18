@@ -888,6 +888,78 @@ section("availability fetches in parallel, not in series (#332)");
   ok("呼び出し自体は減らしていない（間引きではなく並列化）", calls >= 4);
 }
 
+// ---------- 9n) #334 押さえに重なる他の予定は候補から消す ----------
+section("pinpoint drops candidates covered by non-hold events (#334)");
+{
+  const getFn = requireCjs(path.join(repo, "netlify/functions/pinpoint.js"));
+  const day = new Date(Date.now() + 4 * 86400000);
+  day.setUTCHours(4, 0, 0, 0); // JST13:00
+  const at = (h, m = 0) => new Date(day.getTime() + h * 3600000 + m * 60000).toISOString();
+
+  // 候補は2枠。13:00-13:30 にはバッファ予定が重なっており、14:00-14:30 には何も無い。
+  const slotA = { start: at(0), end: at(0, 30) };      // JST13:00-13:30（バッファが重なる）
+  const slotB = { start: at(1), end: at(1, 30) };      // JST14:00-14:30（空いている）
+  // 押さえは 13:00-14:00 の1本（両方の候補を含む広い枠ではなく、slotA を覆う）
+  const holdEvent = { start: at(0), end: at(1), event_id: "ev-hold" };
+
+  DB.pinpoint_links = [{
+    id: "pl-334", owner_id: OWNER.id, booking_page_id: "bp1", token: "tok-334", is_active: true,
+    hold_slots: true, hold_title: "予定仮押さえ", slots: [slotA, slotB], hold_events: [holdEvent],
+  }];
+  DB.booking_pages = [{ id: "bp1", owner_id: OWNER.id, slug: "tarou", title: "初回相談", is_active: true, duration_minutes: 30 }];
+  // access_token は暗号化して入れる。生文字列だと accessTokenForOwner の decrypt が例外を投げ、
+  // Googleを1度も叩かないまま openOf の catch に落ちる＝経路を通らないテストになる。
+  process.env.TOKEN_ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY || "0".repeat(64);
+  const { encrypt: encToken } = requireCjs(path.join(repo, "netlify/functions/_lib/crypto.js"));
+  DB.google_connections = [{ owner_id: OWNER.id, access_token: encToken("tok-access"), refresh_token: encToken("tok-refresh"), expires_at: new Date(Date.now() + 3600000).toISOString() }];
+
+  // Google をモックする。
+  //  - freeBusy は「重なる予定をマージして1本で返す」実際の挙動を再現する
+  //    （押さえ13:00-14:00 とバッファ13:00-13:30 が 13:00-14:00 の1本になる）
+  //  - events API は個々の予定をIDつきで返す
+  const prevFetch = globalThis.fetch;
+  const googleCalls = [];
+  globalThis.fetch = async (url, init) => {
+    const u = String(url);
+    if (u.includes("/calendar/v3/freeBusy")) {
+      googleCalls.push("freeBusy");
+      return { ok: true, status: 200, json: async () => ({ calendars: { primary: { busy: [{ start: at(0), end: at(1) }] } } }) };
+    }
+    if (u.includes("/calendar/v3/calendars/primary/events")) {
+      googleCalls.push("events");
+      return { ok: true, status: 200, json: async () => ({ items: [
+        { id: "ev-hold", status: "confirmed", summary: "予定仮押さえ", start: { dateTime: at(0) }, end: { dateTime: at(1) } },
+        { id: "ev-buffer", status: "confirmed", summary: "準備＆振返り", start: { dateTime: at(0) }, end: { dateTime: at(0, 30) } },
+      ] }) };
+    }
+    if (u.includes("oauth2.googleapis.com")) return { ok: true, status: 200, json: async () => ({ access_token: "a", expires_in: 3600 }) };
+    // それ以外は Supabase
+    const parsed = new URL(u);
+    const table = parsed.pathname.replace("/rest/v1/", "").split("?")[0];
+    let rows = DB[table] || [];
+    for (const [k, v] of parsed.searchParams) {
+      if (typeof v === "string" && v.startsWith("eq.")) rows = rows.filter((r) => String(r[k]) === decodeURIComponent(v.slice(3)));
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify(rows) };
+  };
+
+  const res = await getFn.handler({ httpMethod: "GET", queryStringParameters: { token: "tok-334" } });
+  const body = JSON.parse(res.body);
+  const starts = (body.slots || []).map((s) => s.start);
+  globalThis.fetch = prevFetch;
+  DB.google_connections = [];
+
+  ok("200で返る", res.statusCode === 200);
+  // 経路の確認。events を呼んでいないなら、下の判定は「たまたま通った」だけになる。
+  ok("events API を使う（freeBusy ではなく）", googleCalls.includes("events") && !googleCalls.includes("freeBusy"));
+  // 本題: 押さえ以外の予定（バッファ）が重なる候補は消える。
+  // freeBusy は押さえとバッファをマージして返すので、時間での差し引きだけだと両方消えてしまい、
+  // この候補が「空き」として残る（#334 の症状）。
+  ok("押さえに重なるバッファの候補は消える", !starts.includes(slotA.start));
+  // 同時に、自分の押さえだけが乗っている候補は残る（自分の押さえで自分の候補を消さない）。
+  ok("押さえだけの候補は残る", starts.includes(slotB.start));
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";

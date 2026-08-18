@@ -160,15 +160,10 @@ h3{font-family:var(--display);font-weight:700;font-size:var(--fs-subhead);line-h
   .nav-close:active{color:var(--accent-ink);background:var(--accent-soft)}
 }
 
-/* モバイル下部タブナビ（Edge Function 注入・ログイン中のみ）。
-   ハンバーガー2タップの主要導線を親指圏の1タップに。ゲストは .app-only で非表示。 */
+/* モバイル下部タブナビ（.bottom-nav）は削除（#321）。ヘッダーのメニューと導線が重複していた。
+   注入をやめたので、下部ぶんの padding も外している（残すと画面下に空白が居座る）。
+   .bottom-nav{display:none} だけは残す。古いHTMLがキャッシュから出ても出さないため。 */
 .bottom-nav{display:none}
-@media(max-width:900px){
-  [data-auth="authed"] .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:6px max(10px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-right))}
-  .bottom-nav a{display:flex;align-items:center;justify-content:center;min-height:46px;padding:4px 2px;font-family:var(--sans);font-size:11.5px;font-weight:700;color:var(--muted);border-radius:var(--radius-sm);text-align:center}
-  .bottom-nav a[aria-current="page"]{color:var(--accent-ink);background:var(--accent-soft)}
-  body[data-auth="authed"]{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
-}
 
 /* ============================================================
    ボタン — 朱印 vocab (.btn) ＋ レガシー public vocab (.button/.primary)
@@ -192,8 +187,29 @@ h3{font-family:var(--display);font-weight:700;font-size:var(--fs-subhead);line-h
 .btn-ghost.danger:hover,.button.secondary.danger:hover{background:#FBE9E6;border-color:#C0392B}
 .backlink{display:inline-flex;align-items:center;gap:6px;background:transparent;border:0;color:var(--ink-2);font-weight:700;font-size:14px;cursor:pointer;padding:6px 2px}
 .backlink:hover{color:var(--accent-ink)}
+/* 事前アンケート回答のページ送り（#321）。10件ごと。 */
+.ans-pager{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:20px}
+.ans-pager .pg-status{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
+.ans-pager .btn[disabled]{opacity:.4;cursor:not-allowed}
+
 .actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:28px}
 .actions+.form-note{margin-top:14px}
+/* 予約ページ一覧の操作ボタンの折り返し位置を固定する空要素（#321）。
+   PCでは1行、スマホでは「コピー・編集・削除／ピンポイント・開く」の2段に割る。
+   自然な折り返しに任せるとボタンの文字数で段の切れ目が変わり、並びが不安定に見えるため。
+   .list-item span{display:block} が効いてしまうので、消す側もこの詳細度で書く。 */
+/* 1行に5つ並ぶので、通常のボタン（46px高・--fs-label）より一回り小さくする。
+   既定サイズのままだと、スマホでは3つ目の「削除」から段が落ちる。 */
+.list-item .actions{gap:8px;margin-top:16px}
+.list-item .actions .button{min-height:38px;padding:0 14px;font-size:13px}
+.list-item .actions .actions-break{display:none}
+@media(max-width:680px){
+  .list-item .actions .actions-break{display:block;flex-basis:100%;width:100%;height:0;margin:0}
+  /* 2段目の2つは横幅を折半して収める（1つずつ折り返すと3段になる）。
+     「ピンポイントリンクを作成」は幅を超えるので、この2つだけ word-break を通常に戻して
+     折り返せるようにする。共通の keep-all のままだと折り返せず、ボタンから文字がはみ出す。 */
+  .list-item .actions .actions-break~.button{flex:1 1 0;min-width:0;padding:0 10px;font-size:12.5px;white-space:normal;word-break:normal;line-height:1.25;align-self:stretch}
+}
 .form-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
 .form-actions-row{display:flex;gap:12px;flex-wrap:wrap}
 .form-actions-row .button,.form-actions-row .primary{flex:1;min-width:150px}
@@ -204,9 +220,30 @@ h3{font-family:var(--display);font-weight:700;font-size:var(--fs-subhead);line-h
 .panel,.card,.form-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:clamp(20px,2.4vw,30px);box-shadow:var(--shadow);transition:transform .18s ease,box-shadow .18s ease}
 .card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
 .panel+.panel{margin-top:18px}
+
+/* スマホは画面幅をめいっぱい使う（#321）。
+   もとは「左右32pxの余白 → カードの枠線 → カードの内側余白 → さらに入れ子のカードの枠線と余白」と
+   4重に内側へ寄っていて、入力欄が実際の画面よりだいぶ狭かった。
+   カードを画面端まで伸ばし（負のマージンで shell の余白を打ち消す）、左右の枠線・角丸・影を外す。
+   上下の枠線だけ残すのは、全部外すとセクションの切れ目が分からなくなるため。
+   入れ子のカード（.editor-section など）は枠も余白も外して、外側のカードに寄せる。 */
 .profile-card{background:var(--surface);border-color:var(--line)}
 .soft-box,.questionnaire-box,.availability-box,.editor-section{padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);box-shadow:var(--shadow)}
 .questionnaire-box,.availability-box,.editor-section{display:grid;gap:12px}
+
+/* スマホは画面幅をめいっぱい使う（#321）。
+   もとは「左右32pxの余白 → パネルの枠 → パネルの内側余白 → 入れ子カードの枠 → その内側余白」と
+   4重に内側へ寄っていて、入力欄が実際の画面よりだいぶ狭かった。
+   左右の余白を16pxに詰め（パネルのフルブリードは下の「面のフラット化」ブロックが担当）、
+   入れ子のカードは枠も余白も外して外側のパネルに寄せる。
+   ※ .editor-section 等の定義より後に置くこと（前に置くと base に上書きされる）。 */
+@media(max-width:680px){
+  :root{--gutter:0px}
+  .shell{padding:28px 16px}
+  .soft-box,.questionnaire-box,.availability-box,.editor-section{border:0;border-radius:0;box-shadow:none;padding:0}
+  /* 枠を外したぶん、セクションの切れ目は間隔と1本の罫で示す。 */
+  .editor-section+.editor-section{margin-top:22px;padding-top:22px;border-top:1px solid var(--line)}
+}
 .availability-grid{display:grid;gap:10px}
 .card-step{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent)}
 .note{padding:13px 15px;border-radius:var(--radius-sm);background:var(--accent-soft);color:var(--accent-ink);font-size:var(--fs-note);font-weight:600}
@@ -401,7 +438,15 @@ select{height:48px;padding-block:0}
 .link-remove{width:40px;height:40px;min-height:0;padding:0;border:1px solid var(--line-2);background:var(--surface);border-radius:var(--radius-sm);color:var(--muted);font-size:18px;line-height:1;cursor:pointer;transition:border-color .12s,color .12s}
 .link-remove:hover{border-color:var(--danger);color:var(--danger)}
 #add-link{justify-self:start}
-@media (max-width:560px){.link-row{grid-template-columns:1fr 40px;grid-template-areas:"name remove" "url url"}.link-row .link-name{grid-area:name}.link-row .link-url{grid-area:url}.link-remove{grid-area:remove}}
+/* スマホでは「表示名／URL」が2段になり、どこまでが1件のリンクか分からなくなる（#321）。
+   1件ずつ枠で囲い、件と件のあいだを広げて、セットの単位を見えるようにする。 */
+@media (max-width:560px){
+  .links-list{gap:12px}
+  .link-row{grid-template-columns:1fr 40px;grid-template-areas:"name remove" "url url";padding:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-sm)}
+  .link-row .link-name{grid-area:name}
+  .link-row .link-url{grid-area:url}
+  .link-remove{grid-area:remove;background:var(--surface)}
+}
 
 /* 公開プロフィールの自己紹介（サニタイズ済みHTMLを描画） */
 .pp-bio em,.pp-bio i{font-style:italic}
@@ -554,6 +599,10 @@ select{height:48px;padding-block:0}
 .side-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
 .side-card+.side-card{margin-top:16px}
 .side-card h3{font-size:15px;margin:0 0 12px}
+/* 見出しの横にボタンを置く行（#321）。狭いと折り返して、ボタンが見出しの下に落ちる。 */
+.side-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.side-card-head h3{margin:0}
+.side-card-head .button{flex:none}
 .share{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0;border:1.5px solid var(--line-2);border-radius:var(--radius-sm);padding:5px 5px 5px 12px;background:var(--surface)}
 .share code{flex:1;min-width:0;font-family:var(--mono);font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .todo{display:grid;gap:8px}
@@ -687,7 +736,12 @@ select{height:48px;padding-block:0}
 .q-required{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;flex:none;padding:8px 14px;border:1px solid var(--line);border-radius:999px;user-select:none;transition:background .12s,border-color .12s,color .12s}
 .q-required input{margin:0;width:auto;flex:none;accent-color:var(--accent)}
 .q-required:has(input:checked){color:var(--accent-ink);border-color:var(--accent);background:var(--accent-soft)}
-.q-row .question-remove{flex:none;min-height:46px;padding:0 14px}
+/* 削除はゴミ箱アイコンにして、空いた幅を質問の入力欄に回す（#321）。
+   選択肢の×（.opt-rm）と同じ作法の正方アイコンボタンに揃える。 */
+.q-row .question-remove{flex:none;display:grid;place-items:center;width:46px;height:46px;min-height:46px;padding:0;border:1.5px solid var(--line-2);border-radius:var(--radius-sm);background:var(--surface);color:var(--muted);cursor:pointer;transition:border-color .12s,color .12s}
+.q-row .question-remove:hover{border-color:var(--accent);color:var(--accent)}
+.q-row .question-remove svg{display:block}
+.q-row-main .question-input{min-width:0}
 .q-row-choice{display:grid;gap:10px}
 .q-row-choice .question-type{max-width:220px;min-height:46px}
 .q-options{display:grid;gap:8px}
@@ -746,6 +800,14 @@ select{height:48px;padding-block:0}
    ============================================================ */
 .week-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:26px}
 .week-range{font-family:var(--display);font-size:18px;font-weight:700;color:var(--ink)}
+/* スマホ: 期間を1行目に中央で置き、前週/今日/次週を2行目に等幅で並べる（#321）。
+   横並びのまま折り返させると、期間が左に寄ったうえでボタンの段が文字数で変わり不揃いに見える。 */
+@media(max-width:680px){
+  .week-bar{flex-direction:column;align-items:stretch;gap:10px}
+  .week-range{text-align:center}
+  .week-bar .week-nav{justify-content:center;gap:8px;margin:0}
+  .week-bar .week-nav .btn{flex:1 1 0;min-width:0;padding:0 10px}
+}
 .week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:16px}
 .week-col{display:flex;flex-direction:column;min-height:210px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
 .week-col.is-today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),var(--shadow)}
@@ -1000,7 +1062,19 @@ body.modal-open{overflow:hidden}
 .note-modal>.eyebrow{margin:0}
 .note-modal h2{font-size:22px;margin:4px 0 2px}
 .note-modal .note-sub{margin:0 0 14px;font-weight:700;color:var(--ink)}
-.note-modal .modal-actions{position:sticky;bottom:-1px;background:var(--surface);padding:12px 0 2px;margin-top:18px}
+/* 会話記録モーダルの操作ボタンは下端に貼り付ける。
+   背景をモーダルの内側余白ぶんまで広げないと、ボタンの下に残った隙間から
+   スクロール中の入力文字が覗いてしまう（#321）。左右も広げて角の帯切れを防ぐ。
+   .modal の padding と同じ値を使うので、片方を変えたらもう片方も合わせること。 */
+.note-modal .modal-actions{
+  position:sticky;
+  bottom:calc(clamp(26px,4vw,38px) * -1);
+  z-index:1;
+  margin:18px calc(clamp(26px,4vw,38px) * -1) calc(clamp(26px,4vw,38px) * -1);
+  padding:12px clamp(26px,4vw,38px) clamp(26px,4vw,38px);
+  background:var(--surface);
+  border-radius:0 0 var(--radius) var(--radius);
+}
 .note-view-body .note-view-sec{margin-top:14px}
 .note-view-body .note-view-sec h3{font-size:13px;color:var(--accent-ink);margin:0 0 4px;letter-spacing:.02em}
 .note-view-body .note-view-kw{font-family:var(--mono);font-size:13px;color:var(--muted);margin:0}
@@ -1152,7 +1226,9 @@ body.modal-open{overflow:hidden}
    ボタン・朱スタンプ・選択リング等のアクセント影は操作の手がかりとして残す。 */
 @media(max-width:680px){
   :root{--shadow:0 0 0 rgba(25,26,28,0);--shadow-lg:0 0 0 rgba(25,26,28,0)}
-  .panel{margin-inline:-20px;border-radius:0;border-left:0;border-right:0;padding:20px}
+  /* margin-inline は .shell の左右余白と同じ値にすること（#321 で 20px→16px）。
+     ずれると画面端に帯が残るか、逆に横スクロールが出る。 */
+  .panel{margin-inline:-16px;border-radius:0;border-left:0;border-right:0;padding:20px 16px}
   .panel+.panel{margin-top:12px}
   .authwrap{display:block;min-height:0;padding:28px 0}
   .authcard{width:auto;border-radius:0;border-left:0;border-right:0;padding:26px 20px}

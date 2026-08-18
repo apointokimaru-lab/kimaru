@@ -108,8 +108,14 @@ section("dashboard: real data");
   const share = await page.textContent("#share-url").catch(() => "");
   ok("share-url shows real booking page url", /\/b\/taro$/.test(share.trim()));
   ok("share copy button visible", await page.locator("#share-copy").isVisible());
+  // #321: プレビューは削除し、「＋ 新しい予約ページ」は見出しの横へ
+  ok("no preview button in the share card", (await page.locator("#share-preview").count()) === 0);
+  ok("new page button sits next to the heading", (await page.locator('.side-card-head a[href="/booking-settings.html?new=1"]').count()) === 1);
   const week = await page.textContent("#todo-week-count").catch(() => "");
   ok("todo-week-count is numeric", /^\d+$/.test(week.trim()));
+  // #321: 今週の予約は件数があるときだけ出す（モックは今日の予約あり）
+  ok("this week's row is shown when there are bookings", await page.locator("#todo-week").isVisible());
+  ok("empty note is hidden when there is something to do", !(await page.locator("#todo-empty").isVisible()));
   // 「回答待ちの質問」は停止中（#314）。要対応に出さず、APIも叩かない。
   ok("no pending-questions link in todos", (await page.locator('a[href="/pending-questions.html"]').count()) === 0);
   ok("no 回答待ちの質問 row", !(await page.textContent(".todo")).includes("回答待ち"));
@@ -202,6 +208,8 @@ section("booking-settings: edit keeps out-of-list values (#300)");
   const PAGE = {
     id: "p1", slug: "taro", title: "初回相談", description: "",
     duration_minutes: 60, buffer_before_minutes: 15, buffer_after_minutes: 15, // 15分=UIの選択肢に無い旧データ（本番に実在）
+    // バッファありのページは予定名が必須（#321）。空だと送信がブラウザ側で止まり、この節の検証に入れない。
+    buffer_before_title: "準備", buffer_after_title: "片付け",
     location_type: "google_meet", location_value: "", booking_range_months: 2, candidate_days: 0,
     accept_holidays: true, lead_time_hours: 18, slot_interval_minutes: 30, is_active: true,
     // 保存済み質問には id が付いてくる。保存時にそのまま返さないとサーバ側で
@@ -286,8 +294,104 @@ section("guest week grid renders slots (shared week-grid.js)");
   await page.waitForTimeout(200);
   ok("picking a slot marks it selected", (await page.locator("#wk-grid .wk-slot.sel").count()) === 1);
   ok("picking a slot fills the form", (await page.inputValue('#booking-form input[name="start"]')) === gridSlots[0].start);
+  // #321: 時間軸は右の1本だけ（左右に置くと日の列が細くなる）
+  ok("time axis is shown once, on the right", (await page.locator("#wk-grid .wk-axis").count()) === 1);
+  ok("no how-it-works bullets on the guest page (#321)", !(await bodyText(page)).includes("重ならない空き枠だけを表示"));
   ok("no JS exception", page._errors.length === 0);
   await page.close();
+}
+
+// ===== 8c) #321 デザイン・文言の修正 =====
+section("#321 copy and layout fixes");
+{
+  // --- 予約ページ一覧: ボタンの並びと文言 ---
+  {
+    const page = await newPage();
+    await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
+    await page.waitForSelector("#booking-pages-list .actions", { timeout: 8000 }).catch(() => {});
+    const labels = (await page.locator("#booking-pages-list .actions .button").allTextContents()).map((s) => s.trim());
+    ok("list buttons start with copy/edit/delete", labels.slice(0, 3).join("|") === "URLをコピー|編集|削除");
+    ok("open button names the booking page", labels[labels.length - 1] === "予約ページを開く");
+    ok("mobile line break marker exists", (await page.locator("#booking-pages-list .actions .actions-break").count()) === 1);
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
+  // --- 受付停止中の予約ページは 404 へ飛ばす ---
+  {
+    const page = await newPage();
+    await page.route("**/api/**", (route) => {
+      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const body = name === "availability" ? { paused: true, slots: [], questions: [], host: {} } : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    await page.goto(`${base}/b/taro`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(700);
+    ok("paused booking page redirects to 404", new URL(page.url()).pathname === "/404.html");
+    ok("404 page explains the page is gone", (await bodyText(page)).includes("ページが見つかりません"));
+    await page.close();
+  }
+  // --- 事前アンケート回答: 10件ごとのページ送り ---
+  {
+    const page = await newPage();
+    const many = Array.from({ length: 23 }, (_, i) => ({
+      id: `pg-${i}`, visitor_name: `回答者${i}`, visitor_email: `a${i}@example.com`,
+      start_at: iso(-i - 1, 10, 0), end_at: iso(-i - 1, 10, 30), status: "confirmed", location_type: "google_meet",
+      answers: [{ question_text: "ご相談の背景", answer_text: `本文${i}` }],
+    }));
+    await page.route("**/api/**", (route) => {
+      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const body = name === "owner-bookings" ? { bookings: many }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    await page.goto(`${base}/answers.html`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    ok("first page shows 10 answers", (await page.locator("#ans-list .ans-card").count()) === 10);
+    ok("pager is visible", await page.locator("#ans-pager").isVisible());
+    ok("pager shows 3 pages", (await page.textContent("#ans-pager .pg-status")).includes("3"));
+    ok("prev is disabled on the first page", await page.locator('#ans-pager [data-page-step="-1"]').isDisabled());
+    await page.click('#ans-pager [data-page-step="1"]');
+    await page.waitForTimeout(300);
+    ok("second page shows the next 10", (await page.locator("#ans-list .ans-card").count()) === 10);
+    ok("second page starts at the 11th answer", (await page.textContent("#ans-list")).includes("回答者10"));
+    await page.click('#ans-pager [data-page-step="1"]');
+    await page.waitForTimeout(300);
+    ok("last page shows the remainder", (await page.locator("#ans-list .ans-card").count()) === 3);
+    ok("next is disabled on the last page", await page.locator('#ans-pager [data-page-step="1"]').isDisabled());
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
+  // --- ダッシュボード「要対応」: 何も無いときは0を並べず、代わりに一文だけ出す ---
+  {
+    const page = await newPage();
+    await page.route("**/api/**", (route) => {
+      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 予約ゼロ・プロフィール全項目入力済み＝要対応が1つも無い状態
+      const body = name === "owner-bookings" ? { bookings: [] }
+        : name === "profile" ? { profile: { profile_name: "a", profile_title: "a", profile_strengths: "a", profile_style: "a", profile_offer: "a", profile_values: "a", profile_goal: "a" } }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    await page.goto(`${base}/dashboard.html`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    ok("this week's row is hidden at zero (#321)", !(await page.locator("#todo-week").isVisible()));
+    ok("no zero rows are left in the todo card", (await page.locator(".todo a.has:visible").count()) === 0);
+    ok("empty note is shown instead", await page.locator("#todo-empty").isVisible());
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
+  // --- 設定: ログイン情報から連携行を消し、解除は外部連携に一本化 ---
+  {
+    const page = await newPage();
+    await page.goto(`${base}/settings.html`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(400);
+    ok("no duplicate Google row in account info", (await page.locator("#calendar-badge").count()) === 0);
+    ok("disconnect lives in the integrations panel", (await page.locator("#integrations #calendar-disconnect").count()) === 1);
+    // #321: 解約枠の「Squareを開く」は削除（squareup.com のトップに飛ぶだけで解約にたどり着けなかった）
+    ok("no dead link to squareup.com", (await page.locator('a[href="https://squareup.com/"]').count()) === 0);
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
 }
 
 // ===== 9) ピンポイント日程調整（#303） =====

@@ -517,6 +517,9 @@ function renderDashboardTodos(allBookings) {
   const weekCount = confirmed.filter((b) => { const d = new Date(b.start_at || b.start_time); return d >= weekStart && d < weekEnd; }).length;
   const weekCnt = document.getElementById("todo-week-count");
   if (weekCnt) weekCnt.textContent = String(weekCount);
+  // 0件のときは出さない（#321）。他の2項目と同じ扱いにする。
+  // 「要対応」に0が並ぶと、対応すべきものがあるのか無いのかが読み取れない。
+  weekRow.style.display = weekCount > 0 ? "" : "none";
   const locale = window.KimaruI18n?.getLanguage() || "ja";
   const fmt = (d) => new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric" }).format(d);
   const desc = document.getElementById("todo-week-desc");
@@ -528,6 +531,20 @@ function renderDashboardTodos(allBookings) {
   const aCnt = document.getElementById("todo-answers-count");
   if (aCnt) aCnt.textContent = String(unread);
   if (aRow) aRow.style.display = unread > 0 ? "" : "none";
+  updateDashboardTodoEmpty();
+}
+
+// 「要対応」の項目が1つも無いときの表示（#321）。
+// 見出しだけのカードが残ると、読み込みに失敗したのか本当に無いのかが分からない。
+// 項目は2か所（renderDashboardTodos / loadDashboardProfileTodo）で出し入れするので、
+// どちらから呼ばれても現在の表示状態だけを見て判断する。
+function updateDashboardTodoEmpty() {
+  const empty = document.getElementById("todo-empty");
+  if (!empty) return;
+  const anyVisible = ["todo-answers", "todo-profile", "todo-week"]
+    .map((id) => document.getElementById(id))
+    .some((el) => el && el.style.display !== "none");
+  empty.style.display = anyVisible ? "none" : "";
 }
 
 // ダッシュボード「予約ページを共有」カード：先頭の予約ページURL＋動作するコピー。
@@ -535,17 +552,12 @@ async function loadDashboardShare() {
   const urlEl = document.getElementById("share-url");
   if (!urlEl) return;
   const copyBtn = document.getElementById("share-copy");
-  const previewBtn = document.getElementById("share-preview");
   try {
     const data = await api("booking-pages");
     const slug = (data.pages || [])[0]?.slug;
     if (slug) {
       urlEl.textContent = bookingPageUrl(slug);
-      // プレビュー＝実際のゲスト向けページを開く。ページが無い間は非表示。
-      if (previewBtn) {
-        previewBtn.href = bookingPageUrl(slug);
-        previewBtn.style.display = "";
-      }
+      // プレビューボタンは削除（#321）。URLをコピーして開けば同じものが見られる。
       if (copyBtn) {
         copyBtn.style.display = "";
         if (!copyBtn.dataset.wired) {
@@ -562,7 +574,6 @@ async function loadDashboardShare() {
     } else {
       urlEl.textContent = t("dash.share.none");
       if (copyBtn) copyBtn.style.display = "none";
-      if (previewBtn) previewBtn.style.display = "none";
     }
   } catch (_) { /* 非致命 */ }
 }
@@ -579,6 +590,7 @@ async function loadDashboardProfileTodo() {
     const cnt = document.getElementById("todo-profile-count");
     if (cnt) cnt.textContent = String(missing);
     row.style.display = missing > 0 ? "" : "none";
+    updateDashboardTodoEmpty();
   } catch (_) { /* 非致命 */ }
 }
 
@@ -687,11 +699,12 @@ function renderBookings(bookings) {
     const bid = escapeHtml(booking.id || "");
     // 実予約の相手のみ相手の詳細画面へ遷移（手動追加の相手は面談が無いので出さない）。
     const canBrief = Boolean(booking.id) && !booking.manual;
-    // 順序: 相手の詳細（無料も可）→ 記録を取る → 記録を見る（後ろ2つは Pro 以上）。
+    // 会話記録のボタンは1つにまとめ、記録の有無でラベルを変える（#321）。
+    // 「取る」と「見る」を並べると、記録が無いのに「見る」が押せて空の画面が出てしまい、
+    // どちらを押せばよいか分からない。開く先はどちらもエディタ（既存の記録は読み込まれる）。
     const actionBtns = [
       canBrief ? iconLink(ICON_BRIEF, t("admin.contacts.briefingOpen"), `/meeting.html?id=${encodeURIComponent(booking.id)}`, "", t("common.briefing")) : "",
-      canNote ? iconAction(ICON_EDIT, t("admin.note.take"), `data-note-take data-booking-id="${bid}" data-name="${name}"`) : "",
-      canNote ? iconAction(ICON_EYE, t("admin.note.view"), `data-note-view data-booking-id="${bid}" data-name="${name}"`, hasNote ? " has-note" : "") : "",
+      canNote ? iconAction(hasNote ? ICON_EYE : ICON_EDIT, hasNote ? t("admin.note.edit") : t("admin.note.take"), `data-note-take data-booking-id="${bid}" data-name="${name}"`, hasNote ? " has-note" : "") : "",
     ].filter(Boolean).join("");
     const actionCell = actionBtns ? `<div class="action-btns">${actionBtns}</div>` : "—";
     return `
@@ -834,13 +847,25 @@ function updateBookingPageControls() {
     zoomWarning.classList.toggle("hidden", !(locationType.value === "zoom" && !zoomConnected));
   }
   // 前後バッファのカレンダー予定名の入力欄は、そのバッファが1分以上のときだけ表示する。
+  // 表示しているあいだは必須（#321）。予定名が無いとカレンダーに予定を作れず、
+  // 「バッファを設定したのに予定が出ない」という分かりにくい状態になるため。
+  // 隠すときは required を外す。隠れた required が残るとフォーム全体が送信できなくなる。
   const pageForm = $("#booking-page-form");
   if (pageForm) {
+    let anyBuffer = false;
     [["before", "buffer_before_minutes"], ["after", "buffer_after_minutes"]].forEach(([side, name]) => {
       const field = pageForm.querySelector(`.buffer-title-field[data-buffer-title="${side}"]`);
       const select = pageForm.elements[name];
-      if (field && select) field.hidden = !(Number(select.value) > 0);
+      if (!field || !select) return;
+      const on = Number(select.value) > 0;
+      field.hidden = !on;
+      const input = field.querySelector("input");
+      if (input) input.required = on;
+      if (on) anyBuffer = true;
     });
+    // 注記は入力欄が1つでも出ているときだけ（欄が無いのに説明だけ残ると何の話か分からない）。
+    const hint = document.getElementById("buffer-title-hint");
+    if (hint) hint.hidden = !anyBuffer;
   }
   updateAvailabilityRows();
 }
@@ -855,6 +880,10 @@ const ANSWER_TYPES = ["text", "select", "checkbox"];
 function optionRowHtml(value) {
   return `<div class="q-option-row"><input class="q-option-input" placeholder="${escapeHtml(t("bs.q.optionPlaceholder"))}" value="${escapeHtml(value || "")}" /><button type="button" class="q-option-remove" aria-label="${escapeHtml(t("bs.delete"))}">×</button></div>`;
 }
+
+// 質問の削除ボタンのゴミ箱アイコン（#321）。文字の「削除」だと横幅を取り、質問の入力欄が狭くなる。
+// aria-label / title はボタン側に付けるので、SVG 自体は読み上げから外す。
+const TRASH_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
 
 function questionRowHtml(q) {
   const obj = (typeof q === "string") ? { question_text: q } : (q || {});
@@ -882,7 +911,7 @@ function questionRowHtml(q) {
   // data-qid は保存済み質問のID。保存時にサーバへ返すことで、同じ行が更新扱いになり
   // 質問のUUIDが変わらない（変わると過去の回答の question_id が切れる・#304）。
   return `<div class="q-row" data-qid="${escapeHtml(obj.id || "")}" data-answer-type="${type}">
-    <div class="q-row-main"><input class="question-input" placeholder="${placeholder}" value="${textVal}" /><label class="q-required"><input type="checkbox" class="question-required"${required ? " checked" : ""} />${reqLabel}</label><button type="button" class="button secondary question-remove">${del}</button></div>${choiceUi}
+    <div class="q-row-main"><input class="question-input" placeholder="${placeholder}" value="${textVal}" /><label class="q-required"><input type="checkbox" class="question-required"${required ? " checked" : ""} />${reqLabel}</label><button type="button" class="question-remove" aria-label="${del}" title="${del}">${TRASH_ICON}</button></div>${choiceUi}
   </div>`;
 }
 
@@ -969,12 +998,16 @@ function renderBookingPages(pages) {
       <strong>${escapeHtml(p.title || t("bs.list.untitled"))}${p.is_active === false ? `<span class="pause-badge">${escapeHtml(t("bs.list.paused"))}</span>` : ""}</strong>
       <span>${escapeHtml(bookingPageUrl(p.slug))}</span>
       <small>${p.duration_minutes}${escapeHtml(t("bs.unit.min"))} / ${escapeHtml(p.location_type)} / ${p.candidate_days > 0 ? `${p.candidate_days}${escapeHtml(t("bs.unit.daysAhead"))}` : `${p.booking_range_months}${escapeHtml(t("bs.unit.monthsAhead"))}`}</small>
+      <!-- 並びは「毎回使う操作 → たまに使う操作」の順（#321）。
+           .actions-break はスマホでの折り返し位置を固定する空要素。
+           自然な折り返しに任せると文字数で段が変わるので、コピー・編集・削除／ピンポイント・開く で割る。 -->
       <div class="actions">
-        <a class="button secondary" href="${escapeHtml(bookingPageUrl(p.slug))}" target="_blank" rel="noopener">${escapeHtml(t("bs.list.open"))}</a>
         <button class="button secondary" type="button" data-page-action="copy" data-slug="${escapeHtml(p.slug)}">${escapeHtml(t("bs.list.copyUrl"))}</button>
-        ${showPinpoint ? `<button class="button secondary" type="button" data-page-action="pinpoint" data-slug="${escapeHtml(p.slug)}" data-id="${escapeHtml(p.id)}">${escapeHtml(t("pin.button"))}</button>` : ""}
         <button class="button secondary" type="button" data-page-action="edit" data-id="${escapeHtml(p.id)}">${escapeHtml(t("bs.list.edit"))}</button>
         <button class="button secondary" type="button" data-page-action="delete" data-id="${escapeHtml(p.id)}">${escapeHtml(t("bs.delete"))}</button>
+        <span class="actions-break" aria-hidden="true"></span>
+        ${showPinpoint ? `<button class="button secondary" type="button" data-page-action="pinpoint" data-slug="${escapeHtml(p.slug)}" data-id="${escapeHtml(p.id)}">${escapeHtml(t("pin.button"))}</button>` : ""}
+        <a class="button secondary" href="${escapeHtml(bookingPageUrl(p.slug))}" target="_blank" rel="noopener">${escapeHtml(t("bs.list.open"))}</a>
       </div>
     </article>`).join("");
 }
@@ -1705,6 +1738,8 @@ function answerRows(b) {
 }
 
 // ===== 事前アンケート回答一覧（answers.html）=====
+const ANSWERS_PER_PAGE = 10;
+
 async function initAnswers() {
   const list = document.getElementById("ans-list");
   if (!list) return;
@@ -1712,6 +1747,7 @@ async function initAnswers() {
   const totalEl = document.getElementById("total-count");
   const emptyNote = document.getElementById("empty-note");
   let filter = "all";
+  let page = 1;
   let items = [];
   try {
     const data = await api("owner-bookings");
@@ -1735,17 +1771,41 @@ async function initAnswers() {
       <div class="form-actions" style="margin-top:16px">${markBtn}<a class="btn btn-ghost btn-sm" href="/meeting.html?id=${encodeURIComponent(b.id)}">${escapeHtml(t("ans.detail"))}</a></div>
     </section>`;
   }
+  // 回答カードは縦に長いので、10件ずつに区切る（#321）。
+  function renderPager(pages) {
+    const pager = document.getElementById("ans-pager");
+    if (!pager) return;
+    pager.hidden = pages <= 1;
+    if (pager.hidden) { pager.innerHTML = ""; return; }
+    const status = t("ans.pager.status").replace("{page}", String(page)).replace("{pages}", String(pages));
+    pager.innerHTML = `
+      <button class="btn btn-ghost btn-sm" type="button" data-page-step="-1"${page <= 1 ? " disabled" : ""}>${escapeHtml(t("ans.pager.prev"))}</button>
+      <span class="pg-status">${escapeHtml(status)}</span>
+      <button class="btn btn-ghost btn-sm" type="button" data-page-step="1"${page >= pages ? " disabled" : ""}>${escapeHtml(t("ans.pager.next"))}</button>`;
+    pager.querySelectorAll("[data-page-step]").forEach((btn) => btn.addEventListener("click", () => {
+      page += Number(btn.dataset.pageStep);
+      render();
+      // ページを送ったら一覧の先頭に戻す（前のページの途中位置のままだと、切り替わったのが分かりにくい）。
+      list.scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
+  }
   function render() {
     const read = answersReadSet();
     const visible = items.filter((b) => filter !== "unread" || !read.has(String(b.id)));
-    list.innerHTML = visible.map((b) => card(b, read.has(String(b.id)))).join("");
+    // 既読にした直後など件数が減ったときは、空のページに取り残されないよう最終ページへ寄せる。
+    const pages = Math.max(1, Math.ceil(visible.length / ANSWERS_PER_PAGE));
+    if (page > pages) page = pages;
+    const shown = visible.slice((page - 1) * ANSWERS_PER_PAGE, page * ANSWERS_PER_PAGE);
+    list.innerHTML = shown.map((b) => card(b, read.has(String(b.id)))).join("");
     if (countEl) countEl.textContent = String(items.filter((b) => !read.has(String(b.id))).length);
     if (totalEl) totalEl.textContent = String(items.length);
     if (emptyNote) emptyNote.style.display = visible.length ? "none" : "block";
     list.querySelectorAll("[data-mark-read]").forEach((btn) => btn.addEventListener("click", () => { markAnswerRead(btn.dataset.markRead, true); render(); }));
+    renderPager(pages);
   }
   document.querySelectorAll(".filter-btn").forEach((b) => b.addEventListener("click", () => {
     filter = b.dataset.filter;
+    page = 1; // 絞り込みを変えたら先頭ページから見せる
     document.querySelectorAll(".filter-btn").forEach((x) => x.classList.toggle("on", x === b));
     render();
   }));

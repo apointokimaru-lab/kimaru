@@ -1044,9 +1044,11 @@ section("booking-page-save: buffer clamp (#300)");
   const availability_settings = [{ day_of_week: 1, start_time: "10:00", end_time: "18:00", enabled: true }];
   // 1ページを作ってから id 付きで更新する＝実際の「編集して保存」と同じ経路を通す。
   let pageId = "";
+  // バッファを設定するときは予定名も必須になった（#321）ので、既定で入れておく。
+  // このセクションで見たいのは「値のクランプ」なので、タイトルの有無で落ちないようにする。
   const save = (over) => saveFn.handler({
     httpMethod: "POST", headers: { cookie: cookieB },
-    body: JSON.stringify({ id: pageId || undefined, slug: "buf-page", title: "B", duration_minutes: 60, availability_settings, ...over }),
+    body: JSON.stringify({ id: pageId || undefined, slug: "buf-page", title: "B", duration_minutes: 60, availability_settings, buffer_before_title: "準備", buffer_after_title: "片付け", ...over }),
   });
   const savedBuffers = (res) => {
     const p = JSON.parse(res.body).booking_page;
@@ -1061,6 +1063,14 @@ section("booking-page-save: buffer clamp (#300)");
   ok("通常の選択肢はそのまま", savedBuffers(await save({ buffer_before_minutes: 20, buffer_after_minutes: 0 })) === "20,0");
   ok("範囲外は0〜60にクランプする", savedBuffers(await save({ buffer_before_minutes: 999, buffer_after_minutes: -30 })) === "60,0");
   ok("数値でない入力は0になる", savedBuffers(await save({ buffer_before_minutes: "abc", buffer_after_minutes: null })) === "0,0");
+
+  // #321: バッファを設定したら予定名は必須。空だとカレンダーに予定が作られず、
+  // 「設定したのに何も起きない」状態になるので、保存させずに知らせる。
+  const noTitle = await save({ buffer_before_minutes: 20, buffer_before_title: "", buffer_after_minutes: 0, buffer_after_title: "" });
+  ok("バッファありで予定名が空なら400 (#321)", noTitle.statusCode === 400);
+  const afterNoTitle = await save({ buffer_before_minutes: 0, buffer_before_title: "", buffer_after_minutes: 30, buffer_after_title: "  " });
+  ok("後バッファだけでも予定名は必須 (#321)", afterNoTitle.statusCode === 400);
+  ok("バッファ0なら予定名が空でも保存できる (#321)", savedBuffers(await save({ buffer_before_minutes: 0, buffer_before_title: "", buffer_after_minutes: 0, buffer_after_title: "" })) === "0,0");
 }
 
 // ---------- 14c) #300 バッファ予定を「予定あり」で作り、空き枠計算の障害物にする ----------

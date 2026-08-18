@@ -351,13 +351,11 @@ async function loadDays(startYmd, full) {
     pageMinDate = data.min_date || null;
     pageMaxDate = data.max_date || null;
     if (full) { renderHost(data.host); renderQuestions(data.questions || []); }
+    // 受付停止中・利用停止中の予約ページは「見つからない」扱いにする（#321）。
+    // 「いまは止まっています」と案内すると、URLは生きていて時間を置けば予約できるように読め、
+    // 相手が待ってしまう。開けない事実だけを 404 で伝える。
     if (data.suspended || data.paused) {
-      if (weekcal) weekcal.style.display = "none";
-      status.style.display = "";
-      status.innerHTML = `<p class="muted">${escapeHtml(data.suspended
-        ? t("booking.week.suspended", "このページは現在ご利用いただけません。")
-        : t("booking.week.paused", "現在、この予約ページは受付を停止しています。しばらくしてから再度お試しください。"))}</p>`;
-      form.classList.add("hidden");
+      location.replace("/404.html");
       return;
     }
     renderGrid(data);
@@ -572,7 +570,6 @@ function retitleForPinpoint() {
   [
     ['[data-i18n="booking.slots.eyebrow"]', "booking.pinpoint.eyebrow", "主催者からの候補"],
     ['[data-i18n="booking.slots.heading"]', "booking.pinpoint.slotsHeading", "候補の日程から選ぶ"],
-    ['[data-i18n="booking.intro.li2"]', "booking.pinpoint.intro", "主催者が選んだ候補から都合のよい時間を選べます"],
   ].forEach(([selector, key, fallback]) => {
     const el = document.querySelector(selector);
     if (!el) return;
@@ -589,8 +586,9 @@ async function initPinpoint(form) {
   if (grid) grid.innerHTML = `<div class="week-loading" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span>${escapeHtml(t("booking.week.loading", "空き枠を読み込み中..."))}</span></div>`;
   try {
     const data = await api(`pinpoint?token=${encodeURIComponent(pinpointToken)}`);
+    // 元の予約ページが受付停止中なら、通常の予約ページと同じく 404 にする（#321）。
     if (data.paused) {
-      if (grid) grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.paused", "現在、予約の受付を停止しています。"))}</p>`;
+      location.replace("/404.html");
       return;
     }
     currentHost = data.host || null;

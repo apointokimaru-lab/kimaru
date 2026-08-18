@@ -44,14 +44,15 @@
       <aside>
         <!-- 予約ページを共有（booking-pages 実データ：app.js loadDashboardShare） -->
         <div class="side-card">
-          <h3 data-i18n="dash.share.heading">予約ページを共有</h3>
+          <!-- 見出しの横に「＋ 新しい予約ページ」を置く（#321）。プレビューは削除
+               （下のURLをコピーして開けば同じものが見られ、ボタンが1段増えるだけだった）。 -->
+          <div class="side-card-head">
+            <h3 data-i18n="dash.share.heading">予約ページを共有</h3>
+            <a class="button secondary btn-sm" href="/booking-settings.html?new=1" data-i18n="dash.share.new">＋ 新しい予約ページ</a>
+          </div>
           <div class="share">
             <code id="share-url">—</code>
             <button id="share-copy" class="button primary btn-sm" type="button" data-i18n="dash.share.copy">コピー</button>
-          </div>
-          <div class="form-actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-            <a id="share-preview" class="button secondary btn-sm" href="/booking-settings.html" target="_blank" rel="noopener" style="display:none" data-i18n="dash.share.preview">プレビュー</a>
-            <a class="button secondary btn-sm" href="/booking-settings.html?new=1" data-i18n="dash.share.new">＋ 新しい予約ページ</a>
           </div>
         </div>
 
@@ -72,11 +73,16 @@
               <span class="tx"><b data-i18n="dash.todo.profile">プロフィール未設定の項目</b><small data-i18n="dash.todo.profileDesc">リマインダーに載る項目が空です</small></span>
               <span class="cnt" id="todo-profile-count">0</span>
             </a>
-            <a class="has" href="/schedule.html" id="todo-week">
+            <!-- 今週の予約は0件なら出さない（#321）。要対応に0が並ぶと、対応すべきものが
+                 あるのか無いのかが読み取れない。app.js renderDashboardTodos が出し入れする。 -->
+            <a class="has" href="/schedule.html" id="todo-week" style="display:none">
               <span class="ico"></span>
               <span class="tx"><b data-i18n="dash.todo.schedule">今週の予約</b><small id="todo-week-desc"></small></span>
               <span class="cnt" id="todo-week-count">0</span>
             </a>
+            <!-- 3項目とも空のときだけ出る。見出しだけのカードが残ると、読み込みに失敗したのか
+                 本当に無いのかが分からないため。 -->
+            <p id="todo-empty" class="muted" style="display:none;margin:0;font-size:13.5px" data-i18n="dash.todo.empty">いま対応が必要なものはありません。</p>
           </div>
         </div>
 

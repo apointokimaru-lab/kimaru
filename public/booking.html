@@ -33,18 +33,22 @@
 
         <section class="panel">
           <p class="eyebrow" data-i18n="booking.slots.eyebrow">予約できる時間</p>
-          <h2 data-i18n="booking.slots.heading">5日間の空き枠から選ぶ</h2>
+          <!-- 日数は画面幅で変わる（スマホ5日 / PC1週間）ので見出しの数字もJSが入れる。
+               data-i18n を付けると言語切替のたびに固定文言で上書きされる。 -->
+          <h2 id="slots-heading">7日間の空き枠から選ぶ</h2>
 
-          <!-- 5日単位のタイムグリッド。上部バー: [‹ 前の5日] [範囲ボタン=カレンダー] [次の5日 ›] -->
+          <!-- 日単位のタイムグリッド。上部バー: [‹ 前のN日] [範囲ボタン=カレンダー] [次のN日 ›] -->
           <div id="weekcal" class="weekcal" style="display:none">
             <div class="weekcal-top">
-              <button type="button" id="prev-days" class="wk-nav" aria-label="前の5日"><span class="wk-ar" aria-hidden="true">‹</span><span class="wk-nav-tx" data-i18n="booking.week.prev5">前の5日</span></button>
+              <!-- 日数は画面幅で変わる（スマホ5日 / PC1週間）ので、ラベルはJSが入れる。
+               data-i18n を付けると言語切替のたびに固定文言で上書きされる。 -->
+              <button type="button" id="prev-days" class="wk-nav" aria-label="前の期間"><span class="wk-ar" aria-hidden="true">‹</span><span class="wk-nav-tx">前の7日</span></button>
               <button type="button" id="range-btn" class="rangebtn" aria-haspopup="dialog">
                 <span class="cal-ic" aria-hidden="true">📅</span>
                 <span id="range-label">—</span>
                 <span class="chev" aria-hidden="true">▼</span>
               </button>
-              <button type="button" id="next-days" class="wk-nav" aria-label="次の5日"><span class="wk-nav-tx" data-i18n="booking.week.next5">次の5日</span><span class="wk-ar" aria-hidden="true">›</span></button>
+              <button type="button" id="next-days" class="wk-nav" aria-label="次の期間"><span class="wk-nav-tx">次の7日</span><span class="wk-ar" aria-hidden="true">›</span></button>
             </div>
             <div id="wk-grid" class="wk-grid"></div>
           </div>
@@ -99,7 +103,7 @@
         <p class="done-note" data-i18n="booking.complete.note">開催方法や参加用URLは、確認メールおよびカレンダーの予定に記載されます。</p>
       </div>
     </section>
-    <!-- 月カレンダー（範囲/日付タップで開く。空き枠のある日＝朱ドット、押すとその日から5日間を表示） -->
+    <!-- 月カレンダー（範囲/日付タップで開く。空き枠のある日＝朱ドット、押すとその日から表示日数ぶんを表示） -->
     <div class="modal-overlay" id="cal-modal" hidden>
       <div class="modal" role="dialog" aria-modal="true" aria-label="日付を選ぶ">
         <button class="modal-close" type="button" id="cal-close" aria-label="閉じる">✕</button>

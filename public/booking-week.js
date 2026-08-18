@@ -297,6 +297,28 @@ function parseYmd(str) { const [y, m, d] = String(str || "").split("-").map(Numb
 function ymdStr(y, m0, d) { return `${y}-${pad2(m0 + 1)}-${pad2(d)}`; }
 function dateFromYmd(str, addDays = 0) { const p = parseYmd(str); return new Date(p.y, p.m, p.d + addDays); }
 function shiftYmd(str, deltaDays) { const dt = dateFromYmd(str, deltaDays); return ymdStr(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
+function viewDays() { return window.KimaruWeekGrid ? window.KimaruWeekGrid.daysForViewport() : 5; }
+
+// 前後送りのラベルは日数に合わせる（スマホ「前の5日」/ PC「前の7日」）。
+// data-i18n を付けると言語切替のたびに固定文言で上書きされるので、ここで textContent を入れる。
+function renderNavLabels() {
+  const n = String(viewDays());
+  // 見出しの「N日間の空き枠から選ぶ」も日数に合わせる（列は7なのに見出しは5、という食い違いを作らない）。
+  const heading = $("#slots-heading");
+  if (heading && !pinpointToken) {
+    const text = t("booking.slots.heading", "").replace("{n}", n);
+    if (text) heading.textContent = text;
+  }
+  [["#prev-days", "booking.week.prevDays"], ["#next-days", "booking.week.nextDays"]].forEach(([sel, key]) => {
+    const button = $(sel);
+    if (!button) return;
+    const text = t(key, "").replace("{n}", n);
+    if (!text) return;
+    const span = button.querySelector(".wk-nav-tx");
+    if (span) span.textContent = text;
+    button.setAttribute("aria-label", text);
+  });
+}
 function todayYmd() { const d = new Date(); return ymdStr(d.getFullYear(), d.getMonth(), d.getDate()); }
 // ISO→JSTの分換算・時刻表記・曜日名はグリッド描画側（week-grid.js）が持つ。
 // ここで持つと同じ計算が二重になるので、範囲ラベルもそちらのものを使う。
@@ -345,7 +367,8 @@ async function loadDays(startYmd, full) {
   [$("#prev-days"), $("#next-days")].forEach((b) => { if (b) b.disabled = true; });
   try {
     const q = startYmd ? `&start=${encodeURIComponent(startYmd)}` : "";
-    const data = await api(`availability?slug=${encodeURIComponent(bookingSlug)}${q}`);
+    // 表示日数は画面幅で決まる（スマホ5日 / PC1週間）。サーバは許可リストで受ける。
+    const data = await api(`availability?slug=${encodeURIComponent(bookingSlug)}${q}&days=${viewDays()}`);
     currentStart = data.range_start || startYmd || todayYmd();
     data.range_start = currentStart; // range_start 欠落時も描画を壊さない（NaN日付でIntlが例外化するのを防ぐ）
     pageMinDate = data.min_date || null;
@@ -360,6 +383,7 @@ async function loadDays(startYmd, full) {
     }
     renderGrid(data);
     updateNav(data);
+    renderNavLabels();
     status.style.display = "none";
     status.innerHTML = "";
   } catch (error) {
@@ -569,7 +593,7 @@ function renderPinpointSlots(slots, form) {
 function retitleForPinpoint() {
   [
     ['[data-i18n="booking.slots.eyebrow"]', "booking.pinpoint.eyebrow", "主催者からの候補"],
-    ['[data-i18n="booking.slots.heading"]', "booking.pinpoint.slotsHeading", "候補の日程から選ぶ"],
+    ['#slots-heading', "booking.pinpoint.slotsHeading", "候補の日程から選ぶ"],
   ].forEach(([selector, key, fallback]) => {
     const el = document.querySelector(selector);
     if (!el) return;
@@ -626,8 +650,14 @@ async function initBooking() {
     return;
   }
   // 5日送り（前は最古日で無効化＝過去へ行けない。サーバも最古日にクランプ）。
-  $("#prev-days")?.addEventListener("click", () => { if (currentStart) withBusy(() => loadDays(shiftYmd(currentStart, -5), false)); });
-  $("#next-days")?.addEventListener("click", () => { if (currentStart) withBusy(() => loadDays(shiftYmd(currentStart, 5), false)); });
+  // 送る量は表示日数と揃える。5日表示で7日送ると2日ぶん飛び、7日表示で5日送ると重複して出る。
+  $("#prev-days")?.addEventListener("click", () => { if (currentStart) withBusy(() => loadDays(shiftYmd(currentStart, -viewDays()), false)); });
+  $("#next-days")?.addEventListener("click", () => { if (currentStart) withBusy(() => loadDays(shiftYmd(currentStart, viewDays()), false)); });
+  // 画面幅が5日/7日の境目をまたいだら、その日数で取り直す（列だけ増えても中身が足りない）。
+  window.KimaruWeekGrid?.onViewportDaysChange(() => {
+    renderNavLabels();
+    if (currentStart && !pinpointToken) loadDays(currentStart, false);
+  });
   // 範囲ボタン／日付ヘッダーで月カレンダーを開く。
   $("#range-btn")?.addEventListener("click", openCalendar);
   $("#wk-grid")?.addEventListener("click", (event) => { if (event.target.closest("[data-cal-open]")) openCalendar(); });

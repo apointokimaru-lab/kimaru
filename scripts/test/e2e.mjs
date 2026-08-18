@@ -585,14 +585,16 @@ section("pinpoint scheduling link (#303)");
     await page.click('[data-page-action="pinpoint"]');
     await page.waitForTimeout(500);
     await page.locator("#pp-grid .wk-slot").first().click();
-    await page.selectOption("#pp-hold", "hold");
-    await page.waitForTimeout(150);
-    ok("no calendar connection warns before creating", await page.locator("#pp-hold-nocal").isVisible());
-    await page.fill("#pp-hold-title", "仮おさえ");
+    // 未連携では押さえられない（#327 レビュー指摘）。理由と連携導線をその場に出す。
+    ok("holding is disabled without a calendar", await page.locator('#pp-hold option[value="hold"]').evaluate((el) => el.disabled) === true);
+    ok("the reason is shown next to the choice", await page.locator("#pp-hold-nocal").isVisible());
+    ok("the warning links to integrations", (await page.getAttribute("#pp-hold-nocal a", "href")) === "/settings.html#integrations");
+    ok("hold stays off without a calendar", (await page.inputValue("#pp-hold")) === "none");
+    ok("no calendar event name is asked for", await page.locator("#pp-hold-title-field").isHidden());
+    // 押さえなしのリンクは未連携でも作れる（押さえだけが連携を要る）。
     await page.click("#pp-create");
     await page.waitForTimeout(400);
-    ok("link is still issued without a calendar", (await page.inputValue("#pp-url")).includes("/p/tok-nocal"));
-    ok("result says the hold is kimaru-only", (await page.textContent("#pp-message")).includes("キマル内"));
+    ok("a link without holds can still be issued", (await page.inputValue("#pp-url")).includes("/p/tok-nocal"));
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }

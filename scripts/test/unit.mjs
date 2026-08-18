@@ -671,10 +671,16 @@ section("pinpoint hold requires a calendar event name (#325)");
   // 押さえないなら予定名は要らない（カレンダーに何も作らないので聞く意味がない）
   const noHold = await create({ hold_slots: false });
   ok("押さえないなら予定名なしで通る", noHold.statusCode === 200);
-  // Google未連携でも発行は通す。押さえはキマル内部（heldBusyFor）だけに効く。
+  // 押さえるには Google カレンダー連携が要る（#327 レビュー指摘）。未連携で通してしまうと、
+  // 必須にした予定名がどこにも現れない「名前を入れさせたのに何も起きない」状態になる。
+  const noCalendar = await create({ hold_slots: true, hold_title: "仮おさえ" });
+  ok("Google未連携で押さえようとすると400", noCalendar.statusCode === 400);
+  ok("未連携のエラーは連携を促す", JSON.parse(noCalendar.body).error.includes("Googleカレンダーの連携"));
+  // 連携済みなら通る（google_connections に行があるかどうかだけで判定する）。
+  DB.google_connections = [{ owner_id: OWNER.id, access_token: "x", refresh_token: "y", expires_at: new Date(Date.now() + 3600000).toISOString() }];
   const held = await create({ hold_slots: true, hold_title: "仮おさえ" });
-  ok("Google未連携でも押さえリンクは発行できる", held.statusCode === 200);
-  ok("未連携なので作成した予定は0件", JSON.parse(held.body).hold_events_created === 0);
+  ok("連携済みなら押さえリンクを発行できる", held.statusCode === 200);
+  DB.google_connections = [];
 }
 
 // ---------- 9i) #326 リンクの有効期限 ----------

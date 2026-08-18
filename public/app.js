@@ -1418,6 +1418,7 @@ function openPinpointView(pageId, slug, title) {
   const hold = $("#pp-hold"); if (hold) hold.value = "none";
   const holdTitle = $("#pp-hold-title"); if (holdTitle) holdTitle.value = "";
   const expires = $("#pp-expires"); if (expires) expires.value = "7";
+  ppSyncHoldAvailability();
   ppSyncHoldTitle();
   ppSetMessage("");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1427,6 +1428,20 @@ function openPinpointView(pageId, slug, title) {
 // 押さえ方の選択に合わせて予定名の欄を出し入れする（#325）。
 // 「押さえる」のときだけ欄を出して必須にする。押さえないなら Google カレンダーに何も作らないので
 // 予定名を聞く意味がない（バッファ予定名の出し分けと同じ考え方）。
+// Google未連携では「押さえる」を選べなくする（#327 レビュー指摘）。
+// 未連携でも押さえられた頃は、必須にした予定名がどこにも現れず「名前を入れさせたのに
+// 何も起きない」状態になっていた。選択肢を disabled にし、押せない理由をその場に出す。
+// 選択中に連携が切れた場合に備えて、値も「押さえない」に戻す（disabled な値のまま
+// 送信されると、サーバ側の400で初めて気づくことになる）。
+function ppSyncHoldAvailability() {
+  const hold = $("#pp-hold");
+  const option = hold?.querySelector('option[value="hold"]');
+  if (option) option.disabled = !calendarConnected;
+  if (hold && !calendarConnected && hold.value === "hold") hold.value = "none";
+  const warn = $("#pp-hold-nocal");
+  if (warn) warn.hidden = calendarConnected;
+}
+
 function ppSyncHoldTitle() {
   const on = $("#pp-hold")?.value === "hold";
   // 入力欄と注記はラッパーごと出し入れする（個別に隠すと、隠れた行のぶんだけ隙間が残る）。
@@ -1434,10 +1449,6 @@ function ppSyncHoldTitle() {
   if (field) field.hidden = !on;
   const input = $("#pp-hold-title");
   if (input) input.required = on;
-  // Google未連携だと押さえ予定は作れない。押さえは効くがカレンダーには出ない、と先に断っておく
-  // （発行後に「カレンダーに入っていない」と気づくのが一番困る）。
-  const nocal = $("#pp-hold-nocal");
-  if (nocal) nocal.hidden = !on || calendarConnected;
 }
 
 function closePinpointView() {
@@ -1655,10 +1666,11 @@ function bindPinpoint() {
       });
       const input = $("#pp-url"); if (input) input.value = res.url || "";
       const result = $("#pp-result"); if (result) result.hidden = false;
-      // 押さえたのに予定が1件も作れていない＝Google未連携か作成失敗。成功とだけ言うと
-      // 「カレンダーに入っているはず」と誤解させるので、そこだけ出し分ける。
+      // 押さえたのに予定が1件も作れていない＝Googleへの作成に失敗した場合（未連携は
+      // そもそも押さえを選べない）。成功とだけ言うと「カレンダーに入っているはず」と
+      // 誤解させるので、そこだけ出し分ける。
       const heldOnKimaruOnly = hold && !res.hold_events_created;
-      ppSetMessage(heldOnKimaruOnly ? t("pin.createdNoCalendar") : t("pin.created"), "success");
+      ppSetMessage(heldOnKimaruOnly ? t("pin.createdHoldFailed") : t("pin.created"), "success");
     } catch (error) {
       ppSetMessage(error.message, "error");
     }

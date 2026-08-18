@@ -31,6 +31,18 @@ exports.handler = async (event) => {
     // 「押さえたのにカレンダーには何も出ない」状態になる（画面側でも required にしている）。
     if (holdSlots && !holdTitle) return json(400, { error: "押さえる予定の名前を入力してください" });
 
+    // 押さえるには Google カレンダー連携が要る（#327 レビュー指摘）。
+    // 未連携でも押さえられた頃は、必須にした予定名がどこにも現れず、「名前を入れさせたのに
+    // 何も起きない」状態になっていた（#325 で予定名を必須にした理由と食い違う）。
+    // 画面側でも選択肢を disabled にしているが、細工されても矛盾した状態を作らないようここでも止める。
+    if (holdSlots) {
+      // 判定は me.js の calendar_connected と同じ（google_connections に行があるか）。
+      // 取得に失敗したときは連携なし扱いで止める。押さえられたつもりでカレンダーに何も
+      // 入らないより、作り直してもらうほうが被害が小さい。
+      const connections = await sb(`google_connections?owner_id=${eq(owner.id)}&select=id&limit=1`).catch(() => []);
+      if (!(connections || [])[0]) return json(400, { error: "枠を押さえるにはGoogleカレンダーの連携が必要です" });
+    }
+
     // 押さえ予定は行を入れる前に作る。逆順にすると、hold_events 列が未適用でイベントIDを
     // 保存できなかったときに、あとから消せない予定がカレンダーに残る。先に作っておけば
     // 保存に失敗した時点でこちらで片付けられる（下の releaseHold）。

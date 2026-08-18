@@ -52,7 +52,6 @@ exports.handler = async (event) => {
       return json(200, { slots, questions: [], host: null, axis: core.axisRange(weekly), ...base, hasPrev: fromTime > minStart, hasNext: toTime < maxTime });
     }
 
-    const questions = await core.bookingPageQuestions(bookingPage);
     const host = {
       name: owner.name || "",
       title: bookingPage?.title || "",
@@ -60,7 +59,27 @@ exports.handler = async (event) => {
       duration_minutes: bookingPage?.duration_minutes || 30,
       location_type: bookingPage?.location_type || "google_meet",
     };
-    const weekly = await core.pageAvailability(owner, bookingPage).catch(() => []);
+
+    // 質問・受付時間・busy を同時に取りに行く（#332）。
+    //
+    // なぜ: 以前はこの3つを順に await していた。互いに依存していないのに直列だったため、
+    // DB往復のたびに待ち時間が積み上がっていた（本番は関数が us-east-1、DBは別リージョンで
+    // 往復1回が150〜200ms。/api/availability は2秒超だった）。
+    // busy が要るのは owner と bookingPage だけで、受付時間（weekly）には依存しない。
+    //
+    // busy は「実際に枠を返すとき」だけ取る。停止中・受付範囲外は空配列を返して終わるので、
+    // ここで無条件に走らせると Google freeBusy を無駄に1回叩くことになる。
+    const slotWindowTo = Math.min(toTime, maxTime + core.DAY_MS);
+    const needsSlots = !(bookingPage && bookingPage.is_active === false) && fromTime <= maxTime;
+    const [questions, weekly, busy] = await Promise.all([
+      core.bookingPageQuestions(bookingPage),
+      core.pageAvailability(owner, bookingPage).catch(() => []),
+      // ここで catch しない。busyForWindow の中身（freeBusy・既存予約・押さえ）は各々が
+      // 失敗を握りつぶすので実際には throw しないが、握り潰しを一段増やすと、万一の例外時に
+      // 「busy 無し＝全部空き」として返してしまう（ダブルブッキングの元）。
+      // 従来どおり handler の catch まで通して 500 にする。
+      needsSlots ? core.busyForWindow(owner, bookingPage, fromTime, slotWindowTo) : Promise.resolve([]),
+    ]);
     const axis = core.axisRange(weekly);
 
     // 受付停止中のページは空き枠を返さない。
@@ -73,7 +92,7 @@ exports.handler = async (event) => {
     if (fromTime > maxTime) {
       return json(200, { slots: [], questions, host, axis, ...base, hasPrev, hasNext: false });
     }
-    const slots = await core.openSlotsForWindow(owner, bookingPage, weekly, fromTime, Math.min(toTime, maxTime + core.DAY_MS));
+    const slots = await core.openSlotsForWindow(owner, bookingPage, weekly, fromTime, slotWindowTo, { busy });
     return json(200, { slots, questions, host, axis, ...base, hasPrev, hasNext });
   } catch (error) {
     return json(500, { error: "サーバーでエラーが発生しました。時間をおいて再度お試しください。" });

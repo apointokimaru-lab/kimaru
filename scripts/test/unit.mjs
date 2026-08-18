@@ -840,6 +840,54 @@ section("availability days per view (5 on mobile / 7 on desktop)");
   ok("開始日は日数で変わらない", wide.range_start === narrow.range_start);
 }
 
+// ---------- 9m) #332 availability のDB往復を直列に積まない ----------
+section("availability fetches in parallel, not in series (#332)");
+{
+  const availFn = requireCjs(path.join(repo, "netlify/functions/availability.js"));
+  DB.booking_pages = [{ id: "bp1", owner_id: OWNER.id, slug: "tarou", title: "初回相談", location_type: "zoom", is_active: true, duration_minutes: 30 }];
+
+  // 1リクエストぶんの取得を、遅延つきfetchで測る。
+  // 直列なら「質問→受付時間→busy」で遅延3回ぶん、並列なら1回ぶんで返る。
+  // 本番は関数とDBが別リージョンで往復150〜200ms。ここが直列に戻ると体感が1秒近く悪化する。
+  const DELAY = 60;
+  const prevFetch = globalThis.fetch;
+  let calls = 0;
+  let maxConcurrent = 0;
+  let inFlight = 0;
+  globalThis.fetch = async (url) => {
+    calls += 1;
+    inFlight += 1;
+    maxConcurrent = Math.max(maxConcurrent, inFlight);
+    await new Promise((r) => setTimeout(r, DELAY));
+    inFlight -= 1;
+    const u = new URL(url);
+    const table = u.pathname.replace("/rest/v1/", "").split("?")[0];
+    let rows = DB[table] || [];
+    for (const [k, v] of u.searchParams) {
+      if (typeof v === "string" && v.startsWith("eq.")) rows = rows.filter((r) => String(r[k]) === decodeURIComponent(v.slice(3)));
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify(rows) };
+  };
+
+  const started = process.hrtime.bigint();
+  const res = await availFn.handler({ httpMethod: "GET", queryStringParameters: { slug: "tarou", start: "2026-09-01", days: "7" } });
+  const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+  globalThis.fetch = prevFetch;
+
+  ok("200で返る", res.statusCode === 200);
+  const body = JSON.parse(res.body);
+  ok("日数はそのまま返る", body.days === 7);
+  ok("questions を返す", Array.isArray(body.questions));
+  // 同時に飛んでいる本数で見る。busyForWindow は内部で3本を Promise.all するので、
+  // 直列に戻しても maxConcurrent は3まで上がる。質問・受付時間が加わって初めて4以上になる
+  // （実測: 並列5 / 直列3）。閾値を2にすると直列でも通ってしまい、検出できない。
+  ok("質問・受付時間・busy が同時に飛ぶ", maxConcurrent >= 4);
+  // 所要時間でも見る。オーナー解決(直列2回) + 並列1波 ≒ 遅延3回ぶんが上限。
+  // 直列に戻ると質問・受付時間・busy で波が増え、この上限を超える。
+  ok("直列に積み上がっていない", elapsedMs < DELAY * 5);
+  ok("呼び出し自体は減らしていない（間引きではなく並列化）", calls >= 4);
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";

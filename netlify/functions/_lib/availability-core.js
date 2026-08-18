@@ -130,12 +130,16 @@ async function busyForWindow(owner, bookingPage, fromTime, toTime, options = {})
 }
 
 // 指定窓の空き枠（busy＋前後バッファ適用済み）。owner未連携/失敗時は生成枠をそのまま返す。
+//
+// options.busy に取得済みの busy を渡せる（#332）。busy の取得は owner と bookingPage だけで
+// 決まり、weeklySettings に依存しない。呼び出し側が受付時間の取得と同時に走らせられるよう
+// 差し込み口を用意した。渡さなければ従来どおりここで取りに行く。
 async function openSlotsForWindow(owner, bookingPage, weeklySettings, fromTime, toTime, options = {}) {
   const slots = generateSlots(weeklySettings, bookingPage, fromTime, toTime);
   if (!slots.length || !owner?.id) return slots;
   const bufferBeforeMs = Math.max(0, Number(bookingPage?.buffer_before_minutes || 0)) * 60 * 1000;
   const bufferAfterMs = Math.max(0, Number(bookingPage?.buffer_after_minutes || 0)) * 60 * 1000;
-  const busy = await busyForWindow(owner, bookingPage, fromTime, toTime, options);
+  const busy = options.busy || await busyForWindow(owner, bookingPage, fromTime, toTime, options);
   return slots.filter((slot) => !overlaps(slot, busy, bufferBeforeMs, bufferAfterMs));
 }
 

@@ -806,6 +806,11 @@ function isPremiumPlan(plan) { return plan === "premium"; }
 
 function updateBookingPageControls() {
   const isPro = isProPlan(currentOwner?.plan);
+  // ピンポイントリンクの一覧はプレミアム限定（発行と同じ条件・#303/#327）。
+  // 行のボタン（renderBookingPages）と同じく描画時に決める。.premium-feature は
+  // display:block になるため、見出し横の横並びボタンには使えない。
+  const listOpen = $("#pp-list-open");
+  if (listOpen) listOpen.hidden = !isPremiumPlan(currentOwner?.plan);
   const rangeSelect = $("#booking-range-select");
   const locationType = $("#location-type-select");
   const locationField = $("#location-value-field");
@@ -1427,6 +1432,144 @@ function closePinpointView() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+// ---- ピンポイントリンクの一覧（#327） ----
+// 予約ページ横断で、新しいものから並べる。ホストが見たいのは「自分が送ったリンク」なので、
+// どの予約ページのものかは行の中に出す。
+let ppDisableTargetId = "";
+
+// 一覧に出す日時。年は出さない（打診は直近のものがほとんどで、月日と時刻があれば読める）。
+// 言語は他の日時表示と同じく KimaruI18n から取る。
+function fmtDateTime(iso) {
+  const date = new Date(iso);
+  if (isNaN(date)) return "";
+  const locale = window.KimaruI18n?.getLanguage() || "ja";
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function ppListSetMessage(text, kind) {
+  const el = $("#pp-list-message");
+  if (!el) return;
+  el.textContent = text || "";
+  el.className = `message${kind ? " " + kind : ""}`;
+}
+
+// 候補の範囲。1件なら1つだけ、複数なら「最初 〜 最後」。全件出しても一覧では読めない。
+function ppListRange(link) {
+  if (!link.first_slot) return t("pin.list.noSlots");
+  const first = fmtDateTime(link.first_slot);
+  if (!link.last_slot || link.last_slot === link.first_slot) return first;
+  return `${first} 〜 ${fmtDateTime(link.last_slot)}`;
+}
+
+function renderPinpointLinks(links) {
+  const el = $("#pp-list");
+  if (!el) return;
+  if (!links.length) {
+    el.innerHTML = `<p class="muted">${escapeHtml(t("pin.list.empty"))}</p>`;
+    return;
+  }
+  el.innerHTML = links.map((link) => {
+    const label = link.status === "disabled" ? t("pin.list.statusDisabled")
+      : link.status === "expired" ? t("pin.list.statusExpired")
+      : t("pin.list.statusActive");
+    // 有効なリンクだけが操作できる。期限切れ・無効化済みは押さえも既に解けているので、
+    // 無効にするボタンを出しても何も起きない（押せるのに何も起きない状態を作らない）。
+    const canDisable = link.status === "active";
+    return `
+    <article class="list-item${link.status === "active" ? "" : " is-paused"}">
+      <strong>${escapeHtml(link.page_title || t("bs.list.untitled"))}<span class="pause-badge">${escapeHtml(label)}</span></strong>
+      <span>${escapeHtml(link.url)}</span>
+      <small>${escapeHtml(t("pin.list.slotCount").replace("{n}", String(link.slot_count)))} / ${escapeHtml(ppListRange(link))}</small>
+      <small>${escapeHtml(link.hold_slots ? t("pin.list.held").replace("{title}", link.hold_title || t("pin.list.noTitle")) : t("pin.list.notHeld"))} / ${escapeHtml(link.expires_at ? t("pin.list.expiresAt").replace("{at}", fmtDateTime(link.expires_at)) : t("pin.list.noExpiry"))}</small>
+      <div class="actions">
+        <button class="button secondary" type="button" data-pp-link-action="copy" data-url="${escapeHtml(link.url)}">${escapeHtml(t("bs.list.copyUrl"))}</button>
+        ${canDisable ? `<button class="button secondary" type="button" data-pp-link-action="disable" data-id="${escapeHtml(link.id)}" data-target="${escapeHtml(link.url)}">${escapeHtml(t("pin.list.disable"))}</button>` : ""}
+      </div>
+    </article>`;
+  }).join("");
+}
+
+async function loadPinpointLinks() {
+  const el = $("#pp-list");
+  if (el) el.innerHTML = `<p class="muted">${escapeHtml(t("pin.list.loading"))}</p>`;
+  try {
+    const data = await api("pinpoint-list");
+    renderPinpointLinks(Array.isArray(data.links) ? data.links : []);
+  } catch (error) {
+    if (el) el.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function openPinpointListView() {
+  const view = $("#pinpoint-list-view");
+  if (!view) return;
+  const list = $("#list-view");
+  if (list) list.hidden = true;
+  const editor = $("#page-editor");
+  if (editor) editor.hidden = true;
+  const picker = $("#pinpoint-view");
+  if (picker) picker.hidden = true;
+  view.hidden = false;
+  ppListSetMessage("");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  loadPinpointLinks();
+}
+
+function closePinpointListView() {
+  const view = $("#pinpoint-list-view");
+  const list = $("#list-view");
+  if (view) view.hidden = true;
+  if (list) list.hidden = false;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function ppCloseDisableModal() {
+  const modal = $("#pp-disable-modal");
+  if (modal) modal.hidden = true;
+  ppDisableTargetId = "";
+}
+
+function bindPinpointList() {
+  $("#pp-list-open")?.addEventListener("click", openPinpointListView);
+  $("#pp-list-back")?.addEventListener("click", closePinpointListView);
+  $("#pp-list")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-pp-link-action]");
+    if (!button) return;
+    const action = button.getAttribute("data-pp-link-action");
+    if (action === "copy") {
+      navigator.clipboard?.writeText(button.getAttribute("data-url") || "").catch(() => {});
+      ppListSetMessage(t("pin.copied"), "success");
+      return;
+    }
+    if (action === "disable") {
+      // 取り消せない操作なので、必ずモーダルで宣言を読ませてから実行する。
+      ppDisableTargetId = button.getAttribute("data-id") || "";
+      // 対象はURLで出す。同じ予約ページから複数のリンクを発行できるので、
+      // ページ名だけだとどのリンクを止めるのか特定できない。
+      const target = $("#pp-disable-target");
+      if (target) target.textContent = button.getAttribute("data-target") || "";
+      const modal = $("#pp-disable-modal");
+      if (modal) modal.hidden = false;
+    }
+  });
+  $("#pp-disable-close")?.addEventListener("click", ppCloseDisableModal);
+  $("#pp-disable-cancel")?.addEventListener("click", ppCloseDisableModal);
+  $("#pp-disable-modal")?.addEventListener("click", (event) => { if (event.target.id === "pp-disable-modal") ppCloseDisableModal(); });
+  $("#pp-disable-confirm")?.addEventListener("click", async () => {
+    const id = ppDisableTargetId;
+    if (!id) return;
+    ppCloseDisableModal();
+    ppListSetMessage(t("pin.list.disabling"));
+    try {
+      await api("pinpoint-deactivate", { method: "POST", body: JSON.stringify({ id }) });
+      ppListSetMessage(t("pin.list.disabled"), "success");
+      loadPinpointLinks();
+    } catch (error) {
+      ppListSetMessage(error.message, "error");
+    }
+  });
+}
+
 function bindPinpoint() {
   $("#pp-back")?.addEventListener("click", closePinpointView);
   $("#pp-hold")?.addEventListener("change", ppSyncHoldTitle);
@@ -1575,6 +1718,7 @@ async function initAdmin() {
   $("#booking-page-form")?.querySelector('select[name="buffer_after_minutes"]')?.addEventListener("change", updateBookingPageControls);
   $("#booking-page-new")?.addEventListener("click", clearBookingPageForm);
   bindPinpoint();
+  bindPinpointList();
   $("#add-question")?.addEventListener("click", addQuestionRow);
   $("#question-list")?.addEventListener("click", (event) => {
     if (event.target.closest(".question-remove")) {

@@ -753,6 +753,63 @@ section("pinpoint expiry cleanup and guest response (#326)");
   ok("期限内は普通に引ける", (await pin.findByToken("tok-live"))?.id === "px-live");
 }
 
+// ---------- 9k) #327 リンク一覧と手動の無効化 ----------
+section("pinpoint link list and manual disable (#327)");
+{
+  const listFn = requireCjs(path.join(repo, "netlify/functions/pinpoint-list.js"));
+  const offFn = requireCjs(path.join(repo, "netlify/functions/pinpoint-deactivate.js"));
+  const DAY = 86400000;
+  const slot = (offset) => ({ start: new Date(Date.now() + offset).toISOString(), end: new Date(Date.now() + offset + 1800000).toISOString() });
+
+  DB.pinpoint_links = [
+    { id: "pv-live", owner_id: OWNER.id, booking_page_id: "bp1", token: "tk-live", is_active: true, hold_slots: true, hold_title: "仮おさえ", created_at: "2026-08-18T00:00:00Z",
+      expires_at: new Date(Date.now() + DAY).toISOString(), slots: [slot(2 * DAY), slot(3 * DAY)], hold_events: [{ start: "x", end: "y", event_id: "e1" }] },
+    { id: "pv-old", owner_id: OWNER.id, booking_page_id: "bp1", token: "tk-old", is_active: true, hold_slots: false, created_at: "2026-08-17T00:00:00Z",
+      expires_at: new Date(Date.now() - DAY).toISOString(), slots: [slot(5 * DAY)], hold_events: [] },
+    { id: "pv-off", owner_id: OWNER.id, booking_page_id: "bp1", token: "tk-off", is_active: false, hold_slots: false, created_at: "2026-08-16T00:00:00Z", slots: [], hold_events: [] },
+  ];
+
+  const listed = await listFn.handler({ httpMethod: "GET", headers: { cookie } });
+  const links = JSON.parse(listed.body).links;
+  ok("一覧は自分のリンクを返す", listed.statusCode === 200 && links.length === 3);
+  const byId = Object.fromEntries(links.map((l) => [l.id, l]));
+  ok("有効なリンクは active", byId["pv-live"].status === "active");
+  ok("期限切れは expired", byId["pv-old"].status === "expired");
+  ok("無効化済みは disabled", byId["pv-off"].status === "disabled");
+  ok("候補の件数を返す", byId["pv-live"].slot_count === 2);
+  ok("候補の最初と最後を返す", byId["pv-live"].first_slot < byId["pv-live"].last_slot);
+  ok("押さえの予定名を返す", byId["pv-live"].hold_title === "仮おさえ");
+  ok("URLは /p/<token> になる", byId["pv-live"].url.endsWith("/p/tk-live"));
+  ok("予約ページ名を添える", byId["pv-live"].page_title === "初回相談");
+  // トークンそのものは一覧に出さない（URLがあれば足りる）
+  ok("生のトークンは返さない", byId["pv-live"].token === undefined);
+
+  // 無料プランは一覧を見られない（発行と同じプレミアム条件）
+  const asFree = await listFn.handler({ httpMethod: "GET", headers: { cookie: freeCookie } });
+  ok("無料プランは一覧を見られない", asFree.statusCode === 403);
+
+  // 無効化
+  const patches = [];
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (init?.method === "PATCH") { patches.push({ url: String(url), body: JSON.parse(init.body) }); return { ok: true, status: 200, text: async () => "[]" }; }
+    return prevFetch(url, init);
+  };
+  const off = await offFn.handler({ httpMethod: "POST", headers: { cookie }, body: JSON.stringify({ id: "pv-live" }) });
+  ok("有効なリンクを無効にできる", off.statusCode === 200 && JSON.parse(off.body).ok === true);
+  ok("is_active を false にする", patches.some((p) => p.body.is_active === false));
+
+  // 他人のリンクは止められない（owner_id で必ず絞る）
+  const other = await offFn.handler({ httpMethod: "POST", headers: { cookie: freeCookie }, body: JSON.stringify({ id: "pv-live" }) });
+  ok("他人のリンクは無効にできない", other.statusCode === 403);
+
+  const missing = await offFn.handler({ httpMethod: "POST", headers: { cookie }, body: JSON.stringify({ id: "存在しないid" }) });
+  ok("存在しないリンクは404", missing.statusCode === 404);
+  const noId = await offFn.handler({ httpMethod: "POST", headers: { cookie }, body: JSON.stringify({}) });
+  ok("id なしは400", noId.statusCode === 400);
+  globalThis.fetch = prevFetch;
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";

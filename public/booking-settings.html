@@ -42,6 +42,11 @@
           <h2 data-i18n="bs.list.heading">予約ページ</h2>
           <p class="muted" data-i18n="bs.list.desc">用途ごとに予約ページを分けられます。相手に送るのはURLだけ。空いている枠は、設定した受付時間とカレンダーの予定から自動で決まります。</p>
         </div>
+        <!-- ピンポイントリンクの一覧（#327）。新規ページを作らず、この画面のビュー切り替えにしている。
+             #321 でヘッダーとスマホ下部のナビを整理した直後なので、ナビ項目を増やさない。
+             プレミアム限定なので既定は hidden にして app.js が出す（.premium-feature は
+             display:block になり、横並びのボタン列では使えない）。 -->
+        <button type="button" id="pp-list-open" class="button secondary" data-i18n="pin.list.open" hidden>ピンポイントリンク</button>
         <button type="button" id="booking-page-new" class="button primary" data-i18n="bs.list.new">＋ 予約ページを作成</button>
       </div>
       <p id="booking-list-message" class="message" role="status"></p>
@@ -291,6 +296,35 @@
         <p class="field-note muted" data-i18n="pin.resultNote">このURLを相手に送ってください。候補が埋まるまで何人でも開けます。</p>
       </div>
     </section>
+
+    <!-- ピンポイントリンクの一覧（#327）。予約ページ横断で、新しいものから並べる。
+         ホストが見たいのは「自分が送ったリンク」であって「このページのリンク」ではないため。 -->
+    <section id="pinpoint-list-view" class="panel settings-section editor-view" aria-labelledby="pp-list-title" hidden>
+      <div class="section-head">
+        <div>
+          <h2 id="pp-list-title" data-i18n="pin.list.title">ピンポイントリンク</h2>
+          <p class="muted" data-i18n="pin.list.desc">発行したリンクの状態を確認し、不要になったものを無効にできます。</p>
+        </div>
+        <button type="button" id="pp-list-back" class="button secondary" data-i18n="pin.back">← 一覧に戻る</button>
+      </div>
+      <p id="pp-list-message" class="message" role="status"></p>
+      <div id="pp-list" class="list"></div>
+    </section>
+
+    <!-- 無効化の確認（#327）。「一度無効にすると有効にはできません」を読ませてから実行する。
+         押さえのGoogle予定を消すので、is_active を戻しても同じ状態には復元できない。 -->
+    <div class="modal-overlay" id="pp-disable-modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pp-disable-title">
+        <button type="button" class="modal-close" id="pp-disable-close" aria-label="閉じる">✕</button>
+        <h3 id="pp-disable-title" data-i18n="pin.list.disableTitle">このリンクを無効にしますか？</h3>
+        <p class="muted" data-i18n="pin.list.disableWarn">一度無効にすると有効にはできません。押さえていたGoogleカレンダーの予定も削除されます。</p>
+        <p class="muted" id="pp-disable-target"><!-- 対象リンクのURL。app.js が入れる --></p>
+        <div class="modal-actions">
+          <button type="button" class="button secondary" id="pp-disable-cancel" data-i18n="pin.list.disableCancel">やめる</button>
+          <button type="button" class="button primary" id="pp-disable-confirm" data-i18n="pin.list.disableConfirm">無効にする</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 月カレンダー（範囲/日付を押すと開く。空き枠のある日を選ぶとその日から5日間を表示） -->
     <div class="modal-overlay" id="pp-cal-modal" hidden>

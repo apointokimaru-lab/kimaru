@@ -553,6 +553,53 @@ section("pinpoint scheduling link (#303)");
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }
+  // --- ホスト: リンク一覧と手動の無効化（#327） ---
+  {
+    const page = await newPage();
+    let disabled = null;
+    const DAY = 86400000;
+    const LINKS = [
+      { id: "l-live", url: "https://kimaru-co.jp/p/tk-live", page_title: "初回相談", slot_count: 2, first_slot: new Date(Date.now() + 2 * DAY).toISOString(), last_slot: new Date(Date.now() + 3 * DAY).toISOString(), hold_slots: true, hold_title: "仮おさえ", expires_at: new Date(Date.now() + DAY).toISOString(), status: "active" },
+      { id: "l-old", url: "https://kimaru-co.jp/p/tk-old", page_title: "初回相談", slot_count: 1, first_slot: new Date(Date.now() + 5 * DAY).toISOString(), last_slot: new Date(Date.now() + 5 * DAY).toISOString(), hold_slots: false, hold_title: "", expires_at: new Date(Date.now() - DAY).toISOString(), status: "expired" },
+      { id: "l-off", url: "https://kimaru-co.jp/p/tk-off", page_title: "初回相談", slot_count: 0, first_slot: null, last_slot: null, hold_slots: false, hold_title: "", expires_at: null, status: "disabled" },
+    ];
+    await page.route("**/api/**", (route) => {
+      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      if (name === "pinpoint-deactivate") { disabled = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }); }
+      const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "premium" } }
+        : name === "pinpoint-list" ? { links: LINKS }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
+    await page.waitForSelector("#pp-list-open", { timeout: 8000 }).catch(() => {});
+    ok("premium sees the link list entry", await page.locator("#pp-list-open").isVisible());
+    await page.click("#pp-list-open");
+    await page.waitForTimeout(500);
+    ok("link list replaces the page list", await page.locator("#pinpoint-list-view").isVisible() && !(await page.locator("#list-view").isVisible()));
+    ok("every issued link is listed", (await page.locator("#pp-list .list-item").count()) === 3);
+    const listText = await page.textContent("#pp-list");
+    ok("status labels are shown", listText.includes("有効") && listText.includes("期限切れ") && listText.includes("無効"));
+    ok("held slots show the calendar event name", listText.includes("仮おさえ"));
+    ok("candidate count is shown", listText.includes("候補2件"));
+    // 有効なリンクだけ無効にできる（期限切れ・無効化済みは押さえも解けているので出さない）
+    ok("only the active link can be disabled", (await page.locator('[data-pp-link-action="disable"]').count()) === 1);
+    await page.click('[data-pp-link-action="disable"]');
+    await page.waitForTimeout(250);
+    ok("disabling asks for confirmation first", await page.locator("#pp-disable-modal").isVisible());
+    ok("modal says it cannot be undone", (await page.textContent("#pp-disable-modal")).includes("有効にはできません"));
+    ok("nothing is sent before confirming", disabled === null);
+    await page.click("#pp-disable-cancel");
+    await page.waitForTimeout(200);
+    ok("cancelling closes the modal without disabling", await page.locator("#pp-disable-modal").isHidden() && disabled === null);
+    await page.click('[data-pp-link-action="disable"]');
+    await page.waitForTimeout(250);
+    await page.click("#pp-disable-confirm");
+    await page.waitForTimeout(400);
+    ok("confirming sends the link id", disabled?.id === "l-live");
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
   // --- プレミアム限定の配信（#303）: pro には導線が出ない ---
   {
     const page = await newPage();
@@ -560,6 +607,7 @@ section("pinpoint scheduling link (#303)");
     await page.waitForSelector("#booking-pages-list .list-item", { timeout: 8000 }).catch(() => {});
     ok("pro sees the page list", (await page.locator("#booking-pages-list .list-item").count()) === 1);
     ok("pro does not see the pinpoint button", (await page.locator('[data-page-action="pinpoint"]').count()) === 0);
+    ok("pro does not see the link list entry", await page.locator("#pp-list-open").isHidden());
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }

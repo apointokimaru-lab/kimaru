@@ -8,9 +8,15 @@ const pinpoint = require("./_lib/pinpoint");
 exports.handler = async (event) => {
   try {
     const token = String((event?.queryStringParameters || {}).token || "").trim();
-    const link = await pinpoint.findByToken(token);
+    // 期限切れも受け取る（allowExpired）。存在しないのか期限が切れたのかを画面で出し分けるため。
+    const link = await pinpoint.findByToken(token, { allowExpired: true });
     // 存在しない・停止済みは同じ応答にする（トークンの当たり外れを外から探れないようにする）。
     if (!link) return json(404, { error: "この日程調整リンクは見つかりませんでした" });
+    // 期限切れだけは専用の応答にする（#326）。相手はリンクを実際に受け取った正規の宛先なので、
+    // 無言の404だと「URLを間違えたのか、切れたのか」が分からず、次の行動（主催者に連絡）に
+    // 進めない。トークンは22桁の乱数で総当たりは非現実的なため、ここを区別しても探索の助けには
+    // ならない（存在しない/停止済みを同じ404にまとめる方針自体は変えていない）。
+    if (pinpoint.isExpired(link)) return json(200, { expired: true, slots: [], questions: [], host: null });
 
     const owner = await findOwnerById(link.owner_id);
     if (!owner || owner.cat_key_disabled) return json(404, { error: "この日程調整リンクは現在ご利用いただけません" });

@@ -47,6 +47,8 @@ exports.handler = async (event) => {
       hold_slots: holdSlots,
       hold_title: holdTitle,
       hold_events: holdEvents,
+      // リンクの有効期限（#326）。候補の日時とは独立で、期限が来ればリンク側が切れる。
+      expires_at: pinpoint.expiresAtFrom(body.expires_days),
       is_active: true,
     };
 
@@ -67,13 +69,19 @@ exports.handler = async (event) => {
       // hold_title/hold_events 列が未マイグレーションの環境では、その2列を落として保存する。
       // ただし作った予定は追跡できなくなる＝期限切れ・無効化でも消せないので、ここで消しておく。
       // 押さえ自体は heldBusyFor（キマル内部）で効くため、リンクとしては成立する。
-      if (!/hold_title|hold_events/.test(String(error.message || ""))) {
+      // expires_at 列だけが未適用なら、その列を落として保存する（＝無期限のリンクになる）。
+      // 押さえ予定は追跡できるので消さない。
+      if (/expires_at/.test(String(error.message || "")) && !/hold_title|hold_events/.test(String(error.message || ""))) {
+        const { expires_at, ...rest } = row;
+        saved = await insert(rest);
+      } else if (!/hold_title|hold_events/.test(String(error.message || ""))) {
         await cleanupHoldEvents();
         throw error;
+      } else {
+        await cleanupHoldEvents();
+        const { hold_title, hold_events, expires_at, ...rest } = row;
+        saved = await insert(rest);
       }
-      await cleanupHoldEvents();
-      const { hold_title, hold_events, ...rest } = row;
-      saved = await insert(rest);
     }
     const link = (saved || [])[0];
     if (!link) {
@@ -88,6 +96,7 @@ exports.handler = async (event) => {
       slots: link.slots,
       hold_slots: link.hold_slots,
       hold_title: link.hold_title || "",
+      expires_at: link.expires_at || null,
       // 押さえを選んだのに0件なら、Google未連携か作成失敗。画面はこれを見て注意書きを出す。
       hold_events_created: pinpoint.holdEventsOf(link).length,
     });

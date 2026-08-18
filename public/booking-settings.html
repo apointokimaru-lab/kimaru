@@ -255,6 +255,14 @@
           <div id="pp-chips" class="pp-chips"></div>
         </div>
         <div class="pp-tray-side">
+          <!-- リンクの有効期限（#326）。候補の日時とは独立で、期限が来ればリンクが切れる。 -->
+          <label><span data-i18n="pin.expiresLabel">リンクの有効期限</span>
+            <select id="pp-expires">
+              <option value="3" data-i18n="pin.expires3">3日</option>
+              <option value="7" selected data-i18n="pin.expires7">1週間</option>
+            </select>
+          </label>
+          <p class="field-note muted" data-i18n="pin.expiresNote">期限を過ぎるとリンクは開けなくなり、押さえていた枠も自動で解放されます。</p>
           <label><span data-i18n="pin.holdLabel">候補の枠</span>
             <select id="pp-hold">
               <option value="none" data-i18n="pin.holdOff">押さえない（先着順）</option>

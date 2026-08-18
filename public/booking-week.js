@@ -591,6 +591,13 @@ async function initPinpoint(form) {
       location.replace("/404.html");
       return;
     }
+    // 期限切れは 404 にせず、切れたことを伝える（#326）。受付停止（上）を404にしたのは
+    // 「時間を置けば予約できる」と誤読させないためだが、期限切れは逆で、相手はこのリンクを
+    // 実際に受け取った宛先。切れたと分からないと主催者に連絡するという次の行動に進めない。
+    if (data.expired) {
+      if (grid) grid.innerHTML = `<p class="muted">${escapeHtml(t("booking.pinpoint.expired", "この日程調整リンクは有効期限が切れています。お手数ですが主催者にご連絡ください。"))}</p>`;
+      return;
+    }
     currentHost = data.host || null;
     if (currentHost) renderHost(currentHost);
     // 予約先の解決は通常どおり slug で行う（book.js は owner_slug から予約ページを引く）。

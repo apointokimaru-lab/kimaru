@@ -677,6 +677,82 @@ section("pinpoint hold requires a calendar event name (#325)");
   ok("未連携なので作成した予定は0件", JSON.parse(held.body).hold_events_created === 0);
 }
 
+// ---------- 9i) #326 リンクの有効期限 ----------
+section("pinpoint link expiry (#326)");
+{
+  const pin = requireCjs(path.join(repo, "netlify/functions/_lib/pinpoint.js"));
+  const NOW = Date.parse("2026-09-01T00:00:00.000Z");
+  const DAY = 86400000;
+
+  // 選べるのは3日と1週間の2つだけ。選択肢外は既定に寄せる（集合判定で弾くと画面から直せない）。
+  ok("3日を選べる", pin.expiresAtFrom(3, { now: NOW }) === new Date(NOW + 3 * DAY).toISOString());
+  ok("1週間を選べる", pin.expiresAtFrom(7, { now: NOW }) === new Date(NOW + 7 * DAY).toISOString());
+  ok("選択肢外は既定(1週間)に寄せる", pin.expiresAtFrom(99, { now: NOW }) === new Date(NOW + pin.DEFAULT_EXPIRES_DAYS * DAY).toISOString());
+  ok("未指定も既定に寄せる", pin.expiresAtFrom(undefined, { now: NOW }) === new Date(NOW + pin.DEFAULT_EXPIRES_DAYS * DAY).toISOString());
+
+  // 期限判定。列が無い/null は無期限（#326 より前に発行済みのリンクを切らないため）。
+  ok("期限前は切れていない", !pin.isExpired({ expires_at: new Date(NOW + DAY).toISOString() }, { now: NOW }));
+  ok("期限を過ぎたら切れている", pin.isExpired({ expires_at: new Date(NOW - 1).toISOString() }, { now: NOW }));
+  ok("expires_at が null なら無期限", !pin.isExpired({ expires_at: null }, { now: NOW }));
+  ok("expires_at 列が無ければ無期限", !pin.isExpired({}, { now: NOW }));
+
+  // 期限は「リンクの有効期限」で候補の日時とは独立。候補が10日後でも期限3日なら切れる。
+  const link = { expires_at: new Date(NOW + 3 * DAY).toISOString(), slots: [{ start: new Date(NOW + 10 * DAY).toISOString(), end: new Date(NOW + 10 * DAY + 1800000).toISOString() }] };
+  ok("候補が未来でも期限が来ればリンクは切れる", pin.isExpired(link, { now: NOW + 4 * DAY }));
+
+  // 期限切れリンクは押さえを解く（枠を他の予約に開放する）。
+  const TABLES = { pinpoint_links: [
+    { id: "pl-live", owner_id: OWNER.id, hold_slots: true, is_active: true, expires_at: new Date(Date.now() + DAY).toISOString(), slots: [{ start: "2026-10-02T01:00:00.000Z", end: "2026-10-02T01:30:00.000Z" }] },
+    { id: "pl-gone", owner_id: OWNER.id, hold_slots: true, is_active: true, expires_at: new Date(Date.now() - DAY).toISOString(), slots: [{ start: "2026-10-03T01:00:00.000Z", end: "2026-10-03T01:30:00.000Z" }] },
+    { id: "pl-forever", owner_id: OWNER.id, hold_slots: true, is_active: true, slots: [{ start: "2026-10-04T01:00:00.000Z", end: "2026-10-04T01:30:00.000Z" }] },
+  ] };
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const table = new URL(url).pathname.replace("/rest/v1/", "").split("?")[0];
+    return { ok: true, status: 200, text: async () => JSON.stringify(TABLES[table] || []) };
+  };
+  const held = await pin.heldBusyFor(OWNER.id);
+  ok("期限内のリンクは押さえたまま", held.some((b) => b.start.startsWith("2026-10-02")));
+  ok("期限切れのリンクは押さえを解く", !held.some((b) => b.start.startsWith("2026-10-03")));
+  ok("expires_at が無いリンクは押さえたまま", held.some((b) => b.start.startsWith("2026-10-04")));
+  globalThis.fetch = prevFetch;
+}
+
+// ---------- 9j) #326 期限切れの片付けと、ゲスト側の出し分け ----------
+section("pinpoint expiry cleanup and guest response (#326)");
+{
+  const expireFn = requireCjs(path.join(repo, "netlify/functions/pinpoint-expire.js"));
+  const getFn = requireCjs(path.join(repo, "netlify/functions/pinpoint.js"));
+  const DAY = 86400000;
+  const ev = (id) => ({ start: "2026-10-05T01:00:00.000Z", end: "2026-10-05T01:30:00.000Z", event_id: id });
+
+  DB.pinpoint_links = [
+    { id: "px-gone", owner_id: OWNER.id, booking_page_id: "bp1", token: "tok-gone", is_active: true, hold_slots: true, slots: [], expires_at: new Date(Date.now() - DAY).toISOString(), hold_events: [ev("g1")] },
+    { id: "px-live", owner_id: OWNER.id, booking_page_id: "bp1", token: "tok-live", is_active: true, hold_slots: true, slots: [], expires_at: new Date(Date.now() + DAY).toISOString(), hold_events: [ev("l1")] },
+    { id: "px-done", owner_id: OWNER.id, booking_page_id: "bp1", token: "tok-done", is_active: true, hold_slots: true, slots: [], expires_at: new Date(Date.now() - DAY).toISOString(), hold_events: [] },
+  ];
+
+  // dry_run は何も消さず、対象だけを挙げる。
+  const dry = await expireFn.run(true);
+  ok("期限切れで押さえが残るリンクだけを拾う", dry.checked === 1 && dry.results[0].link_id === "px-gone");
+  ok("dry_run は消さない", dry.results[0].status === "dry_run");
+  ok("片付け済み(hold_events 空)は拾わない", !dry.results.some((r) => r.link_id === "px-done"));
+  ok("期限内のリンクは拾わない", !dry.results.some((r) => r.link_id === "px-live"));
+
+  // ゲスト側: 期限切れは404ではなく expired で返し、切れたことが分かるようにする。
+  const expired = await getFn.handler({ httpMethod: "GET", queryStringParameters: { token: "tok-gone" } });
+  ok("期限切れは200で expired を返す", expired.statusCode === 200 && JSON.parse(expired.body).expired === true);
+  ok("期限切れでは候補を返さない", JSON.parse(expired.body).slots.length === 0);
+  const missing = await getFn.handler({ httpMethod: "GET", queryStringParameters: { token: "存在しない" } });
+  ok("存在しないトークンは従来どおり404", missing.statusCode === 404);
+
+  // 予約側は期限切れを既定で弾く（findByToken の allowExpired 既定 false）。
+  const pin = requireCjs(path.join(repo, "netlify/functions/_lib/pinpoint.js"));
+  ok("期限切れは findByToken で引けない", (await pin.findByToken("tok-gone")) === null);
+  ok("allowExpired なら引ける", (await pin.findByToken("tok-gone", { allowExpired: true }))?.id === "px-gone");
+  ok("期限内は普通に引ける", (await pin.findByToken("tok-live"))?.id === "px-live");
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";

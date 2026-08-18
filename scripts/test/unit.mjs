@@ -665,7 +665,7 @@ section("pinpoint hold requires a calendar event name (#325)");
   });
 
   const missing = await create({ hold_slots: true });
-  ok("押さえるのに予定名が空なら400", missing.statusCode === 400 && JSON.parse(missing.body).error.includes("項目名"));
+  ok("押さえるのに予定名が空なら400", missing.statusCode === 400 && JSON.parse(missing.body).error.includes("予定の名前"));
   const blank = await create({ hold_slots: true, hold_title: "   " });
   ok("空白だけの予定名も400", blank.statusCode === 400);
   // 押さえないなら予定名は要らない（カレンダーに何も作らないので聞く意味がない）

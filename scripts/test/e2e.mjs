@@ -543,7 +543,7 @@ section("pinpoint scheduling link (#303)");
     await page.click("#pp-create");
     await page.waitForTimeout(300);
     ok("empty calendar event name blocks the request", created === null);
-    ok("empty calendar event name shows an error", (await page.textContent("#pp-message")).includes("予定名"));
+    ok("empty calendar event name shows an error", (await page.textContent("#pp-message")).includes("予定の名前"));
     await page.fill("#pp-hold-title", "仮おさえ");
     await page.click("#pp-create");
     await page.waitForTimeout(400);

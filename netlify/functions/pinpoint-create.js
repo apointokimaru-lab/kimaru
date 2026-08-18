@@ -29,7 +29,7 @@ exports.handler = async (event) => {
     const holdTitle = pinpoint.normalizeHoldTitle(body.hold_title);
     // 押さえるなら予定項目名は必須（#325）。空のまま発行できると Google カレンダーに予定が作られず、
     // 「押さえたのにカレンダーには何も出ない」状態になる（画面側でも required にしている）。
-    if (holdSlots && !holdTitle) return json(400, { error: "押さえる予定の項目名を入力してください" });
+    if (holdSlots && !holdTitle) return json(400, { error: "押さえる予定の名前を入力してください" });
 
     // 押さえ予定は行を入れる前に作る。逆順にすると、hold_events 列が未適用でイベントIDを
     // 保存できなかったときに、あとから消せない予定がカレンダーに残る。先に作っておけば

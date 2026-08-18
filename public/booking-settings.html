@@ -273,26 +273,26 @@
                 <option value="7" selected data-i18n="pin.expires7">1週間</option>
               </select>
             </label>
-            <p class="field-note muted" data-i18n="pin.expiresNote">期限を過ぎるとリンクは開けなくなり、押さえていた枠も自動で解放されます。</p>
+            <p class="field-note muted" data-i18n="pin.expiresNote">期限を過ぎると、相手はこのリンクを開けなくなります。押さえていた枠も自動で解放されます。</p>
           </div>
           <div class="pp-field">
-            <label><span data-i18n="pin.holdLabel">候補の枠</span>
+            <label><span data-i18n="pin.holdLabel">候補の枠の押さえ方</span>
               <select id="pp-hold">
-                <option value="none" data-i18n="pin.holdOff">押さえない（先着順）</option>
-                <option value="hold" data-i18n="pin.holdOn">押さえる（他の予約を入れない）</option>
+                <option value="none" data-i18n="pin.holdOff">押さえない（先着順で受け付ける）</option>
+                <option value="hold" data-i18n="pin.holdOn">押さえる（ほかの予約を入れない）</option>
               </select>
             </label>
-            <p class="field-note muted" data-i18n="pin.holdNote">押さえると、通常の予約ページからこの時間は選べなくなります。</p>
+            <p class="field-note muted" data-i18n="pin.holdNote">押さえると、この時間は通常の予約ページから選べなくなります。</p>
           </div>
           <!-- 予定名は「押さえる」を選んだときだけ出し、必須にする（#325）。
                入力欄と注記をまとめて出し入れするので、ラッパーごと hidden にする。
                2列のうち幅いっぱいを使う（予定名は自由入力で、選択肢より横幅が要る）。 -->
           <div class="pp-field pp-field-wide" id="pp-hold-title-field" hidden>
-            <label><span data-i18n="pin.holdTitleLabel">カレンダーに入れる予定名</span>
+            <label><span data-i18n="pin.holdTitleLabel">押さえる予定の名前</span>
               <input type="text" id="pp-hold-title" maxlength="120" autocomplete="off" data-i18n-placeholder="pin.holdTitlePh" placeholder="例：仮おさえ" />
             </label>
-            <p id="pp-hold-title-note" class="field-note muted" data-i18n="pin.holdTitleNote">この名前で、選んだ候補の時間があなたのGoogleカレンダーに自分だけの予定として入ります。相手には表示されません。</p>
-            <p id="pp-hold-nocal" class="field-note muted" data-i18n="pin.holdNoCalendar" hidden>Googleカレンダーと連携していないため、キマル内の空き枠だけを押さえます。カレンダーには予定が入りません。</p>
+            <p id="pp-hold-title-note" class="field-note muted" data-i18n="pin.holdTitleNote">選んだ候補の時間に、この名前でGoogleカレンダーへ予定が入ります。あなたにだけ見え、相手には表示されません。</p>
+            <p id="pp-hold-nocal" class="field-note muted" data-i18n="pin.holdNoCalendar" hidden>Googleカレンダーが未連携のため、カレンダーには予定が入りません。キマルの空き枠だけを押さえます。</p>
           </div>
           <div class="form-actions pp-field-wide"><button type="button" class="button primary" id="pp-create" data-i18n="pin.create">リンクを作成</button></div>
         </div>

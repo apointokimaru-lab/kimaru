@@ -1,4 +1,5 @@
-// 5日タイムグリッド（週表）の描画。ゲストの予約画面と、ホストのピンポイント候補選択（#303）で共用する。
+// 日単位のタイムグリッド（週表）の描画。ゲストの予約画面と、ホストのピンポイント候補選択（#303）で共用する。
+// 表示日数は画面幅で決まる（スマホ5日 / PC1週間）。daysForViewport() を参照。
 //
 // なぜ切り出すか: 「表示間隔に合わせて縦軸を伸ばす」「次の枠の開始までで高さを打ち切る」「低い枠は開始時刻だけ出す」
 // といった非自明な計算が、画面ごとにコピーされると片方だけ直って崩れる。描画はここ1か所に集約し、
@@ -34,6 +35,25 @@
   function shiftYmd(str, deltaDays) { const dt = dateFromYmd(str, deltaDays); return ymdStr(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
   function todayYmd() { const d = new Date(); return ymdStr(d.getFullYear(), d.getMonth(), d.getDate()); }
 
+  // 表示日数は画面幅で決める。スマホは5日（7日だと1列が細くなり時刻が読めない）、PCは1週間。
+  // 680px は週表のスマホ用スタイルと同じ切り替え点（booking-redesign.css）。ここだけ別の値にすると
+  // 「列数は7なのにスマホ用の狭いスタイル」のような中間状態ができる。
+  const MOBILE_QUERY = "(max-width:680px)";
+  const DAYS_MOBILE = 5;
+  const DAYS_DESKTOP = 7;
+  function daysForViewport() {
+    return window.matchMedia && window.matchMedia(MOBILE_QUERY).matches ? DAYS_MOBILE : DAYS_DESKTOP;
+  }
+  // 画面幅がまたいだときだけ呼ぶ。リサイズのたびに再取得すると、幅を変えている最中に
+  // 何度もAPIを叩くことになる（matchMedia の change は境界を越えた瞬間だけ発火する）。
+  function onViewportDaysChange(handler) {
+    if (!window.matchMedia) return;
+    const mql = window.matchMedia(MOBILE_QUERY);
+    const fire = () => handler(daysForViewport());
+    if (mql.addEventListener) mql.addEventListener("change", fire);
+    else if (mql.addListener) mql.addListener(fire); // 古いSafari
+  }
+
   // ISO(UTC) → JST の年月日・その日の分。
   function jstFields(iso) {
     const shifted = new Date(iso).getTime() + 9 * 3600 * 1000;
@@ -62,7 +82,10 @@
     const startHour = Math.max(0, Math.floor(axis.start_min / 60));
     const endHour = Math.min(24, Math.max(startHour + 1, Math.ceil(axis.end_min / 60)));
     const hours = endHour - startHour;
-    const days = Number(data.days) || 5;
+    const days = Number(data.days) || DAYS_MOBILE;
+    // 列数はCSSに変数で渡す。grid-template-columns をJSで組み立てると、スマホ用の
+    // 軸幅（38px）とPC用（46px）の出し分けがCSSから消えて二重管理になる。
+    grid.style.setProperty("--wk-cols", String(days));
     const cols = Array.from({ length: days }, (_, i) => dateFromYmd(data.range_start, i));
     const colKey = (dt) => `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
     const byCol = new Map(cols.map((dt) => [colKey(dt), []]));
@@ -127,6 +150,8 @@
   window.KimaruWeekGrid = {
     render,
     rangeLabelText,
+    daysForViewport,
+    onViewportDaysChange,
     currentLocale,
     escapeHtml,
     parseYmd,

@@ -352,7 +352,8 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
 .rangebtn .chev{color:var(--muted);font-size:11px}
 
 /* 時間軸は右端の1列だけ（#321）。左にも置くと日の列がその分細くなる。 */
-.wk-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) 46px}
+/* 列数は week-grid.js が --wk-cols で渡す（スマホ5日 / PC1週間）。軸幅の出し分けはCSS側に残す。 */
+.wk-grid{display:grid;grid-template-columns:repeat(var(--wk-cols,5),minmax(0,1fr)) 46px}
 .wk-navcell{display:block}
 .wk-headcell{display:flex;align-items:baseline;justify-content:center;gap:5px;padding:6px 0 12px;font-size:13px;font-weight:700;color:var(--ink-2)}
 .wk-headcell .d{font-family:var(--display);font-size:16px;color:var(--ink)}
@@ -415,8 +416,14 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
 /* 発行トレイ。選んだ候補・押さえ方・発行ボタンを1か所に。
    当初は画面下に貼り付け（sticky）ていたが、グリッドの上に浮いて邪魔になるため通常配置に戻した（#303 レビュー指摘）。 */
 .pp-tray{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;margin-top:18px;padding:18px;background:var(--surface-2);border-radius:var(--radius);box-shadow:var(--shadow)}
-.pp-tray-main{flex:1 1 280px;min-width:0}
-.pp-tray-side{flex:0 1 300px;display:grid;gap:8px}
+.pp-tray-main{flex:1 1 260px;min-width:0}
+/* 設定はPCで2列。1列に積むと右が細長い帯になり、注記が何行も折り返して読みにくかった。
+   幅を広げたぶん .pp-tray-main の下限を下げ、候補チップ側と取り合いにならないようにする。 */
+.pp-tray-side{flex:1 1 460px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px;align-content:start}
+.pp-field{display:grid;gap:6px;align-content:start}
+.pp-field[hidden]{display:none}
+/* 予定名は自由入力で選択肢より横幅が要るので、2列ぶんを使う。操作ボタンも同じく全幅。 */
+.pp-field-wide{grid-column:1/-1}
 .pp-tray-side .form-actions{margin:0;justify-content:flex-end}
 .pp-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .pp-chip{display:inline-flex;align-items:center;gap:8px;padding:7px 8px 7px 13px;border-radius:var(--radius-pill);background:var(--accent-soft);color:var(--accent-ink);font-family:var(--mono);font-size:12.5px;font-weight:700}
@@ -458,7 +465,7 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
 
 @media (max-width:680px){
   .weekcal{--hh:50px}
-  .wk-grid{grid-template-columns:repeat(5,minmax(0,1fr)) 38px}
+  .wk-grid{grid-template-columns:repeat(var(--wk-cols,5),minmax(0,1fr)) 38px}
   .weekcal-top{gap:6px}
   .wk-nav{height:38px;padding:0 9px;font-size:11.5px;gap:3px}
   .wk-nav .wk-ar{font-size:18px}
@@ -471,4 +478,6 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
   /* スマホは枠が細く、✓を置くと時刻に重なる。塗り（白抜き↔朱ベタ）だけで区別する。 */
   .wk-grid.is-picker .wk-slot.is-picked{padding-right:5px}
   .wk-grid.is-picker .wk-slot.is-picked::after{content:none}
+  /* 設定は1列に戻す。横幅が無いので2列にすると選択肢の文字が読めなくなる。 */
+  .pp-tray-side{grid-template-columns:minmax(0,1fr);gap:12px}
 }

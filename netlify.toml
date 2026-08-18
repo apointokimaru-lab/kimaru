@@ -11,6 +11,12 @@
 [functions."reminder-scheduled"]
   schedule = "*/5 * * * *"   # 約5分間隔（予約22分前リマインダー）
 
+# 期限切れのピンポイントリンクの押さえ予定を片付ける（#326）。
+# リマインダーと違って分単位の精度は要らない（押さえが数十分残っても実害が無い）ので1時間ごと。
+# dry-run 確認は /api/pinpoint-expire?dry_run=1
+[functions."pinpoint-expire-scheduled"]
+  schedule = "0 * * * *"     # 毎時0分
+
 # 打ち合わせ後の営業メール（前日面談の未登録者へサンキュー＋登録案内・#181）は一旦停止中（2026-06-26）。
 # 自動送信トリガーの cron を無効化。関数自体（thankyou-mails.js / thankyou-scheduled.js）は残してあり、
 # 再開するにはこのブロックのコメントを外す（dry-run 確認は /api/thankyou-mails?dry_run=1）。

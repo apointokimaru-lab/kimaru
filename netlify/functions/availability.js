@@ -1,9 +1,18 @@
 const { json } = require("./_lib/response");
 const core = require("./_lib/availability-core");
 
-// 予約枠は「5日単位・横並び」。start=YYYY-MM-DD(JST) の日から5日間を返す。
+// 予約枠は「横並びの日単位」。start=YYYY-MM-DD(JST) の日からその日数ぶんを返す。
 // 過去（＝リードタイム後の最古日 minStart より前）は見せない（hasPrev/クランプで制御）。
+//
+// 日数は画面幅で決まる（スマホ5日 / PC1週間）。サーバで固定していたのを可変にしたのは、
+// PCでは横に余白があるのに5日しか出ず、週の見通しが悪かったため。
+// 値は許可リストで受ける。任意の数を通すと、大きな値で枠生成と freeBusy の窓が際限なく広がる。
 const DAYS_PER_VIEW = 5;
+const ALLOWED_DAYS = new Set([5, 7]);
+function resolveDays(query) {
+  const value = parseInt(query.days, 10);
+  return ALLOWED_DAYS.has(value) ? value : DAYS_PER_VIEW;
+}
 
 // 要求された開始日(ms)を決める。start指定 → その日、無ければ最古日。過去は最古日にクランプ。
 function resolveFromTime(query, minStart) {
@@ -13,7 +22,9 @@ function resolveFromTime(query, minStart) {
     const ms = core.tokyoLocalDateToUtc(y, m - 1, d, 0).getTime();
     return Math.max(ms, minStart);
   }
-  // 後方互換: week（5日ページ番号）でも受ける。
+  // 後方互換: week（5日ページ番号）でも受ける。ここは days に連動させない。
+  // week は「5日で1ページ」と決めて配ったページ番号なので、日数を変えると同じ ?week=2 が
+  // 別の日を指すようになる。既に出回っているURLの指す先を動かさない。
   const page = Math.max(0, parseInt(query.week, 10) || 0);
   return minStart + page * DAYS_PER_VIEW * core.DAY_MS;
 }
@@ -24,9 +35,10 @@ exports.handler = async (event) => {
     const { owner, bookingPage } = await core.resolveOwnerAndPage(query.slug);
     const { minStart, maxTime } = core.bookingBounds(bookingPage);
     const fromTime = resolveFromTime(query, minStart);
-    const toTime = fromTime + DAYS_PER_VIEW * core.DAY_MS;
+    const days = resolveDays(query);
+    const toTime = fromTime + days * core.DAY_MS;
     const rangeStart = core.isoDate(fromTime);
-    const base = { range_start: rangeStart, days: DAYS_PER_VIEW, min_date: core.isoDate(minStart), max_date: core.isoDate(maxTime) };
+    const base = { range_start: rangeStart, days, min_date: core.isoDate(minStart), max_date: core.isoDate(maxTime) };
 
     // 利用停止アカウントは表示しない。
     if (owner && owner.cat_key_disabled) {

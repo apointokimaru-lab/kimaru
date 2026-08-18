@@ -806,6 +806,11 @@ function isPremiumPlan(plan) { return plan === "premium"; }
 
 function updateBookingPageControls() {
   const isPro = isProPlan(currentOwner?.plan);
+  // ピンポイントリンクの一覧はプレミアム限定（発行と同じ条件・#303/#327）。
+  // 行のボタン（renderBookingPages）と同じく描画時に決める。.premium-feature は
+  // display:block になるため、見出し横の横並びボタンには使えない。
+  const listOpen = $("#pp-list-open");
+  if (listOpen) listOpen.hidden = !isPremiumPlan(currentOwner?.plan);
   const rangeSelect = $("#booking-range-select");
   const locationType = $("#location-type-select");
   const locationField = $("#location-value-field");
@@ -1271,6 +1276,22 @@ function ppToggleSlot(slot, button) {
   ppRenderChips();
 }
 
+function ppViewDays() { return window.KimaruWeekGrid ? window.KimaruWeekGrid.daysForViewport() : 5; }
+
+// 前後送りのラベルは日数に合わせる（スマホ「前の5日」/ PC「前の7日」）。
+// data-i18n を付けると言語切替のたびに固定文言で上書きされるので、ここで textContent を入れる。
+function ppRenderNavLabels() {
+  const n = String(ppViewDays());
+  [["#pp-prev", "booking.week.prevDays"], ["#pp-next", "booking.week.nextDays"]].forEach(([sel, key]) => {
+    const button = $(sel);
+    if (!button) return;
+    const text = t(key).replace("{n}", n);
+    const span = button.querySelector(".wk-nav-tx");
+    if (span) span.textContent = text;
+    button.setAttribute("aria-label", text);
+  });
+}
+
 async function ppLoadDays(startYmd) {
   const grid = $("#pp-grid");
   const weekcal = $("#pp-weekcal");
@@ -1278,7 +1299,8 @@ async function ppLoadDays(startYmd) {
   ppStatus(`<p class="muted">${escapeHtml(t("bs.list.loading"))}</p>`);
   try {
     const q = startYmd ? `&start=${encodeURIComponent(startYmd)}` : "";
-    const data = await api(`availability?slug=${encodeURIComponent(ppSlug)}${q}`);
+    // 表示日数は画面幅で決まる（スマホ5日 / PC1週間）。ゲストの予約画面と同じ扱いにする。
+    const data = await api(`availability?slug=${encodeURIComponent(ppSlug)}${q}&days=${ppViewDays()}`);
     ppStart = data.range_start || startYmd || window.KimaruWeekGrid.todayYmd();
     data.range_start = ppStart; // range_start 欠落時も描画を壊さない（NaN日付でIntlが例外化するのを防ぐ）
     ppMinDate = data.min_date || null;
@@ -1299,7 +1321,8 @@ async function ppLoadDays(startYmd) {
       onPick: ppToggleSlot,
     });
     const label = $("#pp-range-label");
-    if (label) label.textContent = window.KimaruWeekGrid.rangeLabelText(ppStart, Number(data.days) || 5);
+    if (label) label.textContent = window.KimaruWeekGrid.rangeLabelText(ppStart, Number(data.days) || ppViewDays());
+    ppRenderNavLabels();
     const prev = $("#pp-prev"); if (prev) prev.disabled = !data.hasPrev;
     const next = $("#pp-next"); if (next) next.disabled = !data.hasNext;
     ppStatus((data.slots || []).length ? "" : `<p class="muted">${escapeHtml(t("pin.noSlots"))}</p>`);
@@ -1394,6 +1417,8 @@ function openPinpointView(pageId, slug, title) {
   const result = $("#pp-result"); if (result) result.hidden = true;
   const hold = $("#pp-hold"); if (hold) hold.value = "none";
   const holdTitle = $("#pp-hold-title"); if (holdTitle) holdTitle.value = "";
+  const expires = $("#pp-expires"); if (expires) expires.value = "7";
+  ppSyncHoldAvailability();
   ppSyncHoldTitle();
   ppSetMessage("");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1403,18 +1428,27 @@ function openPinpointView(pageId, slug, title) {
 // 押さえ方の選択に合わせて予定名の欄を出し入れする（#325）。
 // 「押さえる」のときだけ欄を出して必須にする。押さえないなら Google カレンダーに何も作らないので
 // 予定名を聞く意味がない（バッファ予定名の出し分けと同じ考え方）。
+// Google未連携では「押さえる」を選べなくする（#327 レビュー指摘）。
+// 未連携でも押さえられた頃は、必須にした予定名がどこにも現れず「名前を入れさせたのに
+// 何も起きない」状態になっていた。選択肢を disabled にし、押せない理由をその場に出す。
+// 選択中に連携が切れた場合に備えて、値も「押さえない」に戻す（disabled な値のまま
+// 送信されると、サーバ側の400で初めて気づくことになる）。
+function ppSyncHoldAvailability() {
+  const hold = $("#pp-hold");
+  const option = hold?.querySelector('option[value="hold"]');
+  if (option) option.disabled = !calendarConnected;
+  if (hold && !calendarConnected && hold.value === "hold") hold.value = "none";
+  const warn = $("#pp-hold-nocal");
+  if (warn) warn.hidden = calendarConnected;
+}
+
 function ppSyncHoldTitle() {
   const on = $("#pp-hold")?.value === "hold";
+  // 入力欄と注記はラッパーごと出し入れする（個別に隠すと、隠れた行のぶんだけ隙間が残る）。
   const field = $("#pp-hold-title-field");
-  const input = $("#pp-hold-title");
   if (field) field.hidden = !on;
+  const input = $("#pp-hold-title");
   if (input) input.required = on;
-  const note = $("#pp-hold-title-note");
-  if (note) note.hidden = !on;
-  // Google未連携だと押さえ予定は作れない。押さえは効くがカレンダーには出ない、と先に断っておく
-  // （発行後に「カレンダーに入っていない」と気づくのが一番困る）。
-  const nocal = $("#pp-hold-nocal");
-  if (nocal) nocal.hidden = !on || calendarConnected;
 }
 
 function closePinpointView() {
@@ -1424,6 +1458,144 @@ function closePinpointView() {
   if (list) list.hidden = false;
   ppCloseCalendar();
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ---- ピンポイントリンクの一覧（#327） ----
+// 予約ページ横断で、新しいものから並べる。ホストが見たいのは「自分が送ったリンク」なので、
+// どの予約ページのものかは行の中に出す。
+let ppDisableTargetId = "";
+
+// 一覧に出す日時。年は出さない（打診は直近のものがほとんどで、月日と時刻があれば読める）。
+// 言語は他の日時表示と同じく KimaruI18n から取る。
+function fmtDateTime(iso) {
+  const date = new Date(iso);
+  if (isNaN(date)) return "";
+  const locale = window.KimaruI18n?.getLanguage() || "ja";
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function ppListSetMessage(text, kind) {
+  const el = $("#pp-list-message");
+  if (!el) return;
+  el.textContent = text || "";
+  el.className = `message${kind ? " " + kind : ""}`;
+}
+
+// 候補の範囲。1件なら1つだけ、複数なら「最初 〜 最後」。全件出しても一覧では読めない。
+function ppListRange(link) {
+  if (!link.first_slot) return t("pin.list.noSlots");
+  const first = fmtDateTime(link.first_slot);
+  if (!link.last_slot || link.last_slot === link.first_slot) return first;
+  return `${first} 〜 ${fmtDateTime(link.last_slot)}`;
+}
+
+function renderPinpointLinks(links) {
+  const el = $("#pp-list");
+  if (!el) return;
+  if (!links.length) {
+    el.innerHTML = `<p class="muted">${escapeHtml(t("pin.list.empty"))}</p>`;
+    return;
+  }
+  el.innerHTML = links.map((link) => {
+    const label = link.status === "disabled" ? t("pin.list.statusDisabled")
+      : link.status === "expired" ? t("pin.list.statusExpired")
+      : t("pin.list.statusActive");
+    // 有効なリンクだけが操作できる。期限切れ・無効化済みは押さえも既に解けているので、
+    // 無効にするボタンを出しても何も起きない（押せるのに何も起きない状態を作らない）。
+    const canDisable = link.status === "active";
+    return `
+    <article class="list-item${link.status === "active" ? "" : " is-paused"}">
+      <strong>${escapeHtml(link.page_title || t("bs.list.untitled"))}<span class="pause-badge">${escapeHtml(label)}</span></strong>
+      <span>${escapeHtml(link.url)}</span>
+      <small>${escapeHtml(t("pin.list.slotCount").replace("{n}", String(link.slot_count)))} / ${escapeHtml(ppListRange(link))}</small>
+      <small>${escapeHtml(link.hold_slots ? t("pin.list.held").replace("{title}", link.hold_title || t("pin.list.noTitle")) : t("pin.list.notHeld"))} / ${escapeHtml(link.expires_at ? t("pin.list.expiresAt").replace("{at}", fmtDateTime(link.expires_at)) : t("pin.list.noExpiry"))}</small>
+      <div class="actions">
+        <button class="button secondary" type="button" data-pp-link-action="copy" data-url="${escapeHtml(link.url)}">${escapeHtml(t("bs.list.copyUrl"))}</button>
+        ${canDisable ? `<button class="button secondary" type="button" data-pp-link-action="disable" data-id="${escapeHtml(link.id)}" data-target="${escapeHtml(link.url)}">${escapeHtml(t("pin.list.disable"))}</button>` : ""}
+      </div>
+    </article>`;
+  }).join("");
+}
+
+async function loadPinpointLinks() {
+  const el = $("#pp-list");
+  if (el) el.innerHTML = `<p class="muted">${escapeHtml(t("pin.list.loading"))}</p>`;
+  try {
+    const data = await api("pinpoint-list");
+    renderPinpointLinks(Array.isArray(data.links) ? data.links : []);
+  } catch (error) {
+    if (el) el.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function openPinpointListView() {
+  const view = $("#pinpoint-list-view");
+  if (!view) return;
+  const list = $("#list-view");
+  if (list) list.hidden = true;
+  const editor = $("#page-editor");
+  if (editor) editor.hidden = true;
+  const picker = $("#pinpoint-view");
+  if (picker) picker.hidden = true;
+  view.hidden = false;
+  ppListSetMessage("");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  loadPinpointLinks();
+}
+
+function closePinpointListView() {
+  const view = $("#pinpoint-list-view");
+  const list = $("#list-view");
+  if (view) view.hidden = true;
+  if (list) list.hidden = false;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function ppCloseDisableModal() {
+  const modal = $("#pp-disable-modal");
+  if (modal) modal.hidden = true;
+  ppDisableTargetId = "";
+}
+
+function bindPinpointList() {
+  $("#pp-list-open")?.addEventListener("click", openPinpointListView);
+  $("#pp-list-back")?.addEventListener("click", closePinpointListView);
+  $("#pp-list")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-pp-link-action]");
+    if (!button) return;
+    const action = button.getAttribute("data-pp-link-action");
+    if (action === "copy") {
+      navigator.clipboard?.writeText(button.getAttribute("data-url") || "").catch(() => {});
+      ppListSetMessage(t("pin.copied"), "success");
+      return;
+    }
+    if (action === "disable") {
+      // 取り消せない操作なので、必ずモーダルで宣言を読ませてから実行する。
+      ppDisableTargetId = button.getAttribute("data-id") || "";
+      // 対象はURLで出す。同じ予約ページから複数のリンクを発行できるので、
+      // ページ名だけだとどのリンクを止めるのか特定できない。
+      const target = $("#pp-disable-target");
+      if (target) target.textContent = button.getAttribute("data-target") || "";
+      const modal = $("#pp-disable-modal");
+      if (modal) modal.hidden = false;
+    }
+  });
+  $("#pp-disable-close")?.addEventListener("click", ppCloseDisableModal);
+  $("#pp-disable-cancel")?.addEventListener("click", ppCloseDisableModal);
+  $("#pp-disable-modal")?.addEventListener("click", (event) => { if (event.target.id === "pp-disable-modal") ppCloseDisableModal(); });
+  $("#pp-disable-confirm")?.addEventListener("click", async () => {
+    const id = ppDisableTargetId;
+    if (!id) return;
+    ppCloseDisableModal();
+    ppListSetMessage(t("pin.list.disabling"));
+    try {
+      await api("pinpoint-deactivate", { method: "POST", body: JSON.stringify({ id }) });
+      ppListSetMessage(t("pin.list.disabled"), "success");
+      loadPinpointLinks();
+    } catch (error) {
+      ppListSetMessage(error.message, "error");
+    }
+  });
 }
 
 function bindPinpoint() {
@@ -1436,8 +1608,16 @@ function bindPinpoint() {
     ppRenderChips();
     ppLoadDays(ppStart);
   });
-  $("#pp-prev")?.addEventListener("click", () => { if (ppStart) ppLoadDays(window.KimaruWeekGrid.shiftYmd(ppStart, -5)); });
-  $("#pp-next")?.addEventListener("click", () => { if (ppStart) ppLoadDays(window.KimaruWeekGrid.shiftYmd(ppStart, 5)); });
+  // 送る量は表示日数と揃える。5日表示で7日送ると2日ぶん飛び、7日表示で5日送ると重複して出る。
+  $("#pp-prev")?.addEventListener("click", () => { if (ppStart) ppLoadDays(window.KimaruWeekGrid.shiftYmd(ppStart, -ppViewDays())); });
+  $("#pp-next")?.addEventListener("click", () => { if (ppStart) ppLoadDays(window.KimaruWeekGrid.shiftYmd(ppStart, ppViewDays())); });
+  // 画面幅が5日/7日の境目をまたいだら、その日数で取り直す（列だけ増えても中身が足りない）。
+  // 開いていないときは何もしない（裏で無駄にAPIを叩かない）。選んだ候補は ppChosen に残るので消えない。
+  window.KimaruWeekGrid?.onViewportDaysChange(() => {
+    if ($("#pinpoint-view")?.hidden !== false) return;
+    ppRenderNavLabels();
+    ppLoadDays(ppStart);
+  });
   // 範囲ボタン／日付ヘッダーで月カレンダーを開く（予約画面と同じ操作）。
   $("#pp-range-btn")?.addEventListener("click", ppOpenCalendar);
   $("#pp-grid")?.addEventListener("click", (event) => { if (event.target.closest("[data-cal-open]")) ppOpenCalendar(); });
@@ -1481,14 +1661,16 @@ function bindPinpoint() {
           slots: [...ppChosen.values()],
           hold_slots: hold,
           hold_title: holdTitle,
+          expires_days: Number($("#pp-expires")?.value || 7),
         }),
       });
       const input = $("#pp-url"); if (input) input.value = res.url || "";
       const result = $("#pp-result"); if (result) result.hidden = false;
-      // 押さえたのに予定が1件も作れていない＝Google未連携か作成失敗。成功とだけ言うと
-      // 「カレンダーに入っているはず」と誤解させるので、そこだけ出し分ける。
+      // 押さえたのに予定が1件も作れていない＝Googleへの作成に失敗した場合（未連携は
+      // そもそも押さえを選べない）。成功とだけ言うと「カレンダーに入っているはず」と
+      // 誤解させるので、そこだけ出し分ける。
       const heldOnKimaruOnly = hold && !res.hold_events_created;
-      ppSetMessage(heldOnKimaruOnly ? t("pin.createdNoCalendar") : t("pin.created"), "success");
+      ppSetMessage(heldOnKimaruOnly ? t("pin.createdHoldFailed") : t("pin.created"), "success");
     } catch (error) {
       ppSetMessage(error.message, "error");
     }
@@ -1573,6 +1755,7 @@ async function initAdmin() {
   $("#booking-page-form")?.querySelector('select[name="buffer_after_minutes"]')?.addEventListener("change", updateBookingPageControls);
   $("#booking-page-new")?.addEventListener("click", clearBookingPageForm);
   bindPinpoint();
+  bindPinpointList();
   $("#add-question")?.addEventListener("click", addQuestionRow);
   $("#question-list")?.addEventListener("click", (event) => {
     if (event.target.closest(".question-remove")) {

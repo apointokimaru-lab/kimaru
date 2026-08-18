@@ -449,3 +449,11 @@ create index if not exists pinpoint_links_owner_idx on pinpoint_links (owner_id,
 -- 未適用の環境では押さえがキマル内部の busy だけになるようデグレードする（列が無くても発行は通る）。
 alter table pinpoint_links add column if not exists hold_title text not null default '';
 alter table pinpoint_links add column if not exists hold_events jsonb not null default '[]'::jsonb;
+
+-- リンクの有効期限（#326）。発行時に3日/1週間から選ぶ。候補日そのものとは独立で、
+-- 期限3日のリンクに10日後の候補が入っていてよい（期限が来ればリンク側が切れる）。
+-- 期限切れになると押さえのGoogle予定を消し、hold_events を空にする（消し済みの目印を兼ねる）。
+-- null は無期限。#326 より前に発行済みのリンクは null のまま据え置く（遡って期限を付けない）。
+-- 未適用の環境では全リンクが無期限として動く（列が無ければ undefined → 期限なし判定）。
+alter table pinpoint_links add column if not exists expires_at timestamptz;
+create index if not exists pinpoint_links_expires_idx on pinpoint_links (expires_at) where expires_at is not null;

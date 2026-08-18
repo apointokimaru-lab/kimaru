@@ -223,7 +223,7 @@
     </section>
 
     <!-- ピンポイント候補選択（#303）。一覧・編集と同じく全幅の画面として切り替える。
-         ゲストの予約画面と同じ5日タイムグリッドを使い、押した枠がそのまま候補になる（複数可）。 -->
+         ゲストの予約画面と同じタイムグリッド（スマホ5日/PC1週間）を使い、押した枠がそのまま候補になる（複数可）。 -->
     <section id="pinpoint-view" class="panel settings-section editor-view" aria-labelledby="pp-title" hidden>
       <div class="section-head">
         <div>
@@ -235,16 +235,18 @@
         <button type="button" id="pp-back" class="button secondary" data-i18n="pin.back">← 一覧に戻る</button>
       </div>
 
-      <!-- 5日単位のタイムグリッド。上部バー: [‹ 前の5日] [範囲ボタン=月カレンダー] [次の5日 ›] -->
+      <!-- 日単位のタイムグリッド（スマホ5日/PC1週間）。上部バー: [‹ 前のN日] [範囲ボタン=月カレンダー] [次のN日 ›] -->
       <div id="pp-weekcal" class="weekcal" style="display:none">
         <div class="weekcal-top">
-          <button type="button" id="pp-prev" class="wk-nav" aria-label="前の5日"><span class="wk-ar" aria-hidden="true">‹</span><span class="wk-nav-tx" data-i18n="booking.week.prev5">前の5日</span></button>
+          <!-- 日数は画面幅で変わる（スマホ5日 / PC1週間）ので、ラベルはJSが入れる。
+               data-i18n を付けると言語切替のたびに固定文言で上書きされる。 -->
+              <button type="button" id="pp-prev" class="wk-nav" aria-label="前の期間"><span class="wk-ar" aria-hidden="true">‹</span><span class="wk-nav-tx">前の7日</span></button>
           <button type="button" id="pp-range-btn" class="rangebtn" aria-haspopup="dialog">
             <span class="cal-ic" aria-hidden="true">📅</span>
             <span id="pp-range-label">—</span>
             <span class="chev" aria-hidden="true">▼</span>
           </button>
-          <button type="button" id="pp-next" class="wk-nav" aria-label="次の5日"><span class="wk-nav-tx" data-i18n="booking.week.next5">次の5日</span><span class="wk-ar" aria-hidden="true">›</span></button>
+          <button type="button" id="pp-next" class="wk-nav" aria-label="次の期間"><span class="wk-nav-tx">次の7日</span><span class="wk-ar" aria-hidden="true">›</span></button>
         </div>
         <div id="pp-grid" class="wk-grid is-picker"></div>
         <p class="pp-hint field-note muted" data-i18n="pin.hint">枠を押すと候補に入ります。もう一度押すと外れます。</p>
@@ -259,30 +261,40 @@
           <p class="eyebrow"><span data-i18n="pin.count">選んだ候補</span> <span id="pp-count">0</span></p>
           <div id="pp-chips" class="pp-chips"></div>
         </div>
+        <!-- 設定はPCで2列に組む。1列に積むと右が細長い帯になり、注記が何行も折り返して読みにくい。
+             項目ごとに .pp-field でくくるのは、列送りの単位を「ラベル＋注記」で揃えるため
+             （くくらないと注記だけが隣の列に落ちる）。スマホは1列に戻す。 -->
         <div class="pp-tray-side">
           <!-- リンクの有効期限（#326）。候補の日時とは独立で、期限が来ればリンクが切れる。 -->
-          <label><span data-i18n="pin.expiresLabel">リンクの有効期限</span>
-            <select id="pp-expires">
-              <option value="3" data-i18n="pin.expires3">3日</option>
-              <option value="7" selected data-i18n="pin.expires7">1週間</option>
-            </select>
-          </label>
-          <p class="field-note muted" data-i18n="pin.expiresNote">期限を過ぎるとリンクは開けなくなり、押さえていた枠も自動で解放されます。</p>
-          <label><span data-i18n="pin.holdLabel">候補の枠</span>
-            <select id="pp-hold">
-              <option value="none" data-i18n="pin.holdOff">押さえない（先着順）</option>
-              <option value="hold" data-i18n="pin.holdOn">押さえる（他の予約を入れない）</option>
-            </select>
-          </label>
-          <p class="field-note muted" data-i18n="pin.holdNote">押さえると、通常の予約ページからこの時間は選べなくなります。</p>
+          <div class="pp-field">
+            <label><span data-i18n="pin.expiresLabel">リンクの有効期限</span>
+              <select id="pp-expires">
+                <option value="3" data-i18n="pin.expires3">3日</option>
+                <option value="7" selected data-i18n="pin.expires7">1週間</option>
+              </select>
+            </label>
+            <p class="field-note muted" data-i18n="pin.expiresNote">期限を過ぎるとリンクは開けなくなり、押さえていた枠も自動で解放されます。</p>
+          </div>
+          <div class="pp-field">
+            <label><span data-i18n="pin.holdLabel">候補の枠</span>
+              <select id="pp-hold">
+                <option value="none" data-i18n="pin.holdOff">押さえない（先着順）</option>
+                <option value="hold" data-i18n="pin.holdOn">押さえる（他の予約を入れない）</option>
+              </select>
+            </label>
+            <p class="field-note muted" data-i18n="pin.holdNote">押さえると、通常の予約ページからこの時間は選べなくなります。</p>
+          </div>
           <!-- 予定名は「押さえる」を選んだときだけ出し、必須にする（#325）。
-               バッファ予定名（.buffer-title-field）と同じ出し分け方に揃えている。 -->
-          <label class="buffer-title-field" id="pp-hold-title-field" hidden><span data-i18n="pin.holdTitleLabel">カレンダーに入れる予定名</span>
-            <input type="text" id="pp-hold-title" maxlength="120" autocomplete="off" data-i18n-placeholder="pin.holdTitlePh" placeholder="例：仮おさえ" />
-          </label>
-          <p id="pp-hold-title-note" class="field-note muted" data-i18n="pin.holdTitleNote" hidden>この名前で、選んだ候補の時間があなたのGoogleカレンダーに自分だけの予定として入ります。相手には表示されません。</p>
-          <p id="pp-hold-nocal" class="field-note muted" data-i18n="pin.holdNoCalendar" hidden>Googleカレンダーと連携していないため、キマル内の空き枠だけを押さえます。カレンダーには予定が入りません。</p>
-          <div class="form-actions"><button type="button" class="button primary" id="pp-create" data-i18n="pin.create">リンクを作成</button></div>
+               入力欄と注記をまとめて出し入れするので、ラッパーごと hidden にする。
+               2列のうち幅いっぱいを使う（予定名は自由入力で、選択肢より横幅が要る）。 -->
+          <div class="pp-field pp-field-wide" id="pp-hold-title-field" hidden>
+            <label><span data-i18n="pin.holdTitleLabel">カレンダーに入れる予定名</span>
+              <input type="text" id="pp-hold-title" maxlength="120" autocomplete="off" data-i18n-placeholder="pin.holdTitlePh" placeholder="例：仮おさえ" />
+            </label>
+            <p id="pp-hold-title-note" class="field-note muted" data-i18n="pin.holdTitleNote">この名前で、選んだ候補の時間があなたのGoogleカレンダーに自分だけの予定として入ります。相手には表示されません。</p>
+            <p id="pp-hold-nocal" class="field-note muted" data-i18n="pin.holdNoCalendar" hidden>Googleカレンダーと連携していないため、キマル内の空き枠だけを押さえます。カレンダーには予定が入りません。</p>
+          </div>
+          <div class="form-actions pp-field-wide"><button type="button" class="button primary" id="pp-create" data-i18n="pin.create">リンクを作成</button></div>
         </div>
       </div>
       <p id="pp-message" class="message" role="status"></p>
@@ -326,7 +338,7 @@
       </div>
     </div>
 
-    <!-- 月カレンダー（範囲/日付を押すと開く。空き枠のある日を選ぶとその日から5日間を表示） -->
+    <!-- 月カレンダー（範囲/日付を押すと開く。空き枠のある日を選ぶとその日から表示日数ぶんを表示） -->
     <div class="modal-overlay" id="pp-cal-modal" hidden>
       <div class="modal" role="dialog" aria-modal="true" aria-label="日付を選ぶ">
         <button class="modal-close" type="button" id="pp-cal-close" aria-label="閉じる">✕</button>

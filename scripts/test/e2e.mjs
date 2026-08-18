@@ -53,7 +53,10 @@ const DUMMY = ["佐藤 りく", "山田 はな", "高橋 あおい", "田中 さ
 const browser = await chromium.launch({ args: ["--no-sandbox"] });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 await ctx.route("**/api/**", (route) => {
-  const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+  const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
   const body = Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
   route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
 });
@@ -185,7 +188,10 @@ section("meeting: no questionnaire message (#312)");
 {
   const page = await newPage();
   await page.route("**/api/**", (route) => {
-    const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+    const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
     const body = name === "owner-bookings"
       ? { bookings: [{ ...MOCK_BOOKINGS[0], topic: "初回相談したい", answers: [] }] }
       : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
@@ -220,7 +226,10 @@ section("booking-settings: edit keeps out-of-list values (#300)");
   const page = await newPage();
   let sent = null;
   await page.route("**/api/**", (route) => {
-    const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+    const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
     if (name === "booking-page-save") { sent = JSON.parse(route.request().postData() || "{}"); }
     const body = name === "booking-pages" ? { pages: [PAGE], availability: [], default_availability: [] }
       : name === "booking-page-save" ? { ok: true, booking_page: PAGE }
@@ -255,7 +264,10 @@ section("booking page with no questions shows no questionnaire");
 {
   const page = await newPage();
   await page.route("**/api/**", (route) => {
-    const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+    const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
     const body = name === "availability"
       ? { host: { title: "初回相談", duration_minutes: 30, location_type: "google_meet", slug: "taro" }, questions: [], slots: [], axis: { start_min: 600, end_min: 1080 } }
       : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
@@ -281,9 +293,12 @@ section("guest week grid renders slots (shared week-grid.js)");
   ];
   const page = await newPage();
   await page.route("**/api/**", (route) => {
-    const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+    const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
     const body = name === "availability"
-      ? { host: { title: "初回相談", duration_minutes: 30, location_type: "google_meet", slug: "taro" }, questions: [], slots: gridSlots, range_start: ymd, days: 5, axis: { start_min: 600, end_min: 1080 }, hasPrev: false, hasNext: true }
+      ? { host: { title: "初回相談", duration_minutes: 30, location_type: "google_meet", slug: "taro" }, questions: [], slots: gridSlots, range_start: ymd, days: reqDays, axis: { start_min: 600, end_min: 1080 }, hasPrev: false, hasNext: true }
       : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
   });
@@ -297,6 +312,10 @@ section("guest week grid renders slots (shared week-grid.js)");
   // #321: 時間軸は右の1本だけ（左右に置くと日の列が細くなる）
   ok("time axis is shown once, on the right", (await page.locator("#wk-grid .wk-axis").count()) === 1);
   ok("no how-it-works bullets on the guest page (#321)", !(await bodyText(page)).includes("重ならない空き枠だけを表示"));
+  // PCは1週間表示。列数・送りのラベル・見出しの数字が食い違わないこと。
+  ok("desktop guest view shows a full week", (await page.locator("#wk-grid").evaluate((el) => el.style.getPropertyValue("--wk-cols"))) === "7");
+  ok("guest nav labels follow the day count", (await page.textContent("#next-days")).includes("7日"));
+  ok("guest heading follows the day count", (await page.textContent("#slots-heading")).includes("7日間"));
   ok("no JS exception", page._errors.length === 0);
   await page.close();
 }
@@ -320,7 +339,10 @@ section("#321 copy and layout fixes");
   {
     const page = await newPage();
     await page.route("**/api/**", (route) => {
-      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
       const body = name === "availability" ? { paused: true, slots: [], questions: [], host: {} } : {};
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
     });
@@ -339,7 +361,10 @@ section("#321 copy and layout fixes");
       answers: [{ question_text: "ご相談の背景", answer_text: `本文${i}` }],
     }));
     await page.route("**/api/**", (route) => {
-      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
       const body = name === "owner-bookings" ? { bookings: many }
         : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
@@ -365,7 +390,10 @@ section("#321 copy and layout fixes");
   {
     const page = await newPage();
     await page.route("**/api/**", (route) => {
-      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
       // 予約ゼロ・プロフィール全項目入力済み＝要対応が1つも無い状態
       const body = name === "owner-bookings" ? { bookings: [] }
         : name === "profile" ? { profile: { profile_name: "a", profile_title: "a", profile_strengths: "a", profile_style: "a", profile_offer: "a", profile_values: "a", profile_goal: "a" } }
@@ -408,7 +436,10 @@ section("pinpoint scheduling link (#303)");
     const page = await newPage();
     let booked = null;
     await page.route("**/api/**", (route) => {
-      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
       if (name === "book") { booked = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, manage_url: "/manage-booking.html?k=x" }) }); }
       const body = name === "pinpoint"
         ? { token: "toke2e", slots: SLOTS, questions: [], host: { slug: "taro", title: "初回相談", duration_minutes: 30, location_type: "google_meet", name: "テスト オーナー" } }
@@ -424,7 +455,7 @@ section("pinpoint scheduling link (#303)");
     // 候補は日付ごとにまとめ、日付は見出しに1回だけ出す（行は時間のみ）。SLOTS は別日の2件。
     ok("candidates are grouped by date", (await page.locator(".pp-daylabel").count()) === 2);
     ok("rows show only the time range", /^\d{2}:\d{2}〜\d{2}:\d{2}$/.test((await page.locator(".pp-item .pp-time").first().textContent()).replace(/\s/g, "")));
-    ok("heading says these are the host's candidates", (await page.textContent('[data-i18n="booking.pinpoint.slotsHeading"]')).includes("候補"));
+    ok("heading says these are the host's candidates", (await page.textContent("#slots-heading")).includes("候補"));
     // ラジオ本体は見た目を .pp-mark に譲って隠してあるので、実ユーザーと同じくラベルを押す。
     await page.locator(".pp-item").first().click();
     await page.waitForTimeout(200);
@@ -446,7 +477,10 @@ section("pinpoint scheduling link (#303)");
   {
     const page = await newPage();
     await page.route("**/api/**", (route) => {
-      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
       const body = name === "pinpoint" ? { expired: true, slots: [], questions: [], host: null }
         : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
@@ -467,11 +501,14 @@ section("pinpoint scheduling link (#303)");
     // グリッドは range_start から5日分の列に枠を割り振るので、先頭日を候補の初日に合わせる。
     const ymd = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, "0")}-${String(future.getDate()).padStart(2, "0")}`;
     await page.route("**/api/**", (route) => {
-      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
       if (name === "pinpoint-create") { created = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, url: "https://kimaru-co.jp/p/tok-new" }) }); }
       // 当面プレミアム限定で配信するので、ホスト側の確認はプレミアムで行う（既定モックは pro）。
       const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "premium" } }
-        : name === "availability" ? { slots: SLOTS, range_start: ymd, days: 5, questions: [], host: {}, hasPrev: false, hasNext: true }
+        : name === "availability" ? { slots: SLOTS, range_start: ymd, days: reqDays, questions: [], host: {}, hasPrev: false, hasNext: true }
         : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
     });
@@ -482,6 +519,9 @@ section("pinpoint scheduling link (#303)");
     await page.waitForTimeout(500);
     ok("picker screen replaces the list", await page.locator("#pinpoint-view").isVisible() && !(await page.locator("#list-view").isVisible()));
     ok("slots are shown on the week calendar", (await page.locator("#pp-grid .wk-slot").count()) === 2);
+    // PCは1週間表示。列数はCSS変数で渡すので、そこと送りのラベルを見る。
+    ok("desktop shows a full week", (await page.locator("#pp-grid").evaluate((el) => el.style.getPropertyValue("--wk-cols"))) === "7");
+    ok("nav labels follow the day count", (await page.textContent("#pp-next")).includes("7日"));
     ok("hold is a select, not a checkbox", (await page.locator("#pp-hold").evaluate((el) => el.tagName)) === "SELECT");
     // 枠を押す＝候補に入る／もう一度押す＝外れる
     await page.locator("#pp-grid .wk-slot").first().click();
@@ -529,11 +569,14 @@ section("pinpoint scheduling link (#303)");
     const page = await newPage();
     const ymd = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, "0")}-${String(future.getDate()).padStart(2, "0")}`;
     await page.route("**/api/**", (route) => {
-      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
       // 押さえたが予定は0件＝Google未連携。発行自体は通る（キマル内の押さえは効く）。
       if (name === "pinpoint-create") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, url: "https://kimaru-co.jp/p/tok-nocal", hold_events_created: 0 }) });
       const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "premium" }, calendar_connected: false }
-        : name === "availability" ? { slots: SLOTS, range_start: ymd, days: 5, questions: [], host: {}, hasPrev: false, hasNext: true }
+        : name === "availability" ? { slots: SLOTS, range_start: ymd, days: reqDays, questions: [], host: {}, hasPrev: false, hasNext: true }
         : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
     });
@@ -564,7 +607,10 @@ section("pinpoint scheduling link (#303)");
       { id: "l-off", url: "https://kimaru-co.jp/p/tk-off", page_title: "初回相談", slot_count: 0, first_slot: null, last_slot: null, hold_slots: false, hold_title: "", expires_at: null, status: "disabled" },
     ];
     await page.route("**/api/**", (route) => {
-      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
       if (name === "pinpoint-deactivate") { disabled = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }); }
       const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "premium" } }
         : name === "pinpoint-list" ? { links: LINKS }

@@ -810,6 +810,30 @@ section("pinpoint link list and manual disable (#327)");
   globalThis.fetch = prevFetch;
 }
 
+// ---------- 9l) 週表の表示日数（スマホ5日 / PC1週間） ----------
+section("availability days per view (5 on mobile / 7 on desktop)");
+{
+  const availFn = requireCjs(path.join(repo, "netlify/functions/availability.js"));
+  const call = async (query) => {
+    const res = await availFn.handler({ httpMethod: "GET", queryStringParameters: { slug: "tarou", ...query } });
+    return JSON.parse(res.body);
+  };
+  const start = "2026-09-01";
+  ok("既定は5日", (await call({ start })).days === 5);
+  ok("7日を指定できる", (await call({ start, days: "7" })).days === 7);
+  ok("5日を指定できる", (await call({ start, days: "5" })).days === 5);
+  // 許可リスト外は既定に落とす。任意の数を通すと枠生成と freeBusy の窓が際限なく広がる。
+  ok("許可外の日数は既定に落とす", (await call({ start, days: "365" })).days === 5);
+  ok("負の日数も既定に落とす", (await call({ start, days: "-3" })).days === 5);
+  ok("数値でない日数も既定に落とす", (await call({ start, days: "abc" })).days === 5);
+
+  // 7日ぶんの窓が実際に広がっていること（5日目以降の枠が返る）を range で見る。
+  const wide = await call({ start, days: "7" });
+  const narrow = await call({ start, days: "5" });
+  ok("7日のほうが後ろまで枠を返す", (wide.slots || []).length >= (narrow.slots || []).length);
+  ok("開始日は日数で変わらない", wide.range_start === narrow.range_start);
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";

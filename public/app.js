@@ -1276,6 +1276,22 @@ function ppToggleSlot(slot, button) {
   ppRenderChips();
 }
 
+function ppViewDays() { return window.KimaruWeekGrid ? window.KimaruWeekGrid.daysForViewport() : 5; }
+
+// 前後送りのラベルは日数に合わせる（スマホ「前の5日」/ PC「前の7日」）。
+// data-i18n を付けると言語切替のたびに固定文言で上書きされるので、ここで textContent を入れる。
+function ppRenderNavLabels() {
+  const n = String(ppViewDays());
+  [["#pp-prev", "booking.week.prevDays"], ["#pp-next", "booking.week.nextDays"]].forEach(([sel, key]) => {
+    const button = $(sel);
+    if (!button) return;
+    const text = t(key).replace("{n}", n);
+    const span = button.querySelector(".wk-nav-tx");
+    if (span) span.textContent = text;
+    button.setAttribute("aria-label", text);
+  });
+}
+
 async function ppLoadDays(startYmd) {
   const grid = $("#pp-grid");
   const weekcal = $("#pp-weekcal");
@@ -1283,7 +1299,8 @@ async function ppLoadDays(startYmd) {
   ppStatus(`<p class="muted">${escapeHtml(t("bs.list.loading"))}</p>`);
   try {
     const q = startYmd ? `&start=${encodeURIComponent(startYmd)}` : "";
-    const data = await api(`availability?slug=${encodeURIComponent(ppSlug)}${q}`);
+    // 表示日数は画面幅で決まる（スマホ5日 / PC1週間）。ゲストの予約画面と同じ扱いにする。
+    const data = await api(`availability?slug=${encodeURIComponent(ppSlug)}${q}&days=${ppViewDays()}`);
     ppStart = data.range_start || startYmd || window.KimaruWeekGrid.todayYmd();
     data.range_start = ppStart; // range_start 欠落時も描画を壊さない（NaN日付でIntlが例外化するのを防ぐ）
     ppMinDate = data.min_date || null;
@@ -1304,7 +1321,8 @@ async function ppLoadDays(startYmd) {
       onPick: ppToggleSlot,
     });
     const label = $("#pp-range-label");
-    if (label) label.textContent = window.KimaruWeekGrid.rangeLabelText(ppStart, Number(data.days) || 5);
+    if (label) label.textContent = window.KimaruWeekGrid.rangeLabelText(ppStart, Number(data.days) || ppViewDays());
+    ppRenderNavLabels();
     const prev = $("#pp-prev"); if (prev) prev.disabled = !data.hasPrev;
     const next = $("#pp-next"); if (next) next.disabled = !data.hasNext;
     ppStatus((data.slots || []).length ? "" : `<p class="muted">${escapeHtml(t("pin.noSlots"))}</p>`);
@@ -1411,12 +1429,11 @@ function openPinpointView(pageId, slug, title) {
 // 予定名を聞く意味がない（バッファ予定名の出し分けと同じ考え方）。
 function ppSyncHoldTitle() {
   const on = $("#pp-hold")?.value === "hold";
+  // 入力欄と注記はラッパーごと出し入れする（個別に隠すと、隠れた行のぶんだけ隙間が残る）。
   const field = $("#pp-hold-title-field");
-  const input = $("#pp-hold-title");
   if (field) field.hidden = !on;
+  const input = $("#pp-hold-title");
   if (input) input.required = on;
-  const note = $("#pp-hold-title-note");
-  if (note) note.hidden = !on;
   // Google未連携だと押さえ予定は作れない。押さえは効くがカレンダーには出ない、と先に断っておく
   // （発行後に「カレンダーに入っていない」と気づくのが一番困る）。
   const nocal = $("#pp-hold-nocal");
@@ -1580,8 +1597,16 @@ function bindPinpoint() {
     ppRenderChips();
     ppLoadDays(ppStart);
   });
-  $("#pp-prev")?.addEventListener("click", () => { if (ppStart) ppLoadDays(window.KimaruWeekGrid.shiftYmd(ppStart, -5)); });
-  $("#pp-next")?.addEventListener("click", () => { if (ppStart) ppLoadDays(window.KimaruWeekGrid.shiftYmd(ppStart, 5)); });
+  // 送る量は表示日数と揃える。5日表示で7日送ると2日ぶん飛び、7日表示で5日送ると重複して出る。
+  $("#pp-prev")?.addEventListener("click", () => { if (ppStart) ppLoadDays(window.KimaruWeekGrid.shiftYmd(ppStart, -ppViewDays())); });
+  $("#pp-next")?.addEventListener("click", () => { if (ppStart) ppLoadDays(window.KimaruWeekGrid.shiftYmd(ppStart, ppViewDays())); });
+  // 画面幅が5日/7日の境目をまたいだら、その日数で取り直す（列だけ増えても中身が足りない）。
+  // 開いていないときは何もしない（裏で無駄にAPIを叩かない）。選んだ候補は ppChosen に残るので消えない。
+  window.KimaruWeekGrid?.onViewportDaysChange(() => {
+    if ($("#pinpoint-view")?.hidden !== false) return;
+    ppRenderNavLabels();
+    ppLoadDays(ppStart);
+  });
   // 範囲ボタン／日付ヘッダーで月カレンダーを開く（予約画面と同じ操作）。
   $("#pp-range-btn")?.addEventListener("click", ppOpenCalendar);
   $("#pp-grid")?.addEventListener("click", (event) => { if (event.target.closest("[data-cal-open]")) ppOpenCalendar(); });

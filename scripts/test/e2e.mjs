@@ -474,15 +474,57 @@ section("pinpoint scheduling link (#303)");
     await page.waitForTimeout(150);
     ok("clicking again removes it", (await page.locator("#pp-grid .wk-slot.is-picked").count()) === 0);
     await page.locator("#pp-grid .wk-slot").first().click();
+    // 押さえない間は予定名を聞かない（カレンダーに何も作らないので聞く意味がない・#325）
+    ok("hold title field is hidden while not holding", await page.locator("#pp-hold-title-field").isHidden());
     await page.selectOption("#pp-hold", "hold");
+    await page.waitForTimeout(150);
+    ok("choosing hold reveals the calendar event name field", await page.locator("#pp-hold-title-field").isVisible());
+    ok("calendar event name is required", await page.locator("#pp-hold-title").evaluate((el) => el.required) === true);
+    ok("connected calendar hides the not-connected note", await page.locator("#pp-hold-nocal").isHidden());
+    // 予定名が空のままでは発行させない（サーバも400で止めるが、往復させずここで気づかせる）
+    await page.click("#pp-create");
+    await page.waitForTimeout(300);
+    ok("empty calendar event name blocks the request", created === null);
+    ok("empty calendar event name shows an error", (await page.textContent("#pp-message")).includes("予定名"));
+    await page.fill("#pp-hold-title", "仮おさえ");
     await page.click("#pp-create");
     await page.waitForTimeout(400);
     ok("create request carries the chosen slot", created?.slots?.length === 1 && created.slots[0].start === SLOTS[0].start);
     ok("create request carries hold flag", created?.hold_slots === true);
+    ok("create request carries the calendar event name", created?.hold_title === "仮おさえ");
     ok("issued url is shown for copying", (await page.inputValue("#pp-url")).includes("/p/tok-new"));
     await page.click("#pp-back");
     await page.waitForTimeout(200);
     ok("back returns to the list", await page.locator("#list-view").isVisible() && !(await page.locator("#pinpoint-view").isVisible()));
+    ok("no JS exception", page._errors.length === 0);
+    await page.close();
+  }
+  // --- Google未連携（#325）: 押さえてもカレンダーには入らないと先に断る ---
+  {
+    const page = await newPage();
+    const ymd = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, "0")}-${String(future.getDate()).padStart(2, "0")}`;
+    await page.route("**/api/**", (route) => {
+      const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+      // 押さえたが予定は0件＝Google未連携。発行自体は通る（キマル内の押さえは効く）。
+      if (name === "pinpoint-create") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, url: "https://kimaru-co.jp/p/tok-nocal", hold_events_created: 0 }) });
+      const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "premium" }, calendar_connected: false }
+        : name === "availability" ? { slots: SLOTS, range_start: ymd, days: 5, questions: [], host: {}, hasPrev: false, hasNext: true }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
+    await page.waitForSelector('[data-page-action="pinpoint"]', { timeout: 8000 }).catch(() => {});
+    await page.click('[data-page-action="pinpoint"]');
+    await page.waitForTimeout(500);
+    await page.locator("#pp-grid .wk-slot").first().click();
+    await page.selectOption("#pp-hold", "hold");
+    await page.waitForTimeout(150);
+    ok("no calendar connection warns before creating", await page.locator("#pp-hold-nocal").isVisible());
+    await page.fill("#pp-hold-title", "仮おさえ");
+    await page.click("#pp-create");
+    await page.waitForTimeout(400);
+    ok("link is still issued without a calendar", (await page.inputValue("#pp-url")).includes("/p/tok-nocal"));
+    ok("result says the hold is kimaru-only", (await page.textContent("#pp-message")).includes("キマル内"));
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }

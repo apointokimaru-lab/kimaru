@@ -55,7 +55,9 @@ async function openOf(owner, page, link, slots) {
   const to = Math.max(...times) + core.DAY_MS;
   try {
     // openSlotsForWindow は「枠を生成して絞る」関数なので、ここでは候補を直接突き合わせる。
-    const busy = await core.busyForWindow(owner, page, from, to, { exceptPinpointId: link.id });
+    // リンク行をそのまま渡す。id だけだと、Googleカレンダーに実在する自分の押さえ予定を
+    // 差し引けず、ゲストに候補が1つも出なくなる（#325）。
+    const busy = await core.busyForWindow(owner, page, from, to, { exceptPinpoint: link });
     const bufferBeforeMs = Math.max(0, Number(page.buffer_before_minutes || 0)) * 60000;
     const bufferAfterMs = Math.max(0, Number(page.buffer_after_minutes || 0)) * 60000;
     return future.filter((slot) => !core.overlaps(slot, busy, bufferBeforeMs, bufferAfterMs));

@@ -121,14 +121,17 @@ async function createCalendarEvent(ownerId, booking) {
   return data;
 }
 
-// ホスト専用のバッファ予定を1件作成する。attendees を付けず sendUpdates=none なので、
+// ホスト専用の「自分だけの予定」を1件作成する。attendees を付けず sendUpdates=none なので、
 // ゲストには招待も表示もされず、ホスト自身の Google カレンダーにだけ現れる。
-async function createBufferEvent(ownerId, { summary, startIso, endIso }) {
+// 前後バッファ（#300）と、ピンポイントの押さえ枠（#325）が同じ性質なので共用している。
+// description を差し替えられるのは、カレンダー上で「これは何の予定か」が読めないと
+// 手で消してよいものか判断できないため（押さえ枠は期限切れ・無効化で自動削除される）。
+async function createBufferEvent(ownerId, { summary, startIso, endIso, description }) {
   const accessToken = await accessTokenForOwner(ownerId);
   if (!accessToken) return null;
   const eventBody = {
     summary: summary || "バッファ",
-    description: "キマルの前後バッファ（自分用の目印）です。",
+    description: description || "キマルの前後バッファ（自分用の目印）です。",
     start: { dateTime: startIso },
     end: { dateTime: endIso },
     // バッファ予定は「予定あり(busy)」で作る。freeBusy に出るので、空き枠計算がこの時間を

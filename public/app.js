@@ -1393,9 +1393,28 @@ function openPinpointView(pageId, slug, title) {
   ppRenderHeading();
   const result = $("#pp-result"); if (result) result.hidden = true;
   const hold = $("#pp-hold"); if (hold) hold.value = "none";
+  const holdTitle = $("#pp-hold-title"); if (holdTitle) holdTitle.value = "";
+  ppSyncHoldTitle();
   ppSetMessage("");
   window.scrollTo({ top: 0, behavior: "smooth" });
   ppLoadDays(null);
+}
+
+// 押さえ方の選択に合わせて予定名の欄を出し入れする（#325）。
+// 「押さえる」のときだけ欄を出して必須にする。押さえないなら Google カレンダーに何も作らないので
+// 予定名を聞く意味がない（バッファ予定名の出し分けと同じ考え方）。
+function ppSyncHoldTitle() {
+  const on = $("#pp-hold")?.value === "hold";
+  const field = $("#pp-hold-title-field");
+  const input = $("#pp-hold-title");
+  if (field) field.hidden = !on;
+  if (input) input.required = on;
+  const note = $("#pp-hold-title-note");
+  if (note) note.hidden = !on;
+  // Google未連携だと押さえ予定は作れない。押さえは効くがカレンダーには出ない、と先に断っておく
+  // （発行後に「カレンダーに入っていない」と気づくのが一番困る）。
+  const nocal = $("#pp-hold-nocal");
+  if (nocal) nocal.hidden = !on || calendarConnected;
 }
 
 function closePinpointView() {
@@ -1409,6 +1428,7 @@ function closePinpointView() {
 
 function bindPinpoint() {
   $("#pp-back")?.addEventListener("click", closePinpointView);
+  $("#pp-hold")?.addEventListener("change", ppSyncHoldTitle);
   // 言語切替。曜日見出し・範囲ラベルはグリッドを描き直さないと直らないので、開いているときだけ再取得する。
   document.addEventListener("kimaru:languagechange", () => {
     if ($("#pinpoint-view")?.hidden !== false) return;
@@ -1448,6 +1468,10 @@ function bindPinpoint() {
   });
   $("#pp-create")?.addEventListener("click", async () => {
     if (!ppChosen.size) { ppSetMessage(t("pin.needSlot"), "error"); return; }
+    const hold = $("#pp-hold")?.value === "hold";
+    const holdTitle = ($("#pp-hold-title")?.value || "").trim();
+    // 押さえるなら予定名は必須（#325）。サーバ側でも 400 で止めるが、往復させずここで気づかせる。
+    if (hold && !holdTitle) { ppSetMessage(t("pin.needHoldTitle"), "error"); $("#pp-hold-title")?.focus(); return; }
     ppSetMessage(t("pin.creating"));
     try {
       const res = await api("pinpoint-create", {
@@ -1455,12 +1479,16 @@ function bindPinpoint() {
         body: JSON.stringify({
           booking_page_id: ppPageId,
           slots: [...ppChosen.values()],
-          hold_slots: $("#pp-hold")?.value === "hold",
+          hold_slots: hold,
+          hold_title: holdTitle,
         }),
       });
       const input = $("#pp-url"); if (input) input.value = res.url || "";
       const result = $("#pp-result"); if (result) result.hidden = false;
-      ppSetMessage(t("pin.created"), "success");
+      // 押さえたのに予定が1件も作れていない＝Google未連携か作成失敗。成功とだけ言うと
+      // 「カレンダーに入っているはず」と誤解させるので、そこだけ出し分ける。
+      const heldOnKimaruOnly = hold && !res.hold_events_created;
+      ppSetMessage(heldOnKimaruOnly ? t("pin.createdNoCalendar") : t("pin.created"), "success");
     } catch (error) {
       ppSetMessage(error.message, "error");
     }

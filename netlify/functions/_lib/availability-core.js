@@ -106,10 +106,15 @@ async function ownerBookingBusy(ownerId, fromIso, toIso) {
 
 // 指定窓で「埋まっている時間」を集める。Googleカレンダー＋既存予約＋ピンポイントの押さえ枠。
 // 空き枠計算（openSlotsForWindow）と、ピンポイントの候補チェック（pinpoint.js）で共用する。
-// options.exceptPinpointId は「自分自身のリンク」。自分で押さえた枠を自分の画面から
-// 消してしまわないよう、そのリンクの押さえだけ除外する（#303）。
+//
+// options.exceptPinpoint は「自分自身のリンク」の行。自分で押さえた枠を自分の画面から
+// 消してしまわないよう、そのリンクの押さえだけ除外する（#303）。除外は2段いる（#325）:
+//   1. heldBusyFor から外す      … キマル内部の押さえ
+//   2. 集めた busy から差し引く  … Googleカレンダーに実在する押さえ予定
+// 2 を省くと、押さえ予定を freeBusy が返すせいで /p/<token> の候補が全部消える。
 async function busyForWindow(owner, bookingPage, fromTime, toTime, options = {}) {
   if (!owner?.id) return [];
+  const exceptLink = options.exceptPinpoint || null;
   const bufferBeforeMs = Math.max(0, Number(bookingPage?.buffer_before_minutes || 0)) * 60 * 1000;
   const bufferAfterMs = Math.max(0, Number(bookingPage?.buffer_after_minutes || 0)) * 60 * 1000;
   // 候補枠は開始前に bufferBefore、終了後に bufferAfter ぶん広がるので、その方向に取得窓も広げる。
@@ -118,9 +123,10 @@ async function busyForWindow(owner, bookingPage, fromTime, toTime, options = {})
   const [calendarBusy, bookingBusy, heldBusy] = await Promise.all([
     freebusy(owner.id, busyFromIso, busyToIso).catch(() => []),
     ownerBookingBusy(owner.id, busyFromIso, busyToIso),
-    pinpoint.heldBusyFor(owner.id, { exceptId: options.exceptPinpointId || null }),
+    pinpoint.heldBusyFor(owner.id, { exceptId: exceptLink?.id || null }),
   ]);
-  return [...calendarBusy, ...bookingBusy, ...heldBusy];
+  const busy = [...calendarBusy, ...bookingBusy, ...heldBusy];
+  return exceptLink ? pinpoint.subtractHold(busy, exceptLink) : busy;
 }
 
 // 指定窓の空き枠（busy＋前後バッファ適用済み）。owner未連携/失敗時は生成枠をそのまま返す。

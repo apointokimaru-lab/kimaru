@@ -1503,6 +1503,9 @@ function renderPinpointLinks(links) {
     // 有効なリンクだけが操作できる。期限切れ・無効化済みは押さえも既に解けているので、
     // 無効にするボタンを出しても何も起きない（押せるのに何も起きない状態を作らない）。
     const canDisable = link.status === "active";
+    // 逆に、使えなくなったリンクだけ削除できる（#336）。有効なものを消せると、相手が
+    // まだ開けるリンクを一覧から消すだけで黙って死なせることになる（止めるなら先に無効化）。
+    const canDelete = link.status !== "active";
     return `
     <article class="list-item${link.status === "active" ? "" : " is-paused"}">
       <strong>${escapeHtml(link.page_title || t("bs.list.untitled"))}<span class="pause-badge">${escapeHtml(label)}</span></strong>
@@ -1512,6 +1515,7 @@ function renderPinpointLinks(links) {
       <div class="actions">
         <button class="button secondary" type="button" data-pp-link-action="copy" data-url="${escapeHtml(link.url)}">${escapeHtml(t("bs.list.copyUrl"))}</button>
         ${canDisable ? `<button class="button secondary" type="button" data-pp-link-action="disable" data-id="${escapeHtml(link.id)}" data-target="${escapeHtml(link.url)}">${escapeHtml(t("pin.list.disable"))}</button>` : ""}
+        ${canDelete ? `<button class="button secondary" type="button" data-pp-link-action="delete" data-id="${escapeHtml(link.id)}" data-target="${escapeHtml(link.url)}">${escapeHtml(t("pin.list.delete"))}</button>` : ""}
       </div>
     </article>`;
   }).join("");
@@ -1557,6 +1561,14 @@ function ppCloseDisableModal() {
   ppDisableTargetId = "";
 }
 
+let ppDeleteTargetId = "";
+
+function ppCloseDeleteModal() {
+  const modal = $("#pp-delete-modal");
+  if (modal) modal.hidden = true;
+  ppDeleteTargetId = "";
+}
+
 function bindPinpointList() {
   $("#pp-list-open")?.addEventListener("click", openPinpointListView);
   $("#pp-list-back")?.addEventListener("click", closePinpointListView);
@@ -1567,6 +1579,15 @@ function bindPinpointList() {
     if (action === "copy") {
       navigator.clipboard?.writeText(button.getAttribute("data-url") || "").catch(() => {});
       ppListSetMessage(t("pin.copied"), "success");
+      return;
+    }
+    if (action === "delete") {
+      // 取り消せない操作なので、無効化と同じくモーダルで宣言を読ませてから実行する。
+      ppDeleteTargetId = button.getAttribute("data-id") || "";
+      const target = $("#pp-delete-target");
+      if (target) target.textContent = button.getAttribute("data-target") || "";
+      const modal = $("#pp-delete-modal");
+      if (modal) modal.hidden = false;
       return;
     }
     if (action === "disable") {
@@ -1583,6 +1604,22 @@ function bindPinpointList() {
   $("#pp-disable-close")?.addEventListener("click", ppCloseDisableModal);
   $("#pp-disable-cancel")?.addEventListener("click", ppCloseDisableModal);
   $("#pp-disable-modal")?.addEventListener("click", (event) => { if (event.target.id === "pp-disable-modal") ppCloseDisableModal(); });
+  $("#pp-delete-close")?.addEventListener("click", ppCloseDeleteModal);
+  $("#pp-delete-cancel")?.addEventListener("click", ppCloseDeleteModal);
+  $("#pp-delete-modal")?.addEventListener("click", (event) => { if (event.target.id === "pp-delete-modal") ppCloseDeleteModal(); });
+  $("#pp-delete-confirm")?.addEventListener("click", async () => {
+    const id = ppDeleteTargetId;
+    if (!id) return;
+    ppCloseDeleteModal();
+    ppListSetMessage(t("pin.list.deleting"));
+    try {
+      await api("pinpoint-delete", { method: "POST", body: JSON.stringify({ id }) });
+      ppListSetMessage(t("pin.list.deleted"), "success");
+      loadPinpointLinks();
+    } catch (error) {
+      ppListSetMessage(error.message, "error");
+    }
+  });
   $("#pp-disable-confirm")?.addEventListener("click", async () => {
     const id = ppDisableTargetId;
     if (!id) return;

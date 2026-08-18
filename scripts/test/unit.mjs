@@ -612,6 +612,71 @@ section("pinpoint booking rejects slots outside candidates (#303)");
   ok("トークン無しの通常予約は従来どおり通る", noToken.statusCode === 200);
 }
 
+// ---------- 9g) #325 押さえ枠をGoogleカレンダー予定にする ----------
+section("pinpoint hold events on Google Calendar (#325)");
+{
+  const pin = requireCjs(path.join(repo, "netlify/functions/_lib/pinpoint.js"));
+
+  // 予定項目名: 前後の空白を落とし、Googleの summary に載る長さで切る。
+  ok("予定名の前後の空白を落とす", pin.normalizeHoldTitle("  仮おさえ  ") === "仮おさえ");
+  ok("予定名は上限で切る", pin.normalizeHoldTitle("あ".repeat(300)).length === pin.MAX_HOLD_TITLE);
+  ok("未入力は空文字になる", pin.normalizeHoldTitle(undefined) === "");
+
+  // 自分の押さえの差し引き。ここが壊れると /p/<token> の候補がゲストに1つも出なくなる。
+  const hold = (start, end) => ({ start, end, event_id: "ev1" });
+  const range = (start, end) => ({ start, end });
+  const at = (h) => `2026-09-10T0${h}:00:00.000Z`;
+
+  // 押さえが busy の真ん中にある＝前後2つに割れる（1回の差し引きで確定させると後ろを取りこぼす）
+  const split = pin.subtractHold([range(at(1), at(5))], { hold_events: [hold(at(2), at(3))] });
+  ok("押さえが真ん中なら前後2つに割れる", split.length === 2);
+  ok("割れた前半は押さえの手前まで", split[0].start === at(1) && split[0].end === at(2));
+  ok("割れた後半は押さえの後ろから", split[1].start === at(3) && split[1].end === at(5));
+
+  // 押さえと busy がぴったり同じ＝丸ごと消える（この枠は自分で押さえただけなので空いている）
+  ok("押さえと同じ区間は丸ごと消える", pin.subtractHold([range(at(2), at(3))], { hold_events: [hold(at(2), at(3))] }).length === 0);
+
+  // 端に重なる場合
+  const headCut = pin.subtractHold([range(at(2), at(5))], { hold_events: [hold(at(1), at(3))] });
+  ok("先頭に重なると後ろだけ残る", headCut.length === 1 && headCut[0].start === at(3) && headCut[0].end === at(5));
+
+  // 重ならない押さえは busy を削らない
+  const untouched = pin.subtractHold([range(at(1), at(2))], { hold_events: [hold(at(4), at(5))] });
+  ok("重ならない押さえは削らない", untouched.length === 1 && untouched[0].start === at(1));
+
+  // 押さえが複数あっても順に削れる（1つ削って終わりにしない）
+  const many = pin.subtractHold([range(at(1), at(9))], { hold_events: [hold(at(2), at(3)), hold(at(5), at(6))] });
+  ok("押さえが複数でも順に削る", many.length === 3);
+
+  // hold_events 列が未適用の環境（undefined）でも落ちず、busy をそのまま返す
+  ok("hold_events が無ければ busy はそのまま", pin.subtractHold([range(at(1), at(2))], {}).length === 1);
+  ok("hold_events が壊れていても落ちない", pin.holdEventsOf({ hold_events: [null, { start: at(1) }] }).length === 0);
+}
+
+// ---------- 9h) #325 押さえるなら予定名は必須 ----------
+section("pinpoint hold requires a calendar event name (#325)");
+{
+  const createFn = requireCjs(path.join(repo, "netlify/functions/pinpoint-create.js"));
+  const future = new Date(Date.now() + 5 * 86400000);
+  future.setUTCMinutes(0, 0, 0);
+  const slots = [{ start: future.toISOString(), end: new Date(future.getTime() + 1800000).toISOString() }];
+  const create = (body) => createFn.handler({
+    httpMethod: "POST", headers: { cookie }, body: JSON.stringify({ booking_page_id: "bp1", slots, ...body }),
+  });
+
+  const missing = await create({ hold_slots: true });
+  ok("押さえるのに予定名が空なら400", missing.statusCode === 400 && JSON.parse(missing.body).error.includes("項目名"));
+  const blank = await create({ hold_slots: true, hold_title: "   " });
+  ok("空白だけの予定名も400", blank.statusCode === 400);
+  // 押さえないなら予定名は要らない（カレンダーに何も作らないので聞く意味がない）
+  const noHold = await create({ hold_slots: false });
+  ok("押さえないなら予定名なしで通る", noHold.statusCode === 200);
+  // Google未連携でも発行は通す。押さえはキマル内部（heldBusyFor）だけに効く。
+  const held = await create({ hold_slots: true, hold_title: "仮おさえ" });
+  ok("Google未連携でも押さえリンクは発行できる", held.statusCode === 200);
+  ok("未連携なので作成した予定は0件", JSON.parse(held.body).hold_events_created === 0);
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";

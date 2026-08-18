@@ -440,3 +440,12 @@ create table if not exists pinpoint_links (
   created_at timestamptz not null default now()
 );
 create index if not exists pinpoint_links_owner_idx on pinpoint_links (owner_id, is_active);
+
+-- 押さえ枠を実際のGoogleカレンダー予定にする（#325）。
+-- hold_title は押さえ予定の予定項目名（hold_slots=true のとき必須）。
+-- hold_events は作成した予定 [{start, end, event_id}, ...]。時間帯も持つのは、
+-- /p/<token> の空き枠判定で「自分自身の押さえ」を busy から差し引くのに要るため。
+-- freeBusy はイベントIDを返さないので、IDだけ持っていても引き算に使えない。
+-- 未適用の環境では押さえがキマル内部の busy だけになるようデグレードする（列が無くても発行は通る）。
+alter table pinpoint_links add column if not exists hold_title text not null default '';
+alter table pinpoint_links add column if not exists hold_events jsonb not null default '[]'::jsonb;

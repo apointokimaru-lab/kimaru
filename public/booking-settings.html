@@ -262,6 +262,13 @@
             </select>
           </label>
           <p class="field-note muted" data-i18n="pin.holdNote">押さえると、通常の予約ページからこの時間は選べなくなります。</p>
+          <!-- 予定名は「押さえる」を選んだときだけ出し、必須にする（#325）。
+               バッファ予定名（.buffer-title-field）と同じ出し分け方に揃えている。 -->
+          <label class="buffer-title-field" id="pp-hold-title-field" hidden><span data-i18n="pin.holdTitleLabel">カレンダーに入れる予定名</span>
+            <input type="text" id="pp-hold-title" maxlength="120" autocomplete="off" data-i18n-placeholder="pin.holdTitlePh" placeholder="例：仮おさえ" />
+          </label>
+          <p id="pp-hold-title-note" class="field-note muted" data-i18n="pin.holdTitleNote" hidden>この名前で、選んだ候補の時間があなたのGoogleカレンダーに自分だけの予定として入ります。相手には表示されません。</p>
+          <p id="pp-hold-nocal" class="field-note muted" data-i18n="pin.holdNoCalendar" hidden>Googleカレンダーと連携していないため、キマル内の空き枠だけを押さえます。カレンダーには予定が入りません。</p>
           <div class="form-actions"><button type="button" class="button primary" id="pp-create" data-i18n="pin.create">リンクを作成</button></div>
         </div>
       </div>

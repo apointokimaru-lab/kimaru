@@ -960,6 +960,66 @@ section("pinpoint drops candidates covered by non-hold events (#334)");
   ok("押さえだけの候補は残る", starts.includes(slotB.start));
 }
 
+// ---------- 9o) #336 使えなくなったリンクだけ削除できる ----------
+section("pinpoint link deletion is limited to unusable links (#336)");
+{
+  const delFn = requireCjs(path.join(repo, "netlify/functions/pinpoint-delete.js"));
+  const DAY = 86400000;
+  const base = { owner_id: OWNER.id, booking_page_id: "bp1", hold_slots: false, slots: [], hold_events: [] };
+  DB.pinpoint_links = [
+    { ...base, id: "pd-live", token: "t-live", is_active: true, expires_at: new Date(Date.now() + DAY).toISOString() },
+    { ...base, id: "pd-expired", token: "t-exp", is_active: true, expires_at: new Date(Date.now() - DAY).toISOString() },
+    { ...base, id: "pd-off", token: "t-off", is_active: false, expires_at: null },
+    // 期限切れだが片付けジョブ(#326)がまだ走っておらず、押さえ予定が残っている
+    { ...base, id: "pd-held", token: "t-held", is_active: true, expires_at: new Date(Date.now() - DAY).toISOString(),
+      hold_slots: true, hold_events: [{ start: "2026-09-01T01:00:00.000Z", end: "2026-09-01T01:30:00.000Z", event_id: "ev-x" }] },
+  ];
+
+  // Google連携が無いと deleteCalendarEvent は通信せず skip する。押さえの解除を確かめたいので
+  // 連携行を入れる。access_token は暗号化しないと accessTokenForOwner の decrypt が例外になる。
+  process.env.TOKEN_ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY || "0".repeat(64);
+  const { encrypt: encDel } = requireCjs(path.join(repo, "netlify/functions/_lib/crypto.js"));
+  DB.google_connections = [{ owner_id: OWNER.id, access_token: encDel("a"), refresh_token: encDel("r"), expires_at: new Date(Date.now() + 3600000).toISOString() }];
+
+  const deletes = [];
+  const googleDeletes = [];
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const u = String(url);
+    if (u.includes("googleapis.com")) { googleDeletes.push(init?.method || "GET"); return { ok: true, status: 200, json: async () => ({}) }; }
+    if (init?.method === "DELETE") { deletes.push(u); return { ok: true, status: 200, text: async () => "[]" }; }
+    const parsed = new URL(u);
+    const table = parsed.pathname.replace("/rest/v1/", "").split("?")[0];
+    let rows = DB[table] || [];
+    for (const [k, v] of parsed.searchParams) {
+      if (typeof v === "string" && v.startsWith("eq.")) rows = rows.filter((r) => String(r[k]) === decodeURIComponent(v.slice(3)));
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify(rows) };
+  };
+  const del = (id, cookieValue = cookie) => delFn.handler({ httpMethod: "POST", headers: { cookie: cookieValue }, body: JSON.stringify({ id }) });
+
+  // 有効なリンクは消せない。行を消すだけで、相手がまだ開けるリンクを黙って死なせないため。
+  const live = await del("pd-live");
+  ok("有効なリンクは削除できない", live.statusCode === 400 && JSON.parse(live.body).error.includes("無効にしてください"));
+  ok("有効なリンクではDELETEを投げない", deletes.length === 0);
+
+  ok("期限切れは削除できる", (await del("pd-expired")).statusCode === 200);
+  ok("無効化済みは削除できる", (await del("pd-off")).statusCode === 200);
+
+  // 押さえが残っている期限切れは、行を消す前にGoogle予定を消す。
+  // 先に行を消すと、二度と辿れない予定がカレンダーに残る。
+  const before = googleDeletes.length;
+  ok("押さえが残るリンクも削除できる", (await del("pd-held")).statusCode === 200);
+  ok("削除前にGoogle予定を消す", googleDeletes.length > before);
+
+  ok("他人のリンクは削除できない", (await del("pd-off", freeCookie)).statusCode === 403);
+  ok("存在しないidは404", (await del("存在しないid")).statusCode === 404);
+  ok("idなしは400", (await delFn.handler({ httpMethod: "POST", headers: { cookie }, body: JSON.stringify({}) })).statusCode === 400);
+  ok("GETは405", (await delFn.handler({ httpMethod: "GET", headers: { cookie } })).statusCode === 405);
+  globalThis.fetch = prevFetch;
+  DB.google_connections = [];
+}
+
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------
 section("Zoom deauthorize webhook");
 process.env.ZOOM_WEBHOOK_SECRET_TOKEN = "unit-webhook-secret";

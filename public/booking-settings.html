@@ -318,7 +318,7 @@
       <div class="section-head">
         <div>
           <h2 id="pp-list-title" data-i18n="pin.list.title">ピンポイントリンク</h2>
-          <p class="muted" data-i18n="pin.list.desc">発行したリンクの状態を確認し、不要になったものを無効にできます。</p>
+          <p class="muted" data-i18n="pin.list.desc">発行したリンクの状態を確認できます。使わなくなったものは無効にし、使えなくなったものは削除できます。</p>
         </div>
         <button type="button" id="pp-list-back" class="button secondary" data-i18n="pin.back">← 一覧に戻る</button>
       </div>
@@ -337,6 +337,21 @@
         <div class="modal-actions">
           <button type="button" class="button secondary" id="pp-disable-cancel" data-i18n="pin.list.disableCancel">やめる</button>
           <button type="button" class="button primary" id="pp-disable-confirm" data-i18n="pin.list.disableConfirm">無効にする</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 削除の確認（#336）。取り消せないのでモーダルで宣言してから実行する。
+         対象は「使えなくなったリンク」だけ（無効・期限切れ）。有効なものはここに来ない。 -->
+    <div class="modal-overlay" id="pp-delete-modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pp-delete-title">
+        <button type="button" class="modal-close" id="pp-delete-close" aria-label="閉じる">✕</button>
+        <h3 id="pp-delete-title" data-i18n="pin.list.deleteTitle">このリンクを削除しますか？</h3>
+        <p class="muted" data-i18n="pin.list.deleteWarn">一覧から完全に消えます。元に戻すことはできません。</p>
+        <p class="muted" id="pp-delete-target"><!-- 対象リンクのURL。app.js が入れる --></p>
+        <div class="modal-actions">
+          <button type="button" class="button secondary" id="pp-delete-cancel" data-i18n="pin.list.deleteCancel">やめる</button>
+          <button type="button" class="button primary" id="pp-delete-confirm" data-i18n="pin.list.deleteConfirm">削除する</button>
         </div>
       </div>
     </div>

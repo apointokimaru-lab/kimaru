@@ -602,6 +602,7 @@ section("pinpoint scheduling link (#303)");
   {
     const page = await newPage();
     let disabled = null;
+    let deleted = null;
     const DAY = 86400000;
     const LINKS = [
       { id: "l-live", url: "https://kimaru-co.jp/p/tk-live", page_title: "初回相談", slot_count: 2, first_slot: new Date(Date.now() + 2 * DAY).toISOString(), last_slot: new Date(Date.now() + 3 * DAY).toISOString(), hold_slots: true, hold_title: "仮おさえ", expires_at: new Date(Date.now() + DAY).toISOString(), status: "active" },
@@ -614,6 +615,7 @@ section("pinpoint scheduling link (#303)");
       // 表示日数はクライアントが要求した値をそのまま返す（サーバの許可リストと同じ振る舞い）。
       const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
       if (name === "pinpoint-deactivate") { disabled = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }); }
+      if (name === "pinpoint-delete") { deleted = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }); }
       const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "premium" } }
         : name === "pinpoint-list" ? { links: LINKS }
         : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
@@ -645,6 +647,22 @@ section("pinpoint scheduling link (#303)");
     await page.click("#pp-disable-confirm");
     await page.waitForTimeout(400);
     ok("confirming sends the link id", disabled?.id === "l-live");
+    // 削除（#336）: 使えなくなったリンク（期限切れ・無効）だけに出す
+    ok("delete is offered only for unusable links", (await page.locator('[data-pp-link-action="delete"]').count()) === 2);
+    ok("the active link cannot be deleted", (await page.locator('.list-item:has([data-pp-link-action="disable"]) [data-pp-link-action="delete"]').count()) === 0);
+    await page.locator('[data-pp-link-action="delete"]').first().click();
+    await page.waitForTimeout(250);
+    ok("deleting asks for confirmation first", await page.locator("#pp-delete-modal").isVisible());
+    ok("delete modal says it cannot be undone", (await page.textContent("#pp-delete-modal")).includes("元に戻すことはできません"));
+    ok("nothing is deleted before confirming", deleted === null);
+    await page.click("#pp-delete-cancel");
+    await page.waitForTimeout(200);
+    ok("cancelling closes the modal without deleting", await page.locator("#pp-delete-modal").isHidden() && deleted === null);
+    await page.locator('[data-pp-link-action="delete"]').first().click();
+    await page.waitForTimeout(250);
+    await page.click("#pp-delete-confirm");
+    await page.waitForTimeout(400);
+    ok("confirming sends the link id to delete", deleted?.id === "l-old");
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }

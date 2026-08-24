@@ -425,6 +425,7 @@ section("#321 copy and layout fixes");
 // ===== 9) ピンポイント日程調整（#303） =====
 section("pinpoint scheduling link (#303)");
 {
+  const DAY_MS = 86400000;
   const future = new Date(Date.now() + 5 * 86400000);
   future.setHours(14, 0, 0, 0);
   const SLOTS = [
@@ -727,6 +728,46 @@ section("pinpoint scheduling link (#303)");
     ok("the request carries the three-day expiry", created?.expires_days === 3);
     ok("no JS exception", page._errors.length === 0);
     await page.close();
+  }
+  // --- 上限に達したら候補選択を開かず、その場で理由と次の手を出す（#338） ---
+  {
+    const AT_LIMIT = [{ id: "l-live", url: "https://kimaru-co.jp/p/tk-live", page_title: "初回相談", slot_count: 1, first_slot: new Date(Date.now() + 2 * DAY_MS).toISOString(), last_slot: null, hold_slots: false, hold_title: "", expires_at: new Date(Date.now() + DAY_MS).toISOString(), status: "active" }];
+    const openAtLimit = async (plan, limit) => {
+      const page = await newPage();
+      await page.route("**/api/**", (route) => {
+        const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+        const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan } }
+          : name === "pinpoint-list" ? { links: AT_LIMIT, limits: { links: limit, slots: 3, expires_days: [3], hold: plan !== "free" }, active_count: limit }
+          : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+        route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+      });
+      await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
+      await page.waitForSelector('[data-page-action="pinpoint"]', { timeout: 8000 }).catch(() => {});
+      await page.click('[data-page-action="pinpoint"]');
+      await page.waitForTimeout(300);
+      return page;
+    };
+
+    const free = await openAtLimit("free", 1);
+    ok("hitting the limit stops at the button", await free.locator("#pp-limit-modal").isVisible());
+    ok("the picker does not open", await free.locator("#pinpoint-view").isHidden());
+    const message = await free.textContent("#pp-limit-body");
+    ok("the message names the limit", message.includes("1件"));
+    ok("it offers both disabling a link and upgrading", message.includes("無効") && message.includes("アップグレード"));
+    ok("the upgrade button points at the pricing page", (await free.getAttribute("#pp-limit-plan", "href")) === "/plan.html");
+    await free.click("#pp-limit-cancel");
+    await free.waitForTimeout(200);
+    ok("closing leaves the page list in place", await free.locator("#pp-limit-modal").isHidden() && await free.locator("#list-view").isVisible());
+    ok("no JS exception", free._errors.length === 0);
+    await free.close();
+
+    // プレミアムには上げる先が無いので、アップグレードの案内も導線も出さない。
+    const premium = await openAtLimit("premium", 5);
+    ok("premium is told about the limit too", await premium.locator("#pp-limit-modal").isVisible());
+    ok("premium is not asked to upgrade", !(await premium.textContent("#pp-limit-body")).includes("アップグレード"));
+    ok("premium gets no pricing link", await premium.locator("#pp-limit-plan").isHidden());
+    ok("no JS exception", premium._errors.length === 0);
+    await premium.close();
   }
 }
 

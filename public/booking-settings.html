@@ -367,6 +367,22 @@
       </div>
     </div>
 
+    <!-- 上限に達したときの案内（#338）。候補を選んだあとに「発行できません」と分かるより、
+         「ピンポイントリンクを作成」を押した時点で理由と次の手（無効にする／プランを上げる）を
+         出すほうが手戻りが少ない。プレミアムは上げるプランが無いので、料金ページへの導線と
+         本文は app.js が出し分ける。 -->
+    <div class="modal-overlay" id="pp-limit-modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pp-limit-title">
+        <button type="button" class="modal-close" id="pp-limit-close" aria-label="閉じる">✕</button>
+        <h3 id="pp-limit-title" data-i18n="pin.limit.title">これ以上リンクを作成できません</h3>
+        <p class="muted" id="pp-limit-body"><!-- 上限件数を含む本文。app.js が入れる --></p>
+        <div class="modal-actions">
+          <button type="button" class="button secondary" id="pp-limit-cancel" data-i18n="pin.limit.close">閉じる</button>
+          <a class="button primary" id="pp-limit-plan" href="/plan.html" data-i18n="pin.limit.upgrade">プランを見る</a>
+        </div>
+      </div>
+    </div>
+
     <!-- 月カレンダー（範囲/日付を押すと開く。空き枠のある日を選ぶとその日から表示日数ぶんを表示） -->
     <div class="modal-overlay" id="pp-cal-modal" hidden>
       <div class="modal" role="dialog" aria-modal="true" aria-label="日付を選ぶ">

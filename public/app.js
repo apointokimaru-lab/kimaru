@@ -802,6 +802,7 @@ function rangeTokenFromPage(page) {
 
 // premium は pro の全機能を含む上位プラン。プラン判定はこのヘルパで統一する。
 function isProPlan(plan) { return plan === "pro" || plan === "premium"; }
+function isPremiumPlan(plan) { return plan === "premium"; }
 
 function updateBookingPageControls() {
   const isPro = isProPlan(currentOwner?.plan);
@@ -1447,8 +1448,35 @@ function openPinpointView(pageId, slug, title) {
   ppLoadDays(null);
 }
 
-// 有効なリンクが上限に達しているかを、発行ボタンを押す前に見せる（#338）。
-// 押してから初めて 403 で弾かれる、という状態にしない。
+// 有効なリンクが上限に達しているか（#338）。上限が取れていないとき（一覧の取得に失敗・
+// ダッシュボード）は false ＝ 画面では止めない。サーバ側が 403 で止める。
+function ppLinkLimitReached() {
+  const limit = Number(ppLimits?.links || 0);
+  return limit > 0 && ppActiveCount >= limit;
+}
+
+// 上限に達していることを「ピンポイントリンクを作成」を押した時点で伝える。
+// 候補を選んだあとに発行ボタンが押せないと気づくより、押した瞬間に理由と次の手
+// （使わないリンクを無効にする／プランを上げる）を出すほうが手戻りが少ない。
+function ppOpenLimitModal() {
+  const limit = Number(ppLimits?.links || 0);
+  // プレミアムには上げる先が無いので、アップグレードの案内も導線も出さない。
+  const top = isPremiumPlan(currentOwner?.plan);
+  const body = $("#pp-limit-body");
+  if (body) body.textContent = t(top ? "pin.limit.bodyTop" : "pin.limit.body").replace("{n}", String(limit));
+  const plan = $("#pp-limit-plan");
+  if (plan) plan.hidden = top;
+  const modal = $("#pp-limit-modal");
+  if (modal) modal.hidden = false;
+}
+
+function ppCloseLimitModal() {
+  const modal = $("#pp-limit-modal");
+  if (modal) modal.hidden = true;
+}
+
+// 候補選択画面まで来てしまった場合の押さえ（発行直後に上限へ達したときなど）。
+// 入口はモーダルで止めるので、ここへ来るのは「開いている最中に上限へ達した」ときだけ。
 function ppSyncCreateLimit() {
   const limit = Number(ppLimits?.links || 0);
   const over = limit > 0 && ppActiveCount >= limit;
@@ -1669,6 +1697,9 @@ function bindPinpointList() {
       if (modal) modal.hidden = false;
     }
   });
+  $("#pp-limit-close")?.addEventListener("click", ppCloseLimitModal);
+  $("#pp-limit-cancel")?.addEventListener("click", ppCloseLimitModal);
+  $("#pp-limit-modal")?.addEventListener("click", (event) => { if (event.target.id === "pp-limit-modal") ppCloseLimitModal(); });
   $("#pp-disable-close")?.addEventListener("click", ppCloseDisableModal);
   $("#pp-disable-cancel")?.addEventListener("click", ppCloseDisableModal);
   $("#pp-disable-modal")?.addEventListener("click", (event) => { if (event.target.id === "pp-disable-modal") ppCloseDisableModal(); });
@@ -1912,6 +1943,9 @@ async function initAdmin() {
       navigator.clipboard?.writeText(url).catch(() => {});
       setMessage("#booking-list-message", `URLをコピーしました: ${url}`, "success");
     } else if (action === "pinpoint") {
+      // 上限に達しているなら候補選択を開かない（#338）。枠を選んだあとに「発行できません」と
+      // 分かるのは手戻りなので、押した時点で理由と次の手を出す。
+      if (ppLinkLimitReached()) { ppOpenLimitModal(); return; }
       const target = pages.find((p) => p.id === button.dataset.id);
       openPinpointView(button.dataset.id, button.dataset.slug, target?.title || "");
     } else if (action === "edit") {

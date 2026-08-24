@@ -1,17 +1,21 @@
-// 発行済みピンポイントリンクの一覧（#327）。ホスト専用・プレミアム限定。
+// 発行済みピンポイントリンクの一覧（#327）。ホスト専用・全プラン（#338）。
 //
 // 一覧は「予約ページ横断」で返す。ホストが見たいのは「自分が送ったリンク」であって
 // 「このページのリンク」ではないため。どの予約ページのものかは行に出す。
+//
+// 発行できるのに管理できないと、無料（同時1本）は1本目を止められず、期限3日が切れるまで
+// 2本目を作れない。発行の開放と同時に、一覧・無効化・削除も全プランへ開く（#338）。
 const { json } = require("./_lib/response");
-const { requirePremiumOwner } = require("./_lib/auth");
+const { requireOwner } = require("./_lib/auth");
 const { sb, eq } = require("./_lib/supabase");
 const { appBaseUrl } = require("./_lib/config");
+const { pinpointLimits } = require("./_lib/plan-limits");
 const pinpoint = require("./_lib/pinpoint");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "GET") return json(405, { error: "許可されていない操作です" });
   try {
-    const owner = await requirePremiumOwner(event);
+    const owner = await requireOwner(event);
     // 新しいものから。打診は直近のものを見返すことがほとんど。
     // テーブル未適用の環境では空一覧にデグレードする（画面は「まだありません」を出す）。
     const rows = await sb(`pinpoint_links?owner_id=${eq(owner.id)}&order=created_at.desc&limit=200`).catch(() => []);
@@ -39,7 +43,20 @@ exports.handler = async (event) => {
         created_at: link.created_at || null,
       };
     });
-    return json(200, { links });
+    // 上限と現在の有効本数はサーバが返す（#338）。画面側でプラン→数字の対応表を持つと、
+    // _lib/plan-limits.js と食い違ったときに気づけない。
+    const limits = pinpointLimits(owner.plan);
+    return json(200, {
+      links,
+      limits: {
+        links: limits.links,
+        slots: limits.slots,
+        expires_days: pinpoint.expiresDayChoices(owner.plan),
+        hold: limits.hold,
+      },
+      // 数えるのは有効なリンクだけ。一覧に残っている期限切れ・無効の行は含めない。
+      active_count: links.filter((link) => link.status === "active").length,
+    });
   } catch (error) {
     return json(error.statusCode || 500, { error: error.statusCode ? error.message : "サーバーでエラーが発生しました。時間をおいて再度お試しください。" });
   }

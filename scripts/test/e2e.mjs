@@ -617,16 +617,22 @@ section("pinpoint scheduling link (#303)");
       if (name === "pinpoint-deactivate") { disabled = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }); }
       if (name === "pinpoint-delete") { deleted = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }); }
       const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "premium" } }
-        : name === "pinpoint-list" ? { links: LINKS }
+        : name === "pinpoint-list" ? { links: LINKS, limits: { links: 5, slots: 30, expires_days: [3, 7], hold: true }, active_count: 1 }
         : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
     });
     await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
-    await page.waitForSelector("#pp-list-open", { timeout: 8000 }).catch(() => {});
-    ok("premium sees the link list entry", await page.locator("#pp-list-open").isVisible());
-    await page.click("#pp-list-open");
-    await page.waitForTimeout(500);
-    ok("link list replaces the page list", await page.locator("#pinpoint-list-view").isVisible() && !(await page.locator("#list-view").isVisible()));
+    await page.waitForSelector("#pp-list .list-item", { timeout: 8000 }).catch(() => {});
+    // 一覧は予約ページ一覧の下に常設（#338）。開くための操作は要らない。
+    ok("the link list is shown without opening anything", await page.locator("#pinpoint-links").isVisible());
+    ok("it sits under the booking pages, inside the same view", await page.evaluate(() => {
+      const view = document.querySelector("#list-view");
+      const section = document.querySelector("#pinpoint-links");
+      const pages = document.querySelector("#booking-pages-list");
+      return !!view && !!section && !!pages && view.contains(section)
+        && Boolean(pages.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING);
+    }));
+    ok("the active count is shown against the limit", (await page.textContent("#pp-list-count")).replace(/\s/g, "").includes("1/5"));
     ok("every issued link is listed", (await page.locator("#pp-list .list-item").count()) === 3);
     const listText = await page.textContent("#pp-list");
     ok("status labels are shown", listText.includes("有効") && listText.includes("期限切れ") && listText.includes("無効"));
@@ -663,17 +669,62 @@ section("pinpoint scheduling link (#303)");
     await page.click("#pp-delete-confirm");
     await page.waitForTimeout(400);
     ok("confirming sends the link id to delete", deleted?.id === "l-old");
+    // 候補選択を開くと、一覧も一緒に隠れる（#list-view の中に置いてあるため）。
+    await page.click('[data-page-action="pinpoint"]');
+    await page.waitForTimeout(300);
+    ok("opening the picker hides the link list too", await page.locator("#pinpoint-links").isHidden());
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }
-  // --- プレミアム限定の配信（#303）: pro には導線が出ない ---
+  // --- 無料プランの上限（#338）: 導線は出るが、候補・期限・押さえが絞られる ---
   {
     const page = await newPage();
+    let created = null;
+    const ymd = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, "0")}-${String(future.getDate()).padStart(2, "0")}`;
+    // 候補上限（無料3件）を確かめるので、枠は4つ出す。
+    const MANY = [0, 1, 2, 3].map((n) => ({
+      start: new Date(future.getTime() + n * 86400000).toISOString(),
+      end: new Date(future.getTime() + n * 86400000 + 1800000).toISOString(),
+    }));
+    await page.route("**/api/**", (route) => {
+      const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
+      if (name === "pinpoint-create") { created = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, url: "https://kimaru-co.jp/p/tok-free" }) }); }
+      const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "free" } }
+        // 無料の上限。リンクはまだ0本なので、一覧のセクションは出ない。
+        : name === "pinpoint-list" ? { links: [], limits: { links: 1, slots: 3, expires_days: [3], hold: false }, active_count: 0 }
+        : name === "availability" ? { slots: MANY, range_start: ymd, days: reqDays, questions: [], host: {}, hasPrev: false, hasNext: true }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
     await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
-    await page.waitForSelector("#booking-pages-list .list-item", { timeout: 8000 }).catch(() => {});
-    ok("pro sees the page list", (await page.locator("#booking-pages-list .list-item").count()) === 1);
-    ok("pro does not see the pinpoint button", (await page.locator('[data-page-action="pinpoint"]').count()) === 0);
-    ok("pro does not see the link list entry", await page.locator("#pp-list-open").isHidden());
+    await page.waitForSelector('[data-page-action="pinpoint"]', { timeout: 8000 }).catch(() => {});
+    ok("free sees the pinpoint button", (await page.locator('[data-page-action="pinpoint"]').count()) === 1);
+    ok("an empty link list is not shown at all", await page.locator("#pinpoint-links").isHidden());
+    await page.click('[data-page-action="pinpoint"]');
+    await page.waitForTimeout(500);
+    // 有効期限は3日固定。選べない選択肢は disabled にし、理由をその場に出す。
+    ok("expiry falls back to three days", (await page.inputValue("#pp-expires")) === "3");
+    ok("one week cannot be chosen", await page.locator('#pp-expires option[value="7"]').evaluate((el) => el.disabled) === true);
+    ok("the reason for the fixed expiry is shown", await page.locator("#pp-expires-plan").isVisible());
+    // 押さえは Pro 以上。カレンダーは連携済みなので、出る理由はプランのほうだけ。
+    ok("holding is disabled on the free plan", await page.locator('#pp-hold option[value="hold"]').evaluate((el) => el.disabled) === true);
+    ok("the plan reason is shown", await page.locator("#pp-hold-plan").isVisible());
+    ok("the calendar reason is not shown at the same time", await page.locator("#pp-hold-nocal").isHidden());
+    ok("the plan reason links to the pricing page", (await page.getAttribute("#pp-hold-plan a", "href")) === "/plan.html");
+    // 候補は3つまで。4つ目は候補に入らず、理由を出す（黙って切らない）。
+    for (const index of [0, 1, 2, 3]) {
+      await page.locator("#pp-grid .wk-slot").nth(index).click();
+      await page.waitForTimeout(120);
+    }
+    ok("the fourth candidate is refused", (await page.locator("#pp-grid .wk-slot.is-picked").count()) === 3);
+    ok("the refusal explains the limit", (await page.textContent("#pp-message")).includes("3件"));
+    ok("the tray counts against the limit", (await page.textContent("#pp-count")).replace(/\s/g, "").includes("3/3"));
+    await page.click("#pp-create");
+    await page.waitForTimeout(400);
+    ok("only three candidates are sent", created?.slots?.length === 3);
+    ok("the request carries the three-day expiry", created?.expires_days === 3);
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }

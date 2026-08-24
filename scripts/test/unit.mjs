@@ -690,11 +690,11 @@ section("pinpoint link expiry (#326)");
   const NOW = Date.parse("2026-09-01T00:00:00.000Z");
   const DAY = 86400000;
 
-  // 選べるのは3日と1週間の2つだけ。選択肢外は既定に寄せる（集合判定で弾くと画面から直せない）。
-  ok("3日を選べる", pin.expiresAtFrom(3, { now: NOW }) === new Date(NOW + 3 * DAY).toISOString());
-  ok("1週間を選べる", pin.expiresAtFrom(7, { now: NOW }) === new Date(NOW + 7 * DAY).toISOString());
-  ok("選択肢外は既定(1週間)に寄せる", pin.expiresAtFrom(99, { now: NOW }) === new Date(NOW + pin.DEFAULT_EXPIRES_DAYS * DAY).toISOString());
-  ok("未指定も既定に寄せる", pin.expiresAtFrom(undefined, { now: NOW }) === new Date(NOW + pin.DEFAULT_EXPIRES_DAYS * DAY).toISOString());
+  // 選べるのは3日と1週間の2つだけ（有料プラン）。選択肢外は既定に寄せる（集合判定で弾くと画面から直せない）。
+  ok("3日を選べる", pin.expiresAtFrom(3, { now: NOW, plan: "pro" }) === new Date(NOW + 3 * DAY).toISOString());
+  ok("1週間を選べる", pin.expiresAtFrom(7, { now: NOW, plan: "pro" }) === new Date(NOW + 7 * DAY).toISOString());
+  ok("選択肢外は既定(1週間)に寄せる", pin.expiresAtFrom(99, { now: NOW, plan: "pro" }) === new Date(NOW + pin.DEFAULT_EXPIRES_DAYS * DAY).toISOString());
+  ok("未指定も既定に寄せる", pin.expiresAtFrom(undefined, { now: NOW, plan: "pro" }) === new Date(NOW + pin.DEFAULT_EXPIRES_DAYS * DAY).toISOString());
 
   // 期限判定。列が無い/null は無期限（#326 より前に発行済みのリンクを切らないため）。
   ok("期限前は切れていない", !pin.isExpired({ expires_at: new Date(NOW + DAY).toISOString() }, { now: NOW }));
@@ -790,9 +790,17 @@ section("pinpoint link list and manual disable (#327)");
   // トークンそのものは一覧に出さない（URLがあれば足りる）
   ok("生のトークンは返さない", byId["pv-live"].token === undefined);
 
-  // 無料プランは一覧を見られない（発行と同じプレミアム条件）
+  // 一覧は全プランで見られる（#338）。発行できるのに管理できないと、無料（同時1本）は
+  // 1本目を止められず2本目を作れない。上限と有効本数もサーバが返す。
   const asFree = await listFn.handler({ httpMethod: "GET", headers: { cookie: freeCookie } });
-  ok("無料プランは一覧を見られない", asFree.statusCode === 403);
+  const freeBody = JSON.parse(asFree.body);
+  ok("無料プランでも一覧を見られる", asFree.statusCode === 200);
+  ok("無料の上限を返す", freeBody.limits.links === 1 && freeBody.limits.slots === 3 && freeBody.limits.hold === false);
+  ok("無料の期限は3日のみ", JSON.stringify(freeBody.limits.expires_days) === "[3]");
+  const mineBody = JSON.parse(listed.body);
+  ok("プレミアムの上限を返す", mineBody.limits.links === 5 && mineBody.limits.slots === 30 && mineBody.limits.hold === true);
+  // 有効なリンクだけを数える（期限切れ pv-old・無効化済み pv-off は含めない）。
+  ok("有効なリンクの本数を返す", mineBody.active_count === 1);
 
   // 無効化
   const patches = [];
@@ -806,8 +814,9 @@ section("pinpoint link list and manual disable (#327)");
   ok("is_active を false にする", patches.some((p) => p.body.is_active === false));
 
   // 他人のリンクは止められない（owner_id で必ず絞る）
+  // 全プランに開放したので、他人のリンクを弾くのはプラン判定ではなく owner_id の絞り込み（#338）。
   const other = await offFn.handler({ httpMethod: "POST", headers: { cookie: freeCookie }, body: JSON.stringify({ id: "pv-live" }) });
-  ok("他人のリンクは無効にできない", other.statusCode === 403);
+  ok("他人のリンクは無効にできない", other.statusCode === 404);
 
   const missing = await offFn.handler({ httpMethod: "POST", headers: { cookie }, body: JSON.stringify({ id: "存在しないid" }) });
   ok("存在しないリンクは404", missing.statusCode === 404);
@@ -1012,12 +1021,103 @@ section("pinpoint link deletion is limited to unusable links (#336)");
   ok("押さえが残るリンクも削除できる", (await del("pd-held")).statusCode === 200);
   ok("削除前にGoogle予定を消す", googleDeletes.length > before);
 
-  ok("他人のリンクは削除できない", (await del("pd-off", freeCookie)).statusCode === 403);
+  // 他人のリンクは owner_id の絞り込みで見つからない＝404（プラン判定では弾かない・#338）。
+  ok("他人のリンクは削除できない", (await del("pd-off", freeCookie)).statusCode === 404);
   ok("存在しないidは404", (await del("存在しないid")).statusCode === 404);
   ok("idなしは400", (await delFn.handler({ httpMethod: "POST", headers: { cookie }, body: JSON.stringify({}) })).statusCode === 400);
   ok("GETは405", (await delFn.handler({ httpMethod: "GET", headers: { cookie } })).statusCode === 405);
   globalThis.fetch = prevFetch;
   DB.google_connections = [];
+}
+
+// ---------- 9p) #338 ピンポイントのプラン別上限（全プラン開放） ----------
+section("pinpoint plan limits (#338)");
+{
+  const pin = requireCjs(path.join(repo, "netlify/functions/_lib/pinpoint.js"));
+  const { pinpointLimits } = requireCjs(path.join(repo, "netlify/functions/_lib/plan-limits.js"));
+  const createFn = requireCjs(path.join(repo, "netlify/functions/pinpoint-create.js"));
+  const DAY = 86400000;
+
+  // 上限の数値は plan-limits.js の1か所に集約する（画面もサーバもここを見る）。
+  ok("無料の上限", pinpointLimits("free").links === 1 && pinpointLimits("free").slots === 3 && pinpointLimits("free").hold === false);
+  ok("Proの上限", pinpointLimits("pro").links === 3 && pinpointLimits("pro").slots === 7 && pinpointLimits("pro").hold === true);
+  ok("プレミアムの上限", pinpointLimits("premium").links === 5 && pinpointLimits("premium").slots === 30 && pinpointLimits("premium").hold === true);
+  ok("未知のプランは無料に寄る", pinpointLimits(undefined).links === 1);
+
+  // 有効期限はプラン別。無料が「1週間」を送ってきても、弾かずに3日へ丸める（#300 の教訓）。
+  const NOW = Date.parse("2026-09-01T00:00:00.000Z");
+  ok("無料は選択肢が3日だけ", JSON.stringify(pin.expiresDayChoices("free")) === "[3]");
+  ok("有料は3日と1週間", JSON.stringify(pin.expiresDayChoices("pro")) === "[3,7]");
+  ok("無料の1週間は3日に丸まる", pin.expiresAtFrom(7, { now: NOW, plan: "free" }) === new Date(NOW + 3 * DAY).toISOString());
+  ok("無料の既定も3日", pin.expiresAtFrom(undefined, { now: NOW, plan: "free" }) === new Date(NOW + 3 * DAY).toISOString());
+
+  // 有効なリンクの本数。期限切れ・無効化済みは数えない（数えると、行を消すまで次を作れない）。
+  const LINKS = [
+    { id: "cnt-live", owner_id: FREE_OWNER.id, is_active: true, expires_at: new Date(Date.now() + DAY).toISOString() },
+    { id: "cnt-expired", owner_id: FREE_OWNER.id, is_active: true, expires_at: new Date(Date.now() - DAY).toISOString() },
+    { id: "cnt-off", owner_id: FREE_OWNER.id, is_active: false, expires_at: null },
+  ];
+  const prevFetch = globalThis.fetch;
+  const mock = (rowsFor) => async (url, init) => {
+    const u = new URL(String(url));
+    const table = u.pathname.replace("/rest/v1/", "").split("?")[0];
+    // 挿入はそのまま返す（PostgREST の Prefer: return=representation 相当）。
+    if (init?.method === "POST") return { ok: true, status: 200, text: async () => JSON.stringify([{ id: "new-link", ...JSON.parse(init.body) }]) };
+    let rows = rowsFor(table);
+    for (const [k, v] of u.searchParams) {
+      if (typeof v !== "string") continue;
+      if (v.startsWith("eq.")) rows = rows.filter((r) => String(r[k]) === decodeURIComponent(v.slice(3)));
+      // is_active=is.true は PostgREST 側で絞られる。期限切れの除外だけが JS 側の仕事。
+      if (v === "is.true") rows = rows.filter((r) => r[k] === true);
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify(rows) };
+  };
+  globalThis.fetch = mock((table) => (table === "pinpoint_links" ? LINKS : DB[table] || []));
+  ok("期限切れ・無効は有効本数に数えない", (await pin.activeLinkCount(FREE_OWNER.id)) === 1);
+
+  // 無料オーナーでの発行。予約ページは必ず本人のものに限るので、無料用のページを足す。
+  DB.booking_pages.push({ id: "bp-free", owner_id: FREE_OWNER.id, slug: "free-page", title: "無料", location_type: "zoom", is_active: true });
+  const future = (n) => {
+    const at = new Date(Date.now() + n * 86400000);
+    at.setUTCMinutes(0, 0, 0);
+    return { start: at.toISOString(), end: new Date(at.getTime() + 1800000).toISOString() };
+  };
+  const createFree = (body, links = []) => {
+    globalThis.fetch = mock((table) => (table === "pinpoint_links" ? links : DB[table] || []));
+    return createFn.handler({ httpMethod: "POST", headers: { cookie: freeCookie }, body: JSON.stringify({ booking_page_id: "bp-free", slots: [future(2)], ...body }) });
+  };
+
+  // 候補数: 超過は「多いぶんを黙って切る」のではなく 400 で止める。
+  const tooMany = await createFree({ slots: [future(2), future(3), future(4), future(5)] });
+  ok("無料は候補4件で400", tooMany.statusCode === 400 && JSON.parse(tooMany.body).error.includes("3件"));
+  const justFit = await createFree({ slots: [future(2), future(3), future(4)] });
+  ok("無料は候補3件なら通る", justFit.statusCode === 200);
+  ok("候補を黙って切らない", JSON.parse(justFit.body).slots.length === 3);
+
+  // 期限: 無料が1週間を送っても3日のリンクになる（400 にはしない）。
+  const rounded = await createFree({ expires_days: 7 });
+  const expiresAt = new Date(JSON.parse(rounded.body).expires_at).getTime();
+  ok("無料の1週間指定は3日で発行される", rounded.statusCode === 200 && Math.abs(expiresAt - (Date.now() + 3 * DAY)) < 60000);
+
+  // 押さえ: Pro 以上。カレンダー連携済みでも無料は押さえられない（連携を促す文言も返さない）。
+  DB.google_connections = [{ owner_id: FREE_OWNER.id, access_token: "x", refresh_token: "y", expires_at: new Date(Date.now() + 3600000).toISOString() }];
+  const heldByFree = await createFree({ hold_slots: true, hold_title: "仮おさえ" });
+  ok("無料は押さえられない", heldByFree.statusCode === 400 && JSON.parse(heldByFree.body).error.includes("Proプラン"));
+  ok("無料の押さえ拒否は連携を促さない", !JSON.parse(heldByFree.body).error.includes("連携"));
+  DB.google_connections = [];
+
+  // リンク数: 有効なリンクが上限に達していたら発行できない。期限切れ・無効は数えない。
+  const active = { id: "free-live", owner_id: FREE_OWNER.id, is_active: true, expires_at: new Date(Date.now() + DAY).toISOString() };
+  const over = await createFree({}, [active]);
+  ok("無料は2本目を発行できない", over.statusCode === 403 && JSON.parse(over.body).error.includes("1件"));
+  const dead = await createFree({}, [
+    { id: "free-old", owner_id: FREE_OWNER.id, is_active: true, expires_at: new Date(Date.now() - DAY).toISOString() },
+    { id: "free-off", owner_id: FREE_OWNER.id, is_active: false, expires_at: null },
+  ]);
+  ok("期限切れ・無効が残っていても次を発行できる", dead.statusCode === 200);
+
+  DB.booking_pages = DB.booking_pages.filter((page) => page.id !== "bp-free");
+  globalThis.fetch = prevFetch;
 }
 
 // ---------- 10) Zoom deauthorize webhook（Marketplace公開要件） ----------

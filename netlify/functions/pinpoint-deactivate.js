@@ -1,17 +1,17 @@
-// ピンポイントリンクを手動で無効にする（#327）。ホスト専用・プレミアム限定。
+// ピンポイントリンクを手動で無効にする（#327）。ホスト専用・全プラン（#338）。
 //
 // 無効化は取り消せない。押さえていたGoogleカレンダーの予定を消してしまうので、
 // is_active を戻しても同じ状態には復元できないため（画面のモーダルでもそう宣言している）。
 // 復活の導線を作ると宣言と食い違うので、この関数にも「戻す」経路は無い。
 const { json, readJson } = require("./_lib/response");
-const { requirePremiumOwner } = require("./_lib/auth");
+const { requireOwner } = require("./_lib/auth");
 const { sb, eq } = require("./_lib/supabase");
 const pinpoint = require("./_lib/pinpoint");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "許可されていない操作です" });
   try {
-    const owner = await requirePremiumOwner(event);
+    const owner = await requireOwner(event);
     const body = readJson(event);
     const id = String(body.id || "").trim();
     if (!id) return json(400, { error: "対象のリンクを指定してください" });

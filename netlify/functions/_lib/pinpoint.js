@@ -2,6 +2,7 @@
 // 発行API・取得API・予約成立（book.js）・空き枠計算（availability-core）から使う。
 const { sb, eq } = require("./supabase");
 const { createBufferEvent, deleteCalendarEvent } = require("./google");
+const { pinpointLimits } = require("./plan-limits");
 
 // URL に載るトークン。slug と違い推測されては困るので、十分な長さの乱数にする。
 // 紛らわしい文字（0/O/1/l）を除いて、口頭やメールで写し間違えないようにする。
@@ -15,6 +16,10 @@ function newToken(length = 22) {
 
 // 候補枠の正規化。{start, end} の ISO8601 のみ受け付け、壊れた値・過去・重複は落とす。
 // 上限を設けるのは、巨大な配列を送られて空き枠計算が重くなるのを防ぐため。
+//
+// ここで切るのは「絶対上限」だけ（＝どのプランでも越えられない値）。プラン別の候補数（#338）は
+// pinpoint-create.js が正規化後の件数を見て 400 で止める。ここで plan の値まで slice すると、
+// 7つ選んだのに相手には3つしか出ない＝設定が黙って消える事故になる（#300 の教訓）。
 const MAX_SLOTS = 30;
 function normalizeSlots(input, { now = Date.now() } = {}) {
   const seen = new Set();
@@ -36,13 +41,24 @@ function normalizeSlots(input, { now = Date.now() } = {}) {
 // リンクの有効期限（#326）。選べるのは3日か1週間の2つだけ。
 // 期限は「リンクの有効期限」で、候補の日時とは独立している。期限3日のリンクに10日後の
 // 候補が入っていてよく、期限が来ればリンク側が切れる（候補が未来でも予約できない）。
+//
+// 選択肢はプランで変わる（#338）。無料は3日のみ、有料は3日/1週間。既定は選択肢の末尾
+// （無料3日 / 有料1週間）。plan 未指定は planLimits と同じく free に寄る。
 const EXPIRES_DAY_CHOICES = [3, 7];
 const DEFAULT_EXPIRES_DAYS = 7;
-function expiresAtFrom(days, { now = Date.now() } = {}) {
+function expiresAtFrom(days, { now = Date.now(), plan } = {}) {
+  const choices = expiresDayChoices(plan);
+  const fallback = choices[choices.length - 1];
   const value = Number(days);
   // 選択肢外は既定に寄せる。集合判定で弾くと画面から直せない値になるため（#300 の教訓）。
-  const chosen = EXPIRES_DAY_CHOICES.includes(value) ? value : DEFAULT_EXPIRES_DAYS;
+  // 無料が「1週間」を送ってきた場合もここで3日に丸まる（400 にはしない）。
+  const chosen = choices.includes(value) ? value : fallback;
   return new Date(now + chosen * 86400000).toISOString();
+}
+
+function expiresDayChoices(plan) {
+  const choices = pinpointLimits(plan).expiresDays;
+  return Array.isArray(choices) && choices.length ? choices.map(Number) : EXPIRES_DAY_CHOICES;
 }
 
 // 期限切れかどうか。expires_at が無い（列未適用・#326 より前に発行済み）なら無期限として扱う。
@@ -92,6 +108,19 @@ async function heldBusyFor(ownerId, { exceptId = null } = {}) {
     .filter((row) => !isExpired(row))
     .flatMap((row) => (Array.isArray(row.slots) ? row.slots : []))
     .filter((slot) => slot && slot.start && slot.end);
+}
+
+// 「有効なリンク」の本数（#338）。プラン別のリンク数上限は、累計の発行回数ではなく
+// この同時保有数で判定する（累計にすると無料は生涯1本しか作れない）。
+// 数えるのは is_active=true かつ期限内のものだけ。期限切れ・無効化済みは、一覧に行が
+// 残っていても数えない（消さないと次が作れない、という状態を作らないため）。
+//
+// heldBusyFor と同じ理由で select を指定せず全列取る。expires_at を名指しすると、列が未適用の
+// 環境では PostgREST がエラーになり、catch で 0 件＝上限が効かない状態に落ちる。
+async function activeLinkCount(ownerId) {
+  if (!ownerId) return 0;
+  const rows = await sb(`pinpoint_links?owner_id=${eq(ownerId)}&is_active=is.true`).catch(() => []);
+  return (rows || []).filter((row) => !isExpired(row)).length;
 }
 
 // 押さえ予定の予定項目名。Googleカレンダーの summary になるので長さを切る。
@@ -194,6 +223,8 @@ module.exports = {
   normalizeHoldTitle,
   expiresAtFrom,
   isExpired,
+  expiresDayChoices,
+  activeLinkCount,
   findByToken,
   includesSlot,
   heldBusyFor,

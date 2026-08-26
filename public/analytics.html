@@ -15,14 +15,8 @@
   <div class="op-layout">
     <aside class="op-sidebar">
       <a class="op-brand" href="/cat-key-admin.html">キマル<span class="brand-tag">運営</span></a>
-      <nav class="op-nav">
-        <a class="op-nav-item" href="#overview" data-view="overview">サマリー</a>
-        <a class="op-nav-item" href="#revenue" data-view="revenue">課金・転換</a>
-        <a class="op-nav-item" href="#activation" data-view="activation">定着</a>
-        <a class="op-nav-item" href="#screens" data-view="screens">画面の利用状況</a>
-        <a class="op-nav-item" href="/cat-key-admin.html">ユーザー・Cat Key</a>
-        <a class="op-nav-item" href="/operators.html">運営者管理</a>
-      </nav>
+      <nav class="op-nav" data-operator-nav></nav>
+      <script src="/operator-nav.js"></script>
       <div class="op-sidebar-foot">
         <select class="lang-select" data-language-select aria-label="Language"></select>
         <button id="operator-logout" class="link-button" type="button">ログアウト</button>
@@ -478,18 +472,15 @@
       load();
     });
 
-    // ビュー切替（cat-key-admin.html と同じ hash 方式）
+    // ビュー切替（cat-key-admin.html と同じ hash 方式）。
+    // メニューの選択表示とリンクの横取りは共通サイドメニュー（operator-nav.js）の担当。
     const VIEWS = ['overview', 'revenue', 'activation', 'screens'];
     function showView(name) {
       const target = VIEWS.includes(name) ? name : 'overview';
       document.querySelectorAll('.op-view').forEach((view) => view.classList.remove('is-active'));
       document.querySelector(`#view-${target}`).classList.add('is-active');
-      document.querySelectorAll('.op-nav-item[data-view]').forEach((link) => link.classList.toggle('is-active', link.dataset.view === target));
       if (location.hash.slice(1) !== target) history.replaceState(null, '', `#${target}`);
     }
-    document.querySelectorAll('.op-nav-item[data-view]').forEach((link) => {
-      link.addEventListener('click', (event) => { event.preventDefault(); showView(link.dataset.view); });
-    });
     window.addEventListener('hashchange', () => showView(location.hash.slice(1)));
     showView(location.hash.slice(1) || 'overview');
 

@@ -217,6 +217,8 @@
   .operator-console .panel,
   .operator-console .brand-tag,
   .operator-console .op-view.is-active { animation: none; }
+  .operator-console .op-nav-group > summary::after,
+  .operator-console .op-nav-sub,
   .operator-console .list-item,
   .operator-console .op-nav-item,
   .operator-console .op-table tbody tr { transition: none; }
@@ -274,6 +276,44 @@
   background: var(--op-blue-soft);
   border-left-color: var(--op-blue);
 }
+/* アコーディオン（分析ダッシュボードのように、中に複数のビューを持つ項目）。
+   子項目まで出すのは、別の画面からでも目的のビューへ直接飛べるようにするため。
+   <details> を使うので開閉とキーボード操作はブラウザ任せ（JSを増やさない）。 */
+.operator-console .op-nav-group > summary {
+  list-style: none;
+  justify-content: flex-start;
+}
+.operator-console .op-nav-group > summary::-webkit-details-marker { display: none; }
+.operator-console .op-nav-group > summary::after {
+  content: "▾";
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.55;
+  transition: transform 0.15s ease;
+}
+.operator-console .op-nav-group[open] > summary::after { transform: rotate(180deg); }
+/* 現在この画面にいることは見出しにも出す（開いている＝現在地とは限らないため） */
+.operator-console .op-nav-group > summary.is-current { color: var(--op-blue-2); }
+.operator-console .op-nav-subs { margin: 2px 0 4px 13px; border-left: 1px solid var(--op-line); }
+.operator-console .op-nav-sub {
+  display: block;
+  padding: 8px 12px;
+  color: var(--op-soft);
+  font-family: var(--op-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  border-left: 2px solid transparent;
+  margin-left: -1px;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.operator-console .op-nav-sub:hover { color: var(--op-blue-2); background: var(--op-blue-soft); }
+.operator-console .op-nav-sub.is-active {
+  color: var(--op-blue-2);
+  font-weight: 700;
+  background: var(--op-blue-soft);
+  border-left-color: var(--op-blue);
+}
+
 .operator-console .op-sidebar-foot {
   margin-top: auto;
   display: flex;
@@ -407,6 +447,11 @@
   }
   .operator-console .op-brand { margin: 0 14px 0 4px; }
   .operator-console .op-nav { flex-direction: row; flex-wrap: wrap; }
+  /* 開いたアコーディオンは行を独り占めさせる（横並びのまま子を出すと行が崩れる） */
+  .operator-console .op-nav-group[open] { flex-basis: 100%; }
+  .operator-console .op-nav-subs { margin: 0; border-left: 0; display: flex; flex-wrap: wrap; }
+  .operator-console .op-nav-sub { border-left: 0; border-bottom: 2px solid transparent; margin-left: 0; }
+  .operator-console .op-nav-sub.is-active { border-left: 0; border-bottom-color: var(--op-blue); }
   .operator-console .op-sidebar-foot { margin: 0 0 0 auto; flex-direction: row; border-top: 0; padding-top: 0; }
   .operator-console .op-sidebar-foot .lang-select { width: auto; }
 }

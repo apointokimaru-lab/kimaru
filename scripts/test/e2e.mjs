@@ -871,24 +871,29 @@ section("analytics dashboard (#343)");
   ok("サマリーにMRR概算が出る", stats.includes("10,280"));
   ok("推移グラフが描かれる", (await page.locator("#chart-signups svg").count()) === 1 && (await page.locator("#chart-bookings svg rect").count()) > 0);
 
-  await page.click('.op-nav-item[data-view="revenue"]');
+  await page.click('.op-nav-sub[data-nav-href="/analytics.html#revenue"]');
   await page.waitForTimeout(150);
   const cohorts = await page.textContent("#cohort-list");
   ok("コホート表が新しい月から並ぶ", cohorts.indexOf("2026-08") < cohorts.indexOf("2026-07"));
   ok("コホートの転換率が出る", cohorts.includes("31.8%"));
 
-  await page.click('.op-nav-item[data-view="activation"]');
+  await page.click('.op-nav-sub[data-nav-href="/analytics.html#activation"]');
   await page.waitForTimeout(150);
   const funnelText = await page.textContent("#activation-funnel");
   ok("定着ファネルが母数に対する割合で出る", funnelText.includes("33") && funnelText.includes("82.5%"));
   ok("取得できない段は0ではなく—で出す", funnelText.includes("—"));
 
-  await page.click('.op-nav-item[data-view="screens"]');
+  await page.click('.op-nav-sub[data-nav-href="/analytics.html#screens"]');
   await page.waitForTimeout(150);
   ok("画面別の表が出る", (await page.textContent("#pages-list")).includes("/b/:slug"));
   ok("画面×プランの内訳が出る", (await page.textContent("#plan-pages-list")).includes("300"));
   ok("流入元が出る", (await page.textContent("#sources-list")).includes("www.google.com"));
   ok("PV/UVの折れ線が2本ある", (await page.locator("#chart-usage svg path").count()) === 2);
+
+  // サイドメニューは3画面で共通。分析だけ子ビューまでアコーディオンで出す。
+  ok("メニューは現在地の子項目を選択状態にする", await page.locator('.op-nav-sub[data-nav-href="/analytics.html#screens"].is-active').count() === 1);
+  ok("親のアコーディオンは開いたまま", await page.locator(".op-nav-group[open]").count() === 1);
+  ok("他画面への導線も同じメニューに並ぶ", (await page.locator('.op-nav-item[data-nav-href="/operators.html"]').count()) === 1);
 
   // 期間ボタンはサーバへ days を渡す（クライアント側だけで切ったふりをしない）
   page._requests.length = 0;
@@ -910,6 +915,38 @@ section("analytics dashboard (#343)");
   ok("未計測は0ではなく理由を出す", body.includes("page_events") && !body.includes("表示数（PV）"));
   ok("no JS exception", notReady._errors.length === 0);
   await notReady.close();
+}
+
+// ===== 運営コンソールの共通サイドメニュー（#343）=====
+// 画面ごとにメニューを直書きしていたため、移動するたび項目が入れ替わって現在地が分からなくなっていた。
+// 3画面で同じ項目が並ぶことを固定する（片方だけ直して崩れるのを防ぐ）。
+section("operator console: shared side menu (#343)");
+{
+  const labels = [];
+  for (const name of ["cat-key-admin", "operators", "analytics"]) {
+    const page = await newPage();
+    await page.goto(`${base}/${name}.html`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(300);
+    labels.push(await page.$$eval(".op-nav [data-nav-href]", (nodes) => nodes.map((n) => n.getAttribute("data-nav-href")).join(",")));
+    ok(`${name}: メニューが描画される`, (await page.locator(".op-nav [data-nav-href]").count()) === 8);
+    ok(`${name}: JS例外なし`, page._errors.length === 0);
+    await page.close();
+  }
+  ok("3画面でメニューの項目が完全に一致する", labels[0] === labels[1] && labels[1] === labels[2]);
+
+  // 別画面からでも分析の子ビューへ直接飛べる（アコーディオンを開いて選ぶ）
+  const page = await newPage();
+  await page.goto(`${base}/operators.html`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(300);
+  ok("他画面では分析のアコーディオンは閉じている", (await page.locator(".op-nav-group[open]").count()) === 0);
+  await page.click(".op-nav-group > summary");
+  ok("見出しを押すと開く", (await page.locator(".op-nav-group[open]").count()) === 1);
+  await page.click('.op-nav-sub[data-nav-href="/analytics.html#activation"]');
+  await page.waitForURL("**/analytics.html#activation", { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  ok("子項目から直接そのビューが開く", await page.locator("#view-activation.is-active").count() === 1);
+  ok("no JS exception", page._errors.length === 0);
+  await page.close();
 }
 
 await browser.close();

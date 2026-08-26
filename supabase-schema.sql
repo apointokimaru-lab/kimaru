@@ -457,3 +457,49 @@ alter table pinpoint_links add column if not exists hold_events jsonb not null d
 -- 未適用の環境では全リンクが無期限として動く（列が無ければ undefined → 期限なし判定）。
 alter table pinpoint_links add column if not exists expires_at timestamptz;
 create index if not exists pinpoint_links_expires_idx on pinpoint_links (expires_at) where expires_at is not null;
+
+-- 利用計測（#342）。「どの画面がどれだけ使われているか」を持つ唯一のテーブル。
+-- なぜ必要か: 計測は入れた時点から先しか貯まらない（過去に遡れない）。外部の計測SaaSを使わない方針なので自前で持つ。
+-- 保存するのは正規化済みの画面名まで。生URL・クエリ（/p/<token> や ?t= の鍵）・IPアドレスは保存しない。
+-- visitor_hash は「日付＋IP＋UA」のHMAC＝日をまたぐと同じ人でも別IDになる。当日のUUは数えられるが継続追跡はできない。
+-- 未適用の環境では usage.js の書き込みが黙って失敗するだけで、画面・既存機能は壊れない。
+create table if not exists page_events (
+  id uuid primary key default gen_random_uuid(),
+  event text not null default 'page_view',
+  page text not null default '',
+  owner_id uuid references owners(id) on delete set null,
+  visitor_hash text not null default '',
+  referrer_host text not null default '',
+  device text not null default '',
+  lang text not null default '',
+  meta jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists page_events_created_idx on page_events (created_at desc);
+create index if not exists page_events_page_created_idx on page_events (page, created_at desc);
+create index if not exists page_events_owner_created_idx on page_events (owner_id, created_at desc);
+
+-- 集計ビュー。PostgREST はビューもそのまま読めるので、集計画面（#343）が生ログを全件取らずに済む。
+-- 日付は JST で切る（UTCで切ると日本時間の朝9時までの行動が前日に混ざり、日次推移が読めなくなる）。
+create or replace view page_events_daily as
+  select (created_at at time zone 'Asia/Tokyo')::date as day,
+         page,
+         count(*)::bigint as views,
+         count(distinct visitor_hash) filter (where visitor_hash <> '')::bigint as visitors
+    from page_events
+   where event = 'page_view'
+   group by 1, 2;
+
+-- プラン別内訳。owner_id が無い行（未ログイン）は 'guest' として数える。
+-- plan は「集計時点の現在のプラン」であって閲覧時点のプランではない（1PVごとにプランを控えると
+-- 計測のたびにアカウント照会が必要になり、計測のほうが本体より重くなる）。
+create or replace view page_events_by_plan as
+  select (e.created_at at time zone 'Asia/Tokyo')::date as day,
+         e.page,
+         coalesce(o.plan, 'guest') as plan,
+         count(*)::bigint as views,
+         count(distinct e.visitor_hash) filter (where e.visitor_hash <> '')::bigint as visitors
+    from page_events e
+    left join owners o on o.id = e.owner_id
+   where e.event = 'page_view'
+   group by 1, 2, 3;

@@ -503,3 +503,14 @@ create or replace view page_events_by_plan as
     left join owners o on o.id = e.owner_id
    where e.event = 'page_view'
    group by 1, 2, 3;
+
+-- 流入元・端末の内訳。referrer_host / device は上の2ビューに入れていない（画面×日で持つと行が増えるだけ）。
+-- 生ログを直接集計しないのは、期間を広げたときに数万行を丸ごとFunctionへ引くことになるため。
+create or replace view page_events_sources as
+  select (created_at at time zone 'Asia/Tokyo')::date as day,
+         coalesce(nullif(referrer_host, ''), '(direct)') as source,
+         device,
+         count(*)::bigint as views
+    from page_events
+   where event = 'page_view'
+   group by 1, 2, 3;

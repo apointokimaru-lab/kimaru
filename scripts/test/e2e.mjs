@@ -74,6 +74,9 @@ const MOCK_USAGE_SUMMARY = {
     total: 42, active: 40, disabled: 2, pending_cat_key: 1,
     email_verified: 30, email_verified_rate: 71.4,
     by_plan: { free: 30, pro: 9, premium: 3 }, paid: 12, paid_rate: 28.6,
+    paying: 8, paying_rate: 19,
+    by_plan_source: { pro: { paying: 6, cat_key: 3, other: 0 }, premium: { paying: 2, cat_key: 1, other: 0 } },
+    cat_key_paid: 4, granted_other: 0,
     signups_in_range: 7,
     signups_daily: USAGE_DAYS.map((day, i) => ({ day, count: i % 5 === 0 ? 2 : 0 })),
     signups_monthly: [{ month: "2026-06", count: 0 }, { month: "2026-07", count: 20 }, { month: "2026-08", count: 22 }],
@@ -81,6 +84,8 @@ const MOCK_USAGE_SUMMARY = {
   revenue: {
     available: true, paying_pro: 6, paying_premium: 2, paying_total: 8, cat_key_paid: 4,
     mrr_estimate: 6 * 980 + 2 * 2200, price: { pro: 980, premium: 2200 },
+    granted_other: 0,
+    by_plan_source: { pro: { paying: 6, cat_key: 3, other: 0 }, premium: { paying: 2, cat_key: 1, other: 0 } },
     cancel_events: 3, cancel_events_in_range: 1,
     days_to_paid: { samples: 8, p25: 2, median: 5.5, p75: 12 },
     limit_hits_available: true,
@@ -926,7 +931,9 @@ section("analytics dashboard (#343)");
   ok("北極星は人数と前月比も並べる", north.includes("11") && north.includes("12"));
   const stats = await page.textContent("#overview-stats");
   ok("サマリーにアカウント数が出る", stats.includes("42"));
-  ok("サマリーに有料転換率が出る", stats.includes("28.6%"));
+  // 「有料」は2つの意味を持つ。無償のCat Keyが「転換した」ように見えないよう、率は売上ベースで出す（#349）。
+  ok("サマリーの率は売上ベース（課金転換率）", stats.includes("19%") && stats.includes("課金転換率"));
+  ok("有料プランの内訳に課金とCat Keyが並ぶ", stats.includes("課金 8") && stats.includes("Cat Key 4"));
   ok("サマリーは予約の累計を出す", stats.includes("120") && stats.includes("11.7%"));
   ok("サマリーでは期間タブを隠す", await page.locator("#range-buttons").isHidden());
   ok("サマリーの但し書きは全体の累計", (await page.textContent("#admin-message")).includes("全体の累計"));
@@ -960,6 +967,10 @@ section("analytics dashboard (#343)");
   const cohorts = await page.textContent("#cohort-list");
   ok("コホート表が新しい月から並ぶ", cohorts.indexOf("2026-08") < cohorts.indexOf("2026-07"));
   ok("コホートの転換率が出る", cohorts.includes("31.8%"));
+  const planSource = await page.textContent("#plan-source-list");
+  ok("プランごとに課金とCat Keyを分けて出す", planSource.includes("Pro") && planSource.includes("6") && planSource.includes("3"));
+  ok("無償の有料会員がまとめて出る", (await page.textContent("#revenue-stats")).includes("無償の有料会員"));
+
   const limitHits = await page.textContent("#limit-hits-list");
   ok("有料の壁が機能別に出る", limitHits.includes("予約ページの数") && limitHits.includes("12"));
   ok("壁は当時のプランつきで出る", limitHits.includes("無料"));

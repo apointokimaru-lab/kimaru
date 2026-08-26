@@ -159,11 +159,24 @@ exports.handler = async (event) => {
       }
       if (isGrant && ev.owner_id && !firstGrantAt.has(ev.owner_id)) firstGrantAt.set(ev.owner_id, ev.created_at);
     }
-    const paying = owners.filter((owner) => firstGrantAt.has(owner.id) && (owner.plan === "pro" || owner.plan === "premium"));
+    // 「有料」は2つの意味を持つ（有料プランの機能を使っている人 ／ 売上になっている人）。
+    // 混ぜると、Cat Key の無償Proが18件あるだけで「有料転換率41.7%」に見えて売上が立っているように
+    // 読めてしまう（#349）。プランごとに 課金 / Cat Key（無償）/ その他（無償・運営付与）へ割る。
+    const PAID_PLANS = ["pro", "premium"];
+    const planSource = { pro: { paying: 0, cat_key: 0, other: 0 }, premium: { paying: 0, cat_key: 0, other: 0 } };
+    for (const owner of owners) {
+      if (!PAID_PLANS.includes(owner.plan)) continue;
+      const bucket = firstGrantAt.has(owner.id) ? "paying" : (owner.invite_code ? "cat_key" : "other");
+      planSource[owner.plan][bucket] += 1;
+    }
+    const catKeyPaidCount = planSource.pro.cat_key + planSource.premium.cat_key;
+    const grantedOtherCount = planSource.pro.other + planSource.premium.other;
+
+    const paying = owners.filter((owner) => firstGrantAt.has(owner.id) && PAID_PLANS.includes(owner.plan));
     const payingPro = paying.filter((owner) => owner.plan === "pro").length;
     const payingPremium = paying.filter((owner) => owner.plan === "premium").length;
-    // Cat Key の無償Pro。招待コードを持ち、決済イベントが無い有料アカウント＝売上にはならない会員。
-    const catKeyPaid = owners.filter((o) => (o.plan === "pro" || o.plan === "premium") && o.invite_code && !firstGrantAt.has(o.id)).length;
+    // Cat Key の無償Pro＝売上にはならない有料会員（上の planSource から取る。同じ判定を2か所に置かない）。
+    const catKeyPaid = catKeyPaidCount;
 
     const daysToPaid = [];
     for (const owner of owners) {
@@ -412,8 +425,16 @@ exports.handler = async (event) => {
         email_verified: verified,
         email_verified_rate: rate(verified, owners.length),
         by_plan: planCount,
+        // プランベース（有料機能を使えている人）
         paid: paidCount,
         paid_rate: rate(paidCount, owners.length),
+        // 売上ベース（実際に払っている人）。この2つを別の行にしないと、無償のCat Keyが
+        // 「転換した」ように見えて価格判断を誤る（#349）。
+        paying: paying.length,
+        paying_rate: rate(paying.length, owners.length),
+        by_plan_source: planSource,
+        cat_key_paid: catKeyPaidCount,
+        granted_other: grantedOtherCount,
         signups_in_range: signupsInRange,
         signups_daily: dayList.map((day) => ({ day, count: signupsByDay[day] || 0 })),
         signups_monthly: monthList.map((month) => ({ month, count: signupsByMonth[month] || 0 })),
@@ -424,6 +445,8 @@ exports.handler = async (event) => {
         paying_premium: payingPremium,
         paying_total: payingPro + payingPremium,
         cat_key_paid: catKeyPaid,
+        granted_other: grantedOtherCount,
+        by_plan_source: planSource,
         mrr_estimate: payingPro * PRICE.pro + payingPremium * PRICE.premium,
         price: PRICE,
         cancel_events: cancelEvents,

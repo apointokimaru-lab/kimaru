@@ -141,6 +141,17 @@
         <div class="op-stats" id="revenue-stats"></div>
 
         <div style="margin-top:26px;">
+          <h3 style="margin:0 0 2px;">有料プランの出どころ</h3>
+          <p class="muted" style="margin:0;">同じ「Pro」でも、課金と Cat Key（無償）では売上への意味がまったく違います。運営コンソールから手で付けたぶんは「運営付与」。</p>
+          <div class="op-table-wrap" style="margin-top:12px;">
+            <table class="op-table">
+              <thead><tr><th>プラン</th><th>課金</th><th>Cat Key（無償）</th><th>運営付与（無償）</th><th>合計</th></tr></thead>
+              <tbody id="plan-source-list"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="margin-top:26px;">
           <h3 style="margin:0 0 2px;">有料の壁に当たった回数</h3>
           <p class="muted" style="margin:0;">上限や有料機能にぶつかった記録（#342）。回数の多い機能が、いま値付けをすべき場所です。プランは<strong>ぶつかった時点</strong>のもの。</p>
           <div class="op-table-wrap" style="margin-top:12px;">
@@ -401,8 +412,10 @@
 
       document.querySelector('#overview-stats').innerHTML = [
         stat('アカウント総数', num(accounts.total), '件', `稼働中 ${num(accounts.active)}・停止 ${num(accounts.disabled)}`),
-        stat('有料アカウント', num(accounts.paid), '件', `Pro ${num(accounts.by_plan.pro)}・プレミアム ${num(accounts.by_plan.premium)}`, accounts.paid_rate),
-        stat('有料転換率', pct(accounts.paid_rate), '', '全アカウントに対する割合', accounts.paid_rate),
+        // 「有料」は2つの意味を持つ（有料プランの機能を使える人／実際に払っている人）。
+        // 同じ言葉で1つの率にすると、無償のCat Keyが「転換した」ように見えて価格判断を誤る（#349）。
+        stat('有料プランのアカウント', num(accounts.paid), '件', `課金 ${num(accounts.paying)}・Cat Key ${num(accounts.cat_key_paid)}${accounts.granted_other ? `・その他 ${num(accounts.granted_other)}` : ''}`, accounts.paid_rate),
+        stat('課金転換率', pct(accounts.paying_rate), '', `売上になっているのは ${num(accounts.paying)} / ${num(accounts.total)}件`, accounts.paying_rate),
         stat('MRR（概算）', revenue.available ? `¥${num(revenue.mrr_estimate)}` : '—', '', revenue.available ? `課金 ${num(revenue.paying_total)}件・無償 ${num(revenue.cat_key_paid)}件` : '決済イベントを取得できません'),
         stat('予約の累計', data.bookings.available ? num(data.bookings.total_all_time) : '—', '件', data.bookings.available ? `キャンセル率 ${pct(data.bookings.cancel_rate_all_time)}` : '予約を取得できません'),
         stat('承認待ち Cat Key', num(accounts.pending_cat_key), '件', accounts.pending_cat_key > 0 ? '運営コンソールで承認できます' : '未対応の申請はありません'),
@@ -504,11 +517,24 @@
       document.querySelector('#revenue-stats').innerHTML = [
         stat('課金 Pro', num(revenue.paying_pro), '件', `¥${num(revenue.price.pro)}/月`),
         stat('課金 プレミアム', num(revenue.paying_premium), '件', `¥${num(revenue.price.premium)}/月`),
-        stat('Cat Key（無償Pro）', num(revenue.cat_key_paid), '件', '売上にはならない有料会員'),
+        stat('無償の有料会員', num(revenue.cat_key_paid + revenue.granted_other), '件', `Cat Key ${num(revenue.cat_key_paid)}・運営付与 ${num(revenue.granted_other)}`),
         stat('登録→課金までの日数', toPaid.median == null ? '—' : String(toPaid.median), '日', toPaid.samples ? `中央値（${num(toPaid.samples)}件：${toPaid.p25}〜${toPaid.p75}日）` : '課金の実績がまだありません'),
         stat(`解約イベント（直近${days}日）`, num(revenue.cancel_events_in_range), '件', `累計 ${num(revenue.cancel_events)}件`),
         stat('MRR（概算）', `¥${num(revenue.mrr_estimate)}`, '', `課金 ${num(revenue.paying_total)}件`),
       ].join('');
+
+      const source = revenue.by_plan_source || { pro: {}, premium: {} };
+      document.querySelector('#plan-source-list').innerHTML = ['pro', 'premium'].map((plan) => {
+        const row = source[plan] || {};
+        const total = (row.paying || 0) + (row.cat_key || 0) + (row.other || 0);
+        return `<tr>
+          <td data-label="プラン"><span class="plan-pill${plan === 'premium' ? ' is-premium' : ' is-pro'}">${escapeHtml(PLAN_PILL[plan])}</span></td>
+          <td data-label="課金" class="cell-mono">${num(row.paying || 0)}</td>
+          <td data-label="Cat Key" class="cell-mono">${num(row.cat_key || 0)}</td>
+          <td data-label="運営付与" class="cell-mono">${num(row.other || 0)}</td>
+          <td data-label="合計" class="cell-mono"><strong>${num(total)}</strong></td>
+        </tr>`;
+      }).join('');
 
       const hits = revenue.limit_hits || [];
       const maxHits = Math.max(1, ...hits.map((row) => row.hits));

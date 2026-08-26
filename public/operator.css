@@ -496,11 +496,17 @@
 .operator-console .op-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
-  gap: 1px;                      /* 1pxの隙間＝罫線1本に見える。枠線を足さずに升目を作る */
-  background: var(--op-line);
-  border: 1px solid var(--op-line);
+  gap: 1px;
+  background: var(--op-panel);
 }
-.operator-console .op-stat { padding: 14px 16px 16px; background: #fff; }
+/* 罫線は「土台の色を1pxの隙間から覗かせる」のではなく、タイル側の影で描く。
+   土台方式だと、タイルの数が列数で割り切れないとき最終行の空きがそのまま灰色の面になる。
+   影なら空き（タイルの無い場所）は何も描かれない。隣り合う影が隙間を埋めて1本の線に見える。 */
+.operator-console .op-stat {
+  padding: 14px 16px 16px;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--op-line);
+}
 .operator-console .op-stat-label {
   margin: 0 0 8px;
   font-family: var(--op-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em;

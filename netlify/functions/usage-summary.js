@@ -42,6 +42,17 @@ function dayRange(days, now) {
   return list;
 }
 
+// サマリーは期間ではなく「全体」を見る画面なので、月次は集計期間と無関係に直近12ヶ月を並べる。
+// 0件の月を落とすと棒が詰まって山谷がずれるため、先に月を並べてから埋める。
+function monthRange(count, now) {
+  const jst = new Date(now.getTime() + 9 * 3600 * 1000);
+  const list = [];
+  for (let i = count - 1; i >= 0; i -= 1) {
+    list.push(new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth() - i, 1)).toISOString().slice(0, 7));
+  }
+  return list;
+}
+
 const rate = (part, whole) => (whole > 0 ? Math.round((part / whole) * 1000) / 10 : null); // %（小数1桁）
 const uniq = (list, key) => new Set((list || []).map((row) => row[key]).filter(Boolean));
 const bump = (map, key, by = 1) => { if (key) map[key] = (map[key] || 0) + by; };
@@ -97,6 +108,7 @@ exports.handler = async (event) => {
 
     const owners = ownerRows || [];
     const dayList = dayRange(days, now);
+    const monthList = monthRange(12, now);
 
     // ---- アカウント ----
     const planCount = { free: 0, pro: 0, premium: 0 };
@@ -178,6 +190,12 @@ exports.handler = async (event) => {
     ];
 
     // ---- 予約 ----
+    const bookingsByMonth = {};
+    let cancelledAllTime = 0;
+    for (const booking of bookingRows || []) {
+      bump(bookingsByMonth, jstDay(booking.created_at).slice(0, 7));
+      if (booking.status === "cancelled") cancelledAllTime += 1;
+    }
     const bookingsInRange = (bookingRows || []).filter((booking) => booking.created_at >= sinceIso);
     const bookingsByDay = {};
     const bookingsByLocation = {};
@@ -257,7 +275,7 @@ exports.handler = async (event) => {
         paid_rate: rate(paidCount, owners.length),
         signups_in_range: signupsInRange,
         signups_daily: dayList.map((day) => ({ day, count: signupsByDay[day] || 0 })),
-        signups_monthly: Object.keys(signupsByMonth).sort().slice(-12).map((month) => ({ month, count: signupsByMonth[month] })),
+        signups_monthly: monthList.map((month) => ({ month, count: signupsByMonth[month] || 0 })),
       },
       revenue: {
         available: paymentRows !== null,
@@ -284,8 +302,11 @@ exports.handler = async (event) => {
         cancelled,
         cancel_rate: rate(cancelled, bookingsInRange.length),
         total_all_time: (bookingRows || []).length,
+        cancelled_all_time: cancelledAllTime,
+        cancel_rate_all_time: rate(cancelledAllTime, (bookingRows || []).length),
         owners_with_booking: uniq(bookingRows, "owner_id").size,
         daily: dayList.map((day) => ({ day, count: bookingsByDay[day] || 0 })),
+        monthly: monthList.map((month) => ({ month, count: bookingsByMonth[month] || 0 })),
         by_location: bookingsByLocation,
         pinpoint_links_in_range: (pinpointRows || []).filter((link) => link.created_at >= sinceIso).length,
         pinpoint_links_total: (pinpointRows || []).length,

@@ -49,7 +49,7 @@ const MOCK_USAGE_SUMMARY = {
     by_plan: { free: 30, pro: 9, premium: 3 }, paid: 12, paid_rate: 28.6,
     signups_in_range: 7,
     signups_daily: USAGE_DAYS.map((day, i) => ({ day, count: i % 5 === 0 ? 2 : 0 })),
-    signups_monthly: [{ month: "2026-07", count: 20 }, { month: "2026-08", count: 22 }],
+    signups_monthly: [{ month: "2026-06", count: 0 }, { month: "2026-07", count: 20 }, { month: "2026-08", count: 22 }],
   },
   revenue: {
     available: true, paying_pro: 6, paying_premium: 2, paying_total: 8, cat_key_paid: 4,
@@ -70,8 +70,9 @@ const MOCK_USAGE_SUMMARY = {
   },
   bookings: {
     available: true, in_range: 18, cancelled: 3, cancel_rate: 16.7,
-    total_all_time: 120, owners_with_booking: 22,
+    total_all_time: 120, cancelled_all_time: 14, cancel_rate_all_time: 11.7, owners_with_booking: 22,
     daily: USAGE_DAYS.map((day, i) => ({ day, count: i % 3 === 0 ? 1 : 0 })),
+    monthly: [{ month: "2026-06", count: 31 }, { month: "2026-07", count: 52 }, { month: "2026-08", count: 37 }],
     by_location: { google_meet: 12, zoom: 4, in_person: 2 },
     pinpoint_links_in_range: 3, pinpoint_links_total: 11,
   },
@@ -869,10 +870,16 @@ section("analytics dashboard (#343)");
   ok("サマリーにアカウント数が出る", stats.includes("42"));
   ok("サマリーに有料転換率が出る", stats.includes("28.6%"));
   ok("サマリーにMRR概算が出る", stats.includes("10,280"));
-  ok("推移グラフが描かれる", (await page.locator("#chart-signups svg").count()) === 1 && (await page.locator("#chart-bookings svg rect").count()) > 0);
+  // サマリーは全体を見る画面。期間で絞った数字ではなく累計を出し、期間タブ自体を隠す。
+  ok("サマリーは予約の累計を出す", stats.includes("120") && stats.includes("11.7%"));
+  ok("サマリーでは期間タブを隠す", await page.locator("#range-buttons").isHidden());
+  ok("サマリーの但し書きは全体の累計", (await page.textContent("#admin-message")).includes("全体の累計"));
+  ok("推移は月次（直近12ヶ月）", (await page.locator("#chart-signups svg rect").count()) === 3 && (await page.locator("#chart-bookings svg rect").count()) === 3);
 
   await page.click('.op-nav-sub[data-nav-href="/analytics.html#revenue"]');
   await page.waitForTimeout(150);
+  ok("期間で集計するビューでは期間タブが出る", await page.locator("#range-buttons").isVisible());
+  ok("但し書きも期間表示に戻る", (await page.textContent("#admin-message")).includes("直近30日"));
   const cohorts = await page.textContent("#cohort-list");
   ok("コホート表が新しい月から並ぶ", cohorts.indexOf("2026-08") < cohorts.indexOf("2026-07"));
   ok("コホートの転換率が出る", cohorts.includes("31.8%"));

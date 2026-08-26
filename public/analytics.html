@@ -27,7 +27,7 @@
       <header class="op-page-head">
         <p class="eyebrow">Admin / Analytics</p>
         <h1>分析ダッシュボード</h1>
-        <p class="lead">経営判断と機能改善の優先順位づけに使う数字をまとめています。集計は期間を切り替えると全セクションに反映されます。</p>
+        <p class="lead">経営判断と機能改善の優先順位づけに使う数字をまとめています。サマリーは全体（累計）、ほかの3つは選んだ期間で集計します。</p>
         <div class="op-range" id="range-buttons" role="group" aria-label="集計期間">
           <button type="button" data-days="7">7日</button>
           <button type="button" data-days="30">30日</button>
@@ -40,17 +40,17 @@
       <section id="view-overview" class="op-view panel">
         <p class="eyebrow">Overview</p>
         <h2>サマリー</h2>
-        <p class="muted" style="margin:2px 0 0;">アカウント・売上・利用のいまの状態です。カッコ内は集計期間の実績。</p>
+        <p class="muted" style="margin:2px 0 0;">サービス全体の累計です（期間では絞りません）。推移は直近12ヶ月。</p>
         <div class="op-stats" id="overview-stats"></div>
         <div class="op-split" style="margin-top:24px;">
           <div class="op-block">
             <h3>登録数の推移</h3>
-            <p class="muted">アカウントが増えた日と数（JST）。</p>
+            <p class="muted">月ごとに増えたアカウント数（JST・直近12ヶ月）。</p>
             <div class="op-chart" id="chart-signups"></div>
           </div>
           <div class="op-block">
             <h3>予約数の推移</h3>
-            <p class="muted">ゲストが予約を入れた日と数（キャンセル分も含む）。</p>
+            <p class="muted">月ごとに入った予約数（キャンセル分も含む・直近12ヶ月）。</p>
             <div class="op-chart" id="chart-bookings"></div>
           </div>
         </div>
@@ -186,6 +186,8 @@
     const SERIES = { guest: '#8A93A3', free: '#2a78d6', pro: '#eb6834', premium: '#1baf7a' };
     const PLAN_LABEL = { guest: 'ゲスト', free: '無料', pro: 'Pro', premium: 'プレミアム' };
     let days = 30;
+    let lastData = null;
+    let currentView = 'overview';
 
     function setMessage(text, kind = '') {
       message.textContent = text;
@@ -230,7 +232,12 @@
 
     const shortDay = (day) => String(day || '').slice(5).replace('-', '/');
 
-    function barChart(points, valueKey = 'count', color = 'var(--op-blue)') {
+    // points は日次 {day,count} でも月次 {month,count} でも受ける（サマリーだけ月次）。
+    function barChart(points, options = {}) {
+      const labelKey = options.labelKey || 'day';
+      const valueKey = options.valueKey || 'count';
+      const color = options.color || 'var(--op-blue)';
+      const formatLabel = options.formatLabel || shortDay;
       if (!points.length) return '<p class="muted">データがありません。</p>';
       const W = 720, H = 190, padL = 44, padR = 8, padT = 12, padB = 26;
       const innerW = W - padL - padR, innerH = H - padT - padB;
@@ -242,11 +249,11 @@
         const height = (value / max) * innerH;
         const x = padL + i * step + (step - barW) / 2;
         const y = padT + innerH - height;
-        return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, height).toFixed(1)}" fill="${color}"><title>${escapeHtml(point.day)} ${value}</title></rect>`;
+        return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, height).toFixed(1)}" fill="${color}"><title>${escapeHtml(point[labelKey])} ${value}</title></rect>`;
       }).join('');
       const labels = axisLabels(points).map((i) => {
         const x = padL + i * step + step / 2;
-        return `<text class="op-axis" x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle">${escapeHtml(shortDay(points[i].day))}</text>`;
+        return `<text class="op-axis" x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle">${escapeHtml(formatLabel(points[i][labelKey]))}</text>`;
       }).join('');
       return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="日別の推移">
         <line class="op-grid" x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" />
@@ -302,17 +309,19 @@
     function renderOverview(data) {
       const accounts = data.accounts;
       const revenue = data.revenue;
+      // サマリーは期間で絞らない（全体を見る画面なので、期間タブもこのビューでは隠す）。
       document.querySelector('#overview-stats').innerHTML = [
         stat('アカウント総数', num(accounts.total), '件', `稼働中 ${num(accounts.active)}・停止 ${num(accounts.disabled)}`),
         stat('有料アカウント', num(accounts.paid), '件', `Pro ${num(accounts.by_plan.pro)}・プレミアム ${num(accounts.by_plan.premium)}`, accounts.paid_rate),
         stat('有料転換率', pct(accounts.paid_rate), '', '全アカウントに対する割合', accounts.paid_rate),
         stat('MRR（概算）', revenue.available ? `¥${num(revenue.mrr_estimate)}` : '—', '', revenue.available ? `課金 ${num(revenue.paying_total)}件・無償 ${num(revenue.cat_key_paid)}件` : '決済イベントを取得できません'),
-        stat(`登録（直近${days}日）`, num(accounts.signups_in_range), '件', `承認待ち Cat Key ${num(accounts.pending_cat_key)}件`),
-        stat(`予約（直近${days}日）`, data.bookings.available ? num(data.bookings.in_range) : '—', '件', data.bookings.available ? `キャンセル率 ${pct(data.bookings.cancel_rate)}` : '予約を取得できません'),
+        stat('予約の累計', data.bookings.available ? num(data.bookings.total_all_time) : '—', '件', data.bookings.available ? `キャンセル率 ${pct(data.bookings.cancel_rate_all_time)}・予約が入ったアカウント ${num(data.bookings.owners_with_booking)}件` : '予約を取得できません'),
+        stat('承認待ち Cat Key', num(accounts.pending_cat_key), '件', accounts.pending_cat_key > 0 ? '運営コンソールで承認できます' : '未対応の申請はありません'),
       ].join('');
-      document.querySelector('#chart-signups').innerHTML = barChart(accounts.signups_daily);
+      const monthLabel = (value) => String(value || '').replace('-', '/');
+      document.querySelector('#chart-signups').innerHTML = barChart(accounts.signups_monthly, { labelKey: 'month', formatLabel: monthLabel });
       document.querySelector('#chart-bookings').innerHTML = data.bookings.available
-        ? barChart(data.bookings.daily)
+        ? barChart(data.bookings.monthly, { labelKey: 'month', formatLabel: monthLabel })
         : '<p class="muted">予約データを取得できませんでした。</p>';
     }
 
@@ -363,8 +372,6 @@
 
       const rows = [
         ['ピンポイントリンク（期間内 / 累計）', data.bookings.available ? `${num(data.bookings.pinpoint_links_in_range)} / ${num(data.bookings.pinpoint_links_total)}` : '—'],
-        ['予約が入ったことのあるアカウント', data.bookings.available ? `${num(data.bookings.owners_with_booking)}件` : '—'],
-        ['予約の累計', data.bookings.available ? `${num(data.bookings.total_all_time)}件` : '—'],
         [`AIアシスト利用（${data.ai.month}）`, data.ai.available ? `${num(data.ai.calls)}回 / ${num(data.ai.owners)}アカウント` : '—'],
       ];
       document.querySelector('#extra-list').innerHTML = rows.map(([label, value]) => `<tr>
@@ -440,6 +447,19 @@
         : emptyRow(3, 'この期間の記録がありません。');
     }
 
+    // サマリーは全体を見る画面なので期間の概念が無い。タブを出したままだと
+    // 「7日を選んだのに数字が変わらない」＝壊れているように見えるので、このビューでは隠す。
+    function updateStatus() {
+      const rangeButtons = document.querySelector('#range-buttons');
+      const isOverview = currentView === 'overview';
+      rangeButtons.hidden = isOverview;
+      if (!lastData) return;
+      const at = new Date(lastData.generated_at);
+      const notes = (lastData.notes || []).join(' ');
+      const scope = isOverview ? '全体の累計' : `直近${lastData.range.days}日で集計`;
+      setMessage(`${scope}（${at.toLocaleString('ja-JP')} 時点）${notes ? ' / ' + notes : ''}`);
+    }
+
     async function load() {
       setMessage('読み込み中…');
       document.querySelectorAll('#range-buttons button').forEach((button) => {
@@ -457,9 +477,8 @@
         renderRevenue(data);
         renderActivation(data);
         renderScreens(data);
-        const at = new Date(data.generated_at);
-        const notes = (data.notes || []).join(' ');
-        setMessage(`直近${data.range.days}日で集計（${at.toLocaleString('ja-JP')} 時点）${notes ? ' / ' + notes : ''}`);
+        lastData = data;
+        updateStatus();
       } catch (error) {
         setMessage(error.message || '取得に失敗しました。', 'error');
       }
@@ -477,6 +496,8 @@
     const VIEWS = ['overview', 'revenue', 'activation', 'screens'];
     function showView(name) {
       const target = VIEWS.includes(name) ? name : 'overview';
+      currentView = target;
+      updateStatus();
       document.querySelectorAll('.op-view').forEach((view) => view.classList.remove('is-active'));
       document.querySelector(`#view-${target}`).classList.add('is-active');
       if (location.hash.slice(1) !== target) history.replaceState(null, '', `#${target}`);

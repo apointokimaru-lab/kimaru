@@ -215,7 +215,8 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 
 ### `GET /api/usage-summary?days=30` — 運営セッション必須
 分析ダッシュボード（`/analytics.html`）が読む集計。`days` は 7〜365 にクランプ（既定30）。
-- 返すもの: `accounts`（登録推移・プラン内訳・有料転換率）/ `revenue`（課金内訳・MRR概算・登録→課金までの日数・解約イベント）/ `conversion.cohorts`（登録月別の転換率）/ `activation`（機能への到達率）/ `bookings`（予約推移・キャンセル率・開催方法）/ `ai`（当月のAIアシスト利用）/ `usage`（画面別PV・UU、画面×プラン、流入元、端末、ファネル）
+- 返すもの: `northstar`（今月「日程が決まった」数・人数・前月比・月次推移＝決定33の北極星）/ `accounts` / `acquisition`（流入元ごとの登録数）/ `activation`（到達率・初回予約までの日数・予約0の名簿）/ `retention`（週次アクティブ・休眠の名簿・2回目率）/ `revenue`（課金内訳・MRR概算・登録→課金までの日数・解約・**有料の壁 `limit_hits`**）/ `conversion.cohorts` / `bookings` / `ai` / `features.adoption`（機能ごとの採用率）/ `usage`（画面別PV・UU、画面×プラン、流入元、端末、ファネル）
+- `owners` の select は **`signup_source` を含む版で試し、失敗したら列を外して引き直す**（未適用の列を混ぜるとクエリ全体が落ち、アカウントの数字がすべて空になるため）。
 - **取得できなかった表は `available: false`** で返す（0件と「テーブル未適用」を画面で区別するため。0で出すと「使われていない」と読み違える）。
 - 集計は JS 側で行う（`page_events` だけは #342 のビューを使う）。1表あたり 20000 行が上限で、超えたら `notes` にその旨を載せる。
 - 触る DB: `owners`, `payment_events`, `bookings`, `booking_pages`, `availability_settings`, `google_connections`, `zoom_connections`, `questionnaire_questions`, `ai_assist_logs`, `pinpoint_links`, `booking_notes`, `appointment_logs`, `manual_contacts`, `page_events_*`（ビュー）

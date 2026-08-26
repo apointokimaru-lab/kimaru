@@ -30,6 +30,16 @@ async function rows(path) {
   }
 }
 
+// 未適用の列を select に混ぜると、その列だけでなく**クエリ全体**が失敗する（＝アカウントの数字が
+// すべて空になる）。signup_source（#342）はまだ両DBに当たっていない可能性があるので、
+// 落ちたら列を外して引き直す。プロジェクト方針の「列が無ければグレースフルに劣化」をここでも守る。
+const OWNER_COLUMNS = "id,name,email,plan,created_at,invite_code,cat_key_disabled,cat_key_pending,email_verified";
+async function fetchOwners() {
+  const withSource = await rows(`owners?select=${OWNER_COLUMNS},signup_source&order=created_at.asc&limit=${ROW_CAP}`);
+  if (withSource !== null) return withSource;
+  return rows(`owners?select=${OWNER_COLUMNS}&order=created_at.asc&limit=${ROW_CAP}`);
+}
+
 const jstDay = (value) => {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? jstDayKey(date) : "";
@@ -77,15 +87,18 @@ exports.handler = async (event) => {
     const since = new Date(now.getTime() - days * 86400000);
     const sinceIso = since.toISOString();
     const sinceDay = jstDayKey(since);
+    // 休眠は「30日動きが無い」で見るので、期間の選択に関わらず最低30日ぶんの足あとを引く
+    // （7日を選んだだけで全員が休眠に見える、という読み違えを構造的に防ぐ）。
+    const activitySinceIso = new Date(Math.min(since.getTime(), now.getTime() - 30 * 86400000)).toISOString();
     const monthStart = `${jstDayKey(now).slice(0, 7)}-01T00:00:00+09:00`; // AIアシストの当月集計はJST月で数える（上限判定と同じ切り方）
     const notes = [];
 
     const [
       ownerRows, paymentRows, bookingRows, pageRows, availabilityRows, googleRows, zoomRows,
       questionRows, aiRows, pinpointRows, noteRows, logRows, manualRows,
-      usageDaily, usageByPlan, usageSources,
+      usageDaily, usageByPlan, usageSources, ownerActivity, limitHitRows,
     ] = await Promise.all([
-      rows(`owners?select=id,plan,created_at,invite_code,cat_key_disabled,cat_key_pending,email_verified&order=created_at.asc&limit=${ROW_CAP}`),
+      fetchOwners(),
       rows(`payment_events?select=owner_id,event_type,created_at&order=created_at.asc&limit=${ROW_CAP}`),
       rows(`bookings?select=owner_id,status,created_at,location_type&order=created_at.desc&limit=${ROW_CAP}`),
       rows(`booking_pages?select=id,owner_id,is_active,frozen&limit=${ROW_CAP}`),
@@ -101,6 +114,9 @@ exports.handler = async (event) => {
       rows(`page_events_daily?select=day,page,views,visitors&day=gte.${sinceDay}&limit=${ROW_CAP}`),
       rows(`page_events_by_plan?select=day,page,plan,views&day=gte.${sinceDay}&limit=${ROW_CAP}`),
       rows(`page_events_sources?select=day,source,device,views&day=gte.${sinceDay}&limit=${ROW_CAP}`),
+      // ログイン中の足あと。WAH（週次アクティブ）と休眠の判定に使う。owner_id が付く行だけで足りる。
+      rows(`page_events?select=owner_id,created_at&event=eq.page_view&owner_id=not.is.null&created_at=gte.${encodeURIComponent(activitySinceIso)}&limit=${ROW_CAP}`),
+      rows(`plan_limit_hits_daily?select=day,feature,plan,hits,owners&day=gte.${sinceDay}&limit=${ROW_CAP}`),
     ]);
 
     if ((bookingRows || []).length >= ROW_CAP) notes.push(`予約は直近 ${ROW_CAP} 件までを集計しています（それ以前は含みません）。`);
@@ -173,6 +189,7 @@ exports.handler = async (event) => {
     const activeIds = new Set(activeOwners.map((owner) => owner.id));
     const pageOwner = new Map((pageRows || []).map((page) => [page.id, page.owner_id]));
     const questionOwners = new Set((questionRows || []).map((q) => pageOwner.get(q.booking_page_id)).filter(Boolean));
+    // 以降の「立ち上がり」「機能の採用率」でも同じ集合を使う（数え方をそろえる）。
     const within = (set) => [...set].filter((id) => activeIds.has(id)).length;
     const step = (label, set, available = true) => {
       const count = available ? within(set) : null;
@@ -205,6 +222,120 @@ exports.handler = async (event) => {
       bump(bookingsByLocation, booking.location_type || "unknown");
       if (booking.status === "cancelled") cancelled += 1;
     }
+
+    // ---- 北極星: 今月「日程が決まった」数（#343・2026-08-26 決定）----
+    // キマルが売っているのは日程が決まること。登録数は無料で溜まるだけ、MRRは結果が遅れて出る。
+    // 予約数と「決まったアカウント数」を必ず並べるのは、片方だけだと嘘をつくため
+    // （予約数だけなら1人のヘビーユーザーで伸びて見え、人数だけなら1回試して終わった人が混ざる）。
+    const confirmedByMonth = {};
+    const ownersByMonth = {};
+    for (const booking of bookingRows || []) {
+      if (booking.status === "cancelled") continue; // キャンセルは「決まった」ではない
+      const month = jstDay(booking.created_at).slice(0, 7);
+      bump(confirmedByMonth, month);
+      (ownersByMonth[month] = ownersByMonth[month] || new Set()).add(booking.owner_id);
+    }
+    const thisMonth = jstDayKey(now).slice(0, 7);
+    const prevMonth = monthList[monthList.length - 2] || "";
+
+    // ---- 立ち上がり: 最初の1件までの日数と、止まっている人 ----
+    const firstBookingAt = new Map();
+    const bookingCountByOwner = {};
+    for (const booking of bookingRows || []) {
+      if (!booking.owner_id) continue;
+      bump(bookingCountByOwner, booking.owner_id);
+      const at = booking.created_at;
+      if (!firstBookingAt.has(booking.owner_id) || at < firstBookingAt.get(booking.owner_id)) firstBookingAt.set(booking.owner_id, at);
+    }
+    const daysToFirst = [];
+    for (const owner of owners) {
+      const at = firstBookingAt.get(owner.id);
+      if (!at) continue;
+      const diff = (new Date(at).getTime() - new Date(owner.created_at).getTime()) / 86400000;
+      if (Number.isFinite(diff) && diff >= 0) daysToFirst.push(diff);
+    }
+    daysToFirst.sort((a, b) => a - b);
+
+    const pageOwners = uniq(pageRows, "owner_id");
+    const availabilityOwners = uniq(availabilityRows, "owner_id");
+    const googleOwners = uniq(googleRows, "owner_id");
+    // 予約が1件も無いアカウントを「どこで止まったか」別に出す。数字ではなく名簿で出すのは、
+    // この規模なら運営が直接声をかけられるため（見て終わりの指標にしない）。
+    const stuck = activeOwners
+      .filter((owner) => !firstBookingAt.has(owner.id))
+      .map((owner) => ({
+        id: owner.id,
+        name: owner.name || "",
+        email: owner.email || "",
+        created_at: owner.created_at,
+        plan: owner.plan,
+        step: !pageOwners.has(owner.id) ? "no_page"
+          : !availabilityOwners.has(owner.id) ? "no_availability"
+          : !googleOwners.has(owner.id) ? "no_calendar"
+          : "no_booking",
+      }))
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+
+    // ---- 継続: 週次アクティブ・休眠・2回目率 ----
+    // 「その週に管理画面を開いた or 予約が入った」人。#342 を適用した日より前は足あとが無いので、
+    // 計測開始前の週は 0 に見える（画面側でその旨を出す）。
+    const weekKey = (value) => {
+      const date = new Date(new Date(value).getTime() + 9 * 3600 * 1000); // JST
+      const day = date.getUTCDay();
+      const monday = new Date(date.getTime() - ((day + 6) % 7) * 86400000);
+      return monday.toISOString().slice(0, 10);
+    };
+    const activeByWeek = {};
+    const lastSeenAt = new Map();
+    const touch = (ownerId, at) => {
+      if (!ownerId || !at) return;
+      (activeByWeek[weekKey(at)] = activeByWeek[weekKey(at)] || new Set()).add(ownerId);
+      if (!lastSeenAt.has(ownerId) || at > lastSeenAt.get(ownerId)) lastSeenAt.set(ownerId, at);
+    };
+    for (const row of ownerActivity || []) touch(row.owner_id, row.created_at);
+    for (const booking of bookingRows || []) if (booking.created_at >= activitySinceIso) touch(booking.owner_id, booking.created_at);
+    const weekList = [...new Set(dayList.map(weekKey))];
+    const dormantCutoff = new Date(now.getTime() - 30 * 86400000).toISOString();
+    // 足あと（page_events）が無い環境で休眠を数えると、全員が休眠に見える。
+    // 「0件」ではなく「まだ出せない」として返し、画面で計測待ちと出す。
+    const dormant = ownerActivity === null ? [] : activeOwners
+      .filter((owner) => (lastSeenAt.get(owner.id) || "") < dormantCutoff && owner.created_at < dormantCutoff)
+      .map((owner) => ({ id: owner.id, name: owner.name || "", email: owner.email || "", plan: owner.plan, last_seen: lastSeenAt.get(owner.id) || null }));
+    const withBooking = Object.keys(bookingCountByOwner).length;
+    const withRepeat = Object.values(bookingCountByOwner).filter((count) => count >= 2).length;
+
+    // ---- 流入元ごとの登録数（#342 の owners.signup_source）----
+    const sourceSignups = {};
+    let sourceKnown = 0;
+    for (const owner of owners) {
+      if (owner.created_at < sinceIso) continue;
+      const source = String(owner.signup_source || "");
+      if (source) sourceKnown += 1;
+      bump(sourceSignups, source || "(不明)");
+    }
+
+    // ---- 有料の壁（#342 の limit_hit）----
+    const hitsByFeature = {};
+    for (const row of limitHitRows || []) {
+      const key = `${row.feature}|${row.plan || ""}`;
+      hitsByFeature[key] = hitsByFeature[key] || { feature: row.feature, plan: row.plan || "", hits: 0, owners: 0 };
+      hitsByFeature[key].hits += Number(row.hits) || 0;
+      // owners は日ごとの重複排除なので、期間で足すと延べになる（同じ人が別日に当たれば2）。
+      hitsByFeature[key].owners += Number(row.owners) || 0;
+    }
+    const limitHits = Object.values(hitsByFeature).sort((a, b) => b.hits - a.hits);
+
+    // ---- 機能ごとの採用率（稼働中アカウントのうち何割が使ったか）----
+    const adoption = [
+      { key: "google", label: "Googleカレンダー連携", owners: within(googleOwners), available: googleRows !== null },
+      { key: "zoom", label: "Zoom連携", owners: within(uniq(zoomRows, "owner_id")), available: zoomRows !== null },
+      { key: "question", label: "事前アンケート", owners: within(questionOwners), available: questionRows !== null },
+      { key: "pinpoint", label: "ピンポイント日程調整", owners: within(uniq(pinpointRows, "owner_id")), available: pinpointRows !== null },
+      { key: "ai", label: `AIアシスト（${jstDayKey(now).slice(0, 7)}）`, owners: within(uniq(aiRows, "owner_id")), available: aiRows !== null },
+      { key: "manual_contact", label: "相手の手動追加", owners: within(uniq(manualRows, "owner_id")), available: manualRows !== null },
+      { key: "note", label: "会話記録", owners: within(uniq(noteRows, "owner_id")), available: noteRows !== null },
+    ].map((row) => ({ ...row, rate: row.available ? rate(row.owners, activeOwners.length) : null }))
+      .sort((a, b) => (b.owners || 0) - (a.owners || 0));
 
     // ---- 画面の利用状況（#342 の page_events。未適用なら available:false）----
     const usageAvailable = usageDaily !== null;
@@ -263,6 +394,16 @@ exports.handler = async (event) => {
       generated_at: now.toISOString(),
       range: { days, since: sinceIso, days_list: dayList },
       notes,
+      // 北極星（#343）。期間の指定に関わらず「今月」を見る（月の途中でも前月と並べれば勢いが分かる）。
+      northstar: {
+        month: thisMonth,
+        bookings: confirmedByMonth[thisMonth] || 0,
+        owners: (ownersByMonth[thisMonth] || new Set()).size,
+        prev_month: prevMonth,
+        prev_bookings: confirmedByMonth[prevMonth] || 0,
+        prev_owners: (ownersByMonth[prevMonth] || new Set()).size,
+        monthly: monthList.map((month) => ({ month, count: confirmedByMonth[month] || 0, owners: (ownersByMonth[month] || new Set()).size })),
+      },
       accounts: {
         total: owners.length,
         active: activeOwners.length,
@@ -287,6 +428,9 @@ exports.handler = async (event) => {
         price: PRICE,
         cancel_events: cancelEvents,
         cancel_events_in_range: cancelEventsInRange,
+        // 有料の壁（#342）。無料/Proがどの上限に、何回・何人ぶつかったか。価格とプラン境界の一次資料。
+        limit_hits: limitHits,
+        limit_hits_available: limitHitRows !== null,
         days_to_paid: {
           samples: daysToPaid.length,
           p25: quantile(daysToPaid, 0.25),
@@ -295,7 +439,33 @@ exports.handler = async (event) => {
         },
       },
       conversion: { cohorts },
-      activation: { denominator: activeOwners.length, steps: activation },
+      acquisition: {
+        // 流入元は #342 で入れた owners.signup_source。入れる前に登録した人は「(不明)」に落ちる。
+        sources: Object.keys(sourceSignups).map((source) => ({ source, count: sourceSignups[source] })).sort((a, b) => b.count - a.count),
+        source_known: sourceKnown,
+      },
+      activation: {
+        denominator: activeOwners.length,
+        steps: activation,
+        time_to_first_booking: {
+          samples: daysToFirst.length,
+          p25: quantile(daysToFirst, 0.25),
+          median: quantile(daysToFirst, 0.5),
+          p75: quantile(daysToFirst, 0.75),
+        },
+        stuck_total: stuck.length,
+        stuck: stuck.slice(0, 50), // 名簿は50件まで（それ以上は画面で扱えない）
+      },
+      retention: {
+        available: ownerActivity !== null,
+        weekly_active: weekList.map((week) => ({ week, count: (activeByWeek[week] || new Set()).size })),
+        dormant_total: ownerActivity === null ? null : dormant.length,
+        dormant: dormant.slice(0, 50),
+        owners_with_booking: withBooking,
+        owners_with_repeat: withRepeat,
+        repeat_rate: rate(withRepeat, withBooking),
+      },
+      features: { denominator: activeOwners.length, adoption },
       bookings: {
         available: bookingRows !== null,
         in_range: bookingsInRange.length,

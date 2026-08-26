@@ -15,11 +15,14 @@
     { href: '/cat-key-admin.html#history', label: '操作履歴' },
     {
       label: '分析ダッシュボード',
+      // 並びは「知る → 登録する → 使い始める → 使い続ける → 払う」という実際の道筋（#343 の設計）。
+      // 落ちている段を上から順に探せるようにするため、この順番自体に意味がある。
       children: [
         { href: '/analytics.html#overview', label: 'サマリー' },
-        { href: '/analytics.html#revenue', label: '課金・転換' },
-        { href: '/analytics.html#activation', label: '定着' },
-        { href: '/analytics.html#screens', label: '画面の利用状況' },
+        { href: '/analytics.html#acquisition', label: '獲得' },
+        { href: '/analytics.html#retention', label: '定着' },
+        { href: '/analytics.html#revenue', label: '収益' },
+        { href: '/analytics.html#features', label: '機能' },
       ],
     },
     { href: '/operators.html', label: '運営者管理' },

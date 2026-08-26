@@ -51,6 +51,25 @@ const MOCK_USAGE_SUMMARY = {
   generated_at: now.toISOString(),
   range: { days: 30, since: iso(-30, 0, 0), days_list: USAGE_DAYS },
   notes: [],
+  northstar: {
+    month: "2026-08", bookings: 18, owners: 11, prev_month: "2026-07", prev_bookings: 12, prev_owners: 9,
+    monthly: [{ month: "2026-06", count: 5, owners: 4 }, { month: "2026-07", count: 12, owners: 9 }, { month: "2026-08", count: 18, owners: 11 }],
+  },
+  acquisition: { sources: [{ source: "www.google.com", count: 4 }, { source: "(不明)", count: 3 }], source_known: 4 },
+  retention: {
+    available: true,
+    weekly_active: [{ week: "2026-08-10", count: 6 }, { week: "2026-08-17", count: 9 }, { week: "2026-08-24", count: 7 }],
+    dormant_total: 2,
+    dormant: [{ id: "o9", name: "休眠 一郎", email: "dormant@example.com", plan: "free", last_seen: iso(-40, 9, 0) }],
+    owners_with_booking: 16, owners_with_repeat: 9, repeat_rate: 56.3,
+  },
+  features: {
+    denominator: 40,
+    adoption: [
+      { key: "pinpoint", label: "ピンポイント日程調整", owners: 21, rate: 52.5, available: true },
+      { key: "zoom", label: "Zoom連携", owners: null, rate: null, available: false },
+    ],
+  },
   accounts: {
     total: 42, active: 40, disabled: 2, pending_cat_key: 1,
     email_verified: 30, email_verified_rate: 71.4,
@@ -64,10 +83,18 @@ const MOCK_USAGE_SUMMARY = {
     mrr_estimate: 6 * 980 + 2 * 2200, price: { pro: 980, premium: 2200 },
     cancel_events: 3, cancel_events_in_range: 1,
     days_to_paid: { samples: 8, p25: 2, median: 5.5, p75: 12 },
+    limit_hits_available: true,
+    limit_hits: [
+      { feature: "booking_page", plan: "free", hits: 12, owners: 5 },
+      { feature: "pinpoint_link", plan: "free", hits: 7, owners: 3 },
+    ],
   },
   conversion: { cohorts: [{ month: "2026-07", signups: 20, paid: 5, paying: 3, rate: 25 }, { month: "2026-08", signups: 22, paid: 7, paying: 5, rate: 31.8 }] },
   activation: {
     denominator: 40,
+    time_to_first_booking: { samples: 14, p25: 1, median: 3.5, p75: 9 },
+    stuck_total: 3,
+    stuck: [{ id: "o5", name: "止まり 花子", email: "stuck@example.com", plan: "free", created_at: iso(-10, 9, 0), step: "no_calendar" }],
     steps: [
       { label: "予約ページを作成", count: 33, rate: 82.5, available: true },
       { label: "受付時間を設定", count: 28, rate: 70, available: true },
@@ -884,49 +911,68 @@ section("pinpoint scheduling link (#303)");
 }
 
 // ===== 運営の分析ダッシュボード（#343）=====
-// 数字が「出ている」ことだけでなく、期間の切り替えがサーバまで届くこと、
-// 計測が未適用のときに 0 ではなく断りが出ることを見る（0だと「使われていない」と読み違えるため）。
+// 5タブ（サマリー / 獲得 / 定着 / 収益 / 機能）。並びは「知る→登録→使い始める→使い続ける→払う」。
+// 数字が出ていることだけでなく、期間の切り替えがサーバまで届くこと、計測が未適用のときに
+// 0 ではなく断りが出ることを見る（0だと「使われていない」と読み違えるため）。
 section("analytics dashboard (#343)");
 {
   const page = await newPage();
   await page.goto(`${base}/analytics.html`, { waitUntil: "networkidle" });
   await page.waitForTimeout(400);
 
+  // サマリー：北極星がいちばん大きい数字として出て、前月と並ぶ
+  const north = await page.textContent("#northstar");
+  ok("北極星が今月の成立数を出す", north.includes("18") && north.includes("2026-08"));
+  ok("北極星は人数と前月比も並べる", north.includes("11") && north.includes("12"));
   const stats = await page.textContent("#overview-stats");
   ok("サマリーにアカウント数が出る", stats.includes("42"));
   ok("サマリーに有料転換率が出る", stats.includes("28.6%"));
-  ok("サマリーにMRR概算が出る", stats.includes("10,280"));
-  // サマリーは全体を見る画面。期間で絞った数字ではなく累計を出し、期間タブ自体を隠す。
   ok("サマリーは予約の累計を出す", stats.includes("120") && stats.includes("11.7%"));
   ok("サマリーでは期間タブを隠す", await page.locator("#range-buttons").isHidden());
   ok("サマリーの但し書きは全体の累計", (await page.textContent("#admin-message")).includes("全体の累計"));
-  ok("推移は月次（直近12ヶ月）", (await page.locator("#chart-signups svg rect").count()) === 3 && (await page.locator("#chart-bookings svg rect").count()) === 3);
+  ok("推移は月次（直近12ヶ月）", (await page.locator("#chart-northstar svg rect").count()) === 3 && (await page.locator("#chart-signups svg rect").count()) === 3);
 
-  await page.click('.op-nav-sub[data-nav-href="/analytics.html#revenue"]');
+  // 獲得
+  await page.click('.op-nav-sub[data-nav-href="/analytics.html#acquisition"]');
   await page.waitForTimeout(150);
   ok("期間で集計するビューでは期間タブが出る", await page.locator("#range-buttons").isVisible());
   ok("但し書きも期間表示に戻る", (await page.textContent("#admin-message")).includes("直近30日"));
-  const cohorts = await page.textContent("#cohort-list");
-  ok("コホート表が新しい月から並ぶ", cohorts.indexOf("2026-08") < cohorts.indexOf("2026-07"));
-  ok("コホートの転換率が出る", cohorts.includes("31.8%"));
+  ok("流入元ごとの登録数が出る", (await page.textContent("#signup-sources-list")).includes("www.google.com"));
+  ok("獲得ファネルが出る", (await page.textContent("#acquisition-funnel")).includes("登録完了"));
 
-  await page.click('.op-nav-sub[data-nav-href="/analytics.html#activation"]');
+  // 定着（立ち上がり＋継続）
+  await page.click('.op-nav-sub[data-nav-href="/analytics.html#retention"]');
   await page.waitForTimeout(150);
   const funnelText = await page.textContent("#activation-funnel");
   ok("定着ファネルが母数に対する割合で出る", funnelText.includes("33") && funnelText.includes("82.5%"));
   ok("取得できない段は0ではなく—で出す", funnelText.includes("—"));
+  const actStats = await page.textContent("#activation-stats");
+  ok("初回予約までの日数が出る", actStats.includes("3.5"));
+  ok("2回目が入った割合が出る", actStats.includes("56.3%"));
+  const stuckList = await page.textContent("#stuck-list");
+  ok("止まっているアカウントが名簿で出る", stuckList.includes("stuck@example.com") && stuckList.includes("カレンダー"));
+  ok("休眠アカウントも名簿で出る", (await page.textContent("#dormant-list")).includes("dormant@example.com"));
+  ok("週次アクティブが描かれる", (await page.locator("#chart-wah svg rect").count()) === 3);
 
-  await page.click('.op-nav-sub[data-nav-href="/analytics.html#screens"]');
+  // 収益
+  await page.click('.op-nav-sub[data-nav-href="/analytics.html#revenue"]');
   await page.waitForTimeout(150);
+  const cohorts = await page.textContent("#cohort-list");
+  ok("コホート表が新しい月から並ぶ", cohorts.indexOf("2026-08") < cohorts.indexOf("2026-07"));
+  ok("コホートの転換率が出る", cohorts.includes("31.8%"));
+  const limitHits = await page.textContent("#limit-hits-list");
+  ok("有料の壁が機能別に出る", limitHits.includes("予約ページの数") && limitHits.includes("12"));
+  ok("壁は当時のプランつきで出る", limitHits.includes("無料"));
+
+  // 機能
+  await page.click('.op-nav-sub[data-nav-href="/analytics.html#features"]');
+  await page.waitForTimeout(150);
+  const adoption = await page.textContent("#adoption-list");
+  ok("機能ごとの採用率が出る", adoption.includes("ピンポイント日程調整") && adoption.includes("52.5%"));
+  ok("取得できない機能は0ではなく取得不可", adoption.includes("取得不可"));
   ok("画面別の表が出る", (await page.textContent("#pages-list")).includes("/b/:slug"));
   ok("画面×プランの内訳が出る", (await page.textContent("#plan-pages-list")).includes("300"));
-  ok("流入元が出る", (await page.textContent("#sources-list")).includes("www.google.com"));
   ok("PV/UVの折れ線が2本ある", (await page.locator("#chart-usage svg path").count()) === 2);
-
-  // サイドメニューは3画面で共通。分析だけ子ビューまでアコーディオンで出す。
-  ok("メニューは現在地の子項目を選択状態にする", await page.locator('.op-nav-sub[data-nav-href="/analytics.html#screens"].is-active').count() === 1);
-  ok("親のアコーディオンは開いたまま", await page.locator(".op-nav-group[open]").count() === 1);
-  ok("他画面への導線も同じメニューに並ぶ", (await page.locator('.op-nav-item[data-nav-href="/operators.html"]').count()) === 1);
 
   // 期間ボタンはサーバへ days を渡す（クライアント側だけで切ったふりをしない）
   page._requests.length = 0;
@@ -940,12 +986,23 @@ section("analytics dashboard (#343)");
   const notReady = await newPage();
   await notReady.route("**/api/usage-summary*", (route) => route.fulfill({
     status: 200, contentType: "application/json",
-    body: JSON.stringify({ ...MOCK_USAGE_SUMMARY, usage: { ...MOCK_USAGE_SUMMARY.usage, available: false } }),
+    body: JSON.stringify({
+      ...MOCK_USAGE_SUMMARY,
+      usage: { ...MOCK_USAGE_SUMMARY.usage, available: false },
+      retention: { ...MOCK_USAGE_SUMMARY.retention, available: false, dormant_total: null, dormant: [] },
+      revenue: { ...MOCK_USAGE_SUMMARY.revenue, limit_hits_available: false, limit_hits: [] },
+    }),
   }));
-  await notReady.goto(`${base}/analytics.html#screens`, { waitUntil: "networkidle" });
+  await notReady.goto(`${base}/analytics.html#features`, { waitUntil: "networkidle" });
   await notReady.waitForTimeout(400);
-  const body = await notReady.textContent("#screens-body");
-  ok("未計測は0ではなく理由を出す", body.includes("page_events") && !body.includes("表示数（PV）"));
+  ok("未計測は0ではなく理由を出す", (await notReady.textContent("#screens-body")).includes("page_events"));
+  await notReady.click('.op-nav-sub[data-nav-href="/analytics.html#retention"]');
+  await notReady.waitForTimeout(200);
+  ok("休眠は0件ではなく計測待ちと出す", (await notReady.textContent("#activation-stats")).includes("足あとの計測待ち"));
+  ok("週次アクティブも理由を出す", !(await notReady.locator("#wah-empty").isHidden()));
+  await notReady.click('.op-nav-sub[data-nav-href="/analytics.html#revenue"]');
+  await notReady.waitForTimeout(200);
+  ok("壁の記録も計測待ちと出す", (await notReady.textContent("#limit-hits-list")).includes("計測待ち"));
   ok("no JS exception", notReady._errors.length === 0);
   await notReady.close();
 }
@@ -961,7 +1018,7 @@ section("operator console: shared side menu (#343)");
     await page.goto(`${base}/${name}.html`, { waitUntil: "networkidle" });
     await page.waitForTimeout(300);
     labels.push(await page.$$eval(".op-nav [data-nav-href]", (nodes) => nodes.map((n) => n.getAttribute("data-nav-href")).join(",")));
-    ok(`${name}: メニューが描画される`, (await page.locator(".op-nav [data-nav-href]").count()) === 8);
+    ok(`${name}: メニューが描画される`, (await page.locator(".op-nav [data-nav-href]").count()) === 9);
     ok(`${name}: JS例外なし`, page._errors.length === 0);
     await page.close();
   }
@@ -974,10 +1031,10 @@ section("operator console: shared side menu (#343)");
   ok("他画面では分析のアコーディオンは閉じている", (await page.locator(".op-nav-group[open]").count()) === 0);
   await page.click(".op-nav-group > summary");
   ok("見出しを押すと開く", (await page.locator(".op-nav-group[open]").count()) === 1);
-  await page.click('.op-nav-sub[data-nav-href="/analytics.html#activation"]');
-  await page.waitForURL("**/analytics.html#activation", { timeout: 5000 }).catch(() => {});
+  await page.click('.op-nav-sub[data-nav-href="/analytics.html#retention"]');
+  await page.waitForURL("**/analytics.html#retention", { timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(400);
-  ok("子項目から直接そのビューが開く", await page.locator("#view-activation.is-active").count() === 1);
+  ok("子項目から直接そのビューが開く", await page.locator("#view-retention.is-active").count() === 1);
   ok("no JS exception", page._errors.length === 0);
   await page.close();
 }

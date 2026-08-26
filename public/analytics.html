@@ -41,26 +41,115 @@
         <p class="eyebrow">Overview</p>
         <h2>サマリー</h2>
         <p class="muted" style="margin:2px 0 0;">サービス全体の累計です（期間では絞りません）。推移は直近12ヶ月。</p>
-        <div class="op-stats" id="overview-stats"></div>
+
+        <div class="op-north" id="northstar"></div>
+
+        <div class="op-stats" id="overview-stats" style="margin-top:22px;"></div>
         <div class="op-split" style="margin-top:24px;">
+          <div class="op-block">
+            <h3>日程が決まった数の推移</h3>
+            <p class="muted">月ごとに成立した予約（キャンセルを除く・直近12ヶ月）。</p>
+            <div class="op-chart" id="chart-northstar"></div>
+          </div>
           <div class="op-block">
             <h3>登録数の推移</h3>
             <p class="muted">月ごとに増えたアカウント数（JST・直近12ヶ月）。</p>
             <div class="op-chart" id="chart-signups"></div>
           </div>
+        </div>
+      </section>
+
+      <section id="view-acquisition" class="op-view panel">
+        <p class="eyebrow">Acquisition</p>
+        <h2>獲得</h2>
+        <p class="muted" style="margin:2px 0 0;">どこから来て、どこで帰っているか。露出先とLP・登録フォームの直し所を決めます。</p>
+        <div class="op-stats" id="acquisition-stats"></div>
+        <div class="op-split" style="margin-top:24px;">
           <div class="op-block">
-            <h3>予約数の推移</h3>
-            <p class="muted">月ごとに入った予約数（キャンセル分も含む・直近12ヶ月）。</p>
-            <div class="op-chart" id="chart-bookings"></div>
+            <h3>登録までのファネル</h3>
+            <p class="muted">登録完了だけは実際のアカウント数（計測が欠けても正しい値）。表示数は同じ人の再訪を含みます。</p>
+            <div class="op-funnel" id="acquisition-funnel"></div>
+            <div class="op-empty" id="acquisition-funnel-empty" hidden></div>
+          </div>
+          <div class="op-block">
+            <h3>流入元ごとの登録数</h3>
+            <p class="muted">登録した人が最初に来た外部サイト。「(不明)」は計測を入れる前の登録と、直接アクセスです。</p>
+            <div class="op-table-wrap" style="margin-top:12px;">
+              <table class="op-table">
+                <thead><tr><th>流入元</th><th>登録数</th></tr></thead>
+                <tbody id="signup-sources-list"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:26px;">
+          <h3 style="margin:0 0 2px;">登録数の推移</h3>
+          <p class="muted" style="margin:0;">選んだ期間の日別。</p>
+          <div class="op-chart" id="chart-signups-daily"></div>
+        </div>
+      </section>
+
+      <section id="view-retention" class="op-view panel">
+        <p class="eyebrow">Retention</p>
+        <h2>定着</h2>
+        <p class="muted" style="margin:2px 0 0;">登録した人が最初の1件までたどり着き、そのあとも使い続けているか。稼働中アカウントは <span id="activation-denominator">-</span> 件です。</p>
+
+        <h3 style="margin:24px 0 2px;">立ち上がり</h3>
+        <p class="muted" style="margin:0;">急に落ちる段が、いま直すべき画面です。到達率は「一度でも作った」を数えるので、初回予約までの日数と並べて読みます。</p>
+        <div class="op-funnel" id="activation-funnel"></div>
+        <div class="op-stats" id="activation-stats" style="margin-top:20px;"></div>
+
+        <div style="margin-top:26px;">
+          <div class="op-section-head">
+            <h3 style="margin:0 0 2px;">予約が1件も入っていないアカウント <span id="stuck-count" class="op-count"></span></h3>
+          </div>
+          <p class="muted" style="margin:0;">どの段で止まっているか別。声をかける宛先としてそのまま使えます。</p>
+          <div class="op-table-wrap" style="margin-top:12px;">
+            <table class="op-table">
+              <thead><tr><th>止まっている段</th><th>名前</th><th>メール</th><th>プラン</th><th>登録</th></tr></thead>
+              <tbody id="stuck-list"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <h3 style="margin:30px 0 2px;">継続</h3>
+        <p class="muted" style="margin:0;">画面を開いた・予約が入った人の数。計測（#342）を入れた日より前は記録がありません。</p>
+        <div class="op-split" style="margin-top:14px;">
+          <div class="op-block">
+            <h3>週ごとのアクティブなアカウント</h3>
+            <p class="muted">その週に管理画面を開いた、または予約が入った人数。</p>
+            <div class="op-chart" id="chart-wah"></div>
+            <div class="op-empty" id="wah-empty" hidden></div>
+          </div>
+          <div class="op-block">
+            <h3>30日以上動きのないアカウント <span id="dormant-count" class="op-count"></span></h3>
+            <p class="muted">解約や離脱の前触れ。掘り起こしの宛先です。</p>
+            <div class="op-table-wrap" style="margin-top:12px;">
+              <table class="op-table">
+                <thead><tr><th>名前</th><th>メール</th><th>プラン</th><th>最後の動き</th></tr></thead>
+                <tbody id="dormant-list"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
 
       <section id="view-revenue" class="op-view panel">
-        <p class="eyebrow">Revenue / Conversion</p>
-        <h2>課金・転換</h2>
-        <p class="muted" style="margin:2px 0 0;">有料プランの内訳と、無料から有料へどれだけ・どれくらいの期間で変わっているか。</p>
+        <p class="eyebrow">Revenue</p>
+        <h2>収益</h2>
+        <p class="muted" style="margin:2px 0 0;">無料の人はなぜ払わないのか、払った人は続いているか。価格とプランの境界を決めます。</p>
         <div class="op-stats" id="revenue-stats"></div>
+
+        <div style="margin-top:26px;">
+          <h3 style="margin:0 0 2px;">有料の壁に当たった回数</h3>
+          <p class="muted" style="margin:0;">上限や有料機能にぶつかった記録（#342）。回数の多い機能が、いま値付けをすべき場所です。プランは<strong>ぶつかった時点</strong>のもの。</p>
+          <div class="op-table-wrap" style="margin-top:12px;">
+            <table class="op-table">
+              <thead><tr><th>機能</th><th>当時のプラン</th><th>回数</th><th>延べ人数</th></tr></thead>
+              <tbody id="limit-hits-list"></tbody>
+            </table>
+          </div>
+        </div>
 
         <div style="margin-top:26px;">
           <h3 style="margin:0 0 2px;">登録月ごとの有料転換率</h3>
@@ -76,41 +165,24 @@
         </div>
       </section>
 
-      <section id="view-activation" class="op-view panel">
-        <p class="eyebrow">Activation</p>
-        <h2>定着</h2>
-        <p class="muted" style="margin:2px 0 0;">稼働中アカウント（<span id="activation-denominator">-</span>件）のうち、そこまで到達している割合です。急に落ちる段が、いま直すべき場所です。</p>
-        <div class="op-funnel" id="activation-funnel"></div>
-        <div class="op-split" style="margin-top:26px;">
-          <div class="op-block">
-            <h3>予約の開催方法</h3>
-            <p class="muted">期間内に入った予約の内訳。</p>
-            <div class="op-table-wrap" style="margin-top:12px;">
-              <table class="op-table">
-                <thead><tr><th>開催方法</th><th>件数</th><th>割合</th></tr></thead>
-                <tbody id="location-list"></tbody>
-              </table>
-            </div>
-          </div>
-          <div class="op-block">
-            <h3>そのほかの利用</h3>
-            <p class="muted">プラン別機能が実際に使われているか。</p>
-            <div class="op-table-wrap" style="margin-top:12px;">
-              <table class="op-table">
-                <thead><tr><th>項目</th><th>値</th></tr></thead>
-                <tbody id="extra-list"></tbody>
-              </table>
-            </div>
+      <section id="view-features" class="op-view panel">
+        <p class="eyebrow">Features</p>
+        <h2>機能</h2>
+        <p class="muted" style="margin:2px 0 0;">作ったものは使われているか。次に作るもの・手を入れるもの・畳むものを決めます。</p>
+
+        <div style="margin-top:20px;">
+          <h3 style="margin:0 0 2px;">機能ごとの採用率</h3>
+          <p class="muted" style="margin:0;">稼働中アカウントのうち、その機能を使ったことがある割合。</p>
+          <div class="op-table-wrap" style="margin-top:12px;">
+            <table class="op-table">
+              <thead><tr><th>機能</th><th>使ったアカウント</th><th>採用率</th></tr></thead>
+              <tbody id="adoption-list"></tbody>
+            </table>
           </div>
         </div>
-      </section>
 
-      <section id="view-screens" class="op-view panel">
-        <p class="eyebrow">Screens</p>
-        <h2>画面の利用状況</h2>
-        <p class="muted" style="margin:2px 0 0;">どの画面が見られているか（計測は #342 で入れた page_events。入れた日より前は記録がありません）。</p>
         <div id="screens-body">
-          <div class="op-split" style="margin-top:20px;">
+          <div class="op-split" style="margin-top:26px;">
             <div class="op-block">
               <h3>表示数と訪問者数</h3>
               <p class="muted">訪問者数は日ごとに重複を除いた数の合計（延べ）です。</p>
@@ -118,12 +190,16 @@
               <div class="op-legend" id="usage-legend"></div>
             </div>
             <div class="op-block">
-              <h3>獲得ファネル</h3>
-              <p class="muted">登録完了だけは実際のアカウント数（計測が欠けても正しい値）。</p>
-              <div class="op-funnel" id="acquisition-funnel"></div>
-              <h3 style="margin-top:22px;">ゲストの予約ファネル</h3>
-              <p class="muted">予約ページを見た人のうち、予約まで進んだ割合。</p>
+              <h3>ゲストの予約ファネル</h3>
+              <p class="muted">予約ページを見た人のうち、予約まで進んだ割合。ここは1件の改善が全ホストに効きます。</p>
               <div class="op-funnel" id="booking-funnel"></div>
+              <h3 style="margin-top:22px;">端末</h3>
+              <div class="op-table-wrap" style="margin-top:12px;">
+                <table class="op-table">
+                  <thead><tr><th>端末</th><th>表示数</th><th>割合</th></tr></thead>
+                  <tbody id="devices-list"></tbody>
+                </table>
+              </div>
             </div>
           </div>
 
@@ -138,9 +214,7 @@
           </div>
 
           <div style="margin-top:26px;">
-            <div class="op-section-head">
-              <h3 style="margin:0 0 2px;">画面 × プラン</h3>
-            </div>
+            <h3 style="margin:0 0 2px;">画面 × プラン</h3>
             <p class="muted" style="margin:0;">どのプランの人がその画面を使っているか。機能をどのプランに置くかの判断に使います。</p>
             <div class="op-legend" id="plan-legend"></div>
             <div class="op-table-wrap" style="margin-top:12px;">
@@ -151,30 +225,19 @@
             </div>
           </div>
 
-          <div class="op-split" style="margin-top:26px;">
-            <div class="op-block">
-              <h3>流入元</h3>
-              <p class="muted">外部サイトのホスト名のみ（(direct) は直接アクセス・リファラなし）。</p>
-              <div class="op-table-wrap" style="margin-top:12px;">
-                <table class="op-table">
-                  <thead><tr><th>流入元</th><th>表示数</th></tr></thead>
-                  <tbody id="sources-list"></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="op-block">
-              <h3>端末</h3>
-              <p class="muted">表示数の内訳。</p>
-              <div class="op-table-wrap" style="margin-top:12px;">
-                <table class="op-table">
-                  <thead><tr><th>端末</th><th>表示数</th><th>割合</th></tr></thead>
-                  <tbody id="devices-list"></tbody>
-                </table>
-              </div>
+          <div style="margin-top:26px;">
+            <h3 style="margin:0 0 2px;">閲覧の流入元</h3>
+            <p class="muted" style="margin:0;">外部サイトのホスト名のみ（(direct) は直接アクセス・リファラなし）。登録に至ったかは「獲得」で見ます。</p>
+            <div class="op-table-wrap" style="margin-top:12px;">
+              <table class="op-table">
+                <thead><tr><th>流入元</th><th>表示数</th></tr></thead>
+                <tbody id="sources-list"></tbody>
+              </table>
             </div>
           </div>
         </div>
       </section>
+
     </main>
   </div>
 
@@ -306,23 +369,133 @@
     const emptyRow = (columns, text) => `<tr><td class="empty-cell" colspan="${columns}">${escapeHtml(text)}</td></tr>`;
 
     // ---- 描画 ----
+    const FEATURE_LABEL = {
+      booking_page: "予約ページの数", question: "アンケートの設問数", question_type: "選択式の回答形式",
+      booking_range: "受付期間（3ヶ月以降）", pinpoint_link: "ピンポイントのリンク数", pinpoint_slot: "ピンポイントの候補数",
+      pinpoint_hold: "枠の押さえ", ai_assist: "AIアシスト", manual_contact: "相手の手動追加", profile_advanced: "高度プロフィール",
+    };
+    const STEP_LABEL = {
+      no_page: "予約ページ 未作成", no_availability: "受付時間 未設定",
+      no_calendar: "カレンダー 未連携", no_booking: "予約 待ち",
+    };
+    const PLAN_PILL = { free: "無料", pro: "Pro", premium: "プレミアム", "": "不明" };
+    const monthLabel = (value) => String(value || "").replace("-", "/");
+    const dateLabel = (value) => (value ? new Date(value).toLocaleDateString("ja-JP") : "—");
+
     function renderOverview(data) {
+      const north = data.northstar;
       const accounts = data.accounts;
       const revenue = data.revenue;
-      // サマリーは期間で絞らない（全体を見る画面なので、期間タブもこのビューでは隠す）。
+      // 北極星（#343）。キマルが売っているのは「日程が決まること」なので、いちばん大きく出す。
+      // 予約数と人数を必ず並べるのは、片方だけだと嘘をつくため（1人のヘビーユーザー／1回試して終わり）。
+      const delta = north.bookings - north.prev_bookings;
+      const sign = delta > 0 ? "＋" : delta < 0 ? "−" : "±";
+      document.querySelector('#northstar').innerHTML = `
+        <p class="op-north-label">今月（${escapeHtml(north.month)}）日程が決まった数</p>
+        <div class="op-north-figures">
+          <span class="op-north-value">${num(north.bookings)}<span class="op-unit">件</span></span>
+          <span class="op-north-sub">決まったアカウント <strong>${num(north.owners)}</strong>件</span>
+          <span class="op-north-sub">前月 ${num(north.prev_bookings)}件・${escapeHtml(sign)}${num(Math.abs(delta))}件</span>
+        </div>
+        <p class="op-north-note">キャンセルは含みません。登録数やMRRより先にこの数字を見ます（登録は無料で溜まり、MRRは結果が遅れて出るため）。</p>`;
+
       document.querySelector('#overview-stats').innerHTML = [
         stat('アカウント総数', num(accounts.total), '件', `稼働中 ${num(accounts.active)}・停止 ${num(accounts.disabled)}`),
         stat('有料アカウント', num(accounts.paid), '件', `Pro ${num(accounts.by_plan.pro)}・プレミアム ${num(accounts.by_plan.premium)}`, accounts.paid_rate),
         stat('有料転換率', pct(accounts.paid_rate), '', '全アカウントに対する割合', accounts.paid_rate),
         stat('MRR（概算）', revenue.available ? `¥${num(revenue.mrr_estimate)}` : '—', '', revenue.available ? `課金 ${num(revenue.paying_total)}件・無償 ${num(revenue.cat_key_paid)}件` : '決済イベントを取得できません'),
-        stat('予約の累計', data.bookings.available ? num(data.bookings.total_all_time) : '—', '件', data.bookings.available ? `キャンセル率 ${pct(data.bookings.cancel_rate_all_time)}・予約が入ったアカウント ${num(data.bookings.owners_with_booking)}件` : '予約を取得できません'),
+        stat('予約の累計', data.bookings.available ? num(data.bookings.total_all_time) : '—', '件', data.bookings.available ? `キャンセル率 ${pct(data.bookings.cancel_rate_all_time)}` : '予約を取得できません'),
         stat('承認待ち Cat Key', num(accounts.pending_cat_key), '件', accounts.pending_cat_key > 0 ? '運営コンソールで承認できます' : '未対応の申請はありません'),
       ].join('');
-      const monthLabel = (value) => String(value || '').replace('-', '/');
+
+      document.querySelector('#chart-northstar').innerHTML = barChart(north.monthly, { labelKey: 'month', formatLabel: monthLabel });
       document.querySelector('#chart-signups').innerHTML = barChart(accounts.signups_monthly, { labelKey: 'month', formatLabel: monthLabel });
-      document.querySelector('#chart-bookings').innerHTML = data.bookings.available
-        ? barChart(data.bookings.monthly, { labelKey: 'month', formatLabel: monthLabel })
-        : '<p class="muted">予約データを取得できませんでした。</p>';
+    }
+
+    function renderAcquisition(data) {
+      const usage = data.usage;
+      const accounts = data.accounts;
+      const funnel3 = usage.acquisition_funnel || [];
+      const signupViews = funnel3.length >= 3 ? funnel3[2].value : 0;
+      document.querySelector('#acquisition-stats').innerHTML = [
+        stat(`登録（直近${days}日）`, num(accounts.signups_in_range), '件', `累計 ${num(accounts.total)}件`),
+        stat('登録画面からの完了率', usage.available && signupViews > 0 ? pct(Math.round((accounts.signups_in_range / signupViews) * 1000) / 10) : '—', '', usage.available ? `登録画面の表示 ${num(signupViews)}回` : '画面の計測待ち'),
+        stat('流入元が分かる登録', num(data.acquisition.source_known), '件', `直近${days}日の登録のうち`),
+        stat('メール確認済み', pct(accounts.email_verified_rate), '', `${num(accounts.email_verified)}件が確認済み`, accounts.email_verified_rate),
+      ].join('');
+
+      const funnelEmpty = document.querySelector('#acquisition-funnel-empty');
+      if (usage.available) {
+        funnelEmpty.hidden = true;
+        funnel(document.querySelector('#acquisition-funnel'), usage.acquisition_funnel);
+      } else {
+        document.querySelector('#acquisition-funnel').innerHTML = '';
+        funnelEmpty.hidden = false;
+        funnelEmpty.textContent = '画面の計測データがまだありません（page_events を適用すると、適用した日から記録が入ります）。';
+      }
+
+      const sources = data.acquisition.sources || [];
+      document.querySelector('#signup-sources-list').innerHTML = sources.length
+        ? sources.map((row) => `<tr>
+            <td data-label="流入元" class="cell-mono">${escapeHtml(row.source)}</td>
+            <td data-label="登録数" class="cell-mono">${num(row.count)}</td>
+          </tr>`).join('')
+        : emptyRow(2, `直近${days}日の登録がありません。`);
+
+      document.querySelector('#chart-signups-daily').innerHTML = barChart(accounts.signups_daily);
+    }
+
+    function renderRetention(data) {
+      document.querySelector('#activation-denominator').textContent = num(data.activation.denominator);
+      funnel(
+        document.querySelector('#activation-funnel'),
+        data.activation.steps.map((step) => ({ label: step.label, value: step.available ? step.count : null })),
+        data.activation.denominator
+      );
+
+      const ttfb = data.activation.time_to_first_booking;
+      const retention = data.retention;
+      document.querySelector('#activation-stats').innerHTML = [
+        stat('初回予約までの日数', ttfb.median == null ? '—' : String(ttfb.median), '日', ttfb.samples ? `中央値（${num(ttfb.samples)}件：${ttfb.p25}〜${ttfb.p75}日）` : 'まだ予約が入ったアカウントがありません'),
+        stat('予約0のアカウント', num(data.activation.stuck_total), '件', `稼働中 ${num(data.activation.denominator)}件のうち`),
+        stat('2回目が入った割合', pct(retention.repeat_rate), '', `${num(retention.owners_with_repeat)} / ${num(retention.owners_with_booking)}件`, retention.repeat_rate),
+        stat('30日動きなし', retention.dormant_total == null ? '—' : num(retention.dormant_total), '件', retention.dormant_total == null ? '足あとの計測待ち' : '掘り起こしの宛先'),
+      ].join('');
+
+      const stuck = data.activation.stuck || [];
+      document.querySelector('#stuck-count').textContent = stuck.length ? `${num(data.activation.stuck_total)}件` : '';
+      document.querySelector('#stuck-list').innerHTML = stuck.length
+        ? stuck.map((owner) => `<tr>
+            <td data-label="止まっている段"><strong>${escapeHtml(STEP_LABEL[owner.step] || owner.step)}</strong></td>
+            <td data-label="名前">${escapeHtml(owner.name || '—')}</td>
+            <td data-label="メール" class="cell-mono">${escapeHtml(owner.email)}</td>
+            <td data-label="プラン"><span class="plan-pill${owner.plan === 'premium' ? ' is-premium' : owner.plan === 'pro' ? ' is-pro' : ''}">${escapeHtml(PLAN_PILL[owner.plan] || owner.plan)}</span></td>
+            <td data-label="登録" class="cell-mono">${escapeHtml(dateLabel(owner.created_at))}</td>
+          </tr>`).join('')
+        : emptyRow(5, '全員に予約が入っています。');
+
+      const wahEmpty = document.querySelector('#wah-empty');
+      if (retention.available) {
+        wahEmpty.hidden = true;
+        document.querySelector('#chart-wah').innerHTML = barChart(retention.weekly_active, { labelKey: 'week' });
+      } else {
+        document.querySelector('#chart-wah').innerHTML = '';
+        wahEmpty.hidden = false;
+        wahEmpty.textContent = 'ログイン中の足あと（page_events）がまだありません。#342 の計測を適用すると、その日から週ごとの人数が出ます。';
+      }
+
+      const dormant = retention.dormant || [];
+      document.querySelector('#dormant-count').textContent = retention.dormant_total == null ? '' : `${num(retention.dormant_total)}件`;
+      document.querySelector('#dormant-list').innerHTML = retention.available
+        ? (dormant.length
+          ? dormant.map((owner) => `<tr>
+              <td data-label="名前">${escapeHtml(owner.name || '—')}</td>
+              <td data-label="メール" class="cell-mono">${escapeHtml(owner.email)}</td>
+              <td data-label="プラン"><span class="plan-pill${owner.plan === 'premium' ? ' is-premium' : owner.plan === 'pro' ? ' is-pro' : ''}">${escapeHtml(PLAN_PILL[owner.plan] || owner.plan)}</span></td>
+              <td data-label="最後の動き" class="cell-mono">${escapeHtml(owner.last_seen ? dateLabel(owner.last_seen) : '記録なし')}</td>
+            </tr>`).join('')
+          : emptyRow(4, '30日以上動きのないアカウントはありません。'))
+        : emptyRow(4, '足あとの計測待ちです。');
     }
 
     function renderRevenue(data) {
@@ -334,8 +507,21 @@
         stat('Cat Key（無償Pro）', num(revenue.cat_key_paid), '件', '売上にはならない有料会員'),
         stat('登録→課金までの日数', toPaid.median == null ? '—' : String(toPaid.median), '日', toPaid.samples ? `中央値（${num(toPaid.samples)}件：${toPaid.p25}〜${toPaid.p75}日）` : '課金の実績がまだありません'),
         stat(`解約イベント（直近${days}日）`, num(revenue.cancel_events_in_range), '件', `累計 ${num(revenue.cancel_events)}件`),
-        stat('メール確認済み', pct(data.accounts.email_verified_rate), '', `${num(data.accounts.email_verified)}件が確認済み`, data.accounts.email_verified_rate),
+        stat('MRR（概算）', `¥${num(revenue.mrr_estimate)}`, '', `課金 ${num(revenue.paying_total)}件`),
       ].join('');
+
+      const hits = revenue.limit_hits || [];
+      const maxHits = Math.max(1, ...hits.map((row) => row.hits));
+      document.querySelector('#limit-hits-list').innerHTML = revenue.limit_hits_available
+        ? (hits.length
+          ? hits.map((row) => `<tr>
+              <td data-label="機能">${escapeHtml(FEATURE_LABEL[row.feature] || row.feature)}</td>
+              <td data-label="当時のプラン"><span class="plan-pill${row.plan === 'premium' ? ' is-premium' : row.plan === 'pro' ? ' is-pro' : ''}">${escapeHtml(PLAN_PILL[row.plan] || row.plan || '不明')}</span></td>
+              <td data-label="回数"><span class="op-cell-bar"><i style="width:${(row.hits / maxHits) * 100}%"></i><span class="cell-mono">${num(row.hits)}</span></span></td>
+              <td data-label="延べ人数" class="cell-mono">${num(row.owners)}</td>
+            </tr>`).join('')
+          : emptyRow(4, `直近${days}日は誰も上限にぶつかっていません。`))
+        : emptyRow(4, '計測待ちです（page_events と plan_limit_hits_daily を適用すると記録が入ります）。');
 
       const cohorts = data.conversion.cohorts.slice().reverse();
       const maxRate = Math.max(1, ...cohorts.map((row) => row.rate || 0));
@@ -350,37 +536,15 @@
         : emptyRow(5, 'アカウントがまだありません。');
     }
 
-    function renderActivation(data) {
-      document.querySelector('#activation-denominator').textContent = num(data.activation.denominator);
-      funnel(
-        document.querySelector('#activation-funnel'),
-        data.activation.steps.map((step) => ({ label: step.label, value: step.available ? step.count : null })),
-        data.activation.denominator
-      );
-
-      const locations = data.bookings.by_location || {};
-      const labels = { google_meet: 'Google Meet', zoom: 'Zoom', in_person: '対面', phone: '電話', custom_url: 'URL指定', later: '後日連絡', unknown: '不明' };
-      const entries = Object.keys(locations).map((key) => [key, locations[key]]).sort((a, b) => b[1] - a[1]);
-      const totalBookings = entries.reduce((sum, entry) => sum + entry[1], 0);
-      document.querySelector('#location-list').innerHTML = entries.length
-        ? entries.map(([key, count]) => `<tr>
-            <td data-label="開催方法">${escapeHtml(labels[key] || key)}</td>
-            <td data-label="件数" class="cell-mono">${num(count)}</td>
-            <td data-label="割合" class="cell-mono">${share(count, totalBookings)}%</td>
-          </tr>`).join('')
-        : emptyRow(3, `直近${days}日の予約がありません。`);
-
-      const rows = [
-        ['ピンポイントリンク（期間内 / 累計）', data.bookings.available ? `${num(data.bookings.pinpoint_links_in_range)} / ${num(data.bookings.pinpoint_links_total)}` : '—'],
-        [`AIアシスト利用（${data.ai.month}）`, data.ai.available ? `${num(data.ai.calls)}回 / ${num(data.ai.owners)}アカウント` : '—'],
-      ];
-      document.querySelector('#extra-list').innerHTML = rows.map(([label, value]) => `<tr>
-        <td data-label="項目">${escapeHtml(label)}</td>
-        <td data-label="値" class="cell-mono">${escapeHtml(value)}</td>
+    function renderFeatures(data) {
+      const adoption = data.features.adoption || [];
+      const maxAdoption = Math.max(1, ...adoption.map((row) => row.owners || 0));
+      document.querySelector('#adoption-list').innerHTML = adoption.map((row) => `<tr>
+        <td data-label="機能">${escapeHtml(row.label)}</td>
+        <td data-label="使ったアカウント"><span class="op-cell-bar"><i style="width:${((row.owners || 0) / maxAdoption) * 100}%"></i><span class="cell-mono">${row.available ? num(row.owners) : '—'}</span></span></td>
+        <td data-label="採用率" class="cell-mono">${row.available ? pct(row.rate) : '取得不可'}</td>
       </tr>`).join('');
-    }
 
-    function renderScreens(data) {
       const usage = data.usage;
       const body = document.querySelector('#screens-body');
       if (!usage.available) {
@@ -398,7 +562,6 @@
         `<span><i style="background:${SERIES.pro}"></i>訪問者数（延べ）</span>`,
       ].join('');
 
-      funnel(document.querySelector('#acquisition-funnel'), usage.acquisition_funnel);
       funnel(document.querySelector('#booking-funnel'), usage.booking_funnel);
 
       const maxViews = Math.max(1, ...usage.top_pages.map((row) => row.views));
@@ -474,9 +637,10 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || '取得に失敗しました。');
         renderOverview(data);
+        renderAcquisition(data);
+        renderRetention(data);
         renderRevenue(data);
-        renderActivation(data);
-        renderScreens(data);
+        renderFeatures(data);
         lastData = data;
         updateStatus();
       } catch (error) {
@@ -493,7 +657,7 @@
 
     // ビュー切替（cat-key-admin.html と同じ hash 方式）。
     // メニューの選択表示とリンクの横取りは共通サイドメニュー（operator-nav.js）の担当。
-    const VIEWS = ['overview', 'revenue', 'activation', 'screens'];
+    const VIEWS = ['overview', 'acquisition', 'retention', 'revenue', 'features'];
     function showView(name) {
       const target = VIEWS.includes(name) ? name : 'overview';
       currentView = target;

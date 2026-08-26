@@ -518,6 +518,25 @@
 .operator-console .op-stat-meter { display: block; margin-top: 10px; height: 3px; background: var(--op-line); }
 .operator-console .op-stat-meter > i { display: block; height: 100%; background: var(--op-blue); }
 
+/* ---- 北極星（#343）。この画面でいちばん大きい数字は1つだけにする ---- */
+.operator-console .op-north {
+  margin-top: 18px;
+  padding: 22px 24px 24px;
+  background: var(--op-panel-2);
+  border: 1px solid var(--op-line-bright);
+  border-left: 3px solid var(--op-blue);
+}
+.operator-console .op-north-label { margin: 0; font-family: var(--op-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: var(--op-dim); }
+.operator-console .op-north-figures { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 24px; margin-top: 8px; }
+.operator-console .op-north-value {
+  font-family: var(--op-mono); font-size: clamp(34px, 5vw, 46px); font-weight: 700; line-height: 1.1;
+  color: var(--op-ink); font-variant-numeric: tabular-nums;
+}
+.operator-console .op-north-value .op-unit { font-size: 15px; font-weight: 600; color: var(--op-dim); margin-left: 4px; }
+.operator-console .op-north-sub { font-family: var(--op-mono); font-size: 13px; color: var(--op-soft); }
+.operator-console .op-north-sub strong { color: var(--op-ink); }
+.operator-console .op-north-note { margin: 12px 0 0; font-size: 12px; color: var(--op-dim); }
+
 /* ---- グラフ ---- */
 .operator-console .op-chart { width: 100%; margin-top: 12px; }
 .operator-console .op-chart svg { display: block; width: 100%; height: auto; }

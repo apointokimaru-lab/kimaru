@@ -1,5 +1,6 @@
 const { json, readJson } = require("./_lib/response");
 const { requirePremiumOwner } = require("./_lib/auth");
+const { recordLimitHit } = require("./_lib/analytics");
 const { sb, eq } = require("./_lib/supabase");
 const { optional } = require("./_lib/config");
 const llm = require("./_lib/llm");
@@ -92,7 +93,7 @@ function buildUserPrompt(profile, contact) {
 exports.handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") return json(405, { error: "許可されていない操作です" });
-    const owner = await requirePremiumOwner(event);
+    const owner = await requirePremiumOwner(event, "ai_assist");
 
     // 設定不可（APIキー未設定）なら 503 を返し、フロントはルールベース提案にフォールバックする。
     if (!llm.isConfigured()) {
@@ -101,6 +102,8 @@ exports.handler = async (event) => {
 
     const used = await monthlyUsage(owner.id);
     if (used >= MONTHLY_LIMIT) {
+      // プレミアムでも月間上限には当たる。プラン間の壁と同じ列に記録して、上限値の見直し材料にする（#342）。
+      await recordLimitHit({ ownerId: owner.id, plan: owner.plan, feature: "ai_assist", page: "/ai-assist.html" });
       return json(429, {
         error: `今月のAIアシスト利用上限（${MONTHLY_LIMIT}回）に達しました。翌月にリセットされます。`,
         limit: MONTHLY_LIMIT,

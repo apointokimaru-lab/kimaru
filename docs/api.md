@@ -208,6 +208,11 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 - 触る DB: `page_events`（+ `rate_limit_hits`）
 - 集計は運営コンソールの分析ダッシュボード（#343）。
 
+**有料の壁に当たった記録（`event: "limit_hit"`）**: 同じ `POST /api/usage` に `{ event: "limit_hit", feature }` を送ると `page_events` に `event='limit_hit'` / `meta={feature}` で1行入る。`feature` は許可リスト（`_lib/analytics.js` `LIMIT_FEATURES`）に無ければ**記録せず捨てる**（無認証の口なので任意の文字列は通さない）。プランはクライアントから受け取らない（偽れるため）。
+- クライアントからも受けるのは、上限の多くを画面側で止めていてサーバに届かないため（`public/usage.js` `window.KimaruUsage.limitHit(feature)`）。
+- サーバ側で弾いた場合は `_lib/analytics.js` `recordLimitHit({ownerId, plan, feature, page})` が**ぶつかった時点のプラン**込みで記録する（`_lib/auth.js` の `requireProOwner(event, feature)` / `requirePremiumOwner(event, feature)`、`booking-page-save.js`、`pinpoint-create.js`、`ai-assist.js`、`manual-contact.js`）。集計時に `owners` を引くと、その後アップグレードした人が「Proが無料の上限にぶつかった」ように見えるため。
+- 集計ビュー: `plan_limit_hits_daily`（日 × 機能 × プラン）。
+
 ### `GET /api/usage-summary?days=30` — 運営セッション必須
 分析ダッシュボード（`/analytics.html`）が読む集計。`days` は 7〜365 にクランプ（既定30）。
 - 返すもの: `accounts`（登録推移・プラン内訳・有料転換率）/ `revenue`（課金内訳・MRR概算・登録→課金までの日数・解約イベント）/ `conversion.cohorts`（登録月別の転換率）/ `activation`（機能への到達率）/ `bookings`（予約推移・キャンセル率・開催方法）/ `ai`（当月のAIアシスト利用）/ `usage`（画面別PV・UU、画面×プラン、流入元、端末、ファネル）
@@ -234,3 +239,5 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 | `OPENAI_API_KEY` / `OPENAI_MODEL` / `AI_ASSIST_MONTHLY_LIMIT` | AIアシスト（GPT-5.4 Mini・月300回） |
 | `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET` | Zoom 自動発行（任意） |
 | `USAGE_HASH_SALT` | 利用計測の訪問者ハッシュ用ソルト（任意・未設定なら `SESSION_SECRET` を使う） |
+
+**登録時の流入元（`owners.signup_source`）**: 最初に見た外部リファラのホスト名を `public/usage.js` が localStorage に控え、メール登録は本文の `source`、Googleは `/api/google-auth-start?src=` → state 末尾の `~ホスト名` 経由で運ぶ。**新規作成時のみ**保存（`upsertOwner(profile, createOnly)`）。ログインのたびに上書きすると、最後にログインした経路が登録経路として残るため。列が無い環境では列を落として登録を通す。

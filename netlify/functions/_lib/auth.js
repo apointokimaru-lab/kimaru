@@ -1,5 +1,6 @@
 const { verifySession, verifyAdminSession } = require("./crypto");
 const { findOwnerById } = require("./supabase");
+const { recordLimitHit } = require("./analytics");
 
 async function currentOwner(event) {
   const session = verifySession(event);
@@ -26,9 +27,12 @@ const isPremium = (plan) => plan === "premium";
 
 // 有料(Pro)限定の機能・APIで使う。無料ユーザーは 403。Cat Key 承認済みは plan='pro' になるため通る。
 // プレミアム会員も Pro 機能をすべて使えるため通す。
-async function requireProOwner(event) {
+// feature を渡すと、弾いたときに「有料の壁に当たった」記録を残す（#342）。ここで記録するのは、
+// この時点で owner（＝当時のプラン）が手元にあり、価格判断に使える形で残せるのがここだけのため。
+async function requireProOwner(event, feature) {
   const owner = await requireOwner(event);
   if (!isPro(owner.plan)) {
+    if (feature) await recordLimitHit({ ownerId: owner.id, plan: owner.plan, feature });
     const error = new Error("この機能はPro版でご利用いただけます。");
     error.statusCode = 403;
     throw error;
@@ -37,9 +41,10 @@ async function requireProOwner(event) {
 }
 
 // プレミアムプラン（AIアシスト等の上位機能）限定。free/pro は 403。
-async function requirePremiumOwner(event) {
+async function requirePremiumOwner(event, feature) {
   const owner = await requireOwner(event);
   if (!isPremium(owner.plan)) {
+    if (feature) await recordLimitHit({ ownerId: owner.id, plan: owner.plan, feature });
     const error = new Error("この機能はプレミアムプランでご利用いただけます。");
     error.statusCode = 403;
     throw error;

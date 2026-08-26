@@ -42,7 +42,7 @@ erDiagram
 
 | テーブル | 役割 | 主なカラム |
 |---|---|---|
-| **owners** | 主アカウント（発行者）。プラン・Cat Key 状態を保持 | `email`(uniq), `name`, `slug`(uniq／公開プロフィールURL `/u/{slug}`。**新規作成時のみ採番**し既存は上書きしない・#265), `plan`(**free/pro/premium**), `invite_code`, `cat_key_disabled`, `cat_key_pending`, `trial_ends_at`, `password_hash`, `email_verified` |
+| **owners** | 主アカウント（発行者）。プラン・Cat Key 状態を保持 | `signup_source`(登録時の流入元ホスト・#342), `email`(uniq), `name`, `slug`(uniq／公開プロフィールURL `/u/{slug}`。**新規作成時のみ採番**し既存は上書きしない・#265), `plan`(**free/pro/premium**), `invite_code`, `cat_key_disabled`, `cat_key_pending`, `trial_ends_at`, `password_hash`, `email_verified` |
 | **profiles** | プロフィールシート | `owner_id`, `user_id`(legacy), `display_name`, `bio`, `profile_url` |
 | **google_connections** | Google カレンダー連携トークン（現行） | `owner_id`(uniq), `calendar_id`, `access_token`, `refresh_token`, `expires_at` |
 | **booking_pages** | 予約ページ設定 | `owner_id`, `slug`(uniq), `duration_minutes`(30〜120), `buffer_before/after_minutes`(0〜60), `booking_range_months`(1〜6), `location_type`, `location_value`, `timezone`, `is_active`, `frozen`(降格時凍結・#174) |
@@ -58,7 +58,7 @@ erDiagram
 | **invite_codes** | 招待コード（Cat Key）マスタ | `code`(uniq), `plan_grant`(free/pro), `is_active`。初期値 `NEKO20240222`=pro |
 | **cat_key_events** | Cat Key 適用・取消・無効の監査 | `owner_id`, `email`, `action`, `code`, `ip_address`, `user_agent`, `metadata`(jsonb) |
 | **payment_events** | Square 等の決済イベント記録 | `owner_id`, `provider`, `provider_event_id`, `event_type`, `raw_payload`(jsonb) |
-| **page_events** | 画面表示の記録（利用計測・#342）。**生URL・クエリ・IPは保存しない** | `event`(page_view), `page`(正規化済み＝`/b/:slug` 等), `owner_id`(ログイン時のみ), `visitor_hash`(日付＋IP＋UAのHMAC・**日次ローテーション**＝当日UUは数えられるが継続追跡は不可), `referrer_host`(外部のみ), `device`, `lang`。集計ビュー `page_events_daily` / `page_events_by_plan` / `page_events_sources`（JST基準） |
+| **page_events** | 画面表示の記録（利用計測・#342）。**生URL・クエリ・IPは保存しない** | `event`(page_view), `page`(正規化済み＝`/b/:slug` 等), `owner_id`(ログイン時のみ), `visitor_hash`(日付＋IP＋UAのHMAC・**日次ローテーション**＝当日UUは数えられるが継続追跡は不可), `referrer_host`(外部のみ), `device`, `lang`。`event`=`limit_hit` の行は**有料の壁に当たった記録**（`meta`={feature, plan}・ぶつかった時点のプラン）。集計ビュー `page_events_daily` / `page_events_by_plan` / `page_events_sources` / `plan_limit_hits_daily`（JST基準） |
 | **operators** | 運営者アカウント（**`owners` とは別管理**）。運営者管理画面（`/operators.html`）で追加・削除・一覧 | `id`, `email`(uniq), `name`, `is_active`, `created_at`、（将来）`password_hash`。※ ログインは `/operator-login.html` → 運営セッション `kimaru_admin_session`（ユーザーと別系統）。認証は当面 共有管理キー `ADMIN_SECRET`、本表は運営者ロスター・監査の実行者表示用。将来は運営者ごとのメール+パスワード認証へ |
 | **free_signups** | 無料登録フォームの申請 | `name`, `email`, `purpose`, `invite_code`, `language` |
 | **users** | ⚠️ レガシーのアカウント表（旧設計） | `email`(uniq), `name`, `plan`, `invite_code` |

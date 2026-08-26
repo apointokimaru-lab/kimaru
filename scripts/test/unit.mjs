@@ -1958,6 +1958,17 @@ section("usage tracking: path normalization (#342)");
   ok("端末種別（モバイル）", analytics.deviceFromUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Mobile/15E148") === "mobile");
   ok("端末種別（デスクトップ）", analytics.deviceFromUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)") === "desktop");
 
+  // 有料の壁の記録（#342）。機能名は許可リストで固定する。無認証の /api/usage からも送れるので、
+  // 任意の文字列が通ると集計軸が汚れて読めなくなる。
+  ok("既知の機能名は通す", analytics.normalizeFeature("pinpoint_link") === "pinpoint_link");
+  ok("知らない機能名は捨てる", analytics.normalizeFeature("free_money") === "" && analytics.normalizeFeature("") === "");
+  ok("イベント種別も許可リスト", analytics.normalizeEvent("limit_hit") === "limit_hit" && analytics.normalizeEvent("page_view") === "page_view" && analytics.normalizeEvent("<script>") === "other");
+
+  // 登録時の流入元はホスト名だけ（パス・クエリには検索語や他サービスのIDが載る）。
+  ok("流入元はホスト名を通す", analytics.sourceHost("News.YCombinator.com") === "news.ycombinator.com");
+  ok("URLごと渡されたら捨てる", analytics.sourceHost("https://x.com/status/1?q=秘密") === "");
+  ok("空・不正な値は空になる", analytics.sourceHost("") === "" && analytics.sourceHost(null) === "" && analytics.sourceHost("a b") === "");
+
   // 訪問者IDは日付を混ぜる＝翌日は別ID（日をまたいだ追跡ができないことをテストで担保する）。
   const day1 = new Date("2026-08-26T03:00:00Z");
   const day2 = new Date("2026-08-27T03:00:00Z");
@@ -1998,6 +2009,17 @@ section("usage endpoint (usage.js #342)");
   ok("URLの鍵は保存しない", !JSON.stringify(row.row).includes("secret-token"));
   ok("外部リファラはホストだけ", row.row.referrer_host === "x.com");
   ok("未ログインは owner_id なし", row.row.owner_id === null);
+
+  inserted.length = 0;
+  await call({ event: "limit_hit", feature: "pinpoint_link", path: "/booking-settings.html" });
+  const hit = inserted.filter((r) => r.table === "page_events").pop();
+  ok("壁に当たった記録が入る", hit && hit.row.event === "limit_hit" && hit.row.meta.feature === "pinpoint_link");
+  ok("どの画面で当たったかも残す", hit && hit.row.page === "/booking-settings.html");
+  ok("クライアントの申告するプランは載せない", hit && hit.row.meta.plan === undefined);
+
+  inserted.length = 0;
+  await call({ event: "limit_hit", feature: "とりあえず何でも", path: "/dashboard.html" });
+  ok("知らない機能名は記録しない", inserted.filter((r) => r.table === "page_events").length === 0);
 
   inserted.length = 0;
   await call({ path: "/dashboard.html" }, { "user-agent": "Googlebot/2.1 (+http://www.google.com/bot.html)" });

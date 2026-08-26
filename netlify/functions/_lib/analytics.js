@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { optional } = require("./config");
+const { sb } = require("./supabase");
 
 // 利用計測（#342）の共通処理。usage.js（記録）と usage-summary.js（集計・#343）から使う。
 //
@@ -71,4 +72,51 @@ const isBotUserAgent = (userAgent) => BOT_RE.test(String(userAgent || ""));
 // 端末種別。画面幅はクライアントから送らせず UA で判定する（送らせると値の検証が増えるだけで精度は変わらない）。
 const deviceFromUserAgent = (userAgent) => (/Mobile|Android|iPhone|iPod|Windows Phone/i.test(String(userAgent || "")) ? "mobile" : /iPad|Tablet/i.test(String(userAgent || "")) ? "tablet" : "desktop");
 
-module.exports = { normalizePath, referrerHost, visitorHash, jstDayKey, isBotUserAgent, deviceFromUserAgent };
+// ---- 有料の壁に当たった記録（#342 / 決定: 2026-08-26）----
+// なぜ必要か: 価格とプランの境界（何を無料にし、何を有料にするか）を推測で決めていた。
+// 「無料の人が、どの上限に、月に何回ぶつかっているか」は買う理由の一次資料になる。
+// 何をしているか: page_events の event/meta 列に載せる。専用テーブルを作らないのは、
+// 画面表示と同じ「利用の記録」で、集計もビューを1本足すだけで済むため。
+//
+// 機能名は許可リストで固定する。ここに無い値は捨てる（無認証の /api/usage からも送れるので、
+// 任意の文字列を通すと集計軸が汚れて読めなくなる）。
+const LIMIT_FEATURES = [
+  "booking_page",     // 予約ページの保存数（無料1 / Pro2 / プレミアム5）
+  "question",         // 事前アンケートの設問数（2 / 5 / 5）
+  "question_type",    // 選択式の回答形式（Pro以上）
+  "booking_range",    // 受付期間3ヶ月以降（Pro以上）
+  "pinpoint_link",    // ピンポイントリンクの同時保有数
+  "pinpoint_slot",    // 1リンクあたりの候補数
+  "pinpoint_hold",    // 枠の押さえ（Pro以上）
+  "ai_assist",        // AIアシスト（プレミアム限定・月間上限）
+  "manual_contact",   // 相手の手動追加（プレミアム限定）
+  "profile_advanced", // 高度プロフィール（Pro以上）
+];
+
+const EVENTS = ["page_view", "limit_hit"];
+const normalizeEvent = (value) => (EVENTS.includes(String(value)) ? String(value) : "other");
+const normalizeFeature = (value) => (LIMIT_FEATURES.includes(String(value)) ? String(value) : "");
+
+// 記録できなくても機能の挙動は変えない（計測のためにユーザーの操作を失敗させない）。
+async function recordLimitHit({ ownerId = null, plan = "", feature, page = "" } = {}) {
+  const name = normalizeFeature(feature);
+  if (!name) return;
+  try {
+    await sb("page_events", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      // plan は「ぶつかった時点」のプランなので、ここで控える。集計時に owners を引くと、
+      // その後アップグレードした人が「Proが無料の上限にぶつかった」ように見えてしまう。
+      body: JSON.stringify({ event: "limit_hit", page: String(page || ""), owner_id: ownerId, meta: { feature: name, plan: String(plan || "") } }),
+    });
+  } catch (_) { /* noop */ }
+}
+
+// 登録時の流入元（owners.signup_source）。ホスト名だけを許す。
+// パスやクエリには検索語や他サービスのIDが載るので、画面の計測と同じくホストまでで切る。
+function sourceHost(value) {
+  const host = String(value || "").trim().toLowerCase().slice(0, 100);
+  return /^[a-z0-9][a-z0-9.-]*$/.test(host) ? host : "";
+}
+
+module.exports = { normalizePath, referrerHost, visitorHash, jstDayKey, isBotUserAgent, deviceFromUserAgent, LIMIT_FEATURES, normalizeEvent, normalizeFeature, recordLimitHit, sourceHost };

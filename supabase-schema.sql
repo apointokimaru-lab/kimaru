@@ -514,3 +514,22 @@ create or replace view page_events_sources as
     from page_events
    where event = 'page_view'
    group by 1, 2, 3;
+
+-- 有料の壁に当たった記録（#342 / 2026-08-26 決定）。専用テーブルは作らず page_events に載せる
+-- （event='limit_hit'・meta={feature,plan}）。画面表示と同じ「利用の記録」で、集計もビュー1本で済む。
+-- meta.plan は「ぶつかった時点」のプラン。集計時に owners を引くと、その後アップグレードした人が
+-- 「Proが無料の上限にぶつかった」ように見えるため、記録時に控える。
+create or replace view plan_limit_hits_daily as
+  select (created_at at time zone 'Asia/Tokyo')::date as day,
+         coalesce(meta->>'feature', '') as feature,
+         coalesce(meta->>'plan', '') as plan,
+         count(*)::bigint as hits,
+         count(distinct owner_id)::bigint as owners
+    from page_events
+   where event = 'limit_hit'
+   group by 1, 2, 3;
+
+-- 登録時の流入元（#342 / 2026-08-26 決定）。ホスト名のみ（例: www.google.com / x.com）。
+-- なぜ必要か: page_events の流入元は「見た人」までしか分からず、どの流入が登録に至ったかが
+-- つながらないため、露出先を選ぶ判断ができなかった。列が無い環境では登録側が保存を諦める（登録は通る）。
+alter table owners add column if not exists signup_source text not null default '';

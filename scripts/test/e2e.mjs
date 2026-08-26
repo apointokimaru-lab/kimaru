@@ -23,8 +23,16 @@ const server = http.createServer((req, res) => {
   if (/^\/(b|p)\//.test(p)) p = "/booking.html";
   const file = path.join(pub, p);
   if (!file.startsWith(pub) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); return res.end("nf"); }
+  let body = fs.readFileSync(file);
+  // netlify/edge-functions/auth-gate.js 相当。全HTMLの </body> 直前に計測スニペットを差し込む。
+  // 入れておかないと、テストの中だけ usage.js が読み込まれず「壁に当たった記録」を検証できない。
+  if (path.extname(file) === ".html") {
+    const html = body.toString("utf8");
+    const end = html.lastIndexOf("</body>");
+    if (end >= 0) body = Buffer.from(html.slice(0, end) + '<script src="/usage.js" defer></script>' + html.slice(end), "utf8");
+  }
   res.writeHead(200, { "content-type": MIME[path.extname(file)] || "text/plain" });
-  res.end(fs.readFileSync(file));
+  res.end(body);
 });
 await new Promise((r) => server.listen(0, r));
 const base = `http://localhost:${server.address().port}`;
@@ -125,7 +133,18 @@ async function newPage() {
   const requests = [];
   page.on("request", (r) => requests.push(r.url()));
   page._requests = requests;
-  await page.addInitScript(() => { try { localStorage.clear(); } catch (e) {} });
+  await page.addInitScript(() => {
+    try { localStorage.clear(); } catch (e) {}
+    // 計測ビーコンの中身を検証できるようにする。Blob で送られた本文は request.postData() では見えないため、
+    // sendBeacon を差し替えて本文を window.__beacons に控える（送信自体はしない＝テストのAPIモックも汚さない）。
+    window.__beacons = [];
+    try {
+      Object.defineProperty(navigator, "sendBeacon", {
+        value: (url, blob) => { blob.text().then((text) => window.__beacons.push({ url, body: text })); return true; },
+        configurable: true,
+      });
+    } catch (e) {}
+  });
   return page;
 }
 const bodyText = (page) => page.evaluate(() => document.body.innerText);
@@ -836,6 +855,13 @@ section("pinpoint scheduling link (#303)");
 
     const free = await openAtLimit("free", 1);
     ok("hitting the limit stops at the button", await free.locator("#pp-limit-modal").isVisible());
+    // 上限にぶつかった瞬間を記録する（#342）。画面側で止める壁はサーバに届かないので、
+    // ここが飛ばないと「無料の人がどの上限に当たっているか」が永久に分からない。
+    await free.waitForTimeout(200);
+    const beacons = await free.evaluate(() => window.__beacons.map((b) => b.body));
+    const limitBeacon = beacons.find((b) => b.includes("limit_hit"));
+    ok("hitting the limit is recorded", Boolean(limitBeacon) && limitBeacon.includes("pinpoint_link"));
+    ok("the beacon carries no plan claim from the client", !String(limitBeacon).includes("plan"));
     ok("the picker does not open", await free.locator("#pinpoint-view").isHidden());
     const message = await free.textContent("#pp-limit-body");
     ok("the message names the limit", message.includes("1件"));

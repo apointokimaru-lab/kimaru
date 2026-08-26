@@ -94,7 +94,13 @@ const LIMIT_FEATURES = [
 ];
 
 const EVENTS = ["page_view", "limit_hit"];
-const normalizeEvent = (value) => (EVENTS.includes(String(value)) ? String(value) : "other");
+// 既定はページ表示。クライアント（public/usage.js）はページ表示のとき event を送らないので、
+// ここで既定値を落とすと全部のページ表示が "other" になり、集計ビュー（event='page_view' で絞る）が
+// 永久に空になる（#347）。未指定・空文字はページ表示として扱う。
+const normalizeEvent = (value) => {
+  const name = value == null || value === "" ? "page_view" : String(value);
+  return EVENTS.includes(name) ? name : "other";
+};
 const normalizeFeature = (value) => (LIMIT_FEATURES.includes(String(value)) ? String(value) : "");
 
 // 記録できなくても機能の挙動は変えない（計測のためにユーザーの操作を失敗させない）。

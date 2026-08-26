@@ -1963,6 +1963,9 @@ section("usage tracking: path normalization (#342)");
   ok("既知の機能名は通す", analytics.normalizeFeature("pinpoint_link") === "pinpoint_link");
   ok("知らない機能名は捨てる", analytics.normalizeFeature("free_money") === "" && analytics.normalizeFeature("") === "");
   ok("イベント種別も許可リスト", analytics.normalizeEvent("limit_hit") === "limit_hit" && analytics.normalizeEvent("page_view") === "page_view" && analytics.normalizeEvent("<script>") === "other");
+  // クライアントはページ表示のとき event を送らない。既定を落とすと全部 "other" になり、
+  // 集計ビュー（event='page_view' で絞る）が永久に空になる（#347・本番で発覚）。
+  ok("event 未指定はページ表示として扱う", analytics.normalizeEvent(undefined) === "page_view" && analytics.normalizeEvent("") === "page_view");
 
   // 登録時の流入元はホスト名だけ（パス・クエリには検索語や他サービスのIDが載る）。
   ok("流入元はホスト名を通す", analytics.sourceHost("News.YCombinator.com") === "news.ycombinator.com");
@@ -2005,6 +2008,8 @@ section("usage endpoint (usage.js #342)");
   ok("常に 204（本文なし）", res.statusCode === 204 && res.body === "");
   const row = inserted.filter((r) => r.table === "page_events").pop();
   ok("page_events に1行入る", Boolean(row));
+  // 実際のクライアントが送る形（event を含まない）。ここが page_view でないと集計に載らない（#347）。
+  ok("event を送らない本文はページ表示で記録する", row.row.event === "page_view");
   ok("画面名は正規化して保存", row.row.page === "/manage-booking.html");
   ok("URLの鍵は保存しない", !JSON.stringify(row.row).includes("secret-token"));
   ok("外部リファラはホストだけ", row.row.referrer_host === "x.com");

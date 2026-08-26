@@ -8,6 +8,7 @@ const { requireOwner } = require("./_lib/auth");
 const { sb, eq } = require("./_lib/supabase");
 const { appBaseUrl } = require("./_lib/config");
 const { pinpointLimits } = require("./_lib/plan-limits");
+const { recordLimitHit } = require("./_lib/analytics");
 const pinpoint = require("./_lib/pinpoint");
 
 exports.handler = async (event) => {
@@ -29,6 +30,7 @@ exports.handler = async (event) => {
     // ではない。期限切れ・無効化済みは数えないので、一覧の行を消さなくても次のリンクを作れる。
     const active = await pinpoint.activeLinkCount(owner.id);
     if (active >= limits.links) {
+      await recordLimitHit({ ownerId: owner.id, plan: owner.plan, feature: "pinpoint_link", page: "/booking-settings.html" });
       return json(403, { error: `有効なリンクは${limits.links}件までです。新しく作るには、有効なリンクを無効にしてください。` });
     }
 
@@ -37,6 +39,7 @@ exports.handler = async (event) => {
     // 候補数の上限もプラン別。超過は「多いぶんを黙って切る」のではなく 400 で止める。
     // 切ると、7つ選んだのに相手には3つしか出ない＝設定が黙って消える事故になる（#300 の教訓）。
     if (slots.length > limits.slots) {
+      await recordLimitHit({ ownerId: owner.id, plan: owner.plan, feature: "pinpoint_slot", page: "/booking-settings.html" });
       return json(400, { error: `候補は${limits.slots}件まで選べます。` });
     }
 
@@ -50,6 +53,7 @@ exports.handler = async (event) => {
     // 逆順にすると、無料の未連携ユーザーに「連携が必要です」と返してしまう。無料は連携しても
     // 押さえられないので、直しようのない案内になる。
     if (holdSlots && !limits.hold) {
+      await recordLimitHit({ ownerId: owner.id, plan: owner.plan, feature: "pinpoint_hold", page: "/booking-settings.html" });
       return json(400, { error: "枠を押さえる機能はProプラン以上でご利用いただけます" });
     }
 

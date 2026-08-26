@@ -80,6 +80,12 @@ const SITE_FOOTER = `<footer class="foot footer">
     </div>
   </footer>`;
 
+// 利用計測（#342）。全HTMLの </body> 直前にこの1行だけ差し込む。
+// なぜここでやるか: 各ページのHTMLに手で貼る運用は、画面が増えたときに必ずどこかが漏れる
+// （キマルは公開HTMLが30枚あり、今後も増える）。HTMLを書き換えるのはこのEdge Functionだけなので、
+// 注入も1か所に寄せておけば「新しい画面だけ計測されていない」が起きない。
+const USAGE_SNIPPET = `<script src="/usage.js" defer></script>`;
+
 const SESSION_MAX_AGE_MS = 2592000 * 1000; // 30日（Cookie の Max-Age と一致）
 
 function getSecret() {
@@ -185,6 +191,10 @@ export default async (request, context) => {
   if (html.includes("<!-- site-footer -->")) {
     html = html.replace("<!-- site-footer -->", SITE_FOOTER);
   }
+  // 計測スニペットの注入。最後の </body> の直前に入れる（先頭一致だと、本文中に </body> の
+  // 文字列を含むページで body の外に出てしまう）。</body> が無いHTMLには入れない＝計測を諦める。
+  const bodyEnd = html.lastIndexOf("</body>");
+  if (bodyEnd >= 0) html = html.slice(0, bodyEnd) + USAGE_SNIPPET + html.slice(bodyEnd);
   const headers = new Headers(response.headers);
   headers.delete("content-length");
   return new Response(html, { status: response.status, headers });

@@ -1930,6 +1930,113 @@ section("contacts list sorting (app.js)");
   ok("未知の並び順キーでも落ちない", Array.isArray(sortRows(rows, "unknown-mode")));
 }
 
+// ---------- 5) 利用計測の正規化（_lib/analytics.js・#342） ----------
+// 生URLをそのまま溜めると /p/<token> や ?t= の鍵が計測テーブルに残る。ここが緩むと
+// 集計画面を見られただけで予約の操作リンクが漏れるので、潰し方をテストで固定する。
+section("usage tracking: path normalization (#342)");
+{
+  const analytics = requireCjs(path.join(repo, "netlify/functions/_lib/analytics.js"));
+  const n = analytics.normalizePath;
+
+  ok("トップは /index.html に寄せる", n("/") === "/index.html" && n("/index.html") === "/index.html");
+  ok("通常の画面はそのまま", n("/dashboard.html") === "/dashboard.html");
+  ok("クエリは捨てる", n("/manage-booking.html?id=abc&t=secret") === "/manage-booking.html");
+  ok("ハッシュは捨てる", n("/cat-key-admin.html#log") === "/cat-key-admin.html");
+  ok("予約ページの slug は潰す", n("/b/taro-1a2b") === "/b/:slug");
+  ok("ピンポイントの token は潰す", n("/p/abcdef123456") === "/p/:token");
+  ok("公開プロフィールの slug は潰す", n("/u/taro-1a2b") === "/u/:slug");
+  ok("大文字は小文字に寄せる（同じ画面を二重に数えない）", n("/Booking.HTML") === "/booking.html");
+  ok("知らない形は other に潰す", n("/../etc/passwd") === "other" && n("/very-long-".repeat(10) + ".html") === "other");
+  ok("空・非文字列でも落ちない", n("") === "other" && n(null) === "other" && n(undefined) === "other");
+
+  ok("外部リファラはホスト名だけ残す", analytics.referrerHost("https://www.google.com/search?q=秘密", "kimaru-co.jp") === "www.google.com");
+  ok("自サイト内の遷移は記録しない", analytics.referrerHost("https://kimaru-co.jp/plan.html", "kimaru-co.jp") === "");
+  ok("壊れたリファラでも落ちない", analytics.referrerHost("not a url", "kimaru-co.jp") === "");
+
+  ok("ボットのUAは判定できる", analytics.isBotUserAgent("Mozilla/5.0 (compatible; Googlebot/2.1)") === true);
+  ok("通常のUAはボット扱いしない", analytics.isBotUserAgent("Mozilla/5.0 (Macintosh) Safari/605") === false);
+  ok("端末種別（モバイル）", analytics.deviceFromUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Mobile/15E148") === "mobile");
+  ok("端末種別（デスクトップ）", analytics.deviceFromUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)") === "desktop");
+
+  // 有料の壁の記録（#342）。機能名は許可リストで固定する。無認証の /api/usage からも送れるので、
+  // 任意の文字列が通ると集計軸が汚れて読めなくなる。
+  ok("既知の機能名は通す", analytics.normalizeFeature("pinpoint_link") === "pinpoint_link");
+  ok("知らない機能名は捨てる", analytics.normalizeFeature("free_money") === "" && analytics.normalizeFeature("") === "");
+  ok("イベント種別も許可リスト", analytics.normalizeEvent("limit_hit") === "limit_hit" && analytics.normalizeEvent("page_view") === "page_view" && analytics.normalizeEvent("<script>") === "other");
+
+  // 登録時の流入元はホスト名だけ（パス・クエリには検索語や他サービスのIDが載る）。
+  ok("流入元はホスト名を通す", analytics.sourceHost("News.YCombinator.com") === "news.ycombinator.com");
+  ok("URLごと渡されたら捨てる", analytics.sourceHost("https://x.com/status/1?q=秘密") === "");
+  ok("空・不正な値は空になる", analytics.sourceHost("") === "" && analytics.sourceHost(null) === "" && analytics.sourceHost("a b") === "");
+
+  // 訪問者IDは日付を混ぜる＝翌日は別ID（日をまたいだ追跡ができないことをテストで担保する）。
+  const day1 = new Date("2026-08-26T03:00:00Z");
+  const day2 = new Date("2026-08-27T03:00:00Z");
+  const h1 = analytics.visitorHash("203.0.113.1", "UA", day1);
+  ok("同じ人・同じ日なら同じID（当日のUUが数えられる）", h1 === analytics.visitorHash("203.0.113.1", "UA", day1));
+  ok("日が変わると別ID（継続追跡はできない）", h1 !== analytics.visitorHash("203.0.113.1", "UA", day2));
+  ok("別の人は別ID", h1 !== analytics.visitorHash("203.0.113.2", "UA", day1));
+  ok("IDにIPそのものは含まれない", !h1.includes("203.0.113.1"));
+  // JSTで日付を切る（UTCだと日本時間の朝9時までの行動が前日に混ざる）。
+  ok("日付の区切りはJST", analytics.jstDayKey(new Date("2026-08-26T15:00:00Z")) === "2026-08-27");
+}
+
+// ---------- 6) 計測エンドポイント usage.js（#342） ----------
+// 「失敗しても何も起きない」ことが仕様（無認証・常に204・DB未適用でも例外を投げない）。
+// ここが崩れると、計測のためにサービス側でエラーが出るという本末転倒になるので固定しておく。
+section("usage endpoint (usage.js #342)");
+{
+  const inserted = [];
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    const u = new URL(url);
+    const table = u.pathname.replace("/rest/v1/", "").split("?")[0];
+    if ((options.method || "GET") === "POST") inserted.push({ table, row: JSON.parse(options.body) });
+    return { ok: true, status: 200, text: async () => "[]" };
+  };
+  const usage = requireCjs(path.join(repo, "netlify/functions/usage.js"));
+  const call = (body, headers = {}, method = "POST") => usage.handler({
+    httpMethod: method,
+    headers: { "content-type": "application/json", "user-agent": "Mozilla/5.0 (Macintosh) Safari/605", host: "kimaru-co.jp", ...headers },
+    body: JSON.stringify(body),
+  });
+
+  const res = await call({ path: "/manage-booking.html?id=abc&t=secret-token", ref: "https://x.com/post/1", lang: "ja" });
+  ok("常に 204（本文なし）", res.statusCode === 204 && res.body === "");
+  const row = inserted.filter((r) => r.table === "page_events").pop();
+  ok("page_events に1行入る", Boolean(row));
+  ok("画面名は正規化して保存", row.row.page === "/manage-booking.html");
+  ok("URLの鍵は保存しない", !JSON.stringify(row.row).includes("secret-token"));
+  ok("外部リファラはホストだけ", row.row.referrer_host === "x.com");
+  ok("未ログインは owner_id なし", row.row.owner_id === null);
+
+  inserted.length = 0;
+  await call({ event: "limit_hit", feature: "pinpoint_link", path: "/booking-settings.html" });
+  const hit = inserted.filter((r) => r.table === "page_events").pop();
+  ok("壁に当たった記録が入る", hit && hit.row.event === "limit_hit" && hit.row.meta.feature === "pinpoint_link");
+  ok("どの画面で当たったかも残す", hit && hit.row.page === "/booking-settings.html");
+  ok("クライアントの申告するプランは載せない", hit && hit.row.meta.plan === undefined);
+
+  inserted.length = 0;
+  await call({ event: "limit_hit", feature: "とりあえず何でも", path: "/dashboard.html" });
+  ok("知らない機能名は記録しない", inserted.filter((r) => r.table === "page_events").length === 0);
+
+  inserted.length = 0;
+  await call({ path: "/dashboard.html" }, { "user-agent": "Googlebot/2.1 (+http://www.google.com/bot.html)" });
+  ok("ボットは記録しない", inserted.filter((r) => r.table === "page_events").length === 0);
+
+  inserted.length = 0;
+  const getRes = await usage.handler({ httpMethod: "GET", headers: {}, body: "" });
+  ok("GET も 204 のまま（何も記録しない）", getRes.statusCode === 204 && inserted.length === 0);
+
+  inserted.length = 0;
+  globalThis.fetch = async () => { throw new Error("DB down"); };
+  const downRes = await call({ path: "/plan.html" });
+  ok("DB障害・テーブル未適用でも 204 で黙って捨てる", downRes.statusCode === 204);
+
+  globalThis.fetch = prevFetch;
+}
+
 // ---------- 結果 ----------
 console.log(`\n${fail === 0 ? "✅" : "❌"} unit: ${pass} passed, ${fail} failed`);
 if (fail) { console.log("FAILED: " + fails.join(" | ")); process.exit(1); }

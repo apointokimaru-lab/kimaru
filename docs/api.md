@@ -195,6 +195,26 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 
 ---
 
+## 利用計測（#342）
+
+### `POST /api/usage` — 認証不要
+画面表示の記録。全HTMLの `</body>` 直前に Edge Function が差し込む `public/usage.js` から、1ページにつき1回だけ `navigator.sendBeacon` で送られる。
+- body: `{ path, ref, lang }`（クライアントは識別子を送らない）
+- **常に 204**（ボット・レート超過・DB障害・テーブル未適用でも同じ）。計測の失敗をサービス側の失敗にしないため、エラーを返さない＝クライアントは再送もログ出力もしない。
+- 保存前に `_lib/analytics.js` で正規化する: パスは画面の種類まで潰し（`/b/<slug>`→`/b/:slug`、`/p/<token>`→`/p/:token`、クエリは破棄）、リファラは外部ホスト名のみ、IPは保存せず「日付＋IP＋UA」のHMAC（日次ローテーション）を `visitor_hash` に入れる。
+- ログイン中は `owner_id` を残す（プラン別の利用差を見るため）。プラン自体は保存せず集計時に `owners` と突き合わせる（1PVごとにアカウント照会をしないため）。
+- レート制限: 1IPあたり 300件/10分（`rate_limit_hits`・fail-open）。無認証の書き込み口なので行の氾濫だけは止める。
+- ファイル名とパスに `analytics`/`track` を使わないのは、広告ブロッカーの汎用ルールで一部の閲覧者ぶんが黙って欠測するのを避けるため。
+- 触る DB: `page_events`（+ `rate_limit_hits`）
+- 集計は運営コンソールの分析ダッシュボード（#343）。
+
+**有料の壁に当たった記録（`event: "limit_hit"`）**: 同じ `POST /api/usage` に `{ event: "limit_hit", feature }` を送ると `page_events` に `event='limit_hit'` / `meta={feature}` で1行入る。`feature` は許可リスト（`_lib/analytics.js` `LIMIT_FEATURES`）に無ければ**記録せず捨てる**（無認証の口なので任意の文字列は通さない）。プランはクライアントから受け取らない（偽れるため）。
+- クライアントからも受けるのは、上限の多くを画面側で止めていてサーバに届かないため（`public/usage.js` `window.KimaruUsage.limitHit(feature)`）。
+- サーバ側で弾いた場合は `_lib/analytics.js` `recordLimitHit({ownerId, plan, feature, page})` が**ぶつかった時点のプラン**込みで記録する（`_lib/auth.js` の `requireProOwner(event, feature)` / `requirePremiumOwner(event, feature)`、`booking-page-save.js`、`pinpoint-create.js`、`ai-assist.js`、`manual-contact.js`）。集計時に `owners` を引くと、その後アップグレードした人が「Proが無料の上限にぶつかった」ように見えるため。
+- 集計ビュー: `plan_limit_hits_daily`（日 × 機能 × プラン）。
+
+---
+
 ## 環境変数（API 関連）
 
 | 変数 | 用途 |
@@ -211,3 +231,6 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 | `SQUARE_PREMIUM_PLAN_ID` | プレミアム（¥2,200）の付与判定 |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` / `AI_ASSIST_MONTHLY_LIMIT` | AIアシスト（GPT-5.4 Mini・月300回） |
 | `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET` | Zoom 自動発行（任意） |
+| `USAGE_HASH_SALT` | 利用計測の訪問者ハッシュ用ソルト（任意・未設定なら `SESSION_SECRET` を使う） |
+
+**登録時の流入元（`owners.signup_source`）**: 最初に見た外部リファラのホスト名を `public/usage.js` が localStorage に控え、メール登録は本文の `source`、Googleは `/api/google-auth-start?src=` → state 末尾の `~ホスト名` 経由で運ぶ。**新規作成時のみ**保存（`upsertOwner(profile, createOnly)`）。ログインのたびに上書きすると、最後にログインした経路が登録経路として残るため。列が無い環境では列を落として登録を通す。

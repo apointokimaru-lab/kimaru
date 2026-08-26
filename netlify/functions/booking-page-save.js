@@ -2,6 +2,7 @@ const { json, readJson } = require("./_lib/response");
 const { requireOwner } = require("./_lib/auth");
 const { sb, eq } = require("./_lib/supabase");
 const { planLimits } = require("./_lib/plan-limits");
+const { recordLimitHit } = require("./_lib/analytics");
 
 const allowedDurations = new Set([30, 40, 50, 60, 70, 80, 90, 100, 110, 120]);
 // UIの選択肢は10分刻みだが、旧データには端数（例: 15分）が入っている。
@@ -110,8 +111,21 @@ exports.handler = async (event) => {
 
     if (!allowedDurations.has(duration)) return json(400, { error: "予約時間は30〜120分の10分刻みで選択してください" });
     if (!candidateDays && !allowedRanges.has(requestedRange)) return json(400, { error: "予約枠の公開範囲の指定が正しくありません" });
-    if (!isPro && !candidateDays && requestedRange > FREE_RANGE_LIMIT) return json(403, { error: "無料版で公開できるのは2ヶ月先までです。3ヶ月以降を公開するにはPro版が必要です" });
-    if (questions.length > questionLimit) return json(403, { error: `現在のプランで設定できる質問は${questionLimit}問までです（無料2問／Pro・プレミアム5問）` });
+    // 上限で弾いたときは「有料の壁に当たった」記録を残す（#342）。どの上限に何回ぶつかっているかが
+    // 価格とプラン境界を決める材料になる。記録は失敗しても無視され、応答は変わらない。
+    if (!isPro && !candidateDays && requestedRange > FREE_RANGE_LIMIT) {
+      await recordLimitHit({ ownerId: owner.id, plan: owner.plan, feature: "booking_range", page: "/booking-settings.html" });
+      return json(403, { error: "無料版で公開できるのは2ヶ月先までです。3ヶ月以降を公開するにはPro版が必要です" });
+    }
+    if (questions.length > questionLimit) {
+      await recordLimitHit({ ownerId: owner.id, plan: owner.plan, feature: "question", page: "/booking-settings.html" });
+      return json(403, { error: `現在のプランで設定できる質問は${questionLimit}問までです（無料2問／Pro・プレミアム5問）` });
+    }
+    // 選択式は Pro 以上。無料には text を強制する（弾かずに落とす）ので 403 は出ないが、
+    // 「選択式を使おうとした」こと自体が有料機能の需要なので記録する。
+    if (!isPro && Array.isArray(body.questions) && body.questions.some((q) => q && q.answer_type && q.answer_type !== "text")) {
+      await recordLimitHit({ ownerId: owner.id, plan: owner.plan, feature: "question_type", page: "/booking-settings.html" });
+    }
     if (!availability.some((setting) => setting.enabled)) return json(400, { error: "受付可能な曜日・時間帯を1つ以上設定してください" });
 
     // 複数予約ページ対応: id 指定で編集、無ければ新規作成（slug はグローバル一意）。
@@ -132,7 +146,10 @@ exports.handler = async (event) => {
       // 凍結ページ（降格時の超過分・#174）は上限カウントから除外する。
       const activeCount = (owned || []).filter((p) => !p.frozen).length;
       const limit = limits.pages;
-      if (activeCount >= limit) return json(403, { error: `現在のプランで保存できる予約ページは${limit}個までです（無料1つ／Pro2つ／プレミアム5つ）` });
+      if (activeCount >= limit) {
+        await recordLimitHit({ ownerId: owner.id, plan: owner.plan, feature: "booking_page", page: "/booking-settings.html" });
+        return json(403, { error: `現在のプランで保存できる予約ページは${limit}個までです（無料1つ／Pro2つ／プレミアム5つ）` });
+      }
     }
 
     const title = String(body.title || "").trim();

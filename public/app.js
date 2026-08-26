@@ -322,7 +322,10 @@ async function initSignup() {
     try {
       const data = formData(form);
       // アカウント作成＋ログイン（セッション発行）
-      await api("auth-register", { method: "POST", body: JSON.stringify({ name: data.name, email: data.email, password: data.password }) });
+      // 流入元（最初に見た外部リファラのホスト）を一緒に送る（#342）。どの流入が登録に至ったかが
+      // つながらないと、露出先を選ぶ判断ができない。取れていなければ空で送る＝登録は変わらず通る。
+      const source = window.KimaruUsage?.source?.() || "";
+      await api("auth-register", { method: "POST", body: JSON.stringify({ name: data.name, email: data.email, password: data.password, source }) });
       // 利用目的・言語は申請記録として保存（任意・失敗しても続行）。確認用パスワードは送らない。
       const { password_confirm, ...signupRecord } = data;
       api("signup", { method: "POST", body: JSON.stringify(signupRecord) }).catch(() => {});
@@ -942,7 +945,10 @@ function addQuestionRow() {
   const list = $("#question-list");
   if (!list) return;
   const limit = isProPlan(currentOwner?.plan) ? 5 : 2;
-  if (list.querySelectorAll(".q-row").length >= limit) return;
+  if (list.querySelectorAll(".q-row").length >= limit) {
+    window.KimaruUsage?.limitHit("question"); // 有料の壁に当たった記録（#342）。ここで止めるとサーバには届かない
+    return;
+  }
   list.insertAdjacentHTML("beforeend", questionRowHtml(""));
   updateBookingPageControls();
 }
@@ -1282,6 +1288,7 @@ function ppToggleSlot(slot, button) {
   // 選ぶ時点で止めて理由を出す（#338 / #300 の教訓）。
   if (limit && !ppChosen.has(slot.start) && ppChosen.size >= limit) {
     ppSetMessage(t("pin.limitSlots").replace("{n}", String(limit)), "error");
+    window.KimaruUsage?.limitHit("pinpoint_slot"); // #342
     return;
   }
   if (ppChosen.has(slot.start)) ppChosen.delete(slot.start);
@@ -1459,6 +1466,7 @@ function ppLinkLimitReached() {
 // 候補を選んだあとに発行ボタンが押せないと気づくより、押した瞬間に理由と次の手
 // （使わないリンクを無効にする／プランを上げる）を出すほうが手戻りが少ない。
 function ppOpenLimitModal() {
+  window.KimaruUsage?.limitHit("pinpoint_link"); // 有料の壁に当たった記録（#342）
   const limit = Number(ppLimits?.links || 0);
   // プレミアムには上げる先が無いので、アップグレードの案内も導線も出さない。
   const top = isPremiumPlan(currentOwner?.plan);

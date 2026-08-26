@@ -92,6 +92,16 @@ Vanilla JS, no framework. i18n is attribute-driven: `data-i18n` / `data-i18n-pla
 - **i18n gotchas**: the ja/en/zh-TW dictionaries in `i18n.js` must stay **symmetric** — adding a string means adding the same key to all three (`grep -c '"<key>":' i18n.js` should be 3). `data-i18n` sets **`textContent`, not innerHTML**, so you cannot put HTML/`<br>` in a translation; to control a heading's line break, split it into multiple spans each with its own key. Keep each element's hardcoded default text in sync with the ja value (it shows pre-JS / for crawlers).
 - **Plan-based UI gating**: `plan.js` reads `/api/me` and adds `body.plan-free|plan-pro|plan-premium` (defer-loaded → no flash). CSS show/hide classes: `.pro-feature` (pro+premium), `.premium-feature` (premium only), `.premium-lock` (free+pro → "coming soon"), `.plan-free-only`/`.plan-paid-only`. The **aurora gradient** (`--premium-grad`, `.aurora`/`.premium-surface`/`.button.premium`) is **premium-surfaces only** — free/pro stay static; always pair animated aurora with `@media(prefers-reduced-motion:reduce)`. Design system = `styles.css` tokens: teal accent `--blue #1F6F73`, ink `#1A1D24`, **zero border-radius, 1px lines, flat** (Swiss/landing3), fonts Archivo + Zen Kaku Gothic New. For screen design changes, prefer the project's frontend-design workflow (see user memory `use-frontend-design-skill`).
 
+### 利用計測（#342）
+「どの画面が使われているか」は `page_events` にだけ入る（外部の計測SaaSは使わない）。記録の流れは
+**Edge Function が全HTMLの `</body>` 直前に `<script src="/usage.js">` を注入 → `public/usage.js` が `sendBeacon` で `POST /api/usage` → `netlify/functions/usage.js` が `_lib/analytics.js` で正規化して1行 insert**。
+- **各ページのHTMLに計測タグを貼らない**（Edge の1か所に寄せる）。30枚あるHTMLに手で貼る運用は、新しい画面が増えたときに必ず漏れるため。
+- `usage.js` は**常に 204**。無認証・ボット除外・レート制限・DB未適用のいずれでもエラーを返さない（計測の失敗をサービスの失敗にしない）。
+- 保存してよい形へ潰してから入れる: パスは画面の種類まで（`/p/<token>` → `/p/:token`、クエリは破棄）、リファラは外部ホスト名のみ、IPは保存せず「日付＋IP＋UA」のHMAC（**日次ローテーション**）。この正規化は `scripts/test/unit.mjs` で固定してある。
+- ファイル名・パスに `analytics`/`track` を使わないのは、広告ブロッカーの汎用ルールで一部が黙って欠測するのを避けるため。
+- **有料の壁の記録（`event='limit_hit'`）**: 無料/Proが上限や有料機能にぶつかった瞬間を `page_events` の `event`/`meta` に載せる（専用テーブルは作らない）。価格とプラン境界を推測で決めないための一次資料。画面側で止まる壁は `window.KimaruUsage.limitHit(feature)`、サーバで弾く壁は `_lib/analytics.js` `recordLimitHit()`（**ぶつかった時点のプラン**を控える）。機能名は `LIMIT_FEATURES` の許可リスト固定。
+- **登録時の流入元（`owners.signup_source`）**: 最初の外部リファラのホストを `usage.js` が localStorage に控え、メール登録は本文の `source`、Googleは `google-auth-start?src=` → state の `~ホスト` で運ぶ。**新規作成時のみ**保存（`upsertOwner(profile, createOnly)`）。
+
 ### Scheduled jobs
 リマインダー（予約22分前）は **Netlify Scheduled Functions** で起動する。コアは `reminder-mails.js` の `run()` に切り出し、`reminder-scheduled.js` が呼ぶ。スケジュールは `netlify.toml` の `[functions."reminder-scheduled"] schedule="*/5 * * * *"`。`run()` 元の HTTP エンドポイント（`/api/reminder-mails?dry_run=1`。認証 `REMINDER_CRON_SECRET` or `CRON_SECRET`）はローカル確認用に残る。メール送信は `_lib/mail.js`（Gmail→Resend、未設定時は送信スキップ）。リマインダーは無料=基本／Pro=プロフィール付き（`owner.plan` で出し分け）。**誕生日メールの自動送信は廃止（決定17・#180）— 生年月日入力と占いベース相手分析は継続。**
 

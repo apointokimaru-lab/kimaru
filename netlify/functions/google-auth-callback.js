@@ -3,6 +3,7 @@ const { appBaseUrl } = require("./_lib/config");
 const { exchangeCode, userInfo, saveGoogleConnection } = require("./_lib/google");
 const { sessionCookie, verifyOauthState, clearOauthStateCookie, verifyBlob } = require("./_lib/crypto");
 const { upsertOwner } = require("./_lib/supabase");
+const { sourceHost } = require("./_lib/analytics");
 const { currentOwner } = require("./_lib/auth");
 
 const SECURE_HEADERS = {
@@ -52,8 +53,13 @@ exports.handler = async (event) => {
 
     const tokens = await exchangeCode(code);
     const profile = await userInfo(tokens.access_token);
+    // 流入元は state の "~" 以降（#342）。新規作成のときだけ控える＝ログインのたびに上書きしない。
+    const signupSource = rawState.startsWith("l") && rawState.includes("~") ? sourceHost(rawState.split("~")[1]) : "";
     const owner = sessionOwner
-      || await upsertOwner({ email: profile.email, name: profile.name || profile.email, avatar_url: profile.picture || null });
+      || await upsertOwner(
+        { email: profile.email, name: profile.name || profile.email, avatar_url: profile.picture || null },
+        signupSource ? { signup_source: signupSource } : {}
+      );
     // 利用停止アカウントはログイン不可（セッションを発行せずログイン画面へ戻す）。
     if (owner.cat_key_disabled) {
       return redirectWithCookies(`${appBaseUrl()}/login.html?suspended=1`, [clearOauthStateCookie()]);

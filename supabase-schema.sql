@@ -457,3 +457,79 @@ alter table pinpoint_links add column if not exists hold_events jsonb not null d
 -- 未適用の環境では全リンクが無期限として動く（列が無ければ undefined → 期限なし判定）。
 alter table pinpoint_links add column if not exists expires_at timestamptz;
 create index if not exists pinpoint_links_expires_idx on pinpoint_links (expires_at) where expires_at is not null;
+
+-- 利用計測（#342）。「どの画面がどれだけ使われているか」を持つ唯一のテーブル。
+-- なぜ必要か: 計測は入れた時点から先しか貯まらない（過去に遡れない）。外部の計測SaaSを使わない方針なので自前で持つ。
+-- 保存するのは正規化済みの画面名まで。生URL・クエリ（/p/<token> や ?t= の鍵）・IPアドレスは保存しない。
+-- visitor_hash は「日付＋IP＋UA」のHMAC＝日をまたぐと同じ人でも別IDになる。当日のUUは数えられるが継続追跡はできない。
+-- 未適用の環境では usage.js の書き込みが黙って失敗するだけで、画面・既存機能は壊れない。
+create table if not exists page_events (
+  id uuid primary key default gen_random_uuid(),
+  event text not null default 'page_view',
+  page text not null default '',
+  owner_id uuid references owners(id) on delete set null,
+  visitor_hash text not null default '',
+  referrer_host text not null default '',
+  device text not null default '',
+  lang text not null default '',
+  meta jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists page_events_created_idx on page_events (created_at desc);
+create index if not exists page_events_page_created_idx on page_events (page, created_at desc);
+create index if not exists page_events_owner_created_idx on page_events (owner_id, created_at desc);
+
+-- 集計ビュー。PostgREST はビューもそのまま読めるので、集計画面（#343）が生ログを全件取らずに済む。
+-- 日付は JST で切る（UTCで切ると日本時間の朝9時までの行動が前日に混ざり、日次推移が読めなくなる）。
+create or replace view page_events_daily as
+  select (created_at at time zone 'Asia/Tokyo')::date as day,
+         page,
+         count(*)::bigint as views,
+         count(distinct visitor_hash) filter (where visitor_hash <> '')::bigint as visitors
+    from page_events
+   where event = 'page_view'
+   group by 1, 2;
+
+-- プラン別内訳。owner_id が無い行（未ログイン）は 'guest' として数える。
+-- plan は「集計時点の現在のプラン」であって閲覧時点のプランではない（1PVごとにプランを控えると
+-- 計測のたびにアカウント照会が必要になり、計測のほうが本体より重くなる）。
+create or replace view page_events_by_plan as
+  select (e.created_at at time zone 'Asia/Tokyo')::date as day,
+         e.page,
+         coalesce(o.plan, 'guest') as plan,
+         count(*)::bigint as views,
+         count(distinct e.visitor_hash) filter (where e.visitor_hash <> '')::bigint as visitors
+    from page_events e
+    left join owners o on o.id = e.owner_id
+   where e.event = 'page_view'
+   group by 1, 2, 3;
+
+-- 流入元・端末の内訳。referrer_host / device は上の2ビューに入れていない（画面×日で持つと行が増えるだけ）。
+-- 生ログを直接集計しないのは、期間を広げたときに数万行を丸ごとFunctionへ引くことになるため。
+create or replace view page_events_sources as
+  select (created_at at time zone 'Asia/Tokyo')::date as day,
+         coalesce(nullif(referrer_host, ''), '(direct)') as source,
+         device,
+         count(*)::bigint as views
+    from page_events
+   where event = 'page_view'
+   group by 1, 2, 3;
+
+-- 有料の壁に当たった記録（#342 / 2026-08-26 決定）。専用テーブルは作らず page_events に載せる
+-- （event='limit_hit'・meta={feature,plan}）。画面表示と同じ「利用の記録」で、集計もビュー1本で済む。
+-- meta.plan は「ぶつかった時点」のプラン。集計時に owners を引くと、その後アップグレードした人が
+-- 「Proが無料の上限にぶつかった」ように見えるため、記録時に控える。
+create or replace view plan_limit_hits_daily as
+  select (created_at at time zone 'Asia/Tokyo')::date as day,
+         coalesce(meta->>'feature', '') as feature,
+         coalesce(meta->>'plan', '') as plan,
+         count(*)::bigint as hits,
+         count(distinct owner_id)::bigint as owners
+    from page_events
+   where event = 'limit_hit'
+   group by 1, 2, 3;
+
+-- 登録時の流入元（#342 / 2026-08-26 決定）。ホスト名のみ（例: www.google.com / x.com）。
+-- なぜ必要か: page_events の流入元は「見た人」までしか分からず、どの流入が登録に至ったかが
+-- つながらないため、露出先を選ぶ判断ができなかった。列が無い環境では登録側が保存を諦める（登録は通る）。
+alter table owners add column if not exists signup_source text not null default '';

@@ -99,6 +99,8 @@
       $("#auth-message").className = "message";
       try {
         const path = mode === "register" ? "/api/auth-register" : "/api/auth-login";
+        // 新規登録のときだけ流入元を載せる（#342）。ログインでは上書きしない。
+        if (mode === "register") data.source = window.KimaruUsage?.source?.() || "";
         const res = await fetch(path, {
           method: "POST",
           credentials: "include",

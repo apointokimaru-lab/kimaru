@@ -42,26 +42,47 @@
           <h2 data-i18n="bs.list.heading">予約ページ</h2>
           <p class="muted" data-i18n="bs.list.desc">用途ごとに予約ページを分けられます。相手に送るのはURLだけ。空いている枠は、設定した受付時間とカレンダーの予定から自動で決まります。</p>
         </div>
-        <!-- ピンポイントリンクの一覧（#327）。新規ページを作らず、この画面のビュー切り替えにしている。
-             #321 でヘッダーとスマホ下部のナビを整理した直後なので、ナビ項目を増やさない。
-             プレミアム限定なので既定は hidden にして app.js が出す（.premium-feature は
-             display:block になり、横並びのボタン列では使えない）。 -->
-        <button type="button" id="pp-list-open" class="button secondary" data-i18n="pin.list.open" hidden>ピンポイントリンク</button>
         <button type="button" id="booking-page-new" class="button primary" data-i18n="bs.list.new">＋ 予約ページを作成</button>
       </div>
       <p id="booking-list-message" class="message" role="status"></p>
       <div id="booking-pages-list" class="list"><p class="muted" data-i18n="bs.list.loading">予約ページを読み込み中...</p></div>
     </section>
+
+    <!-- ピンポイントリンクの一覧（#327 → #338 で常設化）。
+         #327 ではビュー切り替え（#pinpoint-list-view）にして見出し横のボタンから開いていたが、
+         全プランに開放すると「たまに見る隠し画面」ではなく発行したら必ず戻ってくる場所になる
+         （無料は同時1本なので、次を出すには前のリンクを無効にしに来る）。ワンクリック挟むと
+         「なぜ作れないか」と「どうすれば作れるか」が別画面に分かれるため、一覧の下に常設した。
+         #list-view の中に置くのは、編集・候補選択ビューを開いたときに一緒に隠すため
+         （出し入れのコードを足さずに済む）。
+         中身は予約ページ横断のまま（見たいのは「自分が送ったリンク」）。
+         リンク0件のときは app.js がセクションごと隠す（使っていない人に空の箱を見せない）。 -->
+    <section id="pinpoint-links" class="panel settings-section" aria-labelledby="pp-list-title" hidden>
+      <div class="section-head">
+        <div>
+          <h2 id="pp-list-title" data-i18n="pin.list.title">ピンポイントリンク</h2>
+          <p class="muted" data-i18n="pin.list.desc">発行したリンクの状態を確認できます。使わなくなったものは無効にし、使えなくなったものは削除できます。</p>
+        </div>
+        <!-- 「有効なリンク 1 / 1」。上限に達しているかを一覧の場で分かるようにする（#338）。 -->
+        <p id="pp-list-count" class="muted"></p>
+      </div>
+      <p id="pp-list-limit" class="field-note muted" hidden></p>
+      <p id="pp-list-message" class="message" role="status"></p>
+      <div id="pp-list" class="list"></div>
+    </section>
     </div><!-- /list-view -->
 
     <!-- ページ設定エディタ（全幅・一覧と切替） -->
     <section id="page-editor" class="panel settings-section editor-view" aria-labelledby="page-editor-title" hidden>
+      <!-- 戻る導線は見出しの「上・左」に置く。.section-head は space-between なので、中に入れると
+           ワイド画面で見出しから1000px近く離れた右端に飛び、押しに行く導線に見えなくなる。
+           見た目はボタンのまま（枠線の無い文字リンクにすると押せると気づかれない）。 -->
+      <button type="button" id="page-editor-close" class="button secondary editor-back" data-i18n="bs.editor.back">← 一覧に戻る</button>
       <div class="section-head">
         <div>
           <h2 id="page-editor-title" data-i18n="bs.editor.title">予約ページを作成</h2>
           <p id="booking-page-editing" class="muted" data-i18n="bs.editor.editingNew">新しい予約ページ</p>
         </div>
-        <button type="button" id="page-editor-close" class="button secondary" data-i18n="bs.editor.back">← 一覧に戻る</button>
       </div>
       <form id="booking-page-form" class="form-grid">
         <input type="hidden" name="page_id" id="booking-page-id" />
@@ -225,6 +246,8 @@
     <!-- ピンポイント候補選択（#303）。一覧・編集と同じく全幅の画面として切り替える。
          ゲストの予約画面と同じタイムグリッド（スマホ5日/PC1週間）を使い、押した枠がそのまま候補になる（複数可）。 -->
     <section id="pinpoint-view" class="panel settings-section editor-view" aria-labelledby="pp-title" hidden>
+      <!-- 戻る導線は見出しの「上・左」に置く（page-editor と同じ理由）。 -->
+      <button type="button" id="pp-back" class="button secondary editor-back" data-i18n="pin.back">← 一覧に戻る</button>
       <div class="section-head">
         <div>
           <h2 id="pp-title" data-i18n="pin.title">候補の日程を選ぶ</h2>
@@ -232,7 +255,6 @@
                言語切替時は app.js 側で入れ直す。 -->
           <p id="pp-page-name" class="muted">空き枠から選びます。選んだ枠だけが相手に見えます。</p>
         </div>
-        <button type="button" id="pp-back" class="button secondary" data-i18n="pin.back">← 一覧に戻る</button>
       </div>
 
       <!-- 日単位のタイムグリッド（スマホ5日/PC1週間）。上部バー: [‹ 前のN日] [範囲ボタン=月カレンダー] [次のN日 ›] -->
@@ -274,6 +296,9 @@
               </select>
             </label>
             <p class="field-note muted" data-i18n="pin.expiresNote">期限を過ぎると、相手はこのリンクを開けなくなります。</p>
+            <!-- 無料は「1週間」を選べない（#338）。押せない理由を選択肢のすぐ下に出す。
+                 data-i18n は textContent を入れるので翻訳文にリンクを書けず、文とリンクを別要素に割る。 -->
+            <p id="pp-expires-plan" class="field-warning" hidden>⚠️ <span data-i18n="pin.expiresPlan">無料プランの有効期限は3日です。1週間はProプラン以上でご利用いただけます。</span> <a href="/plan.html" data-i18n="pin.planCta">プランを見る</a></p>
           </div>
           <div class="pp-field">
             <label><span data-i18n="pin.holdLabel">候補の枠の押さえ方</span>
@@ -286,6 +311,10 @@
             <!-- 未連携では「押さえる」を選べない（#327 レビュー指摘）。押せない理由を選択肢の
                  すぐ下に出す。data-i18n は textContent を入れるので翻訳文にリンクを書けず、
                  文とリンクを別要素に割っている。 -->
+            <!-- 押さえは Pro 以上（#338）。無料は連携しても押さえられないので、
+                 未連携の警告（下）とは同時に出さない＝プランの理由を優先して1つだけ出す。
+                 2つ並ぶと「何をすれば押さえられるのか」が読み取れなくなる。 -->
+            <p id="pp-hold-plan" class="field-warning" hidden>⚠️ <span data-i18n="pin.holdPlan">枠を押さえる機能はProプラン以上でご利用いただけます。</span> <a href="/plan.html" data-i18n="pin.planCta">プランを見る</a></p>
             <p id="pp-hold-nocal" class="field-warning" hidden>⚠️ <span data-i18n="pin.holdNeedsCalendar">枠を押さえるにはGoogleカレンダーの連携が必要です。</span> <a href="/settings.html#integrations" data-i18n="pin.holdConnectCta">カレンダーを連携する</a></p>
           </div>
           <!-- 予定名は「押さえる」を選んだときだけ出し、必須にする（#325）。
@@ -302,6 +331,12 @@
       </div>
       <p id="pp-message" class="message" role="status"></p>
 
+      <!-- 画面下の戻る導線。候補選択は縦に長く、枠を選び終えた時点で画面の一番下にいるので、
+           上の導線まで戻らずに抜けられるようにする。トレイの中（候補チップの下）ではなく外に
+           出しているのは、トレイが「このリンクの設定」の箱で、そこから出る操作は箱の中身では
+           ないため。結果（#pp-result）の手前に置くので、発行後はコピー行のすぐ上に来る。 -->
+      <div class="form-actions"><button type="button" class="button secondary" id="pp-bottom-back" data-i18n="pin.back">← 一覧に戻る</button></div>
+
       <div id="pp-result" class="pp-result" hidden>
         <p class="eyebrow" data-i18n="pin.resultTitle">作成しました</p>
         <div class="pp-result-row">
@@ -310,20 +345,6 @@
         </div>
         <p class="field-note muted" data-i18n="pin.resultNote">このURLを相手に送ってください。候補が埋まるまで何人でも開けます。</p>
       </div>
-    </section>
-
-    <!-- ピンポイントリンクの一覧（#327）。予約ページ横断で、新しいものから並べる。
-         ホストが見たいのは「自分が送ったリンク」であって「このページのリンク」ではないため。 -->
-    <section id="pinpoint-list-view" class="panel settings-section editor-view" aria-labelledby="pp-list-title" hidden>
-      <div class="section-head">
-        <div>
-          <h2 id="pp-list-title" data-i18n="pin.list.title">ピンポイントリンク</h2>
-          <p class="muted" data-i18n="pin.list.desc">発行したリンクの状態を確認できます。使わなくなったものは無効にし、使えなくなったものは削除できます。</p>
-        </div>
-        <button type="button" id="pp-list-back" class="button secondary" data-i18n="pin.back">← 一覧に戻る</button>
-      </div>
-      <p id="pp-list-message" class="message" role="status"></p>
-      <div id="pp-list" class="list"></div>
     </section>
 
     <!-- 無効化の確認（#327）。「一度無効にすると有効にはできません」を読ませてから実行する。
@@ -352,6 +373,22 @@
         <div class="modal-actions">
           <button type="button" class="button secondary" id="pp-delete-cancel" data-i18n="pin.list.deleteCancel">やめる</button>
           <button type="button" class="button primary" id="pp-delete-confirm" data-i18n="pin.list.deleteConfirm">削除する</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 上限に達したときの案内（#338）。候補を選んだあとに「発行できません」と分かるより、
+         「ピンポイントリンクを作成」を押した時点で理由と次の手（無効にする／プランを上げる）を
+         出すほうが手戻りが少ない。プレミアムは上げるプランが無いので、料金ページへの導線と
+         本文は app.js が出し分ける。 -->
+    <div class="modal-overlay" id="pp-limit-modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pp-limit-title">
+        <button type="button" class="modal-close" id="pp-limit-close" aria-label="閉じる">✕</button>
+        <h3 id="pp-limit-title" data-i18n="pin.limit.title">これ以上リンクを作成できません</h3>
+        <p class="muted" id="pp-limit-body"><!-- 上限件数を含む本文。app.js が入れる --></p>
+        <div class="modal-actions">
+          <button type="button" class="button secondary" id="pp-limit-cancel" data-i18n="pin.limit.close">閉じる</button>
+          <a class="button primary" id="pp-limit-plan" href="/plan.html" data-i18n="pin.limit.upgrade">プランを見る</a>
         </div>
       </div>
     </div>

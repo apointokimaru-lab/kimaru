@@ -425,6 +425,7 @@ section("#321 copy and layout fixes");
 // ===== 9) ピンポイント日程調整（#303） =====
 section("pinpoint scheduling link (#303)");
 {
+  const DAY_MS = 86400000;
   const future = new Date(Date.now() + 5 * 86400000);
   future.setHours(14, 0, 0, 0);
   const SLOTS = [
@@ -605,9 +606,11 @@ section("pinpoint scheduling link (#303)");
     let deleted = null;
     const DAY = 86400000;
     const LINKS = [
-      { id: "l-live", url: "https://kimaru-co.jp/p/tk-live", page_title: "初回相談", slot_count: 2, first_slot: new Date(Date.now() + 2 * DAY).toISOString(), last_slot: new Date(Date.now() + 3 * DAY).toISOString(), hold_slots: true, hold_title: "仮おさえ", expires_at: new Date(Date.now() + DAY).toISOString(), status: "active" },
-      { id: "l-old", url: "https://kimaru-co.jp/p/tk-old", page_title: "初回相談", slot_count: 1, first_slot: new Date(Date.now() + 5 * DAY).toISOString(), last_slot: new Date(Date.now() + 5 * DAY).toISOString(), hold_slots: false, hold_title: "", expires_at: new Date(Date.now() - DAY).toISOString(), status: "expired" },
+      // サーバは作成順（新しいものから）で返す＝使えなくなったリンクが上に来る。
+      // 画面側でこれを「有効が上」に並べ替えるので（#338）、モックもその並びで渡す。
       { id: "l-off", url: "https://kimaru-co.jp/p/tk-off", page_title: "初回相談", slot_count: 0, first_slot: null, last_slot: null, hold_slots: false, hold_title: "", expires_at: null, status: "disabled" },
+      { id: "l-old", url: "https://kimaru-co.jp/p/tk-old", page_title: "初回相談", slot_count: 1, first_slot: new Date(Date.now() + 5 * DAY).toISOString(), last_slot: new Date(Date.now() + 5 * DAY).toISOString(), hold_slots: false, hold_title: "", expires_at: new Date(Date.now() - DAY).toISOString(), status: "expired" },
+      { id: "l-live", url: "https://kimaru-co.jp/p/tk-live", page_title: "初回相談", slot_count: 2, first_slot: new Date(Date.now() + 2 * DAY).toISOString(), last_slot: new Date(Date.now() + 3 * DAY).toISOString(), hold_slots: true, hold_title: "仮おさえ", expires_at: new Date(Date.now() + DAY).toISOString(), status: "active" },
     ];
     await page.route("**/api/**", (route) => {
       const url = new URL(route.request().url());
@@ -617,21 +620,55 @@ section("pinpoint scheduling link (#303)");
       if (name === "pinpoint-deactivate") { disabled = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }); }
       if (name === "pinpoint-delete") { deleted = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }); }
       const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "premium" } }
-        : name === "pinpoint-list" ? { links: LINKS }
+        : name === "pinpoint-list" ? { links: LINKS, limits: { links: 5, slots: 30, expires_days: [3, 7], hold: true }, active_count: 1 }
         : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
     });
     await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
-    await page.waitForSelector("#pp-list-open", { timeout: 8000 }).catch(() => {});
-    ok("premium sees the link list entry", await page.locator("#pp-list-open").isVisible());
-    await page.click("#pp-list-open");
-    await page.waitForTimeout(500);
-    ok("link list replaces the page list", await page.locator("#pinpoint-list-view").isVisible() && !(await page.locator("#list-view").isVisible()));
+    await page.waitForSelector("#pp-list .list-item", { timeout: 8000 }).catch(() => {});
+    // 一覧は予約ページ一覧の下に常設（#338）。開くための操作は要らない。
+    ok("the link list is shown without opening anything", await page.locator("#pinpoint-links").isVisible());
+    ok("it sits under the booking pages, inside the same view", await page.evaluate(() => {
+      const view = document.querySelector("#list-view");
+      const section = document.querySelector("#pinpoint-links");
+      const pages = document.querySelector("#booking-pages-list");
+      return !!view && !!section && !!pages && view.contains(section)
+        && Boolean(pages.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING);
+    }));
+    ok("the active count is shown against the limit", (await page.textContent("#pp-list-count")).replace(/\s/g, "").includes("1/5"));
     ok("every issued link is listed", (await page.locator("#pp-list .list-item").count()) === 3);
     const listText = await page.textContent("#pp-list");
     ok("status labels are shown", listText.includes("有効") && listText.includes("期限切れ") && listText.includes("無効"));
+    // 有効が上（#338）。サーバは使えなくなったリンクを先に返しているので、
+    // 並べ替えていなければここで落ちる。
+    ok("usable links are sorted to the top", await page.evaluate(() => {
+      const rows = [...document.querySelectorAll("#pp-list .pp-link")];
+      return rows.map((row) => (row.classList.contains("is-live") ? "live" : "dead")).join(",") === "live,dead,dead";
+    }));
+    ok("the live link is marked apart from the dead ones", await page.evaluate(() => {
+      const rows = [...document.querySelectorAll("#pp-list .pp-link")];
+      const state = (row) => row.querySelector(".pp-state");
+      // 有効だけ朱で塗った印、使えないものは枠線だけ＝背景が透ける。
+      const live = getComputedStyle(state(rows[0])).backgroundColor;
+      const dead = getComputedStyle(state(rows[1])).backgroundColor;
+      const rail = (row) => getComputedStyle(row).borderLeftColor;
+      return live !== dead && rail(rows[0]) !== rail(rows[1]);
+    }));
+    // 区切りは「有効」と「使えなくなった」が両方あるときだけ、境目に1本。
+    ok("a single divider separates the dead links", await page.evaluate(() => {
+      const groups = [...document.querySelectorAll("#pp-list .pp-group")];
+      if (groups.length !== 1) return false;
+      const next = groups[0].nextElementSibling;
+      return !!next && next.classList.contains("is-dead");
+    }));
     ok("held slots show the calendar event name", listText.includes("仮おさえ"));
     ok("candidate count is shown", listText.includes("候補2件"));
+    // URLのコピーも有効なリンクだけ。使えなくなったリンクのURLは、コピーできても送りようがない。
+    ok("only usable links offer a copy button", (await page.locator('[data-pp-link-action="copy"]').count()) === 1);
+    ok("the copy button sits on the live row", await page.evaluate(() => {
+      const row = document.querySelector('#pp-list .pp-link:has([data-pp-link-action="copy"])');
+      return !!row && row.classList.contains("is-live");
+    }));
     // 有効なリンクだけ無効にできる（期限切れ・無効化済みは押さえも解けているので出さない）
     ok("only the active link can be disabled", (await page.locator('[data-pp-link-action="disable"]').count()) === 1);
     await page.click('[data-pp-link-action="disable"]');
@@ -663,19 +700,104 @@ section("pinpoint scheduling link (#303)");
     await page.click("#pp-delete-confirm");
     await page.waitForTimeout(400);
     ok("confirming sends the link id to delete", deleted?.id === "l-old");
+    // 候補選択を開くと、一覧も一緒に隠れる（#list-view の中に置いてあるため）。
+    await page.click('[data-page-action="pinpoint"]');
+    await page.waitForTimeout(300);
+    ok("opening the picker hides the link list too", await page.locator("#pinpoint-links").isHidden());
     ok("no JS exception", page._errors.length === 0);
     await page.close();
   }
-  // --- プレミアム限定の配信（#303）: pro には導線が出ない ---
+  // --- 無料プランの上限（#338）: 導線は出るが、候補・期限・押さえが絞られる ---
   {
     const page = await newPage();
+    let created = null;
+    const ymd = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, "0")}-${String(future.getDate()).padStart(2, "0")}`;
+    // 候補上限（無料3件）を確かめるので、枠は4つ出す。
+    const MANY = [0, 1, 2, 3].map((n) => ({
+      start: new Date(future.getTime() + n * 86400000).toISOString(),
+      end: new Date(future.getTime() + n * 86400000 + 1800000).toISOString(),
+    }));
+    await page.route("**/api/**", (route) => {
+      const url = new URL(route.request().url());
+      const name = url.pathname.replace(/^.*\/api\//, "").split("?")[0];
+      const reqDays = Number(url.searchParams.get("days")) === 7 ? 7 : 5;
+      if (name === "pinpoint-create") { created = JSON.parse(route.request().postData() || "{}"); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, url: "https://kimaru-co.jp/p/tok-free" }) }); }
+      const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan: "free" } }
+        // 無料の上限。リンクはまだ0本なので、一覧のセクションは出ない。
+        : name === "pinpoint-list" ? { links: [], limits: { links: 1, slots: 3, expires_days: [3], hold: false }, active_count: 0 }
+        : name === "availability" ? { slots: MANY, range_start: ymd, days: reqDays, questions: [], host: {}, hasPrev: false, hasNext: true }
+        : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
     await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
-    await page.waitForSelector("#booking-pages-list .list-item", { timeout: 8000 }).catch(() => {});
-    ok("pro sees the page list", (await page.locator("#booking-pages-list .list-item").count()) === 1);
-    ok("pro does not see the pinpoint button", (await page.locator('[data-page-action="pinpoint"]').count()) === 0);
-    ok("pro does not see the link list entry", await page.locator("#pp-list-open").isHidden());
+    await page.waitForSelector('[data-page-action="pinpoint"]', { timeout: 8000 }).catch(() => {});
+    ok("free sees the pinpoint button", (await page.locator('[data-page-action="pinpoint"]').count()) === 1);
+    ok("an empty link list is not shown at all", await page.locator("#pinpoint-links").isHidden());
+    await page.click('[data-page-action="pinpoint"]');
+    await page.waitForTimeout(500);
+    // 有効期限は3日固定。選べない選択肢は disabled にし、理由をその場に出す。
+    ok("expiry falls back to three days", (await page.inputValue("#pp-expires")) === "3");
+    ok("one week cannot be chosen", await page.locator('#pp-expires option[value="7"]').evaluate((el) => el.disabled) === true);
+    ok("the reason for the fixed expiry is shown", await page.locator("#pp-expires-plan").isVisible());
+    // 押さえは Pro 以上。カレンダーは連携済みなので、出る理由はプランのほうだけ。
+    ok("holding is disabled on the free plan", await page.locator('#pp-hold option[value="hold"]').evaluate((el) => el.disabled) === true);
+    ok("the plan reason is shown", await page.locator("#pp-hold-plan").isVisible());
+    ok("the calendar reason is not shown at the same time", await page.locator("#pp-hold-nocal").isHidden());
+    ok("the plan reason links to the pricing page", (await page.getAttribute("#pp-hold-plan a", "href")) === "/plan.html");
+    // 候補は3つまで。4つ目は候補に入らず、理由を出す（黙って切らない）。
+    for (const index of [0, 1, 2, 3]) {
+      await page.locator("#pp-grid .wk-slot").nth(index).click();
+      await page.waitForTimeout(120);
+    }
+    ok("the fourth candidate is refused", (await page.locator("#pp-grid .wk-slot.is-picked").count()) === 3);
+    ok("the refusal explains the limit", (await page.textContent("#pp-message")).includes("3件"));
+    ok("the tray counts against the limit", (await page.textContent("#pp-count")).replace(/\s/g, "").includes("3/3"));
+    await page.click("#pp-create");
+    await page.waitForTimeout(400);
+    ok("only three candidates are sent", created?.slots?.length === 3);
+    ok("the request carries the three-day expiry", created?.expires_days === 3);
     ok("no JS exception", page._errors.length === 0);
     await page.close();
+  }
+  // --- 上限に達したら候補選択を開かず、その場で理由と次の手を出す（#338） ---
+  {
+    const AT_LIMIT = [{ id: "l-live", url: "https://kimaru-co.jp/p/tk-live", page_title: "初回相談", slot_count: 1, first_slot: new Date(Date.now() + 2 * DAY_MS).toISOString(), last_slot: null, hold_slots: false, hold_title: "", expires_at: new Date(Date.now() + DAY_MS).toISOString(), status: "active" }];
+    const openAtLimit = async (plan, limit) => {
+      const page = await newPage();
+      await page.route("**/api/**", (route) => {
+        const name = new URL(route.request().url()).pathname.replace(/^.*\/api\//, "").split("?")[0];
+        const body = name === "me" ? { ...MOCK.me, owner: { ...MOCK.me.owner, plan } }
+          : name === "pinpoint-list" ? { links: AT_LIMIT, limits: { links: limit, slots: 3, expires_days: [3], hold: plan !== "free" }, active_count: limit }
+          : Object.prototype.hasOwnProperty.call(MOCK, name) ? MOCK[name] : {};
+        route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+      });
+      await page.goto(`${base}/booking-settings.html`, { waitUntil: "networkidle" });
+      await page.waitForSelector('[data-page-action="pinpoint"]', { timeout: 8000 }).catch(() => {});
+      await page.click('[data-page-action="pinpoint"]');
+      await page.waitForTimeout(300);
+      return page;
+    };
+
+    const free = await openAtLimit("free", 1);
+    ok("hitting the limit stops at the button", await free.locator("#pp-limit-modal").isVisible());
+    ok("the picker does not open", await free.locator("#pinpoint-view").isHidden());
+    const message = await free.textContent("#pp-limit-body");
+    ok("the message names the limit", message.includes("1件"));
+    ok("it offers both disabling a link and upgrading", message.includes("無効") && message.includes("アップグレード"));
+    ok("the upgrade button points at the pricing page", (await free.getAttribute("#pp-limit-plan", "href")) === "/plan.html");
+    await free.click("#pp-limit-cancel");
+    await free.waitForTimeout(200);
+    ok("closing leaves the page list in place", await free.locator("#pp-limit-modal").isHidden() && await free.locator("#list-view").isVisible());
+    ok("no JS exception", free._errors.length === 0);
+    await free.close();
+
+    // プレミアムには上げる先が無いので、アップグレードの案内も導線も出さない。
+    const premium = await openAtLimit("premium", 5);
+    ok("premium is told about the limit too", await premium.locator("#pp-limit-modal").isVisible());
+    ok("premium is not asked to upgrade", !(await premium.textContent("#pp-limit-body")).includes("アップグレード"));
+    ok("premium gets no pricing link", await premium.locator("#pp-limit-plan").isHidden());
+    ok("no JS exception", premium._errors.length === 0);
+    await premium.close();
   }
 }
 

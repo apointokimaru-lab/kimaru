@@ -757,6 +757,9 @@ select{height:48px;padding-block:0}
 .q-option-remove:hover{border-color:var(--accent);color:var(--accent)}
 .q-option-add{justify-self:start}
 #add-question[disabled]{opacity:.5;cursor:not-allowed}
+/* 一覧へ戻る導線は見出しの上・左。枠線のあるボタンのままにしてあるので（文字だけの
+   リンクにすると押せると気づかれない）、左端は h2 とそのままそろう。 */
+.editor-back{margin:0 0 14px}
 .editor-view .section-head{padding-bottom:14px;border-bottom:1px solid var(--line)}
 .editor-section>.eyebrow{margin:0}
 

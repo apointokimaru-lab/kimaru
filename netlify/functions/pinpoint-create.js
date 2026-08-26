@@ -1,18 +1,21 @@
 // ピンポイント日程調整リンクの発行（#303）。ホスト専用。
 // 予約ページの設定（所要・バッファ・質問・開催方法）を流用し、提示する候補枠だけを絞る。
 const { json, readJson } = require("./_lib/response");
-// 当面はプレミアム限定で配信する（#303）。発行だけを絞り、ゲスト側の /p/ は絞らない
-// ＝すでに送ったリンクは、あとでプランが下がっても相手の画面で切れないようにする。
-const { requirePremiumOwner } = require("./_lib/auth");
+// 全プランで発行できる（#338。当初のプレミアム限定 #303 は「まず限定配信して使われ方を見る」
+// ための当面の措置だった）。差はプラン別の上限（リンク数・候補数・期限・押さえの可否）で付ける。
+// ゲスト側の /p/ は絞らない＝すでに送ったリンクは、あとでプランが下がっても相手の画面で切れない。
+const { requireOwner } = require("./_lib/auth");
 const { sb, eq } = require("./_lib/supabase");
 const { appBaseUrl } = require("./_lib/config");
+const { pinpointLimits } = require("./_lib/plan-limits");
 const pinpoint = require("./_lib/pinpoint");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "許可されていない操作です" });
   try {
-    const owner = await requirePremiumOwner(event);
+    const owner = await requireOwner(event);
     const body = readJson(event);
+    const limits = pinpointLimits(owner.plan);
 
     // 予約ページは必ず自分のものに限定する（他人のページの設定でリンクを作らせない）。
     const pageId = String(body.booking_page_id || "").trim();
@@ -22,14 +25,33 @@ exports.handler = async (event) => {
     if (!page) return json(404, { error: "対象の予約ページが見つかりません" });
     if (page.is_active === false) return json(400, { error: "受付を停止している予約ページではリンクを作成できません" });
 
+    // リンク数の上限はプラン別（#338）。数えるのは「有効なリンクの同時保有数」で、累計の発行回数
+    // ではない。期限切れ・無効化済みは数えないので、一覧の行を消さなくても次のリンクを作れる。
+    const active = await pinpoint.activeLinkCount(owner.id);
+    if (active >= limits.links) {
+      return json(403, { error: `有効なリンクは${limits.links}件までです。新しく作るには、有効なリンクを無効にしてください。` });
+    }
+
     const slots = pinpoint.normalizeSlots(body.slots);
     if (!slots.length) return json(400, { error: "候補の日程を1つ以上選んでください" });
+    // 候補数の上限もプラン別。超過は「多いぶんを黙って切る」のではなく 400 で止める。
+    // 切ると、7つ選んだのに相手には3つしか出ない＝設定が黙って消える事故になる（#300 の教訓）。
+    if (slots.length > limits.slots) {
+      return json(400, { error: `候補は${limits.slots}件まで選べます。` });
+    }
 
     const holdSlots = body.hold_slots === true || body.hold_slots === "true";
     const holdTitle = pinpoint.normalizeHoldTitle(body.hold_title);
     // 押さえるなら予定項目名は必須（#325）。空のまま発行できると Google カレンダーに予定が作られず、
     // 「押さえたのにカレンダーには何も出ない」状態になる（画面側でも required にしている）。
     if (holdSlots && !holdTitle) return json(400, { error: "押さえる予定の名前を入力してください" });
+
+    // 枠の押さえは Pro 以上（#338）。Googleカレンダー連携の判定より先に見る。
+    // 逆順にすると、無料の未連携ユーザーに「連携が必要です」と返してしまう。無料は連携しても
+    // 押さえられないので、直しようのない案内になる。
+    if (holdSlots && !limits.hold) {
+      return json(400, { error: "枠を押さえる機能はProプラン以上でご利用いただけます" });
+    }
 
     // 押さえるには Google カレンダー連携が要る（#327 レビュー指摘）。
     // 未連携でも押さえられた頃は、必須にした予定名がどこにも現れず、「名前を入れさせたのに
@@ -60,7 +82,8 @@ exports.handler = async (event) => {
       hold_title: holdTitle,
       hold_events: holdEvents,
       // リンクの有効期限（#326）。候補の日時とは独立で、期限が来ればリンク側が切れる。
-      expires_at: pinpoint.expiresAtFrom(body.expires_days),
+      // 選べる期限はプラン別（無料は3日のみ・#338）。選択肢外は弾かずに既定へ丸める。
+      expires_at: pinpoint.expiresAtFrom(body.expires_days, { plan: owner.plan }),
       is_active: true,
     };
 

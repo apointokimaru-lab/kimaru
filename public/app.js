@@ -806,11 +806,6 @@ function isPremiumPlan(plan) { return plan === "premium"; }
 
 function updateBookingPageControls() {
   const isPro = isProPlan(currentOwner?.plan);
-  // ピンポイントリンクの一覧はプレミアム限定（発行と同じ条件・#303/#327）。
-  // 行のボタン（renderBookingPages）と同じく描画時に決める。.premium-feature は
-  // display:block になるため、見出し横の横並びボタンには使えない。
-  const listOpen = $("#pp-list-open");
-  if (listOpen) listOpen.hidden = !isPremiumPlan(currentOwner?.plan);
   const rangeSelect = $("#booking-range-select");
   const locationType = $("#location-type-select");
   const locationField = $("#location-value-field");
@@ -994,10 +989,8 @@ function renderBookingPages(pages) {
     el.innerHTML = `<p class="muted">${escapeHtml(t("bs.list.empty"))}</p>`;
     return;
   }
-  // ピンポイントリンクは当面プレミアム限定で配信する（#303）。
-  // CSS の .premium-feature は display:block になるため、横並びのボタン列では使えない。
-  // ここは行ごとの描画なので、出す・出さないを描画時に決める（サーバ側 pinpoint-create.js でも 403 で止める）。
-  const showPinpoint = isPremiumPlan(currentOwner?.plan);
+  // 「ピンポイントリンク」は全プランで出す（#338）。プランの差は発行時の上限（リンク数・
+  // 候補数・期限・押さえ）で付ける。サーバ側 pinpoint-create.js でも同じ上限で止める。
   el.innerHTML = pages.map((p) => `
     <article class="list-item${p.is_active === false ? " is-paused" : ""}">
       <strong>${escapeHtml(p.title || t("bs.list.untitled"))}${p.is_active === false ? `<span class="pause-badge">${escapeHtml(t("bs.list.paused"))}</span>` : ""}</strong>
@@ -1011,7 +1004,7 @@ function renderBookingPages(pages) {
         <button class="button secondary" type="button" data-page-action="edit" data-id="${escapeHtml(p.id)}">${escapeHtml(t("bs.list.edit"))}</button>
         <button class="button secondary" type="button" data-page-action="delete" data-id="${escapeHtml(p.id)}">${escapeHtml(t("bs.delete"))}</button>
         <span class="actions-break" aria-hidden="true"></span>
-        ${showPinpoint ? `<button class="button secondary" type="button" data-page-action="pinpoint" data-slug="${escapeHtml(p.slug)}" data-id="${escapeHtml(p.id)}">${escapeHtml(t("pin.button"))}</button>` : ""}
+        <button class="button secondary" type="button" data-page-action="pinpoint" data-slug="${escapeHtml(p.slug)}" data-id="${escapeHtml(p.id)}">${escapeHtml(t("pin.button"))}</button>
         <a class="button secondary" href="${escapeHtml(bookingPageUrl(p.slug))}" target="_blank" rel="noopener">${escapeHtml(t("bs.list.open"))}</a>
       </div>
     </article>`).join("");
@@ -1232,6 +1225,10 @@ let ppMinDate = null;            // 予約可能な最古日（月カレンダ�
 let ppMaxDate = null;            // 受付上限日（月カレンダーの上限）
 let ppCalYear = 0, ppCalMonth = 0;
 const ppChosen = new Map();      // start(ISO) -> {start, end}。日を送っても選択を保持する。
+// プラン別の上限（#338）。pinpoint-list が返す値をそのまま持つ（links/slots/expires_days/hold）。
+// 取れていないあいだは null＝画面側では制限しない（サーバ側が同じ上限で止める）。
+let ppLimits = null;
+let ppActiveCount = 0;           // 有効なリンクの本数（期限切れ・無効は数えない）
 
 function ppSetMessage(text, kind) { setMessage("#pp-message", text, kind); }
 function ppStatus(html) { const el = $("#pp-status"); if (el) el.innerHTML = html; }
@@ -1246,12 +1243,26 @@ function ppSlotLabel(slot) {
   return `${formatSlot(slot.start)}${endText}`;
 }
 
+// 候補数の上限（#338）。サーバ（pinpoint-list の limits）が返した値だけを使う。
+// 取れていないときは 0＝画面では制限しない（サーバ側が 400 で止める）。プラン→数字の対応表を
+// 画面にも持つと、_lib/plan-limits.js と食い違ったときに気づけない。
+function ppSlotLimit() {
+  const limit = Number(ppLimits?.slots || 0);
+  return limit > 0 ? limit : 0;
+}
+
 // 候補チップと件数の描画。表示は時刻順（ゲストに見える並び）に揃える。
 function ppRenderChips() {
   const box = $("#pp-chips");
   const count = $("#pp-count");
   const chosen = [...ppChosen.values()].sort((a, b) => new Date(a.start) - new Date(b.start));
-  if (count) count.textContent = t("pin.countUnit").replace("{n}", String(chosen.length));
+  const max = ppSlotLimit();
+  // 上限が分かっているなら「2 / 3」で出す。あと何枠選べるかは、選んでいる最中に一番知りたい。
+  if (count) {
+    count.textContent = max
+      ? t("pin.countOfMax").replace("{n}", String(chosen.length)).replace("{max}", String(max))
+      : t("pin.countUnit").replace("{n}", String(chosen.length));
+  }
   if (!box) return;
   if (!chosen.length) {
     box.innerHTML = `<span class="muted">${escapeHtml(t("pin.empty"))}</span>`;
@@ -1265,6 +1276,14 @@ function ppRenderChips() {
 
 // 候補のトグル。グリッドの見た目（.is-picked）も同時に切り替える（再描画せず即座に反応させる）。
 function ppToggleSlot(slot, button) {
+  const limit = ppSlotLimit();
+  // 上限に達したら、未選択の枠は候補に入らない（選択済みの解除はできる）。
+  // 発行時に多いぶんを黙って切ると「7つ選んだのに3つしか相手に出ない」になるので、
+  // 選ぶ時点で止めて理由を出す（#338 / #300 の教訓）。
+  if (limit && !ppChosen.has(slot.start) && ppChosen.size >= limit) {
+    ppSetMessage(t("pin.limitSlots").replace("{n}", String(limit)), "error");
+    return;
+  }
   if (ppChosen.has(slot.start)) ppChosen.delete(slot.start);
   else ppChosen.set(slot.start, { start: slot.start, end: slot.end });
   const picked = ppChosen.has(slot.start);
@@ -1272,7 +1291,9 @@ function ppToggleSlot(slot, button) {
     button.classList.toggle("is-picked", picked);
     button.setAttribute("aria-pressed", picked ? "true" : "false");
   }
-  ppSetMessage("");
+  // メッセージは消すのではなく引き直す。リンク数が上限に達しているときは、枠を触っても
+  // その警告が消えないようにする（消えると発行できない理由が画面から無くなる）。
+  ppSyncCreateLimit();
   ppRenderChips();
 }
 
@@ -1418,11 +1439,66 @@ function openPinpointView(pageId, slug, title) {
   const hold = $("#pp-hold"); if (hold) hold.value = "none";
   const holdTitle = $("#pp-hold-title"); if (holdTitle) holdTitle.value = "";
   const expires = $("#pp-expires"); if (expires) expires.value = "7";
+  ppSyncExpires(); // 無料は3日に戻す（上の "7" はプランを見ていない初期値）
   ppSyncHoldAvailability();
   ppSyncHoldTitle();
   ppSetMessage("");
+  ppSyncCreateLimit(); // 上限に達しているなら、枠を選ぶ前に理由を出す
   window.scrollTo({ top: 0, behavior: "smooth" });
   ppLoadDays(null);
+}
+
+// 有効なリンクが上限に達しているか（#338）。上限が取れていないとき（一覧の取得に失敗・
+// ダッシュボード）は false ＝ 画面では止めない。サーバ側が 403 で止める。
+function ppLinkLimitReached() {
+  const limit = Number(ppLimits?.links || 0);
+  return limit > 0 && ppActiveCount >= limit;
+}
+
+// 上限に達していることを「ピンポイントリンクを作成」を押した時点で伝える。
+// 候補を選んだあとに発行ボタンが押せないと気づくより、押した瞬間に理由と次の手
+// （使わないリンクを無効にする／プランを上げる）を出すほうが手戻りが少ない。
+function ppOpenLimitModal() {
+  const limit = Number(ppLimits?.links || 0);
+  // プレミアムには上げる先が無いので、アップグレードの案内も導線も出さない。
+  const top = isPremiumPlan(currentOwner?.plan);
+  const body = $("#pp-limit-body");
+  if (body) body.textContent = t(top ? "pin.limit.bodyTop" : "pin.limit.body").replace("{n}", String(limit));
+  const plan = $("#pp-limit-plan");
+  if (plan) plan.hidden = top;
+  const modal = $("#pp-limit-modal");
+  if (modal) modal.hidden = false;
+}
+
+function ppCloseLimitModal() {
+  const modal = $("#pp-limit-modal");
+  if (modal) modal.hidden = true;
+}
+
+// 候補選択画面まで来てしまった場合の押さえ（発行直後に上限へ達したときなど）。
+// 入口はモーダルで止めるので、ここへ来るのは「開いている最中に上限へ達した」ときだけ。
+function ppSyncCreateLimit() {
+  const limit = Number(ppLimits?.links || 0);
+  const over = limit > 0 && ppActiveCount >= limit;
+  const button = $("#pp-create");
+  if (button) button.disabled = over;
+  ppSetMessage(over ? t("pin.limitLinks").replace("{n}", String(limit)) : "", over ? "error" : "");
+}
+
+// 選べる有効期限はプラン別（無料は3日のみ・#338）。
+// 選択肢はサーバ（pinpoint-list の limits.expires_days）から受け取る。
+function ppSyncExpires() {
+  const select = $("#pp-expires");
+  if (!select) return;
+  const allowed = Array.isArray(ppLimits?.expires_days) && ppLimits.expires_days.length
+    ? ppLimits.expires_days.map(Number)
+    : [...select.options].map((option) => Number(option.value)); // 分からないときは制限しない
+  [...select.options].forEach((option) => { option.disabled = !allowed.includes(Number(option.value)); });
+  // 既定は選択肢の末尾（無料3日 / 有料1週間）。disabled な値が選ばれたまま送信されると、
+  // サーバ側の丸めで初めて気づくことになるので、ここで許可された値に戻す。
+  if (!allowed.includes(Number(select.value))) select.value = String(allowed[allowed.length - 1]);
+  const note = $("#pp-expires-plan");
+  if (note) note.hidden = allowed.length > 1;
 }
 
 // 押さえ方の選択に合わせて予定名の欄を出し入れする（#325）。
@@ -1433,13 +1509,22 @@ function openPinpointView(pageId, slug, title) {
 // 何も起きない」状態になっていた。選択肢を disabled にし、押せない理由をその場に出す。
 // 選択中に連携が切れた場合に備えて、値も「押さえない」に戻す（disabled な値のまま
 // 送信されると、サーバ側の400で初めて気づくことになる）。
+//
+// 押さえ自体が Pro 以上（#338）。上限の数値と違いプランの二値なので、質問数・受付期間と同じく
+// 画面側でも plan で判定する（サーバ側 pinpoint-create.js でも 400 で止める）。
 function ppSyncHoldAvailability() {
   const hold = $("#pp-hold");
   const option = hold?.querySelector('option[value="hold"]');
-  if (option) option.disabled = !calendarConnected;
-  if (hold && !calendarConnected && hold.value === "hold") hold.value = "none";
+  const planAllows = isProPlan(currentOwner?.plan);
+  const allowed = planAllows && calendarConnected;
+  if (option) option.disabled = !allowed;
+  if (hold && !allowed && hold.value === "hold") hold.value = "none";
+  // 理由は1つだけ出す。無料は連携しても押さえられないので、プランの理由を優先し、
+  // 未連携の警告は出さない（2つ並ぶと「何をすれば押さえられるのか」が読み取れない）。
+  const planWarn = $("#pp-hold-plan");
+  if (planWarn) planWarn.hidden = planAllows;
   const warn = $("#pp-hold-nocal");
-  if (warn) warn.hidden = calendarConnected;
+  if (warn) warn.hidden = !planAllows || calendarConnected;
 }
 
 function ppSyncHoldTitle() {
@@ -1489,6 +1574,10 @@ function ppListRange(link) {
   return `${first} 〜 ${fmtDateTime(link.last_slot)}`;
 }
 
+// 一覧の並び順（#338）。有効 → 期限切れ → 無効。
+// 「使えるか」で並べるのは、この一覧で探しているのがほぼ常に「いま送れるリンク」だから。
+const PP_STATUS_RANK = { active: 0, expired: 1, disabled: 2 };
+
 function renderPinpointLinks(links) {
   const el = $("#pp-list");
   if (!el) return;
@@ -1496,7 +1585,16 @@ function renderPinpointLinks(links) {
     el.innerHTML = `<p class="muted">${escapeHtml(t("pin.list.empty"))}</p>`;
     return;
   }
-  el.innerHTML = links.map((link) => {
+  // サーバは作成順（新しいものから）で返す。そのままだと使えなくなったリンクが有効な
+  // リンクの上に居座り、いま送れるリンクを探すのに一覧を読み下すことになる。
+  // Array#sort は安定ソートなので、状態のランクだけで比べれば「同じ状態の中は新しい順」は
+  // サーバの並びのまま保たれる（created_at を見に行く必要がない）。
+  const sorted = [...links].sort((a, b) => (PP_STATUS_RANK[a.status] ?? 9) - (PP_STATUS_RANK[b.status] ?? 9));
+  // 使えなくなったリンクの手前に区切りを1本だけ入れる。有効なものと使えなくなったものが
+  // 両方あるときにしか出さない（どちらか一方しか無いなら、区切っても伝わるものが無い）。
+  const dividerAt = sorted.findIndex((link) => link.status !== "active");
+
+  el.innerHTML = sorted.map((link, index) => {
     const label = link.status === "disabled" ? t("pin.list.statusDisabled")
       : link.status === "expired" ? t("pin.list.statusExpired")
       : t("pin.list.statusActive");
@@ -1506,14 +1604,22 @@ function renderPinpointLinks(links) {
     // 逆に、使えなくなったリンクだけ削除できる（#336）。有効なものを消せると、相手が
     // まだ開けるリンクを一覧から消すだけで黙って死なせることになる（止めるなら先に無効化）。
     const canDelete = link.status !== "active";
-    return `
-    <article class="list-item${link.status === "active" ? "" : " is-paused"}">
-      <strong>${escapeHtml(link.page_title || t("bs.list.untitled"))}<span class="pause-badge">${escapeHtml(label)}</span></strong>
+    // URLのコピーは有効なリンクだけ。使えなくなったリンクのURLをコピーできても、
+    // 相手が開けないURLが手に入るだけで送りようがない（押せるのに意味が無い操作を残さない）。
+    const canCopy = link.status === "active";
+    const divider = index > 0 && index === dividerAt
+      ? `<p class="pp-group">${escapeHtml(t("pin.list.deadGroup"))}</p>` : "";
+    // 状態は3つの手がかりで出す（#338）。左のレール＝流し見用、バッジ＝正確な状態、
+    // 文字の濃さ＝使えるかどうか。以前は淡いピルの文字だけが違い、有効と無効が並んでも
+    // 見分けられなかった。is-live / is-dead が「枠を使っているか」に対応する。
+    return `${divider}
+    <article class="list-item pp-link ${link.status === "active" ? "is-live" : "is-dead"}">
+      <strong>${escapeHtml(link.page_title || t("bs.list.untitled"))}<span class="pp-state is-${escapeHtml(link.status)}">${escapeHtml(label)}</span></strong>
       <span>${escapeHtml(link.url)}</span>
       <small>${escapeHtml(t("pin.list.slotCount").replace("{n}", String(link.slot_count)))} / ${escapeHtml(ppListRange(link))}</small>
       <small>${escapeHtml(link.hold_slots ? t("pin.list.held").replace("{title}", link.hold_title || t("pin.list.noTitle")) : t("pin.list.notHeld"))} / ${escapeHtml(link.expires_at ? t("pin.list.expiresAt").replace("{at}", fmtDateTime(link.expires_at)) : t("pin.list.noExpiry"))}</small>
       <div class="actions">
-        <button class="button secondary" type="button" data-pp-link-action="copy" data-url="${escapeHtml(link.url)}">${escapeHtml(t("bs.list.copyUrl"))}</button>
+        ${canCopy ? `<button class="button secondary" type="button" data-pp-link-action="copy" data-url="${escapeHtml(link.url)}">${escapeHtml(t("bs.list.copyUrl"))}</button>` : ""}
         ${canDisable ? `<button class="button secondary" type="button" data-pp-link-action="disable" data-id="${escapeHtml(link.id)}" data-target="${escapeHtml(link.url)}">${escapeHtml(t("pin.list.disable"))}</button>` : ""}
         ${canDelete ? `<button class="button secondary" type="button" data-pp-link-action="delete" data-id="${escapeHtml(link.id)}" data-target="${escapeHtml(link.url)}">${escapeHtml(t("pin.list.delete"))}</button>` : ""}
       </div>
@@ -1521,38 +1627,51 @@ function renderPinpointLinks(links) {
   }).join("");
 }
 
-async function loadPinpointLinks() {
-  const el = $("#pp-list");
-  if (el) el.innerHTML = `<p class="muted">${escapeHtml(t("pin.list.loading"))}</p>`;
-  try {
-    const data = await api("pinpoint-list");
-    renderPinpointLinks(Array.isArray(data.links) ? data.links : []);
-  } catch (error) {
-    if (el) el.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+// 「有効なリンク 1 / 1」と、上限に達しているときの補足。
+// 期限切れ・無効の行を消しても本数は減らない（数えていない）ことが伝わる文言にする。
+function ppRenderListCount() {
+  const limit = Number(ppLimits?.links || 0);
+  const count = $("#pp-list-count");
+  if (count) {
+    count.textContent = limit
+      ? t("pin.list.count").replace("{n}", String(ppActiveCount)).replace("{max}", String(limit))
+      : "";
+  }
+  const note = $("#pp-list-limit");
+  if (note) {
+    const over = limit > 0 && ppActiveCount >= limit;
+    note.hidden = !over;
+    note.textContent = over ? t("pin.list.limitReached") : "";
   }
 }
 
-function openPinpointListView() {
-  const view = $("#pinpoint-list-view");
-  if (!view) return;
-  const list = $("#list-view");
-  if (list) list.hidden = true;
-  const editor = $("#page-editor");
-  if (editor) editor.hidden = true;
-  const picker = $("#pinpoint-view");
-  if (picker) picker.hidden = true;
-  view.hidden = false;
-  ppListSetMessage("");
-  window.scrollTo({ top: 0, behavior: "smooth" });
-  loadPinpointLinks();
-}
+// 一覧は予約ページ一覧の下に常設する（#338）。画面を開いた時点で読み込む。
+// この画面で操作をしたかどうかは ppListTouched で覚える（下の hidden の判定に使う）。
+let ppListTouched = false;
 
-function closePinpointListView() {
-  const view = $("#pinpoint-list-view");
-  const list = $("#list-view");
-  if (view) view.hidden = true;
-  if (list) list.hidden = false;
-  window.scrollTo({ top: 0, behavior: "smooth" });
+async function loadPinpointLinks() {
+  const section = $("#pinpoint-links");
+  const el = $("#pp-list");
+  // 一覧を持たない画面（ダッシュボード）では叩かない。app.js は両方で読み込まれる。
+  if (!section || !el) return;
+  try {
+    const data = await api("pinpoint-list");
+    const links = Array.isArray(data.links) ? data.links : [];
+    ppLimits = data.limits || null;
+    ppActiveCount = Number(data.active_count || 0);
+    // リンクが1本も無いならセクションごと出さない。全プランに開放したので、まだ使ったことの
+    // ない人にも空の箱が常設されてしまう。ただし発行・無効化・削除の直後は空でも出す
+    // （結果のメッセージがセクションごと消えると、何が起きたのか分からなくなる）。
+    section.hidden = !links.length && !ppListTouched;
+    renderPinpointLinks(links);
+    ppRenderListCount();
+  } catch (_) {
+    // 取れなくても予約ページ一覧は使える。上限が分からないまま画面側で制限をかけると、
+    // 正しいプランでも操作できなくなるので、制限は解いてサーバ側の判定に任せる。
+    ppLimits = null;
+    ppActiveCount = 0;
+    section.hidden = true;
+  }
 }
 
 function ppCloseDisableModal() {
@@ -1570,8 +1689,6 @@ function ppCloseDeleteModal() {
 }
 
 function bindPinpointList() {
-  $("#pp-list-open")?.addEventListener("click", openPinpointListView);
-  $("#pp-list-back")?.addEventListener("click", closePinpointListView);
   $("#pp-list")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-pp-link-action]");
     if (!button) return;
@@ -1601,6 +1718,9 @@ function bindPinpointList() {
       if (modal) modal.hidden = false;
     }
   });
+  $("#pp-limit-close")?.addEventListener("click", ppCloseLimitModal);
+  $("#pp-limit-cancel")?.addEventListener("click", ppCloseLimitModal);
+  $("#pp-limit-modal")?.addEventListener("click", (event) => { if (event.target.id === "pp-limit-modal") ppCloseLimitModal(); });
   $("#pp-disable-close")?.addEventListener("click", ppCloseDisableModal);
   $("#pp-disable-cancel")?.addEventListener("click", ppCloseDisableModal);
   $("#pp-disable-modal")?.addEventListener("click", (event) => { if (event.target.id === "pp-disable-modal") ppCloseDisableModal(); });
@@ -1615,6 +1735,7 @@ function bindPinpointList() {
     try {
       await api("pinpoint-delete", { method: "POST", body: JSON.stringify({ id }) });
       ppListSetMessage(t("pin.list.deleted"), "success");
+      ppListTouched = true; // 最後の1件を消してもセクションを残し、結果を読ませる
       loadPinpointLinks();
     } catch (error) {
       ppListSetMessage(error.message, "error");
@@ -1628,6 +1749,7 @@ function bindPinpointList() {
     try {
       await api("pinpoint-deactivate", { method: "POST", body: JSON.stringify({ id }) });
       ppListSetMessage(t("pin.list.disabled"), "success");
+      ppListTouched = true;
       loadPinpointLinks();
     } catch (error) {
       ppListSetMessage(error.message, "error");
@@ -1637,6 +1759,10 @@ function bindPinpointList() {
 
 function bindPinpoint() {
   $("#pp-back")?.addEventListener("click", closePinpointView);
+  // 発行後の結果エリアにも同じ戻る導線を置いている（候補選択は縦に長く、発行直後は画面の
+  // 一番下にいるため）。閉じ方は上の導線と同じ closePinpointView に揃える。
+  // 画面下の戻る導線（トレイの下・結果の手前）。閉じ方は上の導線と同じ。
+  $("#pp-bottom-back")?.addEventListener("click", closePinpointView);
   $("#pp-hold")?.addEventListener("change", ppSyncHoldTitle);
   // 言語切替。曜日見出し・範囲ラベルはグリッドを描き直さないと直らないので、開いているときだけ再取得する。
   document.addEventListener("kimaru:languagechange", () => {
@@ -1708,6 +1834,10 @@ function bindPinpoint() {
       // 誤解させるので、そこだけ出し分ける。
       const heldOnKimaruOnly = hold && !res.hold_events_created;
       ppSetMessage(heldOnKimaruOnly ? t("pin.createdHoldFailed") : t("pin.created"), "success");
+      // 一覧は同じ画面の下にあるので引き直す。有効本数も更新され、上限に達したら次に
+      // 候補選択を開いたときに発行ボタンが止まる（#338）。
+      ppListTouched = true;
+      loadPinpointLinks();
     } catch (error) {
       ppSetMessage(error.message, "error");
     }
@@ -1760,6 +1890,9 @@ async function refreshAdmin() {
         try { const logs = await api("appointment-log"); renderLogs(logs.logs || []); renderLogAggregate(logs.logs || []); } catch (_) { /* 非致命 */ }
       }
       await loadBookingPages();
+      // ピンポイントリンクの一覧は予約ページ一覧の下に常設（#338）。0件ならセクションごと出ない。
+      // 失敗しても予約ページ一覧は使えるので待たない・致命にしない。
+      loadPinpointLinks();
     } else {
       // クッキーは存在するがセッションが無効（署名不一致/owner不在）＝認証の宙ぶらり状態。
       // 「読み込み中」のまま固まらないよう、スピナーを止めて再ログインを促す。
@@ -1835,6 +1968,9 @@ async function initAdmin() {
       navigator.clipboard?.writeText(url).catch(() => {});
       setMessage("#booking-list-message", `URLをコピーしました: ${url}`, "success");
     } else if (action === "pinpoint") {
+      // 上限に達しているなら候補選択を開かない（#338）。枠を選んだあとに「発行できません」と
+      // 分かるのは手戻りなので、押した時点で理由と次の手を出す。
+      if (ppLinkLimitReached()) { ppOpenLimitModal(); return; }
       const target = pages.find((p) => p.id === button.dataset.id);
       openPinpointView(button.dataset.id, button.dataset.slug, target?.title || "");
     } else if (action === "edit") {

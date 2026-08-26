@@ -7,7 +7,7 @@ const { sb } = require("./_lib/supabase");
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "許可されていない操作です" });
   try {
-    const owner = await requirePremiumOwner(event);
+    const owner = await requirePremiumOwner(event, "manual_contact");
     const body = readJson(event);
     const name = String(body.name || "").trim();
     const email = String(body.email || "").trim();

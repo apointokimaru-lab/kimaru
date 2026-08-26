@@ -43,7 +43,10 @@ function ownerSlugCandidate(email) {
   return `${base}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-async function upsertOwner(profile) {
+// createOnly は「新規作成のときだけ入れる項目」（例: 登録時の流入元）。
+// profile 側に入れると、ログインのたびに PATCH で上書きされ、最後にログインした経路が
+// 登録経路として残ってしまう（#342）。
+async function upsertOwner(profile, createOnly = {}) {
   const existing = await findOwnerByEmail(profile.email);
   if (existing) {
     // slug は上書きしない。共有済みの公開プロフィールURL（メールにも載る）が切れるうえ、
@@ -57,7 +60,14 @@ async function upsertOwner(profile) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const slug = ownerSlugCandidate(profile.email);
     try {
-      const rows = await sb("owners", { method: "POST", body: JSON.stringify({ ...profile, plan: "free", slug }) });
+      const payload = { ...profile, ...createOnly, plan: "free", slug };
+      const rows = await sb("owners", { method: "POST", body: JSON.stringify(payload) })
+        // 未適用の列（signup_source 等）がある環境では、その項目を落として作り直す。
+        .catch((error) => {
+          const missing = Object.keys(createOnly).find((key) => new RegExp(key).test(String(error.message || "")));
+          if (!missing) throw error;
+          return sb("owners", { method: "POST", body: JSON.stringify({ ...profile, plan: "free", slug }) });
+        });
       return rows[0];
     } catch (error) {
       if (!/duplicate|unique/i.test(String(error.message || ""))) throw error;

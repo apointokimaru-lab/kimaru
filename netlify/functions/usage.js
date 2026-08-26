@@ -2,7 +2,7 @@ const { readJson } = require("./_lib/response");
 const { sb } = require("./_lib/supabase");
 const { verifySession } = require("./_lib/crypto");
 const { clientIp, checkRateLimit } = require("./_lib/rate-limit");
-const { normalizePath, referrerHost, visitorHash, isBotUserAgent, deviceFromUserAgent } = require("./_lib/analytics");
+const { normalizePath, referrerHost, visitorHash, isBotUserAgent, deviceFromUserAgent, normalizeEvent, normalizeFeature } = require("./_lib/analytics");
 
 // 画面表示の記録（#342）。全HTMLに注入された public/usage.js から1ページ1回だけ叩かれる。
 //
@@ -45,14 +45,24 @@ exports.handler = async (event) => {
     } catch (_) { /* 署名検証に失敗しても計測は続ける（未ログイン扱い） */ }
 
     const lang = LANGS.includes(String(body.lang || "")) ? String(body.lang) : "";
+
+    // 有料の壁（#342）。上限の多くは画面側で止めるのでサーバには届かない＝クライアントからも受ける。
+    // 機能名は許可リストで固定し、外れた値は記録せずに捨てる（無認証の口なので任意の文字列は通さない）。
+    const eventName = normalizeEvent(body.event);
+    const feature = eventName === "limit_hit" ? normalizeFeature(body.feature) : "";
+    if (eventName === "limit_hit" && !feature) return noContent();
+
     const row = {
-      event: String(body.event || "page_view") === "page_view" ? "page_view" : "other",
+      event: eventName,
       page,
       owner_id: ownerId,
       visitor_hash: visitorHash(ip, userAgent),
       referrer_host: referrerHost(body.ref, headers.host || headers.Host || ""),
       device: deviceFromUserAgent(userAgent),
       lang,
+      // plan はクライアントの申告を信じない（偽れる）。ぶつかった時点のプランを正確に残せるのは
+      // サーバ側の判定（_lib/auth.js・各API）なので、そちらは recordLimitHit で plan を控える。
+      meta: feature ? { feature } : {},
     };
     await sb("page_events", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) }).catch(() => {});
     return noContent();

@@ -4,6 +4,7 @@ const { sessionCookie, hashPassword, timedToken } = require("./_lib/crypto");
 const { appBaseUrl } = require("./_lib/config");
 const { sendMail } = require("./_lib/mail");
 const { isCrossSiteRequest } = require("./_lib/csrf");
+const { sourceHost } = require("./_lib/analytics");
 
 // メール確認メール（任意・非ブロッキング）。確認しなくても利用可。送信失敗は無視。
 async function sendVerifyEmail(owner) {
@@ -55,10 +56,15 @@ exports.handler = async (event) => {
       });
       owner = rows[0];
     } else {
-      const rows = await sb("owners", {
-        method: "POST",
-        body: JSON.stringify({ email, name, plan: "free", slug: makeSlug(email), password_hash: passwordHash }),
-      });
+      // 流入元（#342）。どの経路から来た人が登録に至ったかを見るために、新規作成時だけ控える。
+      // 列が未適用の環境では列を落として作り直す（登録そのものは通す＝プロジェクト方針のデグレード）。
+      const base = { email, name, plan: "free", slug: makeSlug(email), password_hash: passwordHash };
+      const source = sourceHost(body.source);
+      const rows = await sb("owners", { method: "POST", body: JSON.stringify(source ? { ...base, signup_source: source } : base) })
+        .catch((error) => {
+          if (!/signup_source/.test(String(error.message || ""))) throw error;
+          return sb("owners", { method: "POST", body: JSON.stringify(base) });
+        });
       owner = rows[0];
     }
     await sendVerifyEmail(owner);

@@ -433,6 +433,32 @@ body[data-page="booking"] .week-nav #week-label,body[data-page="booking"] .week-
 .pp-result-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px}
 .pp-result-row input{flex:1 1 240px}
 
+/* ピンポイントリンク一覧の状態表示（#338）。
+   なぜ: 有効も無効も同じ淡いピル（.pause-badge）で、中の文字だけが違っていた。
+   一覧に並ぶと見分けがつかず、「いま送れるのはどれか」が読み取れなかった。
+   何をしているか: 状態を3つの手がかりに分ける。左のレール＝上から流し見する用、
+   バッジ＝正確な状態（期限切れと無効はここでしか区別できない）、文字の濃さ＝使えるか。
+   有効／使えない の対比は「プラン上限の枠を使っているか」と一致させている（#338 の上限は
+   有効なリンクだけを数えるので、レールが立っている本数＝消費している枠数になる）。 */
+.pp-link{border-left:3px solid var(--accent)}
+.pp-link.is-dead{border-left-color:var(--line-2);opacity:.72}
+/* .list-item span,.list-item small{color:var(--muted)} と同じ詳細度では勝てないので、
+   .pp-link を足した (0,2,1) で上書きする。 */
+.pp-link.is-dead span,.pp-link.is-dead small{color:var(--muted)}
+
+/* バッジ。有効は朱で塗った印、使えないものは枠線だけの抜き＝「印が押されていない」。
+   styles.css の .pause-badge と同じ理由で、.list-item span{display:block} を
+   同じかそれ以上の詳細度で打ち消す必要がある（素の .pp-state では負ける）。 */
+.list-item .pp-state{display:inline-flex}
+.pp-state{align-items:center;margin-left:8px;padding:2px 10px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.04em;border:1px solid transparent;border-radius:var(--radius-pill);vertical-align:middle}
+.pp-state.is-active{color:#fff;background:var(--accent);border-color:var(--accent)}
+.pp-state.is-expired,.pp-state.is-disabled{color:var(--muted);background:transparent;border-color:var(--line-2)}
+
+/* 「ここから下は使えない」の区切り。有効なものと使えなくなったものが両方あるときだけ出る。
+   .list は grid なので、行と同じ子として置けば間隔（gap）もそろう。 */
+.pp-group{display:flex;align-items:center;gap:10px;margin:6px 2px 0;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--muted)}
+.pp-group::after{content:"";flex:1;height:1px;background:var(--line)}
+
 /* ===== ピンポイント: ゲストが候補から1つ選ぶ（/p/・#303 レビュー指摘）=====
    .pp-item は <label> なので、共通の label{display:grid;gap:7px} が効いて
    ラジオと時刻が縦積みになり「どの丸がどの時間か」が分からなくなっていた。

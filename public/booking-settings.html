@@ -74,12 +74,15 @@
 
     <!-- ページ設定エディタ（全幅・一覧と切替） -->
     <section id="page-editor" class="panel settings-section editor-view" aria-labelledby="page-editor-title" hidden>
+      <!-- 戻る導線は見出しの「上・左」に置く。.section-head は space-between なので、中に入れると
+           ワイド画面で見出しから1000px近く離れた右端に飛び、押しに行く導線に見えなくなる。
+           見た目はボタンのまま（枠線の無い文字リンクにすると押せると気づかれない）。 -->
+      <button type="button" id="page-editor-close" class="button secondary editor-back" data-i18n="bs.editor.back">← 一覧に戻る</button>
       <div class="section-head">
         <div>
           <h2 id="page-editor-title" data-i18n="bs.editor.title">予約ページを作成</h2>
           <p id="booking-page-editing" class="muted" data-i18n="bs.editor.editingNew">新しい予約ページ</p>
         </div>
-        <button type="button" id="page-editor-close" class="button secondary" data-i18n="bs.editor.back">← 一覧に戻る</button>
       </div>
       <form id="booking-page-form" class="form-grid">
         <input type="hidden" name="page_id" id="booking-page-id" />
@@ -243,6 +246,8 @@
     <!-- ピンポイント候補選択（#303）。一覧・編集と同じく全幅の画面として切り替える。
          ゲストの予約画面と同じタイムグリッド（スマホ5日/PC1週間）を使い、押した枠がそのまま候補になる（複数可）。 -->
     <section id="pinpoint-view" class="panel settings-section editor-view" aria-labelledby="pp-title" hidden>
+      <!-- 戻る導線は見出しの「上・左」に置く（page-editor と同じ理由）。 -->
+      <button type="button" id="pp-back" class="button secondary editor-back" data-i18n="pin.back">← 一覧に戻る</button>
       <div class="section-head">
         <div>
           <h2 id="pp-title" data-i18n="pin.title">候補の日程を選ぶ</h2>
@@ -250,7 +255,6 @@
                言語切替時は app.js 側で入れ直す。 -->
           <p id="pp-page-name" class="muted">空き枠から選びます。選んだ枠だけが相手に見えます。</p>
         </div>
-        <button type="button" id="pp-back" class="button secondary" data-i18n="pin.back">← 一覧に戻る</button>
       </div>
 
       <!-- 日単位のタイムグリッド（スマホ5日/PC1週間）。上部バー: [‹ 前のN日] [範囲ボタン=月カレンダー] [次のN日 ›] -->
@@ -326,6 +330,12 @@
         </div>
       </div>
       <p id="pp-message" class="message" role="status"></p>
+
+      <!-- 画面下の戻る導線。候補選択は縦に長く、枠を選び終えた時点で画面の一番下にいるので、
+           上の導線まで戻らずに抜けられるようにする。トレイの中（候補チップの下）ではなく外に
+           出しているのは、トレイが「このリンクの設定」の箱で、そこから出る操作は箱の中身では
+           ないため。結果（#pp-result）の手前に置くので、発行後はコピー行のすぐ上に来る。 -->
+      <div class="form-actions"><button type="button" class="button secondary" id="pp-bottom-back" data-i18n="pin.back">← 一覧に戻る</button></div>
 
       <div id="pp-result" class="pp-result" hidden>
         <p class="eyebrow" data-i18n="pin.resultTitle">作成しました</p>

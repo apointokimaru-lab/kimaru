@@ -606,9 +606,11 @@ section("pinpoint scheduling link (#303)");
     let deleted = null;
     const DAY = 86400000;
     const LINKS = [
-      { id: "l-live", url: "https://kimaru-co.jp/p/tk-live", page_title: "初回相談", slot_count: 2, first_slot: new Date(Date.now() + 2 * DAY).toISOString(), last_slot: new Date(Date.now() + 3 * DAY).toISOString(), hold_slots: true, hold_title: "仮おさえ", expires_at: new Date(Date.now() + DAY).toISOString(), status: "active" },
-      { id: "l-old", url: "https://kimaru-co.jp/p/tk-old", page_title: "初回相談", slot_count: 1, first_slot: new Date(Date.now() + 5 * DAY).toISOString(), last_slot: new Date(Date.now() + 5 * DAY).toISOString(), hold_slots: false, hold_title: "", expires_at: new Date(Date.now() - DAY).toISOString(), status: "expired" },
+      // サーバは作成順（新しいものから）で返す＝使えなくなったリンクが上に来る。
+      // 画面側でこれを「有効が上」に並べ替えるので（#338）、モックもその並びで渡す。
       { id: "l-off", url: "https://kimaru-co.jp/p/tk-off", page_title: "初回相談", slot_count: 0, first_slot: null, last_slot: null, hold_slots: false, hold_title: "", expires_at: null, status: "disabled" },
+      { id: "l-old", url: "https://kimaru-co.jp/p/tk-old", page_title: "初回相談", slot_count: 1, first_slot: new Date(Date.now() + 5 * DAY).toISOString(), last_slot: new Date(Date.now() + 5 * DAY).toISOString(), hold_slots: false, hold_title: "", expires_at: new Date(Date.now() - DAY).toISOString(), status: "expired" },
+      { id: "l-live", url: "https://kimaru-co.jp/p/tk-live", page_title: "初回相談", slot_count: 2, first_slot: new Date(Date.now() + 2 * DAY).toISOString(), last_slot: new Date(Date.now() + 3 * DAY).toISOString(), hold_slots: true, hold_title: "仮おさえ", expires_at: new Date(Date.now() + DAY).toISOString(), status: "active" },
     ];
     await page.route("**/api/**", (route) => {
       const url = new URL(route.request().url());
@@ -637,8 +639,36 @@ section("pinpoint scheduling link (#303)");
     ok("every issued link is listed", (await page.locator("#pp-list .list-item").count()) === 3);
     const listText = await page.textContent("#pp-list");
     ok("status labels are shown", listText.includes("有効") && listText.includes("期限切れ") && listText.includes("無効"));
+    // 有効が上（#338）。サーバは使えなくなったリンクを先に返しているので、
+    // 並べ替えていなければここで落ちる。
+    ok("usable links are sorted to the top", await page.evaluate(() => {
+      const rows = [...document.querySelectorAll("#pp-list .pp-link")];
+      return rows.map((row) => (row.classList.contains("is-live") ? "live" : "dead")).join(",") === "live,dead,dead";
+    }));
+    ok("the live link is marked apart from the dead ones", await page.evaluate(() => {
+      const rows = [...document.querySelectorAll("#pp-list .pp-link")];
+      const state = (row) => row.querySelector(".pp-state");
+      // 有効だけ朱で塗った印、使えないものは枠線だけ＝背景が透ける。
+      const live = getComputedStyle(state(rows[0])).backgroundColor;
+      const dead = getComputedStyle(state(rows[1])).backgroundColor;
+      const rail = (row) => getComputedStyle(row).borderLeftColor;
+      return live !== dead && rail(rows[0]) !== rail(rows[1]);
+    }));
+    // 区切りは「有効」と「使えなくなった」が両方あるときだけ、境目に1本。
+    ok("a single divider separates the dead links", await page.evaluate(() => {
+      const groups = [...document.querySelectorAll("#pp-list .pp-group")];
+      if (groups.length !== 1) return false;
+      const next = groups[0].nextElementSibling;
+      return !!next && next.classList.contains("is-dead");
+    }));
     ok("held slots show the calendar event name", listText.includes("仮おさえ"));
     ok("candidate count is shown", listText.includes("候補2件"));
+    // URLのコピーも有効なリンクだけ。使えなくなったリンクのURLは、コピーできても送りようがない。
+    ok("only usable links offer a copy button", (await page.locator('[data-pp-link-action="copy"]').count()) === 1);
+    ok("the copy button sits on the live row", await page.evaluate(() => {
+      const row = document.querySelector('#pp-list .pp-link:has([data-pp-link-action="copy"])');
+      return !!row && row.classList.contains("is-live");
+    }));
     // 有効なリンクだけ無効にできる（期限切れ・無効化済みは押さえも解けているので出さない）
     ok("only the active link can be disabled", (await page.locator('[data-pp-link-action="disable"]').count()) === 1);
     await page.click('[data-pp-link-action="disable"]');

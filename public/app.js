@@ -1574,6 +1574,10 @@ function ppListRange(link) {
   return `${first} 〜 ${fmtDateTime(link.last_slot)}`;
 }
 
+// 一覧の並び順（#338）。有効 → 期限切れ → 無効。
+// 「使えるか」で並べるのは、この一覧で探しているのがほぼ常に「いま送れるリンク」だから。
+const PP_STATUS_RANK = { active: 0, expired: 1, disabled: 2 };
+
 function renderPinpointLinks(links) {
   const el = $("#pp-list");
   if (!el) return;
@@ -1581,7 +1585,16 @@ function renderPinpointLinks(links) {
     el.innerHTML = `<p class="muted">${escapeHtml(t("pin.list.empty"))}</p>`;
     return;
   }
-  el.innerHTML = links.map((link) => {
+  // サーバは作成順（新しいものから）で返す。そのままだと使えなくなったリンクが有効な
+  // リンクの上に居座り、いま送れるリンクを探すのに一覧を読み下すことになる。
+  // Array#sort は安定ソートなので、状態のランクだけで比べれば「同じ状態の中は新しい順」は
+  // サーバの並びのまま保たれる（created_at を見に行く必要がない）。
+  const sorted = [...links].sort((a, b) => (PP_STATUS_RANK[a.status] ?? 9) - (PP_STATUS_RANK[b.status] ?? 9));
+  // 使えなくなったリンクの手前に区切りを1本だけ入れる。有効なものと使えなくなったものが
+  // 両方あるときにしか出さない（どちらか一方しか無いなら、区切っても伝わるものが無い）。
+  const dividerAt = sorted.findIndex((link) => link.status !== "active");
+
+  el.innerHTML = sorted.map((link, index) => {
     const label = link.status === "disabled" ? t("pin.list.statusDisabled")
       : link.status === "expired" ? t("pin.list.statusExpired")
       : t("pin.list.statusActive");
@@ -1591,14 +1604,22 @@ function renderPinpointLinks(links) {
     // 逆に、使えなくなったリンクだけ削除できる（#336）。有効なものを消せると、相手が
     // まだ開けるリンクを一覧から消すだけで黙って死なせることになる（止めるなら先に無効化）。
     const canDelete = link.status !== "active";
-    return `
-    <article class="list-item${link.status === "active" ? "" : " is-paused"}">
-      <strong>${escapeHtml(link.page_title || t("bs.list.untitled"))}<span class="pause-badge">${escapeHtml(label)}</span></strong>
+    // URLのコピーは有効なリンクだけ。使えなくなったリンクのURLをコピーできても、
+    // 相手が開けないURLが手に入るだけで送りようがない（押せるのに意味が無い操作を残さない）。
+    const canCopy = link.status === "active";
+    const divider = index > 0 && index === dividerAt
+      ? `<p class="pp-group">${escapeHtml(t("pin.list.deadGroup"))}</p>` : "";
+    // 状態は3つの手がかりで出す（#338）。左のレール＝流し見用、バッジ＝正確な状態、
+    // 文字の濃さ＝使えるかどうか。以前は淡いピルの文字だけが違い、有効と無効が並んでも
+    // 見分けられなかった。is-live / is-dead が「枠を使っているか」に対応する。
+    return `${divider}
+    <article class="list-item pp-link ${link.status === "active" ? "is-live" : "is-dead"}">
+      <strong>${escapeHtml(link.page_title || t("bs.list.untitled"))}<span class="pp-state is-${escapeHtml(link.status)}">${escapeHtml(label)}</span></strong>
       <span>${escapeHtml(link.url)}</span>
       <small>${escapeHtml(t("pin.list.slotCount").replace("{n}", String(link.slot_count)))} / ${escapeHtml(ppListRange(link))}</small>
       <small>${escapeHtml(link.hold_slots ? t("pin.list.held").replace("{title}", link.hold_title || t("pin.list.noTitle")) : t("pin.list.notHeld"))} / ${escapeHtml(link.expires_at ? t("pin.list.expiresAt").replace("{at}", fmtDateTime(link.expires_at)) : t("pin.list.noExpiry"))}</small>
       <div class="actions">
-        <button class="button secondary" type="button" data-pp-link-action="copy" data-url="${escapeHtml(link.url)}">${escapeHtml(t("bs.list.copyUrl"))}</button>
+        ${canCopy ? `<button class="button secondary" type="button" data-pp-link-action="copy" data-url="${escapeHtml(link.url)}">${escapeHtml(t("bs.list.copyUrl"))}</button>` : ""}
         ${canDisable ? `<button class="button secondary" type="button" data-pp-link-action="disable" data-id="${escapeHtml(link.id)}" data-target="${escapeHtml(link.url)}">${escapeHtml(t("pin.list.disable"))}</button>` : ""}
         ${canDelete ? `<button class="button secondary" type="button" data-pp-link-action="delete" data-id="${escapeHtml(link.id)}" data-target="${escapeHtml(link.url)}">${escapeHtml(t("pin.list.delete"))}</button>` : ""}
       </div>
@@ -1738,6 +1759,10 @@ function bindPinpointList() {
 
 function bindPinpoint() {
   $("#pp-back")?.addEventListener("click", closePinpointView);
+  // 発行後の結果エリアにも同じ戻る導線を置いている（候補選択は縦に長く、発行直後は画面の
+  // 一番下にいるため）。閉じ方は上の導線と同じ closePinpointView に揃える。
+  // 画面下の戻る導線（トレイの下・結果の手前）。閉じ方は上の導線と同じ。
+  $("#pp-bottom-back")?.addEventListener("click", closePinpointView);
   $("#pp-hold")?.addEventListener("change", ppSyncHoldTitle);
   // 言語切替。曜日見出し・範囲ラベルはグリッドを描き直さないと直らないので、開いているときだけ再取得する。
   document.addEventListener("kimaru:languagechange", () => {

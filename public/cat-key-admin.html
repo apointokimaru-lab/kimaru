@@ -15,12 +15,8 @@
   <div class="op-layout">
     <aside class="op-sidebar">
       <a class="op-brand" href="/cat-key-admin.html">キマル<span class="brand-tag">運営</span></a>
-      <nav class="op-nav">
-        <a class="op-nav-item" href="#owners" data-view="owners">ユーザー一覧</a>
-        <a class="op-nav-item" href="#log" data-view="log">Cat Key認証 <span class="op-badge" id="nav-pending-badge" hidden></span></a>
-        <a class="op-nav-item" href="#history" data-view="history">操作履歴</a>
-        <a class="op-nav-item" href="/operators.html">運営者管理</a>
-      </nav>
+      <nav class="op-nav" data-operator-nav></nav>
+      <script src="/operator-nav.js"></script>
       <div class="op-sidebar-foot">
         <select class="lang-select" data-language-select aria-label="Language"></select>
         <button id="operator-logout" class="link-button" type="button">ログアウト</button>
@@ -149,18 +145,16 @@
       return cur;
     }
 
-    // ---- サイドメニューによるビュー切替（ユーザー一覧 / Cat Key認証） ----
+    // ---- ビュー切替（ユーザー一覧 / Cat Key認証 / 操作履歴）----
+    // メニュー側の選択表示と、同一画面内リンクの横取りは operator-nav.js が持つ（共通サイドメニュー）。
+    // ここはハッシュを見てビューを出し分けるだけにする。
     const VIEWS = { owners: '#view-owners', log: '#view-log', history: '#view-history' };
     function showView(name) {
       const target = VIEWS[name] ? name : 'owners';
       document.querySelectorAll('.op-view').forEach((v) => v.classList.remove('is-active'));
       document.querySelector(VIEWS[target]).classList.add('is-active');
-      document.querySelectorAll('.op-nav-item[data-view]').forEach((a) => a.classList.toggle('is-active', a.dataset.view === target));
       if (location.hash.slice(1) !== target) history.replaceState(null, '', `#${target}`);
     }
-    document.querySelectorAll('.op-nav-item[data-view]').forEach((a) => {
-      a.addEventListener('click', (event) => { event.preventDefault(); showView(a.dataset.view); });
-    });
     window.addEventListener('hashchange', () => showView(location.hash.slice(1)));
     showView(location.hash.slice(1) || 'owners');
 

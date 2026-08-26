@@ -35,6 +35,7 @@ const DISABLED_PATHS = [
 const OPERATOR_PATHS = [
   "/cat-key-admin.html",
   "/operators.html",
+  "/analytics.html",
 ];
 
 // 共通ヘッダー（単一ソース）。各ページの目印 <!-- site-header --> をこれで置換する。

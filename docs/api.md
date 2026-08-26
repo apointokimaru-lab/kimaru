@@ -213,6 +213,14 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 - サーバ側で弾いた場合は `_lib/analytics.js` `recordLimitHit({ownerId, plan, feature, page})` が**ぶつかった時点のプラン**込みで記録する（`_lib/auth.js` の `requireProOwner(event, feature)` / `requirePremiumOwner(event, feature)`、`booking-page-save.js`、`pinpoint-create.js`、`ai-assist.js`、`manual-contact.js`）。集計時に `owners` を引くと、その後アップグレードした人が「Proが無料の上限にぶつかった」ように見えるため。
 - 集計ビュー: `plan_limit_hits_daily`（日 × 機能 × プラン）。
 
+### `GET /api/usage-summary?days=30` — 運営セッション必須
+分析ダッシュボード（`/analytics.html`）が読む集計。`days` は 7〜365 にクランプ（既定30）。
+- 返すもの: `northstar`（今月「日程が決まった」数・人数・前月比・月次推移＝決定33の北極星）/ `accounts` / `acquisition`（流入元ごとの登録数）/ `activation`（到達率・初回予約までの日数・予約0の名簿）/ `retention`（週次アクティブ・休眠の名簿・2回目率）/ `revenue`（課金内訳・MRR概算・登録→課金までの日数・解約・**有料の壁 `limit_hits`**）/ `conversion.cohorts` / `bookings` / `ai` / `features.adoption`（機能ごとの採用率）/ `usage`（画面別PV・UU、画面×プラン、流入元、端末、ファネル）
+- `owners` の select は **`signup_source` を含む版で試し、失敗したら列を外して引き直す**（未適用の列を混ぜるとクエリ全体が落ち、アカウントの数字がすべて空になるため）。
+- **取得できなかった表は `available: false`** で返す（0件と「テーブル未適用」を画面で区別するため。0で出すと「使われていない」と読み違える）。
+- 集計は JS 側で行う（`page_events` だけは #342 のビューを使う）。1表あたり 20000 行が上限で、超えたら `notes` にその旨を載せる。
+- 触る DB: `owners`, `payment_events`, `bookings`, `booking_pages`, `availability_settings`, `google_connections`, `zoom_connections`, `questionnaire_questions`, `ai_assist_logs`, `pinpoint_links`, `booking_notes`, `appointment_logs`, `manual_contacts`, `page_events_*`（ビュー）
+
 ---
 
 ## 環境変数（API 関連）

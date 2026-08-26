@@ -37,6 +37,7 @@
 | 11 | `/operator-login.html` | 運営ログイン（共有キー → 運営セッション発行） | 共有管理キー | 運営 |
 | 12 | `/cat-key-admin.html` | 運営コンソール（Cat Key・ユーザー管理） | 運営セッション | 運営 |
 | 13 | `/operators.html` | 運営者管理（運営アカウントの一覧・追加・削除） | 運営セッション | 運営 |
+| 14 | `/analytics.html` | 分析ダッシュボード（利用状況・転換率・定着の集計） | 運営セッション | 運営 |
 | 14 | `/booking.html`（`/b/{slug}`） | 予約ページ（ゲスト用） | 不要 | 公開 |
 | 15 | `/terms.html` | 利用規約 | 不要 | 公開（法務） |
 | 16 | `/privacy.html` | プライバシーポリシー | 不要 | 公開（法務） |
@@ -61,6 +62,7 @@
 | 9. プロフィール `/profile.html` | − | △ 基本のみ | ✅ 高度版 | ✅ 高度版 | − |
 | 10. AIアシスト `/ai-assist.html` | − | − | ✅ | ✅ | − |
 | 11. 運営コンソール `/cat-key-admin.html` | − | − | − | − | ✅ |
+| 14. 分析ダッシュボード `/analytics.html` | − | − | − | − | ✅ |
 
 ### △（制限）の中身
 
@@ -101,7 +103,7 @@
 - **ルート保護（ユーザー）**：マトリクスで「無登録=−」のユーザー画面はログイン必須。未ログイン（`kimaru_session` Cookie 無）でアクセスすると `/login.html` へリダイレクト。
   - 対象: `/dashboard.html` `/contacts.html` `/booking-settings.html` `/profile.html` `/ai-assist.html` `/square.html`
 - **運営の認証（ユーザーと完全分離）**：運営は専用ログイン `/operator-login.html` で共有管理キー（`ADMIN_SECRET`）を入力し、**運営専用セッション `kimaru_admin_session`**（ユーザーの `kimaru_session` とは別Cookie・別署名）を発行する。
-  - 運営画面（`/cat-key-admin.html` / `/operators.html`）は **`kimaru_admin_session` で保護**。無ければ `/operator-login.html` へリダイレクト（ユーザーの `/login.html` には送らない）。
+  - 運営画面（`/cat-key-admin.html` / `/operators.html` / `/analytics.html`）は **`kimaru_admin_session` で保護**。無ければ `/operator-login.html` へリダイレクト（ユーザーの `/login.html` には送らない）。
   - 各運営APIも運営セッション（または互換のため Bearer 管理キー）で認可。運営者は `owners` ではなく `operators` テーブルで管理（一般ユーザー登録は不要）。
   - 将来: 共有キー → 運営者ごとのメール+パスワード（`operators.password_hash`）ログインへ拡張。
 - **公開ページ**（無登録=✅）：`/` `/signup.html` `/booking.html` `/plan.html` `/login.html` `/reset-password.html` `/u/<slug>`（公開プロフィール）、法務（`/terms.html` `/privacy.html` `/tokushoho.html`）はそのまま表示。

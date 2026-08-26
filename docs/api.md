@@ -208,6 +208,13 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 - 触る DB: `page_events`（+ `rate_limit_hits`）
 - 集計は運営コンソールの分析ダッシュボード（#343）。
 
+### `GET /api/usage-summary?days=30` — 運営セッション必須
+分析ダッシュボード（`/analytics.html`）が読む集計。`days` は 7〜365 にクランプ（既定30）。
+- 返すもの: `accounts`（登録推移・プラン内訳・有料転換率）/ `revenue`（課金内訳・MRR概算・登録→課金までの日数・解約イベント）/ `conversion.cohorts`（登録月別の転換率）/ `activation`（機能への到達率）/ `bookings`（予約推移・キャンセル率・開催方法）/ `ai`（当月のAIアシスト利用）/ `usage`（画面別PV・UU、画面×プラン、流入元、端末、ファネル）
+- **取得できなかった表は `available: false`** で返す（0件と「テーブル未適用」を画面で区別するため。0で出すと「使われていない」と読み違える）。
+- 集計は JS 側で行う（`page_events` だけは #342 のビューを使う）。1表あたり 20000 行が上限で、超えたら `notes` にその旨を載せる。
+- 触る DB: `owners`, `payment_events`, `bookings`, `booking_pages`, `availability_settings`, `google_connections`, `zoom_connections`, `questionnaire_questions`, `ai_assist_logs`, `pinpoint_links`, `booking_notes`, `appointment_logs`, `manual_contacts`, `page_events_*`（ビュー）
+
 ---
 
 ## 環境変数（API 関連）

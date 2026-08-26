@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>キマル - 分析ダッシュボード（運営）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/page-busy.js"></script>
+  <link rel="stylesheet" href="/operator.css" />
+</head>
+<body class="operator-console" data-page="analytics">
+  <div class="op-layout">
+    <aside class="op-sidebar">
+      <a class="op-brand" href="/cat-key-admin.html">キマル<span class="brand-tag">運営</span></a>
+      <nav class="op-nav">
+        <a class="op-nav-item" href="#overview" data-view="overview">サマリー</a>
+        <a class="op-nav-item" href="#revenue" data-view="revenue">課金・転換</a>
+        <a class="op-nav-item" href="#activation" data-view="activation">定着</a>
+        <a class="op-nav-item" href="#screens" data-view="screens">画面の利用状況</a>
+        <a class="op-nav-item" href="/cat-key-admin.html">ユーザー・Cat Key</a>
+        <a class="op-nav-item" href="/operators.html">運営者管理</a>
+      </nav>
+      <div class="op-sidebar-foot">
+        <select class="lang-select" data-language-select aria-label="Language"></select>
+        <button id="operator-logout" class="link-button" type="button">ログアウト</button>
+      </div>
+    </aside>
+
+    <main class="op-main">
+      <header class="op-page-head">
+        <p class="eyebrow">Admin / Analytics</p>
+        <h1>分析ダッシュボード</h1>
+        <p class="lead">経営判断と機能改善の優先順位づけに使う数字をまとめています。集計は期間を切り替えると全セクションに反映されます。</p>
+        <div class="op-range" id="range-buttons" role="group" aria-label="集計期間">
+          <button type="button" data-days="7">7日</button>
+          <button type="button" data-days="30">30日</button>
+          <button type="button" data-days="90">90日</button>
+          <button type="button" data-days="365">365日</button>
+        </div>
+        <p id="admin-message" class="message">読み込み中…</p>
+      </header>
+
+      <section id="view-overview" class="op-view panel">
+        <p class="eyebrow">Overview</p>
+        <h2>サマリー</h2>
+        <p class="muted" style="margin:2px 0 0;">アカウント・売上・利用のいまの状態です。カッコ内は集計期間の実績。</p>
+        <div class="op-stats" id="overview-stats"></div>
+        <div class="op-split" style="margin-top:24px;">
+          <div class="op-block">
+            <h3>登録数の推移</h3>
+            <p class="muted">アカウントが増えた日と数（JST）。</p>
+            <div class="op-chart" id="chart-signups"></div>
+          </div>
+          <div class="op-block">
+            <h3>予約数の推移</h3>
+            <p class="muted">ゲストが予約を入れた日と数（キャンセル分も含む）。</p>
+            <div class="op-chart" id="chart-bookings"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-revenue" class="op-view panel">
+        <p class="eyebrow">Revenue / Conversion</p>
+        <h2>課金・転換</h2>
+        <p class="muted" style="margin:2px 0 0;">有料プランの内訳と、無料から有料へどれだけ・どれくらいの期間で変わっているか。</p>
+        <div class="op-stats" id="revenue-stats"></div>
+
+        <div style="margin-top:26px;">
+          <h3 style="margin:0 0 2px;">登録月ごとの有料転換率</h3>
+          <p class="muted" style="margin:0;">全体の転換率は母数の大きい古い月に薄まるため、登録した月ごとに分けて見ます。</p>
+          <div class="op-table-wrap" style="margin-top:12px;">
+            <table class="op-table">
+              <thead>
+                <tr><th>登録月</th><th>登録数</th><th>うち有料</th><th>うち課金</th><th>転換率</th></tr>
+              </thead>
+              <tbody id="cohort-list"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-activation" class="op-view panel">
+        <p class="eyebrow">Activation</p>
+        <h2>定着</h2>
+        <p class="muted" style="margin:2px 0 0;">稼働中アカウント（<span id="activation-denominator">-</span>件）のうち、そこまで到達している割合です。急に落ちる段が、いま直すべき場所です。</p>
+        <div class="op-funnel" id="activation-funnel"></div>
+        <div class="op-split" style="margin-top:26px;">
+          <div class="op-block">
+            <h3>予約の開催方法</h3>
+            <p class="muted">期間内に入った予約の内訳。</p>
+            <div class="op-table-wrap" style="margin-top:12px;">
+              <table class="op-table">
+                <thead><tr><th>開催方法</th><th>件数</th><th>割合</th></tr></thead>
+                <tbody id="location-list"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="op-block">
+            <h3>そのほかの利用</h3>
+            <p class="muted">プラン別機能が実際に使われているか。</p>
+            <div class="op-table-wrap" style="margin-top:12px;">
+              <table class="op-table">
+                <thead><tr><th>項目</th><th>値</th></tr></thead>
+                <tbody id="extra-list"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-screens" class="op-view panel">
+        <p class="eyebrow">Screens</p>
+        <h2>画面の利用状況</h2>
+        <p class="muted" style="margin:2px 0 0;">どの画面が見られているか（計測は #342 で入れた page_events。入れた日より前は記録がありません）。</p>
+        <div id="screens-body">
+          <div class="op-split" style="margin-top:20px;">
+            <div class="op-block">
+              <h3>表示数と訪問者数</h3>
+              <p class="muted">訪問者数は日ごとに重複を除いた数の合計（延べ）です。</p>
+              <div class="op-chart" id="chart-usage"></div>
+              <div class="op-legend" id="usage-legend"></div>
+            </div>
+            <div class="op-block">
+              <h3>獲得ファネル</h3>
+              <p class="muted">登録完了だけは実際のアカウント数（計測が欠けても正しい値）。</p>
+              <div class="op-funnel" id="acquisition-funnel"></div>
+              <h3 style="margin-top:22px;">ゲストの予約ファネル</h3>
+              <p class="muted">予約ページを見た人のうち、予約まで進んだ割合。</p>
+              <div class="op-funnel" id="booking-funnel"></div>
+            </div>
+          </div>
+
+          <div style="margin-top:26px;">
+            <h3 style="margin:0 0 2px;">画面別</h3>
+            <div class="op-table-wrap" style="margin-top:12px;">
+              <table class="op-table">
+                <thead><tr><th>画面</th><th>表示数</th><th>訪問者数（延べ）</th></tr></thead>
+                <tbody id="pages-list"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style="margin-top:26px;">
+            <div class="op-section-head">
+              <h3 style="margin:0 0 2px;">画面 × プラン</h3>
+            </div>
+            <p class="muted" style="margin:0;">どのプランの人がその画面を使っているか。機能をどのプランに置くかの判断に使います。</p>
+            <div class="op-legend" id="plan-legend"></div>
+            <div class="op-table-wrap" style="margin-top:12px;">
+              <table class="op-table">
+                <thead><tr><th>画面</th><th>内訳</th><th>ゲスト</th><th>無料</th><th>Pro</th><th>プレミアム</th></tr></thead>
+                <tbody id="plan-pages-list"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="op-split" style="margin-top:26px;">
+            <div class="op-block">
+              <h3>流入元</h3>
+              <p class="muted">外部サイトのホスト名のみ（(direct) は直接アクセス・リファラなし）。</p>
+              <div class="op-table-wrap" style="margin-top:12px;">
+                <table class="op-table">
+                  <thead><tr><th>流入元</th><th>表示数</th></tr></thead>
+                  <tbody id="sources-list"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="op-block">
+              <h3>端末</h3>
+              <p class="muted">表示数の内訳。</p>
+              <div class="op-table-wrap" style="margin-top:12px;">
+                <table class="op-table">
+                  <thead><tr><th>端末</th><th>表示数</th><th>割合</th></tr></thead>
+                  <tbody id="devices-list"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/i18n.js" defer></script>
+  <script>
+    // 分析ダッシュボード（#343）。/api/usage-summary（運営セッション必須）の1レスポンスを
+    // そのまま描画する。集計はサーバ側に寄せ、ここでは「見せ方」だけを持つ。
+    const message = document.querySelector('#admin-message');
+    const SERIES = { guest: '#8A93A3', free: '#2a78d6', pro: '#eb6834', premium: '#1baf7a' };
+    const PLAN_LABEL = { guest: 'ゲスト', free: '無料', pro: 'Pro', premium: 'プレミアム' };
+    let days = 30;
+
+    function setMessage(text, kind = '') {
+      message.textContent = text;
+      message.className = `message ${kind}`.trim();
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value).replace(/[<>'"&]/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      }[char]));
+    }
+
+    const num = (value) => (value == null ? '—' : Number(value).toLocaleString('ja-JP'));
+    const pct = (value) => (value == null ? '—' : `${value}%`);
+    const share = (part, whole) => (whole > 0 ? Math.round((part / whole) * 1000) / 10 : 0);
+
+    function stat(label, value, unit, sub, meter) {
+      // meter は 0–100。率をもう一度グラフにせず、タイルの中で大小が分かるようにするための細い定規。
+      const bar = meter == null ? '' : `<span class="op-stat-meter"><i style="width:${Math.max(0, Math.min(100, meter))}%"></i></span>`;
+      return `<div class="op-stat">
+        <p class="op-stat-label">${escapeHtml(label)}</p>
+        <strong class="op-stat-value">${escapeHtml(value)}${unit ? `<span class="op-unit">${escapeHtml(unit)}</span>` : ''}</strong>
+        ${sub ? `<p class="op-stat-sub">${escapeHtml(sub)}</p>` : ''}
+        ${bar}
+      </div>`;
+    }
+
+    // ---- グラフ（インラインSVG。ライブラリは入れない） ----
+    // 目盛りは 0 と最大値だけ。細かい格子を敷くより、値そのものを表に出すほうが読み違えない。
+    function niceMax(max) {
+      if (max <= 5) return Math.max(1, max);
+      const digits = Math.pow(10, String(Math.floor(max)).length - 1);
+      return Math.ceil(max / digits) * digits;
+    }
+
+    // x軸ラベルは端と中央だけ出す（365日ぶんを全部出すと重なって読めない）。
+    function axisLabels(points, count = 3) {
+      if (points.length <= count) return points.map((_, i) => i);
+      const step = (points.length - 1) / (count - 1);
+      return Array.from({ length: count }, (_, i) => Math.round(i * step));
+    }
+
+    const shortDay = (day) => String(day || '').slice(5).replace('-', '/');
+
+    function barChart(points, valueKey = 'count', color = 'var(--op-blue)') {
+      if (!points.length) return '<p class="muted">データがありません。</p>';
+      const W = 720, H = 190, padL = 44, padR = 8, padT = 12, padB = 26;
+      const innerW = W - padL - padR, innerH = H - padT - padB;
+      const max = niceMax(Math.max(1, ...points.map((p) => p[valueKey] || 0)));
+      const step = innerW / points.length;
+      const barW = Math.max(1, Math.min(20, step - 2));
+      const bars = points.map((point, i) => {
+        const value = point[valueKey] || 0;
+        const height = (value / max) * innerH;
+        const x = padL + i * step + (step - barW) / 2;
+        const y = padT + innerH - height;
+        return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, height).toFixed(1)}" fill="${color}"><title>${escapeHtml(point.day)} ${value}</title></rect>`;
+      }).join('');
+      const labels = axisLabels(points).map((i) => {
+        const x = padL + i * step + step / 2;
+        return `<text class="op-axis" x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle">${escapeHtml(shortDay(points[i].day))}</text>`;
+      }).join('');
+      return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="日別の推移">
+        <line class="op-grid" x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" />
+        <line class="op-grid" x1="${padL}" y1="${padT + innerH}" x2="${W - padR}" y2="${padT + innerH}" />
+        <text class="op-axis" x="${padL - 8}" y="${padT + 4}" text-anchor="end">${max}</text>
+        <text class="op-axis" x="${padL - 8}" y="${padT + innerH + 4}" text-anchor="end">0</text>
+        ${bars}${labels}
+      </svg>`;
+    }
+
+    function lineChart(points, series) {
+      if (!points.length) return '<p class="muted">データがありません。</p>';
+      const W = 720, H = 190, padL = 44, padR = 8, padT = 12, padB = 26;
+      const innerW = W - padL - padR, innerH = H - padT - padB;
+      const max = niceMax(Math.max(1, ...points.flatMap((p) => series.map((s) => p[s.key] || 0))));
+      const x = (i) => padL + (points.length === 1 ? innerW / 2 : (i / (points.length - 1)) * innerW);
+      const y = (value) => padT + innerH - ((value || 0) / max) * innerH;
+      const lines = series.map((s) => {
+        const path = points.map((point, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(point[s.key]).toFixed(1)}`).join(' ');
+        // 点が多いと丸が潰れるので、30点以下のときだけ節を打つ（ホバーの当たり判定も兼ねる）。
+        const dots = points.length <= 30 ? points.map((point, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(point[s.key]).toFixed(1)}" r="3.2" fill="${s.color}"><title>${escapeHtml(point.day)} ${s.label} ${point[s.key] || 0}</title></circle>`).join('') : '';
+        return `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="2" />${dots}`;
+      }).join('');
+      const labels = axisLabels(points).map((i) => `<text class="op-axis" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${escapeHtml(shortDay(points[i].day))}</text>`).join('');
+      return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="日別の推移">
+        <line class="op-grid" x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" />
+        <line class="op-grid" x1="${padL}" y1="${padT + innerH}" x2="${W - padR}" y2="${padT + innerH}" />
+        <text class="op-axis" x="${padL - 8}" y="${padT + 4}" text-anchor="end">${max}</text>
+        <text class="op-axis" x="${padL - 8}" y="${padT + innerH + 4}" text-anchor="end">0</text>
+        ${lines}${labels}
+      </svg>`;
+    }
+
+    // 段ごとの到達率。基準は先頭の段（ファネル）か、指定した母数（定着）。
+    function funnel(target, steps, baseValue) {
+      const base = baseValue != null ? baseValue : (steps[0] ? steps[0].value : 0);
+      target.innerHTML = steps.map((step) => {
+        if (step.value == null) {
+          return `<div class="op-funnel-row"><span class="op-funnel-label">${escapeHtml(step.label)}</span><span class="op-funnel-track"></span><span class="op-funnel-value">—</span></div>`;
+        }
+        const ratio = base > 0 ? Math.min(100, (step.value / base) * 100) : 0;
+        return `<div class="op-funnel-row">
+          <span class="op-funnel-label">${escapeHtml(step.label)}</span>
+          <span class="op-funnel-track"><i style="width:${ratio.toFixed(1)}%"></i></span>
+          <span class="op-funnel-value">${num(step.value)}<small>${base > 0 ? `${Math.round(ratio * 10) / 10}%` : ''}</small></span>
+        </div>`;
+      }).join('');
+    }
+
+    const emptyRow = (columns, text) => `<tr><td class="empty-cell" colspan="${columns}">${escapeHtml(text)}</td></tr>`;
+
+    // ---- 描画 ----
+    function renderOverview(data) {
+      const accounts = data.accounts;
+      const revenue = data.revenue;
+      document.querySelector('#overview-stats').innerHTML = [
+        stat('アカウント総数', num(accounts.total), '件', `稼働中 ${num(accounts.active)}・停止 ${num(accounts.disabled)}`),
+        stat('有料アカウント', num(accounts.paid), '件', `Pro ${num(accounts.by_plan.pro)}・プレミアム ${num(accounts.by_plan.premium)}`, accounts.paid_rate),
+        stat('有料転換率', pct(accounts.paid_rate), '', '全アカウントに対する割合', accounts.paid_rate),
+        stat('MRR（概算）', revenue.available ? `¥${num(revenue.mrr_estimate)}` : '—', '', revenue.available ? `課金 ${num(revenue.paying_total)}件・無償 ${num(revenue.cat_key_paid)}件` : '決済イベントを取得できません'),
+        stat(`登録（直近${days}日）`, num(accounts.signups_in_range), '件', `承認待ち Cat Key ${num(accounts.pending_cat_key)}件`),
+        stat(`予約（直近${days}日）`, data.bookings.available ? num(data.bookings.in_range) : '—', '件', data.bookings.available ? `キャンセル率 ${pct(data.bookings.cancel_rate)}` : '予約を取得できません'),
+      ].join('');
+      document.querySelector('#chart-signups').innerHTML = barChart(accounts.signups_daily);
+      document.querySelector('#chart-bookings').innerHTML = data.bookings.available
+        ? barChart(data.bookings.daily)
+        : '<p class="muted">予約データを取得できませんでした。</p>';
+    }
+
+    function renderRevenue(data) {
+      const revenue = data.revenue;
+      const toPaid = revenue.days_to_paid;
+      document.querySelector('#revenue-stats').innerHTML = [
+        stat('課金 Pro', num(revenue.paying_pro), '件', `¥${num(revenue.price.pro)}/月`),
+        stat('課金 プレミアム', num(revenue.paying_premium), '件', `¥${num(revenue.price.premium)}/月`),
+        stat('Cat Key（無償Pro）', num(revenue.cat_key_paid), '件', '売上にはならない有料会員'),
+        stat('登録→課金までの日数', toPaid.median == null ? '—' : String(toPaid.median), '日', toPaid.samples ? `中央値（${num(toPaid.samples)}件：${toPaid.p25}〜${toPaid.p75}日）` : '課金の実績がまだありません'),
+        stat(`解約イベント（直近${days}日）`, num(revenue.cancel_events_in_range), '件', `累計 ${num(revenue.cancel_events)}件`),
+        stat('メール確認済み', pct(data.accounts.email_verified_rate), '', `${num(data.accounts.email_verified)}件が確認済み`, data.accounts.email_verified_rate),
+      ].join('');
+
+      const cohorts = data.conversion.cohorts.slice().reverse();
+      const maxRate = Math.max(1, ...cohorts.map((row) => row.rate || 0));
+      document.querySelector('#cohort-list').innerHTML = cohorts.length
+        ? cohorts.map((row) => `<tr>
+            <td data-label="登録月" class="cell-mono">${escapeHtml(row.month)}</td>
+            <td data-label="登録数" class="cell-mono">${num(row.signups)}</td>
+            <td data-label="うち有料" class="cell-mono">${num(row.paid)}</td>
+            <td data-label="うち課金" class="cell-mono">${num(row.paying)}</td>
+            <td data-label="転換率"><span class="op-cell-bar"><i style="width:${((row.rate || 0) / maxRate) * 100}%"></i><span class="cell-mono">${pct(row.rate)}</span></span></td>
+          </tr>`).join('')
+        : emptyRow(5, 'アカウントがまだありません。');
+    }
+
+    function renderActivation(data) {
+      document.querySelector('#activation-denominator').textContent = num(data.activation.denominator);
+      funnel(
+        document.querySelector('#activation-funnel'),
+        data.activation.steps.map((step) => ({ label: step.label, value: step.available ? step.count : null })),
+        data.activation.denominator
+      );
+
+      const locations = data.bookings.by_location || {};
+      const labels = { google_meet: 'Google Meet', zoom: 'Zoom', in_person: '対面', phone: '電話', custom_url: 'URL指定', later: '後日連絡', unknown: '不明' };
+      const entries = Object.keys(locations).map((key) => [key, locations[key]]).sort((a, b) => b[1] - a[1]);
+      const totalBookings = entries.reduce((sum, entry) => sum + entry[1], 0);
+      document.querySelector('#location-list').innerHTML = entries.length
+        ? entries.map(([key, count]) => `<tr>
+            <td data-label="開催方法">${escapeHtml(labels[key] || key)}</td>
+            <td data-label="件数" class="cell-mono">${num(count)}</td>
+            <td data-label="割合" class="cell-mono">${share(count, totalBookings)}%</td>
+          </tr>`).join('')
+        : emptyRow(3, `直近${days}日の予約がありません。`);
+
+      const rows = [
+        ['ピンポイントリンク（期間内 / 累計）', data.bookings.available ? `${num(data.bookings.pinpoint_links_in_range)} / ${num(data.bookings.pinpoint_links_total)}` : '—'],
+        ['予約が入ったことのあるアカウント', data.bookings.available ? `${num(data.bookings.owners_with_booking)}件` : '—'],
+        ['予約の累計', data.bookings.available ? `${num(data.bookings.total_all_time)}件` : '—'],
+        [`AIアシスト利用（${data.ai.month}）`, data.ai.available ? `${num(data.ai.calls)}回 / ${num(data.ai.owners)}アカウント` : '—'],
+      ];
+      document.querySelector('#extra-list').innerHTML = rows.map(([label, value]) => `<tr>
+        <td data-label="項目">${escapeHtml(label)}</td>
+        <td data-label="値" class="cell-mono">${escapeHtml(value)}</td>
+      </tr>`).join('');
+    }
+
+    function renderScreens(data) {
+      const usage = data.usage;
+      const body = document.querySelector('#screens-body');
+      if (!usage.available) {
+        // 「まだ0件」と「テーブル未適用」を同じ0で見せると、使われていないと読み違える。
+        body.innerHTML = '<div class="op-empty">画面の計測データがまだありません。<br>supabase-schema.sql の <code>page_events</code>（と集計ビュー）を dev / 本番の両方に適用すると、適用した日から記録が入ります。</div>';
+        return;
+      }
+
+      document.querySelector('#chart-usage').innerHTML = lineChart(usage.daily, [
+        { key: 'views', label: '表示数', color: SERIES.free },
+        { key: 'visitors', label: '訪問者数', color: SERIES.pro },
+      ]);
+      document.querySelector('#usage-legend').innerHTML = [
+        `<span><i style="background:${SERIES.free}"></i>表示数（PV）</span>`,
+        `<span><i style="background:${SERIES.pro}"></i>訪問者数（延べ）</span>`,
+      ].join('');
+
+      funnel(document.querySelector('#acquisition-funnel'), usage.acquisition_funnel);
+      funnel(document.querySelector('#booking-funnel'), usage.booking_funnel);
+
+      const maxViews = Math.max(1, ...usage.top_pages.map((row) => row.views));
+      document.querySelector('#pages-list').innerHTML = usage.top_pages.length
+        ? usage.top_pages.map((row) => `<tr>
+            <td data-label="画面" class="cell-mono">${escapeHtml(row.page)}</td>
+            <td data-label="表示数"><span class="op-cell-bar"><i style="width:${(row.views / maxViews) * 100}%"></i><span class="cell-mono">${num(row.views)}</span></span></td>
+            <td data-label="訪問者数" class="cell-mono">${num(row.visitors)}</td>
+          </tr>`).join('')
+        : emptyRow(3, 'この期間の記録がありません。');
+
+      document.querySelector('#plan-legend').innerHTML = Object.keys(PLAN_LABEL)
+        .map((plan) => `<span><i style="background:${SERIES[plan]}"></i>${PLAN_LABEL[plan]}</span>`).join('');
+      document.querySelector('#plan-pages-list').innerHTML = usage.by_plan.length
+        ? usage.by_plan.map((row) => {
+            const stack = Object.keys(PLAN_LABEL).filter((plan) => row[plan] > 0)
+              .map((plan) => `<i style="flex:${row[plan]};background:${SERIES[plan]}" title="${PLAN_LABEL[plan]} ${row[plan]}"></i>`).join('');
+            return `<tr>
+              <td data-label="画面" class="cell-mono">${escapeHtml(row.page)}</td>
+              <td data-label="内訳"><span class="op-stack">${stack}</span></td>
+              <td data-label="ゲスト" class="cell-mono">${num(row.guest)}</td>
+              <td data-label="無料" class="cell-mono">${num(row.free)}</td>
+              <td data-label="Pro" class="cell-mono">${num(row.pro)}</td>
+              <td data-label="プレミアム" class="cell-mono">${num(row.premium)}</td>
+            </tr>`;
+          }).join('')
+        : emptyRow(6, 'この期間の記録がありません。');
+
+      document.querySelector('#sources-list').innerHTML = usage.sources.length
+        ? usage.sources.map((row) => `<tr>
+            <td data-label="流入元" class="cell-mono">${escapeHtml(row.source)}</td>
+            <td data-label="表示数" class="cell-mono">${num(row.views)}</td>
+          </tr>`).join('')
+        : emptyRow(2, 'この期間の記録がありません。');
+
+      const devices = usage.devices || {};
+      const deviceLabels = { desktop: 'デスクトップ', mobile: 'スマートフォン', tablet: 'タブレット', unknown: '不明' };
+      const deviceEntries = Object.keys(devices).map((key) => [key, devices[key]]).sort((a, b) => b[1] - a[1]);
+      const deviceTotal = deviceEntries.reduce((sum, entry) => sum + entry[1], 0);
+      document.querySelector('#devices-list').innerHTML = deviceEntries.length
+        ? deviceEntries.map(([key, views]) => `<tr>
+            <td data-label="端末">${escapeHtml(deviceLabels[key] || key)}</td>
+            <td data-label="表示数" class="cell-mono">${num(views)}</td>
+            <td data-label="割合" class="cell-mono">${share(views, deviceTotal)}%</td>
+          </tr>`).join('')
+        : emptyRow(3, 'この期間の記録がありません。');
+    }
+
+    async function load() {
+      setMessage('読み込み中…');
+      document.querySelectorAll('#range-buttons button').forEach((button) => {
+        button.classList.toggle('is-active', Number(button.dataset.days) === days);
+      });
+      try {
+        const response = await fetch(`/api/usage-summary?days=${days}`, { credentials: 'include' });
+        if (response.status === 401) {
+          location.href = `/operator-login.html?next=${encodeURIComponent('/analytics.html')}`;
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || '取得に失敗しました。');
+        renderOverview(data);
+        renderRevenue(data);
+        renderActivation(data);
+        renderScreens(data);
+        const at = new Date(data.generated_at);
+        const notes = (data.notes || []).join(' ');
+        setMessage(`直近${data.range.days}日で集計（${at.toLocaleString('ja-JP')} 時点）${notes ? ' / ' + notes : ''}`);
+      } catch (error) {
+        setMessage(error.message || '取得に失敗しました。', 'error');
+      }
+    }
+
+    document.querySelector('#range-buttons').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-days]');
+      if (!button) return;
+      days = Number(button.dataset.days) || 30;
+      load();
+    });
+
+    // ビュー切替（cat-key-admin.html と同じ hash 方式）
+    const VIEWS = ['overview', 'revenue', 'activation', 'screens'];
+    function showView(name) {
+      const target = VIEWS.includes(name) ? name : 'overview';
+      document.querySelectorAll('.op-view').forEach((view) => view.classList.remove('is-active'));
+      document.querySelector(`#view-${target}`).classList.add('is-active');
+      document.querySelectorAll('.op-nav-item[data-view]').forEach((link) => link.classList.toggle('is-active', link.dataset.view === target));
+      if (location.hash.slice(1) !== target) history.replaceState(null, '', `#${target}`);
+    }
+    document.querySelectorAll('.op-nav-item[data-view]').forEach((link) => {
+      link.addEventListener('click', (event) => { event.preventDefault(); showView(link.dataset.view); });
+    });
+    window.addEventListener('hashchange', () => showView(location.hash.slice(1)));
+    showView(location.hash.slice(1) || 'overview');
+
+    document.querySelector('#operator-logout').addEventListener('click', async () => {
+      await fetch('/api/operator-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ action: 'logout' }) });
+      location.href = '/operator-login.html';
+    });
+
+    load();
+  </script>
+</body>
+</html>

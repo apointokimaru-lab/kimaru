@@ -188,6 +188,9 @@
 
 /* ---- メッセージ状態 ---- */
 .operator-console .message { color: var(--op-soft); font-family: var(--op-mono); font-size: 13px; }
+.operator-console .message:not(:empty) { color: var(--op-soft); background: var(--op-panel-2); border: 1px solid var(--op-line); border-radius: 0; }
+.operator-console .message.success:not(:empty) { color: var(--op-green); background: #EAF6EE; border-color: #CBE6D5; }
+.operator-console .message.error:not(:empty) { color: var(--op-red); background: #FBE9E6; border-color: #F0CFC9; }
 .operator-console .message.success { color: var(--op-green); }
 .operator-console .message.error { color: var(--op-red); }
 
@@ -415,4 +418,102 @@
   .operator-console .op-table td::before { content: attr(data-label); display: inline-block; min-width: 92px; color: var(--op-dim); font-family: var(--op-mono); font-size: 11px; font-weight: 700; }
   .operator-console .op-table td.cell-name::before { content: none; }
   .operator-console .op-table .empty-cell::before { content: none; }
+}
+
+/* ============================================================
+   分析ダッシュボード（#343）
+   運営コンソール内の数値画面。既存の --op-* トークンだけで組み、
+   色は「同じ意味には同じ色」に限定して使う（装飾では色を足さない）。
+   系列色は3つだけ（無料=青 / Pro=橙 / プレミアム=緑）。この3色は
+   色覚特性シミュレーションで相互に判別できる組み合わせを選んである。
+   ゲスト（未ログイン）は系列ではなく「アカウント外」なので無彩色。
+   ============================================================ */
+.operator-console {
+  --op-s-free: #2a78d6;
+  --op-s-pro: #eb6834;
+  --op-s-premium: #1baf7a;
+  --op-s-guest: #8A93A3;
+}
+
+/* ---- 期間切り替え ---- */
+.operator-console .op-range { display: flex; gap: 6px; flex-wrap: wrap; }
+.operator-console .op-range button {
+  padding: 6px 12px;
+  font-family: var(--op-mono); font-size: 12px; font-weight: 700;
+  color: var(--op-soft); background: #fff;
+  border: 1px solid var(--op-line-bright); border-radius: 0; cursor: pointer;
+}
+.operator-console .op-range button:hover { color: var(--op-blue-2); border-color: var(--op-blue); background: var(--op-blue-soft); }
+.operator-console .op-range button.is-active { color: #fff; background: var(--op-blue); border-color: var(--op-blue); }
+
+/* ---- 数値タイル ---- */
+.operator-console .op-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 1px;                      /* 1pxの隙間＝罫線1本に見える。枠線を足さずに升目を作る */
+  background: var(--op-line);
+  border: 1px solid var(--op-line);
+}
+.operator-console .op-stat { padding: 14px 16px 16px; background: #fff; }
+.operator-console .op-stat-label {
+  margin: 0 0 8px;
+  font-family: var(--op-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--op-dim);
+}
+.operator-console .op-stat-value {
+  display: block;
+  font-family: var(--op-mono); font-size: 28px; font-weight: 700; line-height: 1.1;
+  color: var(--op-ink);
+  font-variant-numeric: tabular-nums;   /* 桁を揃える＝縦に並べたとき数の大小が形で分かる */
+}
+.operator-console .op-stat-value .op-unit { font-size: 13px; font-weight: 600; color: var(--op-dim); margin-left: 3px; }
+.operator-console .op-stat-sub { margin: 6px 0 0; font-family: var(--op-mono); font-size: 11px; color: var(--op-dim); }
+/* 値の下の細い定規。率をもう一度グラフにせず、タイルの中で比較できるようにする */
+.operator-console .op-stat-meter { display: block; margin-top: 10px; height: 3px; background: var(--op-line); }
+.operator-console .op-stat-meter > i { display: block; height: 100%; background: var(--op-blue); }
+
+/* ---- グラフ ---- */
+.operator-console .op-chart { width: 100%; margin-top: 12px; }
+.operator-console .op-chart svg { display: block; width: 100%; height: auto; }
+.operator-console .op-chart .op-axis { fill: var(--op-dim); font-family: var(--op-mono); font-size: 11px; }
+.operator-console .op-chart .op-grid { stroke: var(--op-line); stroke-width: 1; }
+.operator-console .op-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-family: var(--op-mono); font-size: 11px; color: var(--op-soft); }
+.operator-console .op-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.operator-console .op-legend i { width: 10px; height: 10px; background: var(--op-blue); }
+
+/* ---- ファネル・到達率（横棒＋値） ---- */
+.operator-console .op-funnel { display: grid; gap: 8px; margin-top: 14px; }
+.operator-console .op-funnel-row { display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr) 118px; align-items: center; gap: 12px; }
+.operator-console .op-funnel-label { font-size: 13px; color: var(--op-soft); }
+.operator-console .op-funnel-track { height: 14px; background: var(--op-line); }
+.operator-console .op-funnel-track > i { display: block; height: 100%; background: var(--op-blue); }
+.operator-console .op-funnel-value { font-family: var(--op-mono); font-size: 13px; color: var(--op-ink); text-align: right; font-variant-numeric: tabular-nums; }
+.operator-console .op-funnel-value small { color: var(--op-dim); margin-left: 6px; }
+
+/* ---- 表の中の棒（画面別PV・コホート率） ---- */
+.operator-console .op-cell-bar { display: grid; grid-template-columns: minmax(48px, 1fr) max-content; align-items: center; gap: 8px; min-width: 130px; }
+.operator-console .op-cell-bar > i { display: block; height: 8px; background: var(--op-blue); min-width: 1px; }
+.operator-console .op-cell-bar > .cell-mono { white-space: nowrap; }
+/* 積み上げ（画面×プラン）。2pxの隙間で境目を作る＝色が隣り合っても溶けない */
+.operator-console .op-stack { display: flex; gap: 2px; min-width: 120px; height: 10px; }
+.operator-console .op-stack > i { display: block; height: 100%; }
+.operator-console .op-swatch { display: inline-block; width: 9px; height: 9px; margin-right: 5px; vertical-align: baseline; }
+
+/* ---- 2カラム（グラフ＋表） ---- */
+.operator-console .op-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 22px; margin-top: 4px; }
+.operator-console .op-block h3 { margin: 0 0 2px; font-size: 15px; }
+.operator-console .op-block .muted { font-size: 12px; }
+
+/* ---- 未計測・取得不可の断り ---- */
+.operator-console .op-empty {
+  margin-top: 12px; padding: 16px;
+  color: var(--op-dim); background: var(--op-panel-2);
+  border: 1px dashed var(--op-line-bright);
+  font-size: 13px;
+}
+.operator-console .op-note { margin: 10px 0 0; padding-left: 16px; color: var(--op-amber); font-size: 12px; }
+
+@media (max-width: 620px) {
+  .operator-console .op-funnel-row { grid-template-columns: 1fr 96px; }
+  .operator-console .op-funnel-label { grid-column: 1 / -1; }
 }

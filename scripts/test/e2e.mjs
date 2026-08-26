@@ -37,6 +37,60 @@ const MOCK_BOOKINGS = [
   { id: "b-up", visitor_name: "モック 花子", visitor_email: "hana@example.com", topic: "採用の相談", start_at: iso(2, 11, 0), end_at: iso(2, 11, 30), location_type: "zoom", manage_url: "/manage-booking.html?id=b-up&t=tok2", status: "confirmed", answers: [] },
   { id: "b-cancel", visitor_name: "キャンセル 三郎", start_at: iso(0, 16, 0), end_at: iso(0, 16, 30), status: "cancelled", answers: [] },
 ];
+// 運営の分析ダッシュボード（#343）。/api/usage-summary の実レスポンス形に合わせる。
+const USAGE_DAYS = Array.from({ length: 30 }, (_, i) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29 + i).toISOString().slice(0, 10));
+const MOCK_USAGE_SUMMARY = {
+  generated_at: now.toISOString(),
+  range: { days: 30, since: iso(-30, 0, 0), days_list: USAGE_DAYS },
+  notes: [],
+  accounts: {
+    total: 42, active: 40, disabled: 2, pending_cat_key: 1,
+    email_verified: 30, email_verified_rate: 71.4,
+    by_plan: { free: 30, pro: 9, premium: 3 }, paid: 12, paid_rate: 28.6,
+    signups_in_range: 7,
+    signups_daily: USAGE_DAYS.map((day, i) => ({ day, count: i % 5 === 0 ? 2 : 0 })),
+    signups_monthly: [{ month: "2026-07", count: 20 }, { month: "2026-08", count: 22 }],
+  },
+  revenue: {
+    available: true, paying_pro: 6, paying_premium: 2, paying_total: 8, cat_key_paid: 4,
+    mrr_estimate: 6 * 980 + 2 * 2200, price: { pro: 980, premium: 2200 },
+    cancel_events: 3, cancel_events_in_range: 1,
+    days_to_paid: { samples: 8, p25: 2, median: 5.5, p75: 12 },
+  },
+  conversion: { cohorts: [{ month: "2026-07", signups: 20, paid: 5, paying: 3, rate: 25 }, { month: "2026-08", signups: 22, paid: 7, paying: 5, rate: 31.8 }] },
+  activation: {
+    denominator: 40,
+    steps: [
+      { label: "予約ページを作成", count: 33, rate: 82.5, available: true },
+      { label: "受付時間を設定", count: 28, rate: 70, available: true },
+      { label: "Googleカレンダー連携", count: 21, rate: 52.5, available: true },
+      { label: "Zoom連携", count: null, rate: null, available: false },
+      { label: "予約が入った", count: 14, rate: 35, available: true },
+    ],
+  },
+  bookings: {
+    available: true, in_range: 18, cancelled: 3, cancel_rate: 16.7,
+    total_all_time: 120, owners_with_booking: 22,
+    daily: USAGE_DAYS.map((day, i) => ({ day, count: i % 3 === 0 ? 1 : 0 })),
+    by_location: { google_meet: 12, zoom: 4, in_person: 2 },
+    pinpoint_links_in_range: 3, pinpoint_links_total: 11,
+  },
+  ai: { available: true, month: "2026-08", calls: 24, owners: 3 },
+  usage: {
+    available: true,
+    top_pages: [{ page: "/dashboard.html", views: 540, visitors: 120 }, { page: "/b/:slug", views: 310, visitors: 180 }],
+    daily: USAGE_DAYS.map((day, i) => ({ day, views: 20 + i, visitors: 8 + (i % 7) })),
+    by_plan: [{ page: "/dashboard.html", guest: 0, free: 300, pro: 180, premium: 60, total: 540 }],
+    sources: [{ source: "(direct)", views: 400 }, { source: "www.google.com", views: 120 }],
+    devices: { desktop: 600, mobile: 250 },
+    acquisition_funnel: [
+      { label: "LP（トップ）閲覧", value: 900 }, { label: "料金ページ閲覧", value: 320 },
+      { label: "登録画面を開いた", value: 90 }, { label: "登録完了", value: 7 },
+    ],
+    booking_funnel: [{ label: "予約ページ閲覧", value: 310 }, { label: "予約完了", value: 18 }],
+  },
+};
+
 const MOCK = {
   "me": { owner: { id: "o1", name: "テスト オーナー", email: "owner@example.com", plan: "pro" }, calendar_connected: true },
   "owner-bookings": { bookings: MOCK_BOOKINGS },
@@ -46,6 +100,7 @@ const MOCK = {
   // 会話記録（booking_notes）: リストGET(booking_ids)と単体GET(note)の両方をこの1オブジェクトで満たす（route はクエリを除去して同じキーに寄せるため）。
   "booking-note": { booking_ids: ["b-today"], note: { keywords: "初回", notes: "丁寧な問い合わせ。", next_action: "日程を案内する。", scores: {} } },
   "pending-answers": { count: 0, items: [] },
+  "usage-summary": MOCK_USAGE_SUMMARY,
 };
 
 const DUMMY = ["佐藤 りく", "山田 はな", "高橋 あおい", "田中 さくら", "鈴木 みなと", "佐藤 健", "b/tanaka", "abc-defg-hij", "ENTP", "サウナ / 登山"];
@@ -82,7 +137,7 @@ const PAGES = [
   "meeting?id=b-today", "booking?slug=taro", "public-profile?slug=taro", "manage-booking?id=b-today&t=tok",
   "manage-booking?k=b-today.tok", // 新しい1パラメータ形式の管理リンク
   "answer-question?id=b-today&t=tok", "pending-questions", "ai-assist",
-  "operator-login", "operators", "cat-key-admin", "privacy", "terms", "tokushoho",
+  "operator-login", "operators", "cat-key-admin", "analytics", "privacy", "terms", "tokushoho",
 ];
 for (const route of PAGES) {
   const [name, query] = route.split("?");
@@ -799,6 +854,62 @@ section("pinpoint scheduling link (#303)");
     ok("no JS exception", premium._errors.length === 0);
     await premium.close();
   }
+}
+
+// ===== 運営の分析ダッシュボード（#343）=====
+// 数字が「出ている」ことだけでなく、期間の切り替えがサーバまで届くこと、
+// 計測が未適用のときに 0 ではなく断りが出ることを見る（0だと「使われていない」と読み違えるため）。
+section("analytics dashboard (#343)");
+{
+  const page = await newPage();
+  await page.goto(`${base}/analytics.html`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(400);
+
+  const stats = await page.textContent("#overview-stats");
+  ok("サマリーにアカウント数が出る", stats.includes("42"));
+  ok("サマリーに有料転換率が出る", stats.includes("28.6%"));
+  ok("サマリーにMRR概算が出る", stats.includes("10,280"));
+  ok("推移グラフが描かれる", (await page.locator("#chart-signups svg").count()) === 1 && (await page.locator("#chart-bookings svg rect").count()) > 0);
+
+  await page.click('.op-nav-item[data-view="revenue"]');
+  await page.waitForTimeout(150);
+  const cohorts = await page.textContent("#cohort-list");
+  ok("コホート表が新しい月から並ぶ", cohorts.indexOf("2026-08") < cohorts.indexOf("2026-07"));
+  ok("コホートの転換率が出る", cohorts.includes("31.8%"));
+
+  await page.click('.op-nav-item[data-view="activation"]');
+  await page.waitForTimeout(150);
+  const funnelText = await page.textContent("#activation-funnel");
+  ok("定着ファネルが母数に対する割合で出る", funnelText.includes("33") && funnelText.includes("82.5%"));
+  ok("取得できない段は0ではなく—で出す", funnelText.includes("—"));
+
+  await page.click('.op-nav-item[data-view="screens"]');
+  await page.waitForTimeout(150);
+  ok("画面別の表が出る", (await page.textContent("#pages-list")).includes("/b/:slug"));
+  ok("画面×プランの内訳が出る", (await page.textContent("#plan-pages-list")).includes("300"));
+  ok("流入元が出る", (await page.textContent("#sources-list")).includes("www.google.com"));
+  ok("PV/UVの折れ線が2本ある", (await page.locator("#chart-usage svg path").count()) === 2);
+
+  // 期間ボタンはサーバへ days を渡す（クライアント側だけで切ったふりをしない）
+  page._requests.length = 0;
+  await page.click('#range-buttons button[data-days="7"]');
+  await page.waitForTimeout(400);
+  ok("期間ボタンが days=7 で再取得する", page._requests.some((url) => url.includes("usage-summary?days=7")));
+  ok("no JS exception", page._errors.length === 0);
+  await page.close();
+
+  // 計測テーブル未適用（available:false）のとき
+  const notReady = await newPage();
+  await notReady.route("**/api/usage-summary*", (route) => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ...MOCK_USAGE_SUMMARY, usage: { ...MOCK_USAGE_SUMMARY.usage, available: false } }),
+  }));
+  await notReady.goto(`${base}/analytics.html#screens`, { waitUntil: "networkidle" });
+  await notReady.waitForTimeout(400);
+  const body = await notReady.textContent("#screens-body");
+  ok("未計測は0ではなく理由を出す", body.includes("page_events") && !body.includes("表示数（PV）"));
+  ok("no JS exception", notReady._errors.length === 0);
+  await notReady.close();
 }
 
 await browser.close();

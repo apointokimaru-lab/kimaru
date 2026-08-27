@@ -237,7 +237,7 @@ Resend の bounce/complaint を `email_suppressions` に自動登録（`RESEND_W
 | `ADMIN_SECRET` | Cat Key 管理モード認証 |
 | `REMINDER_CRON_SECRET` / `THANKYOU_CRON_SECRET`（or `CRON_SECRET`） | リマインダー/サンキュー・ジョブ認証 |
 | `RESEND_API_KEY` / `TRANSACTIONAL_EMAIL_FROM`(notify) / `MARKETING_EMAIL_FROM`(news) / `RESEND_WEBHOOK_SECRET` | メール送信（経路分離）・配信イベント |
-| `SQUARE_PREMIUM_PLAN_ID` | プレミアム（¥2,200）の付与判定 |
+| `SQUARE_PREMIUM_PLAN_ID` | プレミアム（¥4,800）の付与判定 |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` / `AI_ASSIST_MONTHLY_LIMIT` | AIアシスト（GPT-5.4 Mini・月300回） |
 | `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET` | Zoom 自動発行（任意） |
 | `USAGE_HASH_SALT` | 利用計測の訪問者ハッシュ用ソルト（任意・未設定なら `SESSION_SECRET` を使う） |

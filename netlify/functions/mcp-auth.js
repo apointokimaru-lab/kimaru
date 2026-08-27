@@ -87,7 +87,7 @@ exports.handler = async (event) => {
     return redirect(`${appBaseUrl()}/login.html?next=${encodeURIComponent(`/api/mcp-auth?${retryParams}`)}`);
   }
   if (!isPremium(owner.plan)) {
-    return html(403, page("プレミアム限定", `<p class="eyebrow">MCP CONNECT</p><h1>MCP連携はプレミアムプランの機能です</h1><p>AIコネクタ接続はプレミアムプラン（¥2,200/月）でご利用いただけます。</p><div class="actions"><a class="btn deny" href="${escapeHtml(appBaseUrl())}/plan.html">プランを見る</a></div>`));
+    return html(403, page("プレミアム限定", `<p class="eyebrow">MCP CONNECT</p><h1>MCP連携はプレミアムプランの機能です</h1><p>AIコネクタ接続はプレミアムプラン（¥4,800/月）でご利用いただけます。</p><div class="actions"><a class="btn deny" href="${escapeHtml(appBaseUrl())}/plan.html">プランを見る</a></div>`));
   }
 
   const clientLabel = client.n || "AIクライアント";

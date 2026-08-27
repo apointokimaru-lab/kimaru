@@ -24,7 +24,7 @@ async function createProCheckoutLink(owner, { plan = "pro" } = {}) {
   const planId = isPremium ? optional("SQUARE_PREMIUM_PLAN_ID", "") : optional("SQUARE_PRO_PLAN_ID", "");
   if (!accessToken || !locationId || !planId) return null;
 
-  const amount = isPremium ? 2200 : 980; // JPY は最小単位=1円
+  const amount = isPremium ? 4800 : 980; // JPY は最小単位=1円
   const name = isPremium ? "キマル プレミアム（月額）" : "キマル Pro（月額）";
   const payload = {
     idempotency_key: crypto.randomUUID(),
@@ -41,7 +41,7 @@ async function createProCheckoutLink(owner, { plan = "pro" } = {}) {
     pre_populated_data: {
       buyer_email: String(owner.email || "").trim(),
     },
-    description: isPremium ? "キマル プレミアムプラン（月額 ¥2,200）" : "キマル Proプラン（月額 ¥980）",
+    description: isPremium ? "キマル プレミアムプラン（月額 ¥4,800）" : "キマル Proプラン（月額 ¥980）",
   };
 
   const res = await fetch(`${squareApiBase()}/v2/online-checkout/payment-links`, {

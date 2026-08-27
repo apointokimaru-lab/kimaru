@@ -1359,7 +1359,7 @@ body.modal-open{overflow:hidden}
 
 /* ============================================================
    使い方ガイド（#353）— 機能一覧（/guide.html）と、1項目ぶんの説明Modal（public/guide.js）
-   一覧は文字だけ。項目が16に増えたので、絵が並ぶより名前と要約が縦に並ぶほうが探しやすい。
+   一覧は項目名だけのボタンを並べる。項目が16に増えたので、1件あたりを短くして一覧性を優先する。
    ============================================================ */
 /* --- 機能一覧 --- */
 /* 手引きとして読む幅に寄せる。1200pxのシェル幅いっぱいだと1行が長すぎ、行末の矢印も本文から離れる。 */
@@ -1367,21 +1367,16 @@ body.modal-open{overflow:hidden}
 .guide-group-head{padding-bottom:12px;border-bottom:1px solid var(--line)}
 .guide-group-head .eyebrow{margin:0 0 6px}
 .guide-group-head .muted{margin:0;font-size:var(--fs-label)}
-.guide-list{list-style:none;margin:0;padding:0}
-.guide-list li+li{border-top:1px solid var(--line)}
-/* 行は <button>。ブラウザ既定の中央寄せ・背景・枠を戻してから組み直す。
-   1行＝項目名＋要約で、横幅いっぱいを押せるようにする（一覧の行はどこを押しても開く）。 */
-.guide-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:16px;row-gap:4px;width:100%;padding:16px 4px;text-align:left;font:inherit;color:inherit;background:none;border:0;cursor:pointer;transition:background .15s ease}
-.guide-item:hover{background:var(--surface-2)}
-.guide-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-/* 3つの子の置き場所は全部書く。1つでも自動配置に任せると、行をまたぐ矢印（span 2）に
-   押し出されて項目名が右の列へ回り、見出しが右寄せで出る。 */
-.guide-item b{grid-column:1;grid-row:1;font-family:var(--display);font-size:var(--fs-label);font-weight:700;line-height:1.5}
-.guide-item small{grid-column:1;grid-row:2;max-width:76ch;font-size:var(--fs-note);line-height:1.75;color:var(--muted)}
-.guide-item-mark{grid-column:2;grid-row:1/span 2;align-self:center;font-family:var(--mono);font-size:15px;font-weight:700;color:var(--line-2);transition:color .15s ease,transform .15s ease}
-.guide-item:hover .guide-item-mark{color:var(--accent);transform:translateX(3px)}
+.guide-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:10px;list-style:none;margin:18px 0 0;padding:0}
+/* 押せることを見た目で示すボタン。影は使わず、下辺の線だけを厚くして立体に見せ、
+   押したときに沈む（下辺を1pxに戻して同じぶん下げる＝高さが変わらない）。 */
+.guide-item{display:flex;align-items:center;width:100%;height:100%;padding:13px 15px;text-align:left;font-family:var(--display);font-size:var(--fs-label);font-weight:700;line-height:1.5;color:var(--ink);background:var(--surface);border:1px solid var(--line-2);border-bottom-width:3px;border-radius:6px;cursor:pointer;transition:border-color .15s ease,color .15s ease}
+.guide-item:hover{border-color:var(--accent);color:var(--accent-ink)}
+.guide-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.guide-item:active{border-bottom-width:1px;transform:translateY(2px)}
+.guide-item b{font:inherit}
 @media(max-width:620px){
-  .guide-item{padding:14px 2px}
+  .guide-list{grid-template-columns:1fr}
 }
 /* --- 1項目ぶんの説明Modal --- */
 .guide{width:min(720px,100%);max-height:calc(100dvh - 40px);overflow-y:auto;text-align:left;padding:clamp(20px,3vw,28px)}
@@ -1409,7 +1404,7 @@ body.modal-open{overflow:hidden}
 .guide-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
 .guide-count{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--muted)}
 @media(prefers-reduced-motion:reduce){
-  .guide-item,.guide-item-mark{transition:none}
-  .guide-item:hover .guide-item-mark{transform:none}
+  .guide-item{transition:none}
+  .guide-item:active{transform:none}
   .setup-bar i{transition:none}
 }

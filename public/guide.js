@@ -167,8 +167,9 @@
   }
 
   // ---- 機能一覧（/guide.html）------------------------------------------------------
-  // 図は置かず、項目名と要約（lead）だけを並べる。ここで見せたいのは「どの説明があるか」で、
-  // 絵が並ぶと目的の項目を探しにくくなる。
+  // 並べるのは項目名だけ。ここで見せたいのは「どの説明があるか」なので、
+  // 図や要約が付くと1件あたりが縦に伸びて、目的の項目を探しにくくなる。
+  // 要約（lead）はModalの冒頭にだけ出す。
   function renderIndex() {
     const host = document.querySelector("[data-guide-index]");
     if (!host) return;
@@ -188,8 +189,6 @@
           <li>
             <button class="guide-item" type="button" data-guide-open="${escapeText(entry.key)}">
               <b>${tx(entry, "title")}</b>
-              <small>${tx(entry, "lead")}</small>
-              <span class="guide-item-mark" aria-hidden="true">→</span>
             </button>
           </li>`).join("")}</ul>`;
       host.appendChild(section);

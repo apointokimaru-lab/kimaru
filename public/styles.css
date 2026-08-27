@@ -1358,9 +1358,53 @@ body.modal-open{overflow:hidden}
 }
 
 /* ============================================================
-   使い方ガイド（#353）— 左右に送る紙芝居Modal（public/guide.js）
+   使い方ガイド（#353）— 機能一覧（/guide.html）と、1機能ぶんのModal（public/guide.js）
    図は文字を持たない骨格だけのSVG。色だけで「いま説明している場所」を指す。
    ============================================================ */
+/* --- 機能一覧 --- */
+.guide-index{display:grid;gap:clamp(32px,4vw,48px);margin-top:32px}
+.guide-group-head{padding-bottom:12px;border-bottom:1px solid var(--line)}
+.guide-group-head .eyebrow{margin:0 0 6px}
+.guide-group-head .muted{margin:0;font-size:var(--fs-label)}
+/* 3列で止める。auto-fill のままだと広い画面で4列になり、5枚の章が「4＋1」で余るうえ、
+   カード1枚あたりの図が小さくなって骨格が読めなくなる。 */
+.guide-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}
+/* 1枚しかない章（＝全体の流れ）は横並びの大きいカードにする。3列の1枠だけ埋まった姿は
+   「まだ続きがある」ように見えるため。 */
+.guide-cards.is-single{grid-template-columns:1fr}
+/* 図を左に据えて、右にタイトル・こんなとき・目印を積む。flex のままだと4つの子が
+   横一列に並んでしまうので、ここだけ grid に切り替える。 */
+.guide-cards.is-single .guide-card{display:grid;grid-template-columns:min(46%,420px) 1fr;grid-template-rows:auto auto auto;column-gap:clamp(20px,3vw,32px);row-gap:10px;align-content:center;padding:18px}
+.guide-cards.is-single .guide-card-fig{grid-row:1/span 3;align-self:center}
+.guide-cards.is-single .guide-card b{font-size:var(--fs-subhead)}
+.guide-cards.is-single .guide-card small{-webkit-line-clamp:3;font-size:var(--fs-label)}
+.guide-cards.is-single .guide-card-cta{margin-top:4px}
+/* カードは <button>。ブラウザ既定の中央寄せ・下線・背景を全部戻してから組み直す。 */
+.guide-card{display:flex;flex-direction:column;gap:10px;padding:14px;text-align:left;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.guide-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--line-2)}
+.guide-card:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.guide-card-fig{display:block;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px}
+.guide-card b{font-family:var(--display);font-size:var(--fs-label);font-weight:700;line-height:1.5}
+/* 「こんなとき」は2行で切る。長さがまちまちだと、カードの高さが揃わず一覧が読みにくい。 */
+.guide-card small{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:var(--fs-note);line-height:1.7;color:var(--muted)}
+/* カード全体が押せるので、この行は「押せる」の目印でしかない。既定は控えめにして、
+   朱は見出しと図の中の「いま説明している場所」に取っておく（11枚ぶん朱が並ぶと、朱が意味を失う）。 */
+.guide-card-cta{margin-top:auto;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted);transition:color .18s ease}
+.guide-card:hover .guide-card-cta,.guide-card:focus-visible .guide-card-cta{color:var(--accent-ink)}
+@media(max-width:900px){
+  .guide-cards{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:620px){
+  .guide-cards,.guide-cards.is-single{grid-template-columns:1fr}
+  /* スマホでは横並びにする幅が無い（図が潰れて骨格が読めない）ので、通常のカードに戻す。 */
+  .guide-cards.is-single .guide-card{display:flex;flex-direction:column;gap:10px;padding:14px}
+  .guide-cards.is-single .guide-card b{font-size:var(--fs-label)}
+}
+@media(prefers-reduced-motion:reduce){
+  .guide-card,.guide-card-cta{transition:none}
+  .guide-card:hover{transform:none}
+}
+/* --- 1機能ぶんのModal --- */
 .guide{width:min(940px,100%);max-height:calc(100dvh - 40px);overflow-y:auto;text-align:left;padding:clamp(20px,3vw,28px)}
 .guide-head .eyebrow{margin:0}
 .guide-track{display:flex;gap:4px;margin-top:12px}
@@ -1371,7 +1415,7 @@ body.modal-open{overflow:hidden}
 .guide-seg:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .guide-stage{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(18px,2.6vw,28px);align-items:start;margin-top:20px}
 .guide-fig{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
-.guide-fig svg{display:block;width:100%;height:auto}
+.s-fig svg{display:block;width:100%;height:auto}
 .guide-tx h2{font-family:var(--display);font-size:clamp(19px,2.2vw,23px);margin:0 0 12px;line-height:1.45}
 .guide-when{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;font-size:var(--fs-label);color:var(--ink-2);line-height:1.7}
 .guide-tag{flex:none;padding:3px 10px;border-radius:var(--radius-pill);background:var(--accent-soft);color:var(--accent-ink);font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;white-space:nowrap}
@@ -1392,30 +1436,31 @@ body.modal-open{overflow:hidden}
   .guide-stage.slide-from-right,.guide-stage.slide-from-left{animation:none}
   .setup-bar i{transition:none}
 }
-/* --- 図の部品（guide.js が組む骨格SVG） --- */
-.guide-fig .s-card{fill:var(--surface);stroke:var(--line-2);stroke-width:1.5}
-.guide-fig .s-card-prem{stroke:var(--au-1)}
-.guide-fig .s-line{fill:var(--ink-2)}
-.guide-fig .s-line-2{fill:var(--line-2)}
-.guide-fig .s-line-prem{fill:var(--au-1)}
-.guide-fig .s-chip{fill:var(--surface-2)}
-.guide-fig .s-chip-off{fill:var(--surface-2);opacity:.55}
-.guide-fig .s-chip-acc{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
-.guide-fig .s-chip-buf{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5;stroke-dasharray:3 3}
-.guide-fig .s-chip-prem{fill:var(--premium-soft)}
-.guide-fig .s-band{fill:var(--surface-2)}
-.guide-fig .s-band-acc{fill:var(--accent)}
-.guide-fig .s-avatar{fill:var(--accent-soft)}
-.guide-fig .s-arrow{fill:none;stroke:var(--accent);stroke-width:2}
-.guide-fig .s-head{fill:var(--accent)}
-.guide-fig .s-fold{fill:none;stroke:var(--line-2);stroke-width:1.5}
-.guide-fig .s-seal{fill:var(--accent)}
-.guide-fig .s-check{fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-.guide-fig .s-clock,.guide-fig .s-hand{fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round}
-.guide-fig .s-tick{stroke:var(--line-2);stroke-width:1;stroke-dasharray:2 3}
-.guide-fig .s-strike{stroke:var(--muted);stroke-width:1.5}
-.guide-fig .s-copy{fill:none;stroke:var(--accent-ink);stroke-width:1.5;stroke-linejoin:round}
-.guide-fig text{font-family:var(--mono);font-size:12px;font-weight:700;fill:var(--ink-2)}
-.guide-fig .s-mid{text-anchor:middle}
-.guide-fig .s-t-acc{fill:var(--accent-ink)}
-.guide-fig .s-t-s{font-size:10px;fill:var(--muted)}
+/* --- 図の部品（guide.js が組む骨格SVG）。Modalの器(.guide-fig)とカードの器(.guide-card-fig)の
+       どちらに入っても同じ見え方になるよう、中身の色は共通の .s-fig に持たせる。 --- */
+.s-fig .s-card{fill:var(--surface);stroke:var(--line-2);stroke-width:1.5}
+.s-fig .s-card-prem{stroke:var(--au-1)}
+.s-fig .s-line{fill:var(--ink-2)}
+.s-fig .s-line-2{fill:var(--line-2)}
+.s-fig .s-line-prem{fill:var(--au-1)}
+.s-fig .s-chip{fill:var(--surface-2)}
+.s-fig .s-chip-off{fill:var(--surface-2);opacity:.55}
+.s-fig .s-chip-acc{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+.s-fig .s-chip-buf{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5;stroke-dasharray:3 3}
+.s-fig .s-chip-prem{fill:var(--premium-soft)}
+.s-fig .s-band{fill:var(--surface-2)}
+.s-fig .s-band-acc{fill:var(--accent)}
+.s-fig .s-avatar{fill:var(--accent-soft)}
+.s-fig .s-arrow{fill:none;stroke:var(--accent);stroke-width:2}
+.s-fig .s-head{fill:var(--accent)}
+.s-fig .s-fold{fill:none;stroke:var(--line-2);stroke-width:1.5}
+.s-fig .s-seal{fill:var(--accent)}
+.s-fig .s-check{fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.s-fig .s-clock,.s-fig .s-hand{fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round}
+.s-fig .s-tick{stroke:var(--line-2);stroke-width:1;stroke-dasharray:2 3}
+.s-fig .s-strike{stroke:var(--muted);stroke-width:1.5}
+.s-fig .s-copy{fill:none;stroke:var(--accent-ink);stroke-width:1.5;stroke-linejoin:round}
+.s-fig text{font-family:var(--mono);font-size:12px;font-weight:700;fill:var(--ink-2)}
+.s-fig .s-mid{text-anchor:middle}
+.s-fig .s-t-acc{fill:var(--accent-ink)}
+.s-fig .s-t-s{font-size:10px;fill:var(--muted)}

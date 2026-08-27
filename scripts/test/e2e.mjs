@@ -29,8 +29,9 @@ const server = http.createServer((req, res) => {
   if (path.extname(file) === ".html") {
     const html = body.toString("utf8");
     const end = html.lastIndexOf("</body>");
-    // 使い方ガイド（#353）も同様に Edge が注入する（ログイン時のみ）。テストは全ページ「ログイン中」の想定。
-    if (end >= 0) body = Buffer.from(html.slice(0, end) + '<script src="/usage.js" defer></script><script src="/guide.js" defer></script>' + html.slice(end), "utf8");
+    // 使い方ガイド（#353）はここでは入れない。guide.js は一覧ページ（/guide.html）だけが
+    // 自分で読み込む形になったので、Edge も注入していない（unit.mjs がそれを固定している）。
+    if (end >= 0) body = Buffer.from(html.slice(0, end) + '<script src="/usage.js" defer></script>' + html.slice(end), "utf8");
   }
   res.writeHead(200, { "content-type": MIME[path.extname(file)] || "text/plain" });
   res.end(body);
@@ -189,7 +190,7 @@ const PAGES = [
   "dashboard", "contacts", "booking-settings", "profile", "settings", "schedule", "answers",
   "meeting?id=b-today", "booking?slug=taro", "public-profile?slug=taro", "manage-booking?id=b-today&t=tok",
   "manage-booking?k=b-today.tok", // 新しい1パラメータ形式の管理リンク
-  "answer-question?id=b-today&t=tok", "pending-questions", "ai-assist",
+  "answer-question?id=b-today&t=tok", "pending-questions", "ai-assist", "guide",
   "operator-login", "operators", "cat-key-admin", "analytics", "privacy", "terms", "tokushoho",
 ];
 for (const route of PAGES) {
@@ -1069,11 +1070,43 @@ section("setup card + user guide (#353)");
   ok("the primary button is the unfinished step", (await page.locator("#setup-step-profile .setup-action.primary").count()) === 1);
   ok("the completion row stays hidden", !(await page.locator("#setup-complete").isVisible()));
 
-  // ガイド：カードのボタンから開き、左右で送れる
-  await page.click("#setup-card [data-guide-open]");
-  await page.waitForTimeout(300);
-  ok("guide modal opens", await page.locator("#guide-modal .guide").isVisible());
+  // ガイドへの導線は一覧ページへのリンク（Modalを直接開かない）
+  ok("the guide button links to the list page",
+    (await page.getAttribute("#setup-card a[data-i18n='setup.guide']", "href")) === "/guide.html");
+  ok("no JS exception", page._errors.length === 0);
+  await page.close();
+}
+
+// 使い方ガイドの一覧ページ（#353）。機能を選ぶと、その機能のModalが開く。
+{
+  const page = await newPage();
+  await page.goto(`${base}/guide.html`, { waitUntil: "networkidle" });
+  await page.waitForSelector(".guide-card", { timeout: 8000 });
   const total = await page.evaluate(() => window.KimaruGuide.slides.length);
+  const groups = await page.evaluate(() => window.KimaruGuide.groups.length);
+  ok(`the list shows every feature (${total})`, (await page.locator(".guide-card").count()) === total);
+  ok(`the list is grouped (${groups})`, (await page.locator(".guide-group").count()) === groups);
+  ok("every card has a figure", (await page.locator(".guide-card .s-fig svg").count()) === total);
+  // 一覧の見出し・章立てに翻訳キーがそのまま出ていない（i18n の貼り忘れ検出）
+  const indexText = await page.textContent(".guide-index");
+  ok("no untranslated keys in the list", !/guide\.(group|index)\./.test(indexText));
+  ok("the guide modal stays closed until a card is clicked", (await page.locator("#guide-modal .guide").count()) === 0);
+
+  // 押した機能のModalが開く（先頭ではなく、押した1枚）
+  const wanted = await page.evaluate(() => window.KimaruGuide.slides.findIndex((s) => s.key === "page"));
+  const cardTitle = (await page.textContent('.guide-card[data-guide-open="page"] b')).trim();
+  await page.click('.guide-card[data-guide-open="page"]');
+  await page.waitForTimeout(300);
+  ok("clicking a card opens the guide", await page.locator("#guide-modal .guide").isVisible());
+  ok("it opens the feature that was clicked", (await page.textContent("[data-guide-title]")).trim() === cardTitle);
+  ok("the count matches that feature", (await page.textContent(".guide-count")).trim() === `${wanted + 1} / ${total}`);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  ok("escape returns to the list", !(await page.locator("#guide-modal .guide").isVisible()));
+
+  // 通しで読む導線も残す（先頭から送れる）
+  await page.evaluate(() => window.KimaruGuide.open(0));
+  await page.waitForTimeout(200);
   ok(`guide has all slides (${total})`, total >= 10);
   ok("first slide shows 1 / n", (await page.textContent(".guide-count")).trim() === `1 / ${total}`);
   ok("back is disabled on the first slide", await page.locator("[data-guide-prev]").isDisabled());
@@ -1111,6 +1144,18 @@ section("setup card + user guide (#353)");
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
   ok("escape closes", !(await page.locator("#guide-modal .guide").isVisible()));
+  ok("no JS exception", page._errors.length === 0);
+  await page.close();
+}
+
+// /guide.html#<機能> の直リンク（案内メールから1つの機能へ送れるようにしてある）
+{
+  const page = await newPage();
+  await page.goto(`${base}/guide.html#contacts`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(500);
+  ok("a deep link opens that feature", await page.locator("#guide-modal .guide").isVisible());
+  const wanted = (await page.textContent('.guide-card[data-guide-open="contacts"] b')).trim();
+  ok("the deep link opens the right feature", (await page.textContent("[data-guide-title]")).trim() === wanted);
   ok("no JS exception", page._errors.length === 0);
   await page.close();
 }

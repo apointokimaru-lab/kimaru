@@ -1,12 +1,17 @@
-// 使い方ガイド（#353）— 左右に送る紙芝居形式のModal。
+// 使い方ガイド（#353）— 機能一覧ページ（/guide.html）と、1機能ぶんのModal。
 //
 // なぜ必要か: 「初期設定の方法がわかりにくい」という声への対応。画面ごとの説明文だけでは
 // 「どの機能を・どんなときに・どの順番で使うのか」が伝わらない。1枚＝1機能で、図（＝実際の画面の見立て）と
-// 「こんなときに」「使い方」を並べ、最初から最後まで通しで読めるようにする。
+// 「こんなときに」「使い方」を並べる。
 //
-// なぜ各HTMLに貼らずここに置くか: 共通ヘッダーの「使い方ガイド」はEdge Function（auth-gate.js）が
-// 全ページに注入するので、開く先も1ファイルにまとめて同じくEdgeから注入する。usage.js と同じ理由で、
-// 30枚あるHTMLに手で貼る運用は、新しい画面が増えたときに必ずどこかが漏れる。
+// なぜ一覧を挟むか: 最初は通しの紙芝居だけだったが、それだと「予約ページの作り方だけ知りたい」人が
+// 目的の1枚に着くまで送り続けることになる。ヘッダーの「使い方ガイド」はまず一覧（/guide.html）へ送り、
+// 知りたい機能を選んでもらってから、その機能のModalを開く。読み物として通しで見たい人のために、
+// Modal側の「次へ」と上部のセグメントは一覧の並び順のまま残してある。
+//
+// なぜこのファイルを guide.html だけが読むか: 開く先が一覧ページ1枚に決まったので、
+// 全ページに配る必要がなくなった（以前は Edge Function が全HTMLに注入していた）。
+// 他の画面からは共通ヘッダーのリンク＝ただの遷移で足りる。
 //
 // 文言は i18n.js（guide.* キー）に置く。3言語の対称性は scripts/test/unit.mjs が固定している。
 // 図には文字を入れない（数字と記号だけ）。図に日本語を焼き込むと en / zh-TW でそこだけ日本語が残る。
@@ -61,6 +66,7 @@
     {
       // 全体の流れ：URLを渡す → 相手が選ぶ → 双方のカレンダーに入る
       key: "flow",
+      group: "start",
       steps: 3,
       fig: svg([
         card(10, 45, 165, 150),
@@ -80,6 +86,7 @@
     {
       // カレンダー連携：予定が入っている時間は候補から消える
       key: "calendar",
+      group: "setup",
       steps: 3,
       href: "/settings.html#integrations",
       fig: svg([
@@ -96,6 +103,7 @@
     {
       // 予約ページ：所要時間・場所・公開する期間を決める
       key: "page",
+      group: "setup",
       steps: 3,
       href: "/booking-settings.html",
       fig: svg([
@@ -118,6 +126,7 @@
     {
       // 受付時間と前後バッファ：3行目だけ「前バッファ＋予約＋後バッファ」を分解して見せる
       key: "hours",
+      group: "setup",
       steps: 3,
       href: "/booking-settings.html",
       fig: svg([
@@ -136,6 +145,7 @@
     {
       // 事前アンケート：質問を作る → 回答が届く
       key: "survey",
+      group: "setup",
       steps: 3,
       href: "/answers.html",
       fig: svg([
@@ -156,6 +166,7 @@
     {
       // プロフィール：公開プロフィール ＋ リマインダーメールに載る
       key: "profile",
+      group: "setup",
       steps: 3,
       href: "/profile.html",
       fig: svg([
@@ -175,6 +186,7 @@
     {
       // 共有：URLをコピー / ピンポイントで候補を絞る → 相手の画面
       key: "share",
+      group: "run",
       steps: 3,
       href: "/dashboard.html",
       fig: svg([
@@ -195,6 +207,7 @@
     {
       // 予約が入ったあと：確認メール → 22分前のリマインダー → 今日の予定
       key: "after",
+      group: "run",
       steps: 3,
       href: "/schedule.html",
       fig: svg([
@@ -215,6 +228,7 @@
     {
       // 相手管理：一覧 → 相手の詳細（回答・面談の記録）
       key: "contacts",
+      group: "more",
       steps: 3,
       href: "/contacts.html",
       fig: svg([
@@ -236,6 +250,7 @@
     {
       // キャンセル・日程変更：管理リンク → 選び直す → 予定が置き換わる
       key: "change",
+      group: "run",
       steps: 3,
       fig: svg([
         envelope(14, 44, 216, 152),
@@ -256,6 +271,7 @@
     {
       // プラン：作れる予約ページの枚数（1 / 2 / 5）が増える。プレミアム面だけ寒色。
       key: "plan",
+      group: "more",
       steps: 3,
       href: "/plan.html",
       fig: svg([
@@ -274,9 +290,16 @@
     },
   ];
 
+  // 一覧の章立て。SLIDES の並び順はそのままに、「いつ読むか」でまとめ直したもの。
+  // ここに無い group の枚は一覧に出ない（増やしたときに黙って消えるのを防ぐため、
+  // scripts/test/unit.mjs が「全スライドの group がこの表にある」ことを固定している）。
+  const GROUPS = ["start", "setup", "run", "more"];
+
   let overlay = null;
   let index = 0;
   let lastFocus = null;
+
+  const indexOfKey = (key) => SLIDES.findIndex((s) => s.key === key);
 
   // 文言は i18n.js 由来（自リポジトリのソース）だが、innerHTML で組む箇所は必ずエスケープする。
   function escapeText(value) {
@@ -302,7 +325,7 @@
           <div class="guide-track" data-guide-track></div>
         </div>
         <div class="guide-stage" data-guide-stage>
-          <div class="guide-fig" data-guide-fig></div>
+          <div class="guide-fig s-fig" data-guide-fig></div>
           <div class="guide-tx">
             <h2 id="guide-slide-title" data-guide-title></h2>
             <p class="guide-when"><span class="guide-tag" data-guide-whenlabel></span><span data-guide-when></span></p>
@@ -373,6 +396,9 @@
       stage.classList.add(direction > 0 ? "slide-from-right" : "slide-from-left");
     }
     q(".guide").scrollTop = 0;
+    // 送るたびにURLを合わせる。pushState にしないのは、11枚送ったあとの「戻る」が
+    // 11回ぶん必要になるため（戻る＝一覧に戻る、でいい）。
+    if (location.hash.slice(1) !== slide.key) history.replaceState(null, "", `${location.pathname}${location.search}#${slide.key}`);
   }
 
   function open(at = 0) {
@@ -388,21 +414,52 @@
     if (!overlay || overlay.hidden) return;
     overlay.hidden = true;
     document.body.classList.remove("modal-open");
-    // #guide で開いた場合、閉じたあとにURLを戻す（再読み込みでまた開くのを防ぐ）。
-    if (location.hash === "#guide") history.replaceState(null, "", location.pathname + location.search);
+    // 開いている機能を #key でURLに載せているので、閉じたら消す
+    //（そのまま再読み込みするとまた開いてしまい、一覧に戻れない）。
+    if (indexOfKey(location.hash.slice(1)) >= 0) history.replaceState(null, "", location.pathname + location.search);
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
 
+  // ---- 機能一覧（/guide.html）------------------------------------------------------
+  // カードは figure＋タイトル＋「こんなとき」の1行。図はModalと同じものを縮めて出す
+  //（一覧とModalで絵が変わると、開いたときに「別の機能を開いた」と感じるため）。
+  function renderIndex() {
+    const host = document.querySelector("[data-guide-index]");
+    if (!host) return;
+    host.innerHTML = "";
+    GROUPS.forEach((group) => {
+      const slides = SLIDES.filter((slide) => slide.group === group);
+      if (!slides.length) return;
+      const section = document.createElement("section");
+      section.className = "guide-group";
+      section.dataset.guideGroup = group;
+      section.innerHTML = `
+        <div class="guide-group-head">
+          <p class="eyebrow">${escapeText(t(`guide.group.${group}`))}</p>
+          <p class="muted">${escapeText(t(`guide.group.${group}.desc`))}</p>
+        </div>
+        <div class="guide-cards${slides.length === 1 ? " is-single" : ""}">${slides.map((slide) => `
+          <button class="guide-card" type="button" data-guide-open="${escapeText(slide.key)}">
+            <span class="guide-card-fig s-fig">${slide.fig}</span>
+            <b>${escapeText(t(`guide.${slide.key}.title`))}</b>
+            <small>${escapeText(t(`guide.${slide.key}.when`))}</small>
+            <span class="guide-card-cta">${escapeText(t("guide.index.cta"))}</span>
+          </button>`).join("")}</div>`;
+      host.appendChild(section);
+    });
+  }
+
   // ---- 開く導線 --------------------------------------------------------------------
-  // 共通ヘッダーの「使い方ガイド」(href="#guide") と、ダッシュボードの初期設定カードのボタン。
+  // 一覧のカード（data-guide-open="<key>"）。値が無いときは先頭から通しで読む。
   document.addEventListener("click", (event) => {
-    const trigger = event.target.closest('[data-guide-open], a[href="#guide"]');
+    const trigger = event.target.closest("[data-guide-open]");
     if (!trigger) return;
     event.preventDefault();
     // スマホはナビが開いたままだとModalに重なるので、チェックボックスハックを外して閉じる。
     const navToggle = document.getElementById("km-nav-toggle");
     if (navToggle) navToggle.checked = false;
-    open(0);
+    const at = indexOfKey(trigger.dataset.guideOpen || "");
+    open(at >= 0 ? at : 0);
   });
 
   document.addEventListener("keydown", (event) => {
@@ -428,13 +485,21 @@
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) show(index + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
   }, { passive: true });
 
-  // /dashboard.html#guide のような直リンクでも開く（案内メールなどから誘導できるようにする）。
-  if (location.hash === "#guide") {
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => open(0));
-    else open(0);
+  // 一覧の描画と、/guide.html#page のような直リンク（案内メールから特定の機能へ誘導できるようにする）。
+  // 言語を切り替えたら一覧も組み直す（Modalだけ訳されて一覧が元の言語のまま、を避ける）。
+  function start() {
+    // i18n.js より先に走ると、選んだ言語（activeLanguage）が決まる前に t() を呼ぶことになり、
+    // 一覧だけ日本語で組まれてしまう。init() は二重呼び出しを自分で弾くので、先に確定させておく。
+    try { window.KimaruI18n && window.KimaruI18n.init(); } catch (e) { /* i18n 未読込でもガイドは出す */ }
+    renderIndex();
+    const at = indexOfKey(location.hash.slice(1));
+    if (at >= 0) open(at);
   }
+  document.addEventListener("kimaru:languagechange", renderIndex);
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
 
   // slides はテスト（scripts/test/unit.mjs）から参照する。ここに出ている key と steps の数だけ
   // i18n.js に guide.<key>.title / .when / .step1..N が要る、という対応をテストで固定している。
-  window.KimaruGuide = { open, close, slides: SLIDES.map((s) => ({ key: s.key, steps: s.steps, href: s.href || "" })) };
+  window.KimaruGuide = { open, close, groups: GROUPS, slides: SLIDES.map((s) => ({ key: s.key, group: s.group, steps: s.steps, href: s.href || "" })) };
 })();

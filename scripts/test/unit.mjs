@@ -57,18 +57,20 @@ ok("dashboard empty-state keys exist in all langs",
 // guide.js は「1枚＝1機能」を SLIDES で持ち、文言だけ i18n.js に置く。両者がずれると
 // ガイドにキー文字列（guide.share.step3 など）がそのまま出るので、対応をここで固定する。
 section("guide slides ↔ i18n keys (#353)");
-function loadGuideSlides() {
+function loadGuide() {
   const src = fs.readFileSync(path.join(repo, "public/guide.js"), "utf8");
   const ctx = {
     window: {}, console,
-    location: { hash: "", pathname: "/dashboard.html", search: "" },
-    document: { addEventListener() {}, readyState: "complete", getElementById: () => null },
+    location: { hash: "", pathname: "/guide.html", search: "" },
+    // 一覧の器（[data-guide-index]）が無いページでも読み込まれる形なので、querySelector は null を返す。
+    document: { addEventListener() {}, readyState: "complete", getElementById: () => null, querySelector: () => null },
   };
   vm.createContext(ctx);
   vm.runInContext(src, ctx);
-  return ctx.window.KimaruGuide.slides;
+  return ctx.window.KimaruGuide;
 }
-const slides = loadGuideSlides();
+const guide = loadGuide();
+const slides = guide.slides;
 ok(`guide has slides (${slides.length})`, slides.length >= 5);
 for (const slide of slides) {
   const keys = ["title", "when", ...Array.from({ length: slide.steps }, (_, i) => `step${i + 1}`)].map((k) => `guide.${slide.key}.${k}`);
@@ -80,6 +82,30 @@ for (const slide of slides) {
 }
 ok("guide chrome keys exist in all langs",
   langs.every((l) => ["guide.eyebrow", "guide.when", "guide.open", "guide.prev", "guide.next", "guide.finish", "guide.close"].every((k) => messages[l][k])));
+
+// 機能一覧（/guide.html）。章立ては GROUPS で、機能は group でそこに属す。
+// group を書き忘れた枚は一覧から黙って消えるだけで気づけないので、ここで落とす。
+for (const slide of slides) {
+  ok(`guide.${slide.key}: belongs to a listed group (${slide.group || "-"})`, guide.groups.includes(slide.group));
+}
+for (const group of guide.groups) {
+  ok(`guide.group.${group}: used by at least one slide`, slides.some((s) => s.group === group));
+  const keys = [`guide.group.${group}`, `guide.group.${group}.desc`];
+  ok(`guide.group.${group}: text present in all langs`, langs.every((l) => keys.every((k) => messages[l][k])));
+}
+ok("guide index keys exist in all langs",
+  langs.every((l) => ["guide.pageTitle", "guide.index.eyebrow", "guide.index.heading", "guide.index.lead", "guide.index.cta"].every((k) => messages[l][k])));
+// 一覧ページ本体。guide.js は t() で組むので、i18n.js が先に読まれていないと日本語で固まる。
+const guideHtml = fs.readFileSync(path.join(repo, "public/guide.html"), "utf8");
+ok("guide.html has the list container", guideHtml.includes("data-guide-index"));
+ok("guide.html loads i18n.js before guide.js",
+  guideHtml.indexOf("/i18n.js") >= 0 && guideHtml.indexOf("/i18n.js") < guideHtml.indexOf("/guide.js"));
+// 「使い方ガイド」の導線は2つ（共通ヘッダーとダッシュボードの初期設定カード）。どちらも一覧ページへ送る。
+const authGate = fs.readFileSync(path.join(repo, "netlify/edge-functions/auth-gate.js"), "utf8");
+ok("header guide link goes to the list page", authGate.includes('href="/guide.html" data-i18n="nav.guide"'));
+ok("edge no longer injects guide.js", !authGate.includes('src="/guide.js"'));
+const dashHtml = fs.readFileSync(path.join(repo, "public/dashboard.html"), "utf8");
+ok("setup card guide button goes to the list page", /href="\/guide\.html"[^>]*data-i18n="setup\.guide"/.test(dashHtml));
 // 初期設定カード（#353）の3ステップ。ダッシュボードのHTMLと文言の対応。
 ok("setup card keys exist in all langs",
   langs.every((l) => ["calendar", "page", "profile"].every((s) => messages[l][`setup.${s}.title`] && messages[l][`setup.${s}.desc`] && messages[l][`setup.${s}.cta`])));

@@ -106,7 +106,7 @@ Vanilla JS, no framework. i18n is attribute-driven: `data-i18n` / `data-i18n-pla
 「初期設定の方法がわかりにくい」への対応。詳細は `docs/features/31-onboarding-guide.md`。
 
 - **ダッシュボードの初期設定カード**（3ステップ＝カレンダー連携／予約ページ／プロフィール）は `app.js` の `setSetupStep` / `renderSetupCard`。達成状況は**ダッシュボードが既に取っている実データの使い回し**（`/api/me` の `calendar_connected`・`/api/booking-pages` の件数・`/api/profile` の未入力項目）で、**このカードのために API 呼び出しを増やさない**。3つとも判明するまでカードを出さない（取得に失敗した項目を「未完了」と決めつけると、連携済みの人に「連携する」と出してしまう）。完了して閉じたことだけ localStorage（`kimaru.setupDone`）に持つ。
-- **使い方ガイド**は `public/guide.js`（1枚＝1機能の紙芝居Modal）。共通ヘッダーの「使い方ガイド」(`href="#guide"`) から開き、**Edge Function がログイン時だけ全HTMLに注入する**（`usage.js` と同じ理由＝30枚のHTMLに手で貼ると新しい画面で漏れる）。図はインラインSVGの骨格で、**中に文字を入れない**（en / zh-TW でそこだけ日本語が残るため。数字と記号だけ）。文言は `i18n.js` の `guide.*`、スライドとキーの対応は `scripts/test/unit.mjs` が固定。
+- **使い方ガイド**は **`/guide.html`（機能一覧）＋ 1機能ぶんのModal**で、実体は `public/guide.js`。共通ヘッダーの「使い方ガイド」(`href="/guide.html"`) は一覧へ送り、一覧のカードを押すとその機能のModalが開く（`/guide.html#page` の直リンクでも開く）。**`guide.js` を読むのは `guide.html` だけ**（開く先が一覧1枚に決まったので、Edge Function による全HTMLへの注入はやめた）。**機能名を一覧のHTMLに書かない**——スライド定義（`SLIDES`）と章立て（`GROUPS`）が唯一の出どころで、2か所に持つと1枚足したとき必ず片方が古くなる。図はインラインSVGの骨格で、**中に文字を入れない**（en / zh-TW でそこだけ日本語が残るため。数字と記号だけ）。一覧のカードとModalは同じ図を使う。文言は `i18n.js` の `guide.*`、スライド／章立てとキーの対応は `scripts/test/unit.mjs` が固定。
 - ログイン時のヘッダーナビは10項目あり1180px未満で1行に収まらないため、`@media(min-width:901px) and (max-width:1180px)` の `body[data-auth="authed"]` 側でもハンバーガーにする（未ログインの3項目は900pxのまま。料金・登録の導線をこの幅で隠さない）。**中身は `@media(max-width:900px)` と同じなので、片方を直したらもう片方も合わせること。**
 
 ### Scheduled jobs

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title data-i18n="guide.pageTitle">キマル - 使い方</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/page-busy.js"></script>
+</head>
+<body data-page="guide" data-i18n-title="guide.pageTitle">
+  <!-- site-header -->
+
+  <main>
+    <section class="section shell" style="padding-top:0">
+      <div class="pagehead">
+        <span class="eyebrow" data-i18n="guide.index.eyebrow">使い方</span>
+        <h1 data-i18n="guide.index.heading">機能ごとに、使い方を見る</h1>
+        <p class="sub" data-i18n="guide.index.lead">知りたい機能を選ぶと、画面の見立てと手順が開きます。上から順に読めば、初期設定はひととおり終わります。</p>
+      </div>
+
+      <!-- 機能一覧は guide.js の SLIDES / GROUPS から組む（このHTMLに機能名を書かない）。
+           2か所に機能名を持つと、ガイドを1枚足したときに必ず片方が古くなるため。
+           JSが動かない環境ではここが空になるが、ガイドは操作の説明で、読めなくても
+           サービスは使える（＝degrade して構わない）ものとして扱う。 -->
+      <div class="guide-index" data-guide-index></div>
+    </section>
+  </main>
+
+  <!-- site-footer -->
+
+  <!-- i18n.js を先に置く：guide.js は描画時に t() を使うので、言語が確定してから組ませる。 -->
+  <script src="/i18n.js" defer></script>
+  <script src="/guide.js" defer></script>
+</body>
+</html>

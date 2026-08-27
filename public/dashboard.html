@@ -24,6 +24,66 @@
       </div>
     </div>
 
+    <!-- 初期設定（#353）。「何から始めればいいか分からない」への導線。
+         達成状況は app.js の setSetupStep が実データで判定する（このカードのために API は増やさない：
+         calendar=/api/me の calendar_connected、page=/api/booking-pages の件数、profile=/api/profile の未入力）。
+         3つとも分かるまで hidden のままにする（0/3 から数字が飛ぶのを見せない）。 -->
+    <section class="setup" id="setup-card" hidden>
+      <div class="setup-head">
+        <div>
+          <p class="eyebrow" data-i18n="setup.eyebrow">初期設定</p>
+          <h2 data-i18n="setup.heading">この3つで、予約が動き出します</h2>
+          <p class="muted" data-i18n="setup.desc">登録したあとに決めることは、これだけです。上から順に進めてください。</p>
+        </div>
+        <div class="setup-meter">
+          <div class="setup-bar"><i id="setup-bar-fill"></i></div>
+          <span class="setup-count" id="setup-count">0 / 3</span>
+          <button class="button secondary btn-sm" type="button" data-guide-open data-i18n="setup.guide">使い方ガイド</button>
+        </div>
+      </div>
+      <ol class="setup-steps">
+        <!-- 1. カレンダー連携は /api/google-auth-start?connect=1 へ直接送る（設定画面を1枚挟まない）。
+             連携が終わると Google 側から /settings.html?calendar=connected#integrations に戻る。 -->
+        <li class="setup-step" id="setup-step-calendar" data-state="todo">
+          <span class="setup-stamp">1</span>
+          <span class="setup-tx">
+            <b data-i18n="setup.calendar.title">Googleカレンダーと連携する</b>
+            <small data-i18n="setup.calendar.desc">予定が入っている時間を候補から自動で外し、予約が決まるとカレンダーに書き込みます。</small>
+          </span>
+          <span class="setup-badge" data-i18n="setup.done">完了</span>
+          <a class="button primary btn-sm setup-action" href="/api/google-auth-start?connect=1" data-i18n="setup.calendar.cta">連携する</a>
+        </li>
+        <li class="setup-step" id="setup-step-page" data-state="todo">
+          <span class="setup-stamp">2</span>
+          <span class="setup-tx">
+            <b data-i18n="setup.page.title">予約ページを作る</b>
+            <small data-i18n="setup.page.desc">所要時間・場所・受付時間を決めます。相手に送るURLはここでできます。</small>
+          </span>
+          <span class="setup-badge" data-i18n="setup.done">完了</span>
+          <a class="button secondary btn-sm setup-action" href="/booking-settings.html?new=1" data-i18n="setup.page.cta">予約ページを作る</a>
+        </li>
+        <li class="setup-step" id="setup-step-profile" data-state="todo">
+          <span class="setup-stamp">3</span>
+          <span class="setup-tx">
+            <b data-i18n="setup.profile.title">プロフィールを設定する</b>
+            <small data-i18n="setup.profile.desc">予約前に相手が見る自己紹介です。リマインダーメールにも載ります。</small>
+          </span>
+          <span class="setup-badge" data-i18n="setup.done">完了</span>
+          <a class="button secondary btn-sm setup-action" href="/profile.html" data-i18n="setup.profile.cta">プロフィールを書く</a>
+        </li>
+      </ol>
+      <div class="setup-complete" id="setup-complete" hidden>
+        <p>
+          <b data-i18n="setup.complete.heading">初期設定は完了しました</b>
+          <span data-i18n="setup.complete.desc">予約ページのURLを送れば、あとは相手が時間を選ぶだけです。</span>
+        </p>
+        <span class="setup-complete-actions">
+          <!-- 「使い方ガイド」は上のヘッダーに常に出ているので、ここには置かない（同じボタンが2つ並ぶ）。 -->
+          <button class="button primary btn-sm" type="button" id="setup-dismiss" data-i18n="setup.complete.close">閉じる</button>
+        </span>
+      </div>
+    </section>
+
     <div class="dash-grid">
       <!-- 左：今日/これからの予定（owner-bookings 実データ：app.js renderDashboardSchedule） -->
       <section>

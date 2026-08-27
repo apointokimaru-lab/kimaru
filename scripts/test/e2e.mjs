@@ -29,7 +29,8 @@ const server = http.createServer((req, res) => {
   if (path.extname(file) === ".html") {
     const html = body.toString("utf8");
     const end = html.lastIndexOf("</body>");
-    if (end >= 0) body = Buffer.from(html.slice(0, end) + '<script src="/usage.js" defer></script>' + html.slice(end), "utf8");
+    // 使い方ガイド（#353）も同様に Edge が注入する（ログイン時のみ）。テストは全ページ「ログイン中」の想定。
+    if (end >= 0) body = Buffer.from(html.slice(0, end) + '<script src="/usage.js" defer></script><script src="/guide.js" defer></script>' + html.slice(end), "utf8");
   }
   res.writeHead(200, { "content-type": MIME[path.extname(file)] || "text/plain" });
   res.end(body);
@@ -1046,6 +1047,91 @@ section("operator console: shared side menu (#343)");
   await page.waitForURL("**/analytics.html#retention", { timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(400);
   ok("子項目から直接そのビューが開く", await page.locator("#view-retention.is-active").count() === 1);
+  ok("no JS exception", page._errors.length === 0);
+  await page.close();
+}
+
+// ===== 初期設定の導線と使い方ガイド（#353）=====
+// 「初期設定の方法がわかりにくい」への対応。達成状況は実データ由来なので、モックの状態
+// （カレンダー連携済み・予約ページ1枚・プロフィール6項目未入力）と一致することを固定する。
+section("setup card + user guide (#353)");
+{
+  const page = await newPage();
+  await page.goto(`${base}/dashboard.html`, { waitUntil: "networkidle" });
+  await page.waitForFunction(() => !document.getElementById("setup-card")?.hidden, null, { timeout: 8000 }).catch(() => {});
+  ok("setup card is shown while a step is unfinished", await page.locator("#setup-card").isVisible());
+  ok("progress counts the finished steps", (await page.textContent("#setup-count")).trim() === "2 / 3");
+  ok("connected calendar is marked done", (await page.getAttribute("#setup-step-calendar", "data-state")) === "done");
+  ok("existing booking page is marked done", (await page.getAttribute("#setup-step-page", "data-state")) === "done");
+  ok("empty profile is still todo", (await page.getAttribute("#setup-step-profile", "data-state")) === "todo");
+  // 次にやる1つだけが朱のボタン（3つとも同じ強さだと、どれから手を付けるか分からない）
+  ok("only the next step has the primary button", (await page.locator("#setup-card .setup-action.primary").count()) === 1);
+  ok("the primary button is the unfinished step", (await page.locator("#setup-step-profile .setup-action.primary").count()) === 1);
+  ok("the completion row stays hidden", !(await page.locator("#setup-complete").isVisible()));
+
+  // ガイド：カードのボタンから開き、左右で送れる
+  await page.click("#setup-card [data-guide-open]");
+  await page.waitForTimeout(300);
+  ok("guide modal opens", await page.locator("#guide-modal .guide").isVisible());
+  const total = await page.evaluate(() => window.KimaruGuide.slides.length);
+  ok(`guide has all slides (${total})`, total >= 10);
+  ok("first slide shows 1 / n", (await page.textContent(".guide-count")).trim() === `1 / ${total}`);
+  ok("back is disabled on the first slide", await page.locator("[data-guide-prev]").isDisabled());
+  const firstTitle = await page.textContent("[data-guide-title]");
+  await page.click("[data-guide-next]");
+  await page.waitForTimeout(250);
+  ok("next moves one slide on", (await page.textContent(".guide-count")).trim() === `2 / ${total}`);
+  ok("the slide content changes", (await page.textContent("[data-guide-title]")) !== firstTitle);
+  await page.click("[data-guide-prev]");
+  await page.waitForTimeout(250);
+  ok("back returns to the previous slide", (await page.textContent("[data-guide-title]")) === firstTitle);
+  // 全枚を送っても、翻訳キーがそのまま出ない（i18n の貼り忘れ検出）＆図が入っている
+  let rawKeys = 0;
+  let missingFigures = 0;
+  for (let i = 0; i < total; i++) {
+    await page.evaluate((n) => window.KimaruGuide.open(n), i);
+    await page.waitForTimeout(60);
+    const text = await page.textContent(".guide-tx");
+    if (/guide\.[a-z]+\.(title|when|step\d)/.test(text)) rawKeys++;
+    if ((await page.locator(".guide-fig svg").count()) !== 1) missingFigures++;
+  }
+  ok("no untranslated keys on any slide", rawKeys === 0);
+  ok("every slide has a figure", missingFigures === 0);
+  // 最後の枚の「次へ」は閉じるに変わる（行き止まりのボタンを押させない）
+  ok("last slide closes instead of advancing", (await page.textContent("[data-guide-next]")).trim() !== "");
+  await page.click("[data-guide-next]");
+  await page.waitForTimeout(250);
+  ok("the guide closes from the last slide", !(await page.locator("#guide-modal .guide").isVisible()));
+  // キーボード操作（←/→/Esc）
+  await page.evaluate(() => window.KimaruGuide.open(0));
+  await page.waitForTimeout(200);
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(200);
+  ok("arrow right advances", (await page.textContent(".guide-count")).trim() === `2 / ${total}`);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  ok("escape closes", !(await page.locator("#guide-modal .guide").isVisible()));
+  ok("no JS exception", page._errors.length === 0);
+  await page.close();
+}
+
+// 3つとも終わっていれば、カードは完了の姿になり、閉じると次からは出ない
+{
+  const page = await newPage();
+  await page.route("**/api/profile", (route) => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ profile: { profile_name: "オーナー", profile_title: "代表", profile_strengths: "採用", profile_style: "対話", profile_offer: "相談", profile_values: "誠実", profile_goal: "拡大" } }),
+  }));
+  await page.goto(`${base}/dashboard.html`, { waitUntil: "networkidle" });
+  await page.waitForFunction(() => document.getElementById("setup-count")?.textContent?.includes("3"), null, { timeout: 8000 }).catch(() => {});
+  ok("all three steps are done", (await page.textContent("#setup-count")).trim() === "3 / 3");
+  ok("the completion row appears", await page.locator("#setup-complete").isVisible());
+  await page.click("#setup-dismiss");
+  await page.waitForTimeout(200);
+  ok("dismissing hides the card", !(await page.locator("#setup-card").isVisible()));
+  // 次回以降に出さない根拠は localStorage の印（このテスト環境は遷移のたびに localStorage を
+  // 消すので、再読み込みでの確認はできない。印が残ることを確認する）。
+  ok("the dismissal is remembered", await page.evaluate(() => { try { return localStorage.getItem("kimaru.setupDone") === "1"; } catch (e) { return false; } }));
   ok("no JS exception", page._errors.length === 0);
   await page.close();
 }

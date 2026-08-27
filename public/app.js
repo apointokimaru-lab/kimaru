@@ -558,6 +558,7 @@ async function loadDashboardShare() {
   try {
     const data = await api("booking-pages");
     const slug = (data.pages || [])[0]?.slug;
+    setSetupStep("page", Boolean(slug)); // 初期設定②（#353）：予約ページが1枚でもあれば完了
     if (slug) {
       urlEl.textContent = bookingPageUrl(slug);
       // プレビューボタンは削除（#321）。URLをコピーして開けば同じものが見られる。
@@ -593,8 +594,68 @@ async function loadDashboardProfileTodo() {
     const cnt = document.getElementById("todo-profile-count");
     if (cnt) cnt.textContent = String(missing);
     row.style.display = missing > 0 ? "" : "none";
+    setSetupStep("profile", missing === 0); // 初期設定③（#353）：「要対応」と同じ基準で完了とみなす
     updateDashboardTodoEmpty();
   } catch (_) { /* 非致命 */ }
+}
+
+// ===== 初期設定の3ステップ（#353）=====
+// なぜ必要か: 登録直後の画面が「空の予定」と「まだ無い予約ページ」で埋まり、最初に何をすれば
+// 動き出すのかが読み取れなかった（「初期設定の方法がわかりにくい」というユーザーからの指摘）。
+// 何をしているか: ダッシュボードがすでに取っている実データを使い回して達成状況を判定する
+// （このカードのために /api の呼び出しを増やさない）。
+//   calendar … /api/me の calendar_connected（refreshAdmin から）
+//   page     … /api/booking-pages の件数（loadDashboardShare から）
+//   profile  … /api/profile の未入力項目（loadDashboardProfileTodo から。「要対応」と同じ基準）
+// 3つとも判明するまで（＝どれかが null の間は）カードを出さない。取得に失敗した項目を「未完了」と
+// 決めつけると、連携済みの人に「連携する」と出してしまうため。
+const SETUP_DISMISS_KEY = "kimaru.setupDone";
+const SETUP_STEPS = ["calendar", "page", "profile"];
+const setupState = { calendar: null, page: null, profile: null };
+
+function setSetupStep(key, done) {
+  if (!(key in setupState)) return;
+  setupState[key] = Boolean(done);
+  renderSetupCard();
+}
+
+function renderSetupCard() {
+  const card = document.getElementById("setup-card");
+  if (!card) return;
+  if (SETUP_STEPS.some((key) => setupState[key] === null)) return;
+  const doneCount = SETUP_STEPS.filter((key) => setupState[key]).length;
+  const allDone = doneCount === SETUP_STEPS.length;
+  let dismissed = false;
+  try { dismissed = localStorage.getItem(SETUP_DISMISS_KEY) === "1"; } catch (_) { /* プライベートモード等 */ }
+  // 完了して「閉じる」を押したあとは出さない。連携を解除するなどで未完了に戻ったら、また出す。
+  if (allDone && dismissed) { card.hidden = true; return; }
+  card.hidden = false;
+
+  let nextMarked = false;
+  SETUP_STEPS.forEach((key, i) => {
+    const row = document.getElementById(`setup-step-${key}`);
+    if (!row) return;
+    const done = setupState[key];
+    // 次にやる1つだけを朱のボタンにする。3つとも同じ強さで並ぶと、どれから手を付けるか分からない。
+    const isNext = !done && !nextMarked;
+    if (isNext) nextMarked = true;
+    row.dataset.state = done ? "done" : "todo";
+    row.classList.toggle("is-next", isNext);
+    const stamp = row.querySelector(".setup-stamp");
+    if (stamp) stamp.textContent = done ? "✓" : String(i + 1);
+    const action = row.querySelector(".setup-action");
+    if (action) {
+      action.classList.toggle("primary", isNext);
+      action.classList.toggle("secondary", !isNext);
+    }
+  });
+
+  const fill = document.getElementById("setup-bar-fill");
+  if (fill) fill.style.width = `${Math.round((doneCount / SETUP_STEPS.length) * 100)}%`;
+  const count = document.getElementById("setup-count");
+  if (count) count.textContent = `${doneCount} / ${SETUP_STEPS.length}`;
+  const complete = document.getElementById("setup-complete");
+  if (complete) complete.hidden = !allDone;
 }
 
 // 相手一覧「詳細・記録」列のアイコン（feather系・ホバーで title 表示）。
@@ -1880,6 +1941,7 @@ async function refreshAdmin() {
     if (ownerCard) ownerCard.innerHTML = me.owner ? `<strong>${escapeHtml(me.owner.name || me.owner.email)}</strong><p>${escapeHtml(t("admin.planLabel"))}: ${escapeHtml(me.owner.plan === "premium" ? t("plan.premium") : me.owner.plan === "pro" ? t("plan.pro") : t("plan.free"))}</p>` : "";
     updateBookingPageControls();
     if (me.owner) {
+      setSetupStep("calendar", me.calendar_connected); // 初期設定①（#353）
       // 会話記録のある予約ID（Pro）を先に取得して一覧のバッジに使う。失敗・未マイグレーションは空。
       contactNoteIds = new Set();
       if (isProPlan(me.owner.plan)) {
@@ -1918,6 +1980,11 @@ async function initAdmin() {
   initContactSort(); // 一覧取得より先に選択状態を復元しておく（描画時にその並びで出す）
   await refreshAdmin();
   if (page === "dashboard") { loadDashboardShare(); loadDashboardProfileTodo(); }
+  // 初期設定カードの「閉じる」（#353）。完了して閉じたことだけを localStorage に控える。
+  $("#setup-dismiss")?.addEventListener("click", () => {
+    try { localStorage.setItem(SETUP_DISMISS_KEY, "1"); } catch (_) { /* プライベートモード等 */ }
+    document.getElementById("setup-card")?.setAttribute("hidden", "");
+  });
   // ダッシュボード「＋ 新しい予約ページ」からの直リンク（?new=1）で作成画面を直接開く。
   // ※ booking-settings.html の data-page は legacy の "admin" のため、エディタ要素の有無で判定する。
   if ($("#page-editor") && new URLSearchParams(location.search).has("new")) clearBookingPageForm();

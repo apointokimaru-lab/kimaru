@@ -62,6 +62,7 @@ const SITE_HEADER = `<header class="site-header">
       <a class="app-only" href="/contacts.html" data-i18n="nav.admin">相手管理</a>
       <a class="app-only" href="/ai-assist.html" data-i18n="nav.aiAssist">AIアシスト</a>
       <a class="app-only" href="/settings.html" data-i18n="nav.settings">設定</a>
+      <a class="app-only" href="#guide" data-i18n="nav.guide">使い方ガイド</a>
       <select class="lang-select" data-language-select aria-label="Language"></select>
       <a class="app-only nav-avatar" href="/settings.html" aria-hidden="true">キ</a>
       <label class="nav-close" for="km-nav-toggle" data-i18n="nav.close">閉じる</label>
@@ -86,6 +87,12 @@ const SITE_FOOTER = `<footer class="foot footer">
 // （キマルは公開HTMLが30枚あり、今後も増える）。HTMLを書き換えるのはこのEdge Functionだけなので、
 // 注入も1か所に寄せておけば「新しい画面だけ計測されていない」が起きない。
 const USAGE_SNIPPET = `<script src="/usage.js" defer></script>`;
+
+// 使い方ガイド（#353）。ヘッダーの「使い方ガイド」(href="#guide") を押すと開く紙芝居Modalの本体。
+// なぜここで注入するか: 上の SITE_HEADER を全ページに配っている以上、開く先も全ページで要る。
+// 計測スニペットと同じ理由で、30枚あるHTMLに手で貼ると新しい画面が増えたときに漏れる。
+// ログイン時だけ入れる（ガイドの導線は app-only。未ログインの画面では読み込む意味がない）。
+const GUIDE_SNIPPET = `<script src="/guide.js" defer></script>`;
 
 const SESSION_MAX_AGE_MS = 2592000 * 1000; // 30日（Cookie の Max-Age と一致）
 
@@ -195,7 +202,7 @@ export default async (request, context) => {
   // 計測スニペットの注入。最後の </body> の直前に入れる（先頭一致だと、本文中に </body> の
   // 文字列を含むページで body の外に出てしまう）。</body> が無いHTMLには入れない＝計測を諦める。
   const bodyEnd = html.lastIndexOf("</body>");
-  if (bodyEnd >= 0) html = html.slice(0, bodyEnd) + USAGE_SNIPPET + html.slice(bodyEnd);
+  if (bodyEnd >= 0) html = html.slice(0, bodyEnd) + USAGE_SNIPPET + (authed ? GUIDE_SNIPPET : "") + html.slice(bodyEnd);
   const headers = new Headers(response.headers);
   headers.delete("content-length");
   return new Response(html, { status: response.status, headers });

@@ -53,6 +53,37 @@ for (const l of ["en", "zh-TW"]) {
 ok("dashboard empty-state keys exist in all langs",
   langs.every((l) => messages[l]["dash.today.empty"] && messages[l]["dash.upcoming.empty"]));
 
+// ---------- 1b) 使い方ガイド（#353）：スライドと文言の対応 ----------
+// guide.js は「1枚＝1機能」を SLIDES で持ち、文言だけ i18n.js に置く。両者がずれると
+// ガイドにキー文字列（guide.share.step3 など）がそのまま出るので、対応をここで固定する。
+section("guide slides ↔ i18n keys (#353)");
+function loadGuideSlides() {
+  const src = fs.readFileSync(path.join(repo, "public/guide.js"), "utf8");
+  const ctx = {
+    window: {}, console,
+    location: { hash: "", pathname: "/dashboard.html", search: "" },
+    document: { addEventListener() {}, readyState: "complete", getElementById: () => null },
+  };
+  vm.createContext(ctx);
+  vm.runInContext(src, ctx);
+  return ctx.window.KimaruGuide.slides;
+}
+const slides = loadGuideSlides();
+ok(`guide has slides (${slides.length})`, slides.length >= 5);
+for (const slide of slides) {
+  const keys = ["title", "when", ...Array.from({ length: slide.steps }, (_, i) => `step${i + 1}`)].map((k) => `guide.${slide.key}.${k}`);
+  const missing = langs.flatMap((l) => keys.filter((k) => !messages[l][k]).map((k) => `${l}:${k}`));
+  ok(`guide.${slide.key}: text present in all langs` + (missing.length ? ` (missing ${missing.slice(0, 3).join(", ")})` : ""), missing.length === 0);
+  // 「この画面を開く」の行き先は必ず自サイトの実在ページ（外部URLや打ち間違いを弾く）。
+  ok(`guide.${slide.key}: href points at a real page` + (slide.href ? ` (${slide.href})` : ""),
+    !slide.href || fs.existsSync(path.join(repo, "public", slide.href.replace(/[?#].*$/, "").replace(/^\//, ""))));
+}
+ok("guide chrome keys exist in all langs",
+  langs.every((l) => ["guide.eyebrow", "guide.when", "guide.open", "guide.prev", "guide.next", "guide.finish", "guide.close"].every((k) => messages[l][k])));
+// 初期設定カード（#353）の3ステップ。ダッシュボードのHTMLと文言の対応。
+ok("setup card keys exist in all langs",
+  langs.every((l) => ["calendar", "page", "profile"].every((s) => messages[l][`setup.${s}.title`] && messages[l][`setup.${s}.desc`] && messages[l][`setup.${s}.cta`])));
+
 // ---------- 2) ダッシュボード描画ロジック ----------
 section("dashboard schedule rendering (app.js)");
 function makeRenderer() {

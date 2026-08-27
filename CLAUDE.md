@@ -102,6 +102,13 @@ Vanilla JS, no framework. i18n is attribute-driven: `data-i18n` / `data-i18n-pla
 - **有料の壁の記録（`event='limit_hit'`）**: 無料/Proが上限や有料機能にぶつかった瞬間を `page_events` の `event`/`meta` に載せる（専用テーブルは作らない）。価格とプラン境界を推測で決めないための一次資料。画面側で止まる壁は `window.KimaruUsage.limitHit(feature)`、サーバで弾く壁は `_lib/analytics.js` `recordLimitHit()`（**ぶつかった時点のプラン**を控える）。機能名は `LIMIT_FEATURES` の許可リスト固定。
 - **登録時の流入元（`owners.signup_source`）**: 最初の外部リファラのホストを `usage.js` が localStorage に控え、メール登録は本文の `source`、Googleは `google-auth-start?src=` → state の `~ホスト` で運ぶ。**新規作成時のみ**保存（`upsertOwner(profile, createOnly)`）。
 
+### 初期設定の導線・使い方ガイド（#353）
+「初期設定の方法がわかりにくい」への対応。詳細は `docs/features/31-onboarding-guide.md`。
+
+- **ダッシュボードの初期設定カード**（3ステップ＝カレンダー連携／予約ページ／プロフィール）は `app.js` の `setSetupStep` / `renderSetupCard`。達成状況は**ダッシュボードが既に取っている実データの使い回し**（`/api/me` の `calendar_connected`・`/api/booking-pages` の件数・`/api/profile` の未入力項目）で、**このカードのために API 呼び出しを増やさない**。3つとも判明するまでカードを出さない（取得に失敗した項目を「未完了」と決めつけると、連携済みの人に「連携する」と出してしまう）。完了して閉じたことだけ localStorage（`kimaru.setupDone`）に持つ。
+- **使い方ガイド**は `public/guide.js`（1枚＝1機能の紙芝居Modal）。共通ヘッダーの「使い方ガイド」(`href="#guide"`) から開き、**Edge Function がログイン時だけ全HTMLに注入する**（`usage.js` と同じ理由＝30枚のHTMLに手で貼ると新しい画面で漏れる）。図はインラインSVGの骨格で、**中に文字を入れない**（en / zh-TW でそこだけ日本語が残るため。数字と記号だけ）。文言は `i18n.js` の `guide.*`、スライドとキーの対応は `scripts/test/unit.mjs` が固定。
+- ログイン時のヘッダーナビは10項目あり1180px未満で1行に収まらないため、`@media(min-width:901px) and (max-width:1180px)` の `body[data-auth="authed"]` 側でもハンバーガーにする（未ログインの3項目は900pxのまま。料金・登録の導線をこの幅で隠さない）。**中身は `@media(max-width:900px)` と同じなので、片方を直したらもう片方も合わせること。**
+
 ### Scheduled jobs
 リマインダー（予約22分前）は **Netlify Scheduled Functions** で起動する。コアは `reminder-mails.js` の `run()` に切り出し、`reminder-scheduled.js` が呼ぶ。スケジュールは `netlify.toml` の `[functions."reminder-scheduled"] schedule="*/5 * * * *"`。`run()` 元の HTTP エンドポイント（`/api/reminder-mails?dry_run=1`。認証 `REMINDER_CRON_SECRET` or `CRON_SECRET`）はローカル確認用に残る。メール送信は `_lib/mail.js`（Gmail→Resend、未設定時は送信スキップ）。リマインダーは無料=基本／Pro=プロフィール付き（`owner.plan` で出し分け）。**誕生日メールの自動送信は廃止（決定17・#180）— 生年月日入力と占いベース相手分析は継続。**
 

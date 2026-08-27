@@ -17,7 +17,7 @@ const { jstDayKey } = require("./_lib/analytics");
 // 画面で区別できないと、数字が0なのを機能が使われていないと読み違えるため。
 
 // プラン価格（MRR概算用）。docs/plan-comparison.md の確定値。
-const PRICE = { pro: 980, premium: 2200 };
+const PRICE = { pro: 980, premium: 4800 };
 // 1表あたりの取得上限。超えたら notes に載せて「全部は見ていない」ことを画面に出す。
 const ROW_CAP = 20000;
 

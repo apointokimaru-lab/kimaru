@@ -32,8 +32,8 @@
       <div class="setup-head">
         <div>
           <p class="eyebrow" data-i18n="setup.eyebrow">初期設定</p>
-          <h2 data-i18n="setup.heading">この3つで、予約が動き出します</h2>
-          <p class="muted" data-i18n="setup.desc">登録したあとに決めることは、これだけです。上から順に進めてください。</p>
+          <h2 data-i18n="setup.heading">予約の受付開始までに必要な3つの設定</h2>
+          <p class="muted" data-i18n="setup.desc">登録後に設定が必要な項目です。上から順に設定してください。</p>
         </div>
         <div class="setup-meter">
           <div class="setup-bar"><i id="setup-bar-fill"></i></div>
@@ -48,7 +48,7 @@
           <span class="setup-stamp">1</span>
           <span class="setup-tx">
             <b data-i18n="setup.calendar.title">Googleカレンダーと連携する</b>
-            <small data-i18n="setup.calendar.desc">予定が入っている時間を候補から自動で外し、予約が決まるとカレンダーに書き込みます。</small>
+            <small data-i18n="setup.calendar.desc">既に予定が登録されている時間帯を候補から自動的に除外し、予約が確定するとカレンダーに登録します。</small>
           </span>
           <span class="setup-badge" data-i18n="setup.done">完了</span>
           <a class="button primary btn-sm setup-action" href="/api/google-auth-start?connect=1" data-i18n="setup.calendar.cta">連携する</a>
@@ -56,26 +56,26 @@
         <li class="setup-step" id="setup-step-page" data-state="todo">
           <span class="setup-stamp">2</span>
           <span class="setup-tx">
-            <b data-i18n="setup.page.title">予約ページを作る</b>
-            <small data-i18n="setup.page.desc">所要時間・場所・受付時間を決めます。相手に送るURLはここでできます。</small>
+            <b data-i18n="setup.page.title">予約ページを作成する</b>
+            <small data-i18n="setup.page.desc">所要時間・実施方法・受付時間を設定します。相手に案内するURLはこの画面で発行されます。</small>
           </span>
           <span class="setup-badge" data-i18n="setup.done">完了</span>
-          <a class="button secondary btn-sm setup-action" href="/booking-settings.html?new=1" data-i18n="setup.page.cta">予約ページを作る</a>
+          <a class="button secondary btn-sm setup-action" href="/booking-settings.html?new=1" data-i18n="setup.page.cta">予約ページを作成</a>
         </li>
         <li class="setup-step" id="setup-step-profile" data-state="todo">
           <span class="setup-stamp">3</span>
           <span class="setup-tx">
             <b data-i18n="setup.profile.title">プロフィールを設定する</b>
-            <small data-i18n="setup.profile.desc">予約前に相手が見る自己紹介です。リマインダーメールにも載ります。</small>
+            <small data-i18n="setup.profile.desc">予約前に相手が閲覧する情報です。リマインダーメールにも記載されます。</small>
           </span>
           <span class="setup-badge" data-i18n="setup.done">完了</span>
-          <a class="button secondary btn-sm setup-action" href="/profile.html" data-i18n="setup.profile.cta">プロフィールを書く</a>
+          <a class="button secondary btn-sm setup-action" href="/profile.html" data-i18n="setup.profile.cta">プロフィールを設定</a>
         </li>
       </ol>
       <div class="setup-complete" id="setup-complete" hidden>
         <p>
           <b data-i18n="setup.complete.heading">初期設定は完了しました</b>
-          <span data-i18n="setup.complete.desc">予約ページのURLを送れば、あとは相手が時間を選ぶだけです。</span>
+          <span data-i18n="setup.complete.desc">予約ページのURLを案内すると、相手が日時を選択できます。</span>
         </p>
         <span class="setup-complete-actions">
           <!-- 「使い方ガイド」は上のヘッダーに常に出ているので、ここには置かない（同じボタンが2つ並ぶ）。 -->

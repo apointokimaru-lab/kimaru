@@ -53,10 +53,11 @@ for (const l of ["en", "zh-TW"]) {
 ok("dashboard empty-state keys exist in all langs",
   langs.every((l) => messages[l]["dash.today.empty"] && messages[l]["dash.upcoming.empty"]));
 
-// ---------- 1b) 使い方ガイド（#353）：スライドと文言の対応 ----------
-// guide.js は「1枚＝1機能」を SLIDES で持ち、文言だけ i18n.js に置く。両者がずれると
-// ガイドにキー文字列（guide.share.step3 など）がそのまま出るので、対応をここで固定する。
-section("guide slides ↔ i18n keys (#353)");
+// ---------- 1b) 使い方ガイド（#353）：説明の部品と i18n キーの対応 ----------
+// guide.js は「1項目＝1つの説明」を ENTRIES で持ち、文言だけ i18n.js に置く。必要なキーは
+// 部品の指定（steps / points / fields / note）から機械的に決まるので、その対応をここで固定する。
+// ずれると、ガイドにキー文字列（guide.zoom-connect.step3 など）がそのまま出る。
+section("guide entries ↔ i18n keys (#353)");
 function loadGuide() {
   const src = fs.readFileSync(path.join(repo, "public/guide.js"), "utf8");
   const ctx = {
@@ -70,31 +71,32 @@ function loadGuide() {
   return ctx.window.KimaruGuide;
 }
 const guide = loadGuide();
-const slides = guide.slides;
-ok(`guide has slides (${slides.length})`, slides.length >= 5);
-for (const slide of slides) {
-  const keys = ["title", "when", ...Array.from({ length: slide.steps }, (_, i) => `step${i + 1}`)].map((k) => `guide.${slide.key}.${k}`);
+const entries = guide.entries;
+ok(`guide has entries (${entries.length})`, entries.length >= 10);
+for (const entry of entries) {
+  // 部品の件数から、その項目に必要な i18n キーを組み立てる（guide.js の描画と同じ規則）。
+  const keys = [`guide.${entry.key}.title`, `guide.${entry.key}.lead`];
+  for (let i = 1; i <= entry.steps; i++) keys.push(`guide.${entry.key}.step${i}`);
+  for (let i = 1; i <= entry.points; i++) keys.push(`guide.${entry.key}.point${i}`);
+  for (let i = 1; i <= entry.fields; i++) keys.push(`guide.${entry.key}.field${i}.name`, `guide.${entry.key}.field${i}.desc`);
+  if (entry.note) keys.push(`guide.${entry.key}.note`);
   const missing = langs.flatMap((l) => keys.filter((k) => !messages[l][k]).map((k) => `${l}:${k}`));
-  ok(`guide.${slide.key}: text present in all langs` + (missing.length ? ` (missing ${missing.slice(0, 3).join(", ")})` : ""), missing.length === 0);
-  // 「この画面を開く」の行き先は必ず自サイトの実在ページ（外部URLや打ち間違いを弾く）。
-  ok(`guide.${slide.key}: href points at a real page` + (slide.href ? ` (${slide.href})` : ""),
-    !slide.href || fs.existsSync(path.join(repo, "public", slide.href.replace(/[?#].*$/, "").replace(/^\//, ""))));
-}
-ok("guide chrome keys exist in all langs",
-  langs.every((l) => ["guide.eyebrow", "guide.when", "guide.open", "guide.prev", "guide.next", "guide.finish", "guide.close"].every((k) => messages[l][k])));
-
-// 機能一覧（/guide.html）。章立ては GROUPS で、機能は group でそこに属す。
-// group を書き忘れた枚は一覧から黙って消えるだけで気づけないので、ここで落とす。
-for (const slide of slides) {
-  ok(`guide.${slide.key}: belongs to a listed group (${slide.group || "-"})`, guide.groups.includes(slide.group));
+  ok(`guide.${entry.key}: ${keys.length} texts present in all langs` + (missing.length ? ` (missing ${missing.slice(0, 3).join(", ")})` : ""), missing.length === 0);
+  // 説明の部品が1つも無い項目は、タイトルと要約だけの空の説明になる（部品の付け忘れ）。
+  ok(`guide.${entry.key}: has at least one body block`, Boolean(entry.steps || entry.points || entry.fields));
+  // 「該当画面を開く」の行き先は必ず自サイトの実在ページ（外部URLや打ち間違いを弾く）。
+  ok(`guide.${entry.key}: href points at a real page` + (entry.href ? ` (${entry.href})` : ""),
+    !entry.href || fs.existsSync(path.join(repo, "public", entry.href.replace(/[?#].*$/, "").replace(/^\//, ""))));
+  ok(`guide.${entry.key}: belongs to a listed group (${entry.group || "-"})`, guide.groups.includes(entry.group));
 }
 for (const group of guide.groups) {
-  ok(`guide.group.${group}: used by at least one slide`, slides.some((s) => s.group === group));
+  ok(`guide.group.${group}: used by at least one entry`, entries.some((e) => e.group === group));
   const keys = [`guide.group.${group}`, `guide.group.${group}.desc`];
   ok(`guide.group.${group}: text present in all langs`, langs.every((l) => keys.every((k) => messages[l][k])));
 }
-ok("guide index keys exist in all langs",
-  langs.every((l) => ["guide.pageTitle", "guide.index.eyebrow", "guide.index.heading", "guide.index.lead", "guide.index.cta"].every((k) => messages[l][k])));
+ok("guide chrome keys exist in all langs",
+  langs.every((l) => ["guide.pageTitle", "guide.index.eyebrow", "guide.index.heading", "guide.index.lead",
+    "guide.note", "guide.open", "guide.prev", "guide.next", "guide.finish", "guide.close"].every((k) => messages[l][k])));
 // 一覧ページ本体。guide.js は t() で組むので、i18n.js が先に読まれていないと日本語で固まる。
 const guideHtml = fs.readFileSync(path.join(repo, "public/guide.html"), "utf8");
 ok("guide.html has the list container", guideHtml.includes("data-guide-index"));

@@ -1077,64 +1077,81 @@ section("setup card + user guide (#353)");
   await page.close();
 }
 
-// 使い方ガイドの一覧ページ（#353）。機能を選ぶと、その機能のModalが開く。
+// 使い方ガイドの一覧ページ（#353）。項目を選ぶと、その項目の説明Modalが開く。
 {
   const page = await newPage();
   await page.goto(`${base}/guide.html`, { waitUntil: "networkidle" });
-  await page.waitForSelector(".guide-card", { timeout: 8000 });
-  const total = await page.evaluate(() => window.KimaruGuide.slides.length);
+  await page.waitForSelector(".guide-item", { timeout: 8000 });
+  const total = await page.evaluate(() => window.KimaruGuide.entries.length);
   const groups = await page.evaluate(() => window.KimaruGuide.groups.length);
-  ok(`the list shows every feature (${total})`, (await page.locator(".guide-card").count()) === total);
+  ok(`the list shows every entry (${total})`, (await page.locator(".guide-item").count()) === total);
   ok(`the list is grouped (${groups})`, (await page.locator(".guide-group").count()) === groups);
-  ok("every card has a figure", (await page.locator(".guide-card .s-fig svg").count()) === total);
-  // 一覧の見出し・章立てに翻訳キーがそのまま出ていない（i18n の貼り忘れ検出）
+  // 一覧は文字だけ（図を置かない）
+  ok("the list has no figures", (await page.locator(".guide-index svg").count()) === 0);
   const indexText = await page.textContent(".guide-index");
   ok("no untranslated keys in the list", !/guide\.(group|index)\./.test(indexText));
-  ok("the guide modal stays closed until a card is clicked", (await page.locator("#guide-modal .guide").count()) === 0);
+  ok("the guide modal stays closed until an entry is clicked", (await page.locator("#guide-modal .guide").count()) === 0);
 
-  // 押した機能のModalが開く（先頭ではなく、押した1枚）
-  const wanted = await page.evaluate(() => window.KimaruGuide.slides.findIndex((s) => s.key === "page"));
-  const cardTitle = (await page.textContent('.guide-card[data-guide-open="page"] b')).trim();
-  await page.click('.guide-card[data-guide-open="page"]');
+  // 押した項目のModalが開く（先頭ではなく、押した1つ）
+  const wanted = await page.evaluate(() => window.KimaruGuide.entries.findIndex((e) => e.key === "zoom-connect"));
+  const itemTitle = (await page.textContent('.guide-item[data-guide-open="zoom-connect"] b')).trim();
+  await page.click('.guide-item[data-guide-open="zoom-connect"]');
   await page.waitForTimeout(300);
-  ok("clicking a card opens the guide", await page.locator("#guide-modal .guide").isVisible());
-  ok("it opens the feature that was clicked", (await page.textContent("[data-guide-title]")).trim() === cardTitle);
-  ok("the count matches that feature", (await page.textContent(".guide-count")).trim() === `${wanted + 1} / ${total}`);
+  ok("clicking an entry opens the guide", await page.locator("#guide-modal .guide").isVisible());
+  ok("it opens the entry that was clicked", (await page.textContent("[data-guide-title]")).trim() === itemTitle);
+  ok("the count matches that entry", (await page.textContent(".guide-count")).trim() === `${wanted + 1} / ${total}`);
+  // 手順の項目は番号付きの手順が出る（Zoom連携は5手順）
+  ok("a how-to entry renders its numbered steps", (await page.locator("#guide-modal .guide-steps li").count()) === 5);
+  ok("a how-to entry renders its note", await page.locator("#guide-modal .guide-note").isVisible());
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
   ok("escape returns to the list", !(await page.locator("#guide-modal .guide").isVisible()));
 
+  // 説明の形は項目ごとに違う：設定項目の説明は名前と説明の対、「〜とは」は順序なしの箇条書き
+  await page.click('.guide-item[data-guide-open="page-settings"]');
+  await page.waitForTimeout(250);
+  ok("a reference entry renders field name/description pairs",
+    (await page.locator("#guide-modal .guide-fields dt").count()) === 10 && (await page.locator("#guide-modal .guide-fields dd").count()) === 10);
+  ok("a reference entry has no numbered steps", (await page.locator("#guide-modal .guide-steps li").count()) === 0);
+  await page.click('[data-guide-close]');
+  await page.waitForTimeout(200);
+  await page.click('.guide-item[data-guide-open="page-about"]');
+  await page.waitForTimeout(250);
+  ok("an overview entry renders unordered points", (await page.locator("#guide-modal .guide-points li").count()) === 3);
+  ok("an overview entry has no numbered steps", (await page.locator("#guide-modal .guide-steps li").count()) === 0);
+  await page.click('[data-guide-close]');
+  await page.waitForTimeout(200);
+
   // 通しで読む導線も残す（先頭から送れる）
   await page.evaluate(() => window.KimaruGuide.open(0));
   await page.waitForTimeout(200);
-  ok(`guide has all slides (${total})`, total >= 10);
-  ok("first slide shows 1 / n", (await page.textContent(".guide-count")).trim() === `1 / ${total}`);
-  ok("back is disabled on the first slide", await page.locator("[data-guide-prev]").isDisabled());
+  ok("first entry shows 1 / n", (await page.textContent(".guide-count")).trim() === `1 / ${total}`);
+  ok("back is disabled on the first entry", await page.locator("[data-guide-prev]").isDisabled());
   const firstTitle = await page.textContent("[data-guide-title]");
   await page.click("[data-guide-next]");
   await page.waitForTimeout(250);
-  ok("next moves one slide on", (await page.textContent(".guide-count")).trim() === `2 / ${total}`);
-  ok("the slide content changes", (await page.textContent("[data-guide-title]")) !== firstTitle);
+  ok("next moves one entry on", (await page.textContent(".guide-count")).trim() === `2 / ${total}`);
+  ok("the content changes", (await page.textContent("[data-guide-title]")) !== firstTitle);
   await page.click("[data-guide-prev]");
   await page.waitForTimeout(250);
-  ok("back returns to the previous slide", (await page.textContent("[data-guide-title]")) === firstTitle);
-  // 全枚を送っても、翻訳キーがそのまま出ない（i18n の貼り忘れ検出）＆図が入っている
+  ok("back returns to the previous entry", (await page.textContent("[data-guide-title]")) === firstTitle);
+  // 全項目を送っても、翻訳キーがそのまま出ない（i18n の貼り忘れ検出）＆本文が空でない
   let rawKeys = 0;
-  let missingFigures = 0;
+  let emptyBodies = 0;
   for (let i = 0; i < total; i++) {
     await page.evaluate((n) => window.KimaruGuide.open(n), i);
     await page.waitForTimeout(60);
-    const text = await page.textContent(".guide-tx");
-    if (/guide\.[a-z]+\.(title|when|step\d)/.test(text)) rawKeys++;
-    if ((await page.locator(".guide-fig svg").count()) !== 1) missingFigures++;
+    const text = await page.textContent(".guide-body");
+    if (/guide\.[a-z-]+\.(lead|title|step\d|point\d|field\d|note)/.test(text)) rawKeys++;
+    if ((await page.locator(".guide-body li, .guide-body dt").count()) === 0) emptyBodies++;
   }
-  ok("no untranslated keys on any slide", rawKeys === 0);
-  ok("every slide has a figure", missingFigures === 0);
-  // 最後の枚の「次へ」は閉じるに変わる（行き止まりのボタンを押させない）
-  ok("last slide closes instead of advancing", (await page.textContent("[data-guide-next]")).trim() !== "");
+  ok("no untranslated keys on any entry", rawKeys === 0);
+  ok("every entry has a body", emptyBodies === 0);
+  // 最後の項目の「次へ」は閉じるに変わる（行き止まりのボタンを押させない）
+  ok("last entry closes instead of advancing", (await page.textContent("[data-guide-next]")).trim() !== "");
   await page.click("[data-guide-next]");
   await page.waitForTimeout(250);
-  ok("the guide closes from the last slide", !(await page.locator("#guide-modal .guide").isVisible()));
+  ok("the guide closes from the last entry", !(await page.locator("#guide-modal .guide").isVisible()));
   // キーボード操作（←/→/Esc）
   await page.evaluate(() => window.KimaruGuide.open(0));
   await page.waitForTimeout(200);
@@ -1148,14 +1165,14 @@ section("setup card + user guide (#353)");
   await page.close();
 }
 
-// /guide.html#<機能> の直リンク（案内メールから1つの機能へ送れるようにしてある）
+// /guide.html#<項目> の直リンク（案内メールから1つの説明へ送れるようにしてある）
 {
   const page = await newPage();
-  await page.goto(`${base}/guide.html#contacts`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/guide.html#contacts-about`, { waitUntil: "networkidle" });
   await page.waitForTimeout(500);
-  ok("a deep link opens that feature", await page.locator("#guide-modal .guide").isVisible());
-  const wanted = (await page.textContent('.guide-card[data-guide-open="contacts"] b')).trim();
-  ok("the deep link opens the right feature", (await page.textContent("[data-guide-title]")).trim() === wanted);
+  ok("a deep link opens that entry", await page.locator("#guide-modal .guide").isVisible());
+  const wanted = (await page.textContent('.guide-item[data-guide-open="contacts-about"] b')).trim();
+  ok("the deep link opens the right entry", (await page.textContent("[data-guide-title]")).trim() === wanted);
   ok("no JS exception", page._errors.length === 0);
   await page.close();
 }

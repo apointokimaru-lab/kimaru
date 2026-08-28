@@ -53,6 +53,71 @@ for (const l of ["en", "zh-TW"]) {
 ok("dashboard empty-state keys exist in all langs",
   langs.every((l) => messages[l]["dash.today.empty"] && messages[l]["dash.upcoming.empty"]));
 
+// ---------- 1b) 使い方ガイド（#353）：説明の部品と i18n キーの対応 ----------
+// guide.js は「1項目＝1つの説明」を ENTRIES で持ち、文言だけ i18n.js に置く。必要なキーは
+// 部品の指定（steps / points / fields / note）から機械的に決まるので、その対応をここで固定する。
+// ずれると、ガイドにキー文字列（guide.zoom-connect.step3 など）がそのまま出る。
+section("guide entries ↔ i18n keys (#353)");
+function loadGuide() {
+  const src = fs.readFileSync(path.join(repo, "public/guide.js"), "utf8");
+  const ctx = {
+    window: {}, console,
+    location: { hash: "", pathname: "/guide.html", search: "" },
+    // 一覧の器（[data-guide-index]）が無いページでも読み込まれる形なので、querySelector は null を返す。
+    document: { addEventListener() {}, readyState: "complete", getElementById: () => null, querySelector: () => null },
+  };
+  vm.createContext(ctx);
+  vm.runInContext(src, ctx);
+  return ctx.window.KimaruGuide;
+}
+const guide = loadGuide();
+const entries = guide.entries;
+ok(`guide has entries (${entries.length})`, entries.length >= 10);
+for (const entry of entries) {
+  // 部品の件数から、その項目に必要な i18n キーを組み立てる（guide.js の描画と同じ規則）。
+  // ページの接頭辞は guide.js が prefixOf で決めたものをそのまま使う
+  //（単ページ = guide.<key>、複数ページ = guide.<key>.p<n>）。
+  const keys = [`guide.${entry.key}.title`];
+  for (const p of entry.pages) {
+    if (entry.pages.length > 1) keys.push(`${p.prefix}.title`);
+    keys.push(`${p.prefix}.lead`);
+    for (let i = 1; i <= p.steps; i++) keys.push(`${p.prefix}.step${i}`);
+    for (let i = 1; i <= p.points; i++) keys.push(`${p.prefix}.point${i}`);
+    for (let i = 1; i <= p.fields; i++) keys.push(`${p.prefix}.field${i}.name`, `${p.prefix}.field${i}.desc`);
+    if (p.note) keys.push(`${p.prefix}.note`);
+  }
+  const missing = langs.flatMap((l) => keys.filter((k) => !messages[l][k]).map((k) => `${l}:${k}`));
+  ok(`guide.${entry.key}: ${keys.length} texts present in all langs` + (missing.length ? ` (missing ${missing.slice(0, 3).join(", ")})` : ""), missing.length === 0);
+  // 部品が1つも無いページは、見出しと要約だけの空の説明になる（部品の付け忘れ）。
+  ok(`guide.${entry.key}: every page has a body block`, entry.pages.every((p) => p.steps || p.points || p.fields));
+  // 「該当画面を開く」の行き先は必ず自サイトの実在ページ（外部URLや打ち間違いを弾く）。
+  ok(`guide.${entry.key}: href points at a real page` + (entry.href ? ` (${entry.href})` : ""),
+    !entry.href || fs.existsSync(path.join(repo, "public", entry.href.replace(/[?#].*$/, "").replace(/^\//, ""))));
+  ok(`guide.${entry.key}: belongs to a listed group (${entry.group || "-"})`, guide.groups.includes(entry.group));
+}
+for (const group of guide.groups) {
+  ok(`guide.group.${group}: used by at least one entry`, entries.some((e) => e.group === group));
+  const keys = [`guide.group.${group}`, `guide.group.${group}.desc`];
+  ok(`guide.group.${group}: text present in all langs`, langs.every((l) => keys.every((k) => messages[l][k])));
+}
+ok("guide chrome keys exist in all langs",
+  langs.every((l) => ["guide.pageTitle", "guide.index.eyebrow", "guide.index.heading", "guide.index.lead",
+    "guide.note", "guide.open", "guide.prev", "guide.next", "guide.close"].every((k) => messages[l][k])));
+// 一覧ページ本体。guide.js は t() で組むので、i18n.js が先に読まれていないと日本語で固まる。
+const guideHtml = fs.readFileSync(path.join(repo, "public/guide.html"), "utf8");
+ok("guide.html has the list container", guideHtml.includes("data-guide-index"));
+ok("guide.html loads i18n.js before guide.js",
+  guideHtml.indexOf("/i18n.js") >= 0 && guideHtml.indexOf("/i18n.js") < guideHtml.indexOf("/guide.js"));
+// 「使い方ガイド」の導線は2つ（共通ヘッダーとダッシュボードの初期設定カード）。どちらも一覧ページへ送る。
+const authGate = fs.readFileSync(path.join(repo, "netlify/edge-functions/auth-gate.js"), "utf8");
+ok("header guide link goes to the list page", authGate.includes('href="/guide.html" data-i18n="nav.guide"'));
+ok("edge no longer injects guide.js", !authGate.includes('src="/guide.js"'));
+const dashHtml = fs.readFileSync(path.join(repo, "public/dashboard.html"), "utf8");
+ok("setup card guide button goes to the list page", /href="\/guide\.html"[^>]*data-i18n="setup\.guide"/.test(dashHtml));
+// 初期設定カード（#353）の3ステップ。ダッシュボードのHTMLと文言の対応。
+ok("setup card keys exist in all langs",
+  langs.every((l) => ["calendar", "page", "profile"].every((s) => messages[l][`setup.${s}.title`] && messages[l][`setup.${s}.desc`] && messages[l][`setup.${s}.cta`])));
+
 // ---------- 2) ダッシュボード描画ロジック ----------
 section("dashboard schedule rendering (app.js)");
 function makeRenderer() {

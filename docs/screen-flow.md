@@ -39,9 +39,10 @@
 | 13 | `/operators.html` | 運営者管理（運営アカウントの一覧・追加・削除） | 運営セッション | 運営 |
 | 14 | `/analytics.html` | 分析ダッシュボード（利用状況・転換率・定着の集計） | 運営セッション | 運営 |
 | 14 | `/booking.html`（`/b/{slug}`） | 予約ページ（ゲスト用） | 不要 | 公開 |
-| 15 | `/terms.html` | 利用規約 | 不要 | 公開（法務） |
-| 16 | `/privacy.html` | プライバシーポリシー | 不要 | 公開（法務） |
-| 17 | `/tokushoho.html` | 特定商取引法に基づく表記 | 不要 | 公開（法務） |
+| 15 | `/guide.html` | 使い方ガイド（機能一覧＋機能ごとのModal） | 不要 | 公開 |
+| 16 | `/terms.html` | 利用規約 | 不要 | 公開（法務） |
+| 17 | `/privacy.html` | プライバシーポリシー | 不要 | 公開（法務） |
+| 18 | `/tokushoho.html` | 特定商取引法に基づく表記 | 不要 | 公開（法務） |
 
 ---
 
@@ -106,7 +107,7 @@
   - 運営画面（`/cat-key-admin.html` / `/operators.html` / `/analytics.html`）は **`kimaru_admin_session` で保護**。無ければ `/operator-login.html` へリダイレクト（ユーザーの `/login.html` には送らない）。
   - 各運営APIも運営セッション（または互換のため Bearer 管理キー）で認可。運営者は `owners` ではなく `operators` テーブルで管理（一般ユーザー登録は不要）。
   - 将来: 共有キー → 運営者ごとのメール+パスワード（`operators.password_hash`）ログインへ拡張。
-- **公開ページ**（無登録=✅）：`/` `/signup.html` `/booking.html` `/plan.html` `/login.html` `/reset-password.html` `/u/<slug>`（公開プロフィール）、法務（`/terms.html` `/privacy.html` `/tokushoho.html`）はそのまま表示。
+- **公開ページ**（無登録=✅）：`/` `/signup.html` `/booking.html` `/plan.html` `/login.html` `/reset-password.html` `/guide.html`（使い方ガイド。中身は操作の説明だけでユーザーのデータを含まないため、登録前でも読める。ヘッダーの導線自体はログイン時のみ）`/u/<slug>`（公開プロフィール）、法務（`/terms.html` `/privacy.html` `/tokushoho.html`）はそのまま表示。
 - **ナビ出し分け**：全HTMLの `<body>` に `data-auth="authed|guest"` を注入し、CSS（`[data-auth] .app-only / .guest-only`）で表示制御（JSトグル廃止・チラつき無し）。
 - 判定はCookie存在ベースの前段ゲート。**厳密な認可は各APIの署名検証**（`_lib/crypto.js` / `requireOwner`）＋運営キー（`ADMIN_SECRET`）が担保。
 - プラン差（△の中身：無料2ヶ月/2問・有料の高度機能等）はページ内＋API側で制御。

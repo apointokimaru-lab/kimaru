@@ -160,6 +160,26 @@ h3{font-family:var(--display);font-weight:700;font-size:var(--fs-subhead);line-h
   .nav-close:active{color:var(--accent-ink);background:var(--accent-soft)}
 }
 
+/* ログイン時のナビは項目が多い（#353 で「使い方ガイド」が増え10項目）。1180px 未満だと1行に
+   収まらず、言語選択とアバターが2段目に落ちてヘッダーの外にはみ出す。そこでログイン時だけ、
+   ハンバーガーに切り替える境界を 1180px まで広げる（未ログインの3項目は900pxのままで足りる。
+   料金・無料登録・ログインをこの幅でメニューの中に隠したくない）。
+   ※ 中身は上の @media(max-width:900px) と同じ。片方を直したらもう片方も合わせること。 */
+@media(min-width:901px) and (max-width:1180px){
+  body[data-auth="authed"] .nav-burger{display:inline-flex}
+  body[data-auth="authed"] .site-header nav{
+    position:absolute;top:68px;right:max(20px,calc((100% - var(--shell))/2 + 20px));left:auto;
+    display:none;flex-direction:column;align-items:stretch;gap:2px;width:min(280px,calc(100% - 40px));
+    padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow-lg);z-index:40;
+  }
+  body[data-auth="authed"] #km-nav-toggle:checked ~ nav{display:flex}
+  body[data-auth="authed"] .site-header nav a{width:100%;padding:11px 13px;font-size:15px}
+  body[data-auth="authed"] .lang-select{width:100%}
+  body[data-auth="authed"] .site-header nav .nav-avatar{display:none}
+  body[data-auth="authed"] .nav-close{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;min-height:46px;padding:0 16px;font-family:var(--sans);font-size:14px;font-weight:700;letter-spacing:.01em;color:var(--ink-2);background:var(--surface-2);border-radius:var(--radius-pill);cursor:pointer}
+}
+
 /* モバイル下部タブナビ（.bottom-nav）は削除（#321）。ヘッダーのメニューと導線が重複していた。
    注入をやめたので、下部ぶんの padding も外している（残すと画面下に空白が居座る）。
    .bottom-nav{display:none} だけは残す。古いHTMLがキャッシュから出ても出さないため。 */
@@ -1293,4 +1313,113 @@ body.modal-open{overflow:hidden}
 }
 @media(prefers-reduced-motion:reduce){
   .spinner{animation-duration:1.8s}
+}
+
+/* ============================================================
+   初期設定の導線（#353）— ダッシュボード上部のセットアップ・カード
+   なぜ必要か: 登録直後の画面が「空の予定」「まだ無い予約ページ」で埋まり、
+   最初に何をすればサービスが動き出すのかが読み取れなかった（ユーザーからの指摘）。
+   3つのステップの達成状況は app.js が実データで判定し、data-state を書き換える。
+   朱印（rotate した四角）＝「決まった」印。完了したステップだけ朱で塗る。
+   ============================================================ */
+.setup{margin-top:24px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.setup[hidden]{display:none}
+.setup-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:22px clamp(18px,2.4vw,26px) 18px}
+.setup-head h2{font-family:var(--display);font-size:clamp(19px,2.2vw,24px);margin:0 0 6px}
+.setup-head .muted{margin:0;font-size:13.5px;max-width:60ch}
+.setup-head .eyebrow{margin-bottom:8px}
+.setup-meter{display:flex;align-items:center;gap:10px;flex:none}
+.setup-bar{width:110px;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.setup-bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:3px;transition:width .45s ease}
+.setup-count{font-family:var(--mono);font-size:13px;font-weight:800;color:var(--accent-ink);white-space:nowrap}
+.setup-steps{list-style:none;margin:0;padding:0}
+.setup-step{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px clamp(18px,2.4vw,26px);border-top:1px solid var(--line)}
+/* 番号は「1→2→3の順にやる」ことを示すので残す。完了したら✓の朱印に変わる。 */
+.setup-stamp{flex:none;width:34px;height:34px;border-radius:8px;display:grid;place-items:center;transform:rotate(-6deg);border:1.5px solid var(--line-2);background:var(--surface);color:var(--muted);font-family:var(--mono);font-size:14px;font-weight:800}
+.setup-step.is-next .setup-stamp{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
+.setup-step[data-state="done"] .setup-stamp{border-color:var(--accent);background:var(--accent);color:#fff}
+.setup-tx{flex:1;min-width:200px}
+.setup-tx b{display:block;font-family:var(--display);font-size:15px;line-height:1.5}
+.setup-tx small{display:block;color:var(--muted);font-size:13px;line-height:1.7}
+.setup-step[data-state="done"] .setup-tx b{color:var(--muted)}
+.setup-action{flex:none}
+.setup-step[data-state="done"] .setup-action{display:none}
+.setup-badge{flex:none;display:none;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--accent-ink)}
+.setup-badge::before{content:"✓";font-size:13px}
+.setup-step[data-state="done"] .setup-badge{display:inline-flex}
+/* 3つとも完了したときだけ出る締めの行（閉じると以後は出さない＝localStorage） */
+.setup-complete{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:16px clamp(18px,2.4vw,26px);border-top:1px solid var(--line);background:var(--accent-soft)}
+.setup-complete p{margin:0;font-size:13.5px;color:var(--ink-2)}
+.setup-complete b{display:block;font-family:var(--display);font-size:15px;color:var(--ink)}
+.setup-complete-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:620px){
+  .setup-step{align-items:flex-start}
+  .setup-action,.setup-badge{margin-left:48px}
+}
+
+/* ============================================================
+   使い方ガイド（#353）— 機能一覧（/guide.html）と、1項目ぶんの説明Modal（public/guide.js）
+   一覧は項目名だけのボタンを並べる。項目が16に増えたので、1件あたりを短くして一覧性を優先する。
+   ============================================================ */
+/* --- 機能一覧 --- */
+/* 手引きとして読む幅に寄せる。1200pxのシェル幅いっぱいだと1行が長すぎ、行末の矢印も本文から離れる。 */
+.guide-index{display:grid;gap:clamp(32px,4vw,48px);max-width:880px;margin-top:32px}
+.guide-group-head{padding-bottom:12px;border-bottom:1px solid var(--line)}
+.guide-group-head .eyebrow{margin:0 0 6px}
+.guide-group-head .muted{margin:0;font-size:var(--fs-label)}
+.guide-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:10px;list-style:none;margin:18px 0 0;padding:0}
+/* 押せることを見た目で示すボタン。影は使わず、下辺の線だけを厚くして立体に見せ、
+   押したときに沈む（下辺を1pxに戻して同じぶん下げる＝高さが変わらない）。 */
+.guide-item{display:flex;align-items:center;width:100%;height:100%;padding:13px 15px;text-align:left;font-family:var(--display);font-size:var(--fs-label);font-weight:700;line-height:1.5;color:var(--ink);background:var(--surface);border:1px solid var(--line-2);border-bottom-width:3px;border-radius:6px;cursor:pointer;transition:border-color .15s ease,color .15s ease}
+.guide-item:hover{border-color:var(--accent);color:var(--accent-ink)}
+.guide-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.guide-item:active{border-bottom-width:1px;transform:translateY(2px)}
+.guide-item b{font:inherit}
+@media(max-width:620px){
+  .guide-list{grid-template-columns:1fr}
+}
+/* --- 1項目ぶんの説明Modal --- */
+.guide{width:min(720px,100%);max-height:calc(100dvh - 40px);overflow-y:auto;text-align:left;padding:clamp(20px,3vw,28px)}
+.guide-head{padding-bottom:14px;border-bottom:1px solid var(--line)}
+.guide-head .eyebrow{margin:0 0 8px}
+.guide-head h2{font-family:var(--display);font-size:clamp(20px,2.4vw,25px);margin:0;line-height:1.45}
+.guide-body{margin-top:18px}
+.guide-lead{margin:0 0 18px;font-size:var(--fs-label);line-height:1.85;color:var(--ink-2)}
+.guide-points{list-style:none;margin:0 0 18px;padding:0}
+/* 順序のない箇条書き。番号を振ると「この順にやる」と読めてしまうので、印は朱の短い線にする。 */
+.guide-points li{position:relative;padding-left:22px;margin-bottom:10px;font-size:var(--fs-label);line-height:1.85;color:var(--ink-2)}
+.guide-points li::before{content:"";position:absolute;left:0;top:13px;width:10px;height:1.5px;background:var(--accent)}
+.guide-steps{list-style:none;margin:0 0 18px;padding:0;counter-reset:guidestep}
+.guide-steps li{position:relative;padding-left:34px;margin-bottom:12px;font-size:var(--fs-label);line-height:1.85;color:var(--ink-2)}
+.guide-steps li::before{counter-increment:guidestep;content:counter(guidestep);position:absolute;left:0;top:4px;width:22px;height:22px;border-radius:6px;transform:rotate(-6deg);display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);font-family:var(--mono);font-size:12px;font-weight:800}
+/* 設定項目の対。欄の名前を左に立て、説明を1段下げる（画面の欄と見比べながら読むため）。 */
+.guide-fields{margin:0 0 18px}
+.guide-fields dt{font-family:var(--display);font-size:var(--fs-label);font-weight:700;line-height:1.6;padding-top:12px;border-top:1px solid var(--line)}
+.guide-fields dt:first-child{padding-top:0;border-top:0}
+.guide-fields dd{margin:4px 0 12px;font-size:var(--fs-note);line-height:1.85;color:var(--muted)}
+.guide-note{display:flex;align-items:baseline;gap:10px;margin:0;padding:14px;background:var(--surface-2);border-radius:var(--radius-sm);font-size:var(--fs-note);line-height:1.85;color:var(--ink-2)}
+.guide-tag{flex:none;padding:3px 10px;border-radius:var(--radius-pill);background:var(--accent-soft);color:var(--accent-ink);font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;white-space:nowrap}
+.guide-cta{margin-top:6px}
+.guide-cta[hidden]{display:none}
+/* ページ送り。複数ページの項目でだけ出る（項目をまたぐ送りではない）。 */
+.guide-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.guide-foot[hidden]{display:none}
+.guide-count{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--muted)}
+/* スマホでは1ページぶんがスクロールなしで収まる量に抑えている（iPhone 12 = 390×664 基準）。
+   余白を詰め、注記のラベルを本文の上に載せて1行あたりの文字数を増やす。
+   ここは .guide 系の指定より後ろに置くこと（同じ詳細度なので、前に置くと上書きされて効かない）。 */
+@media(max-width:620px){
+  .guide{padding:16px}
+  .guide-head{padding-bottom:12px}
+  .guide-body{margin-top:14px}
+  .guide-lead{margin-bottom:14px}
+  .guide-steps li,.guide-points li{margin-bottom:9px}
+  .guide-fields dd{margin-bottom:10px}
+  .guide-note{flex-direction:column;align-items:flex-start;gap:6px;padding:12px}
+  .guide-foot{margin-top:12px;padding-top:10px}
+}
+@media(prefers-reduced-motion:reduce){
+  .guide-item{transition:none}
+  .guide-item:active{transform:none}
+  .setup-bar i{transition:none}
 }

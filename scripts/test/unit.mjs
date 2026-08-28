@@ -96,7 +96,7 @@ for (const group of guide.groups) {
 }
 ok("guide chrome keys exist in all langs",
   langs.every((l) => ["guide.pageTitle", "guide.index.eyebrow", "guide.index.heading", "guide.index.lead",
-    "guide.note", "guide.open", "guide.prev", "guide.next", "guide.finish", "guide.close"].every((k) => messages[l][k])));
+    "guide.note", "guide.open", "guide.close"].every((k) => messages[l][k])));
 // 一覧ページ本体。guide.js は t() で組むので、i18n.js が先に読まれていないと日本語で固まる。
 const guideHtml = fs.readFileSync(path.join(repo, "public/guide.html"), "utf8");
 ok("guide.html has the list container", guideHtml.includes("data-guide-index"));

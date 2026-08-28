@@ -3,6 +3,12 @@
 // なぜ必要か: 「初期設定の方法がわかりにくい」という声への対応。画面ごとの短い注記だけでは
 // 「どの機能を・どんなときに・どう設定するのか」が伝わらない。
 //
+// なぜ1項目ずつ独立しているか: 当初はModalに「前へ/次へ」を付けて16項目を通しで送れるようにしていたが、
+// 「Googleカレンダーの連携方法」を押しても他の項目と同じ器が開くため、どこまでがその説明なのかが
+// 分からなかった。1項目＝1つのModalで閉じ、送りは持たない（一覧に戻って次を選ぶ）。
+// あわせて、1項目ぶんが iPhone 12（390×664）でスクロールせずに収まる量に抑えている。
+// 収まらない説明は文を削るのではなく、項目を分ける。
+//
 // なぜ項目ごとに中身の形が違うか: 当初は全項目を「図＋利用場面＋3ステップ」の同じ型で書いていたが、
 // それでは「Zoomはどう連携するのか」「予約ページの各欄は何を意味するのか」に答えられなかった。
 // 読み手が知りたいことは項目ごとに違うので、説明の部品を選べるようにしてある:
@@ -39,24 +45,35 @@
     { key: "page-about", group: "overview", points: 3, href: "/booking-settings.html" },
 
     // ===== 予約受付の準備 =====
-    { key: "calendar-connect", group: "setup", steps: 4, note: true, href: "/settings.html#integrations" },
-    { key: "zoom-connect", group: "setup", steps: 5, note: true, href: "/settings.html#integrations" },
-    { key: "page-create", group: "setup", steps: 6, note: true, href: "/booking-settings.html?new=1" },
-    { key: "page-settings", group: "setup", fields: 10, href: "/booking-settings.html" },
-    { key: "hours-buffer", group: "setup", steps: 4, fields: 2, note: true, href: "/booking-settings.html" },
-    { key: "survey-setup", group: "setup", steps: 5, note: true, href: "/booking-settings.html" },
-    { key: "profile-setup", group: "setup", steps: 3, fields: 4, note: true, href: "/profile.html" },
+    { key: "calendar-connect", group: "setup", steps: 4, href: "/settings.html#integrations" },
+    { key: "calendar-manage", group: "setup", steps: 2, note: true, href: "/settings.html#integrations" },
+    { key: "zoom-connect", group: "setup", steps: 4, href: "/settings.html#integrations" },
+    { key: "zoom-use", group: "setup", steps: 3, note: true, href: "/booking-settings.html" },
+    { key: "page-create", group: "setup", steps: 5, href: "/booking-settings.html?new=1" },
+    { key: "page-settings-basic", group: "setup", fields: 4, href: "/booking-settings.html" },
+    { key: "page-settings-meeting", group: "setup", fields: 3, href: "/booking-settings.html" },
+    { key: "page-settings-slots", group: "setup", fields: 3, href: "/booking-settings.html" },
+    { key: "hours", group: "setup", steps: 3, href: "/booking-settings.html" },
+    { key: "buffer", group: "setup", steps: 4, note: true, href: "/booking-settings.html" },
+    { key: "survey-setup", group: "setup", steps: 4, note: true, href: "/booking-settings.html" },
+    { key: "survey-answers", group: "setup", points: 3, href: "/answers.html" },
+    { key: "profile-setup", group: "setup", steps: 3, note: true, href: "/profile.html" },
+    { key: "profile-fields", group: "setup", fields: 4, href: "/profile.html" },
 
     // ===== 案内から面談当日まで =====
     { key: "share", group: "run", steps: 4, note: true, href: "/dashboard.html" },
-    { key: "pinpoint", group: "run", steps: 5, note: true, href: "/dashboard.html" },
-    { key: "after", group: "run", steps: 4, note: true, href: "/schedule.html" },
+    { key: "pinpoint", group: "run", steps: 5, href: "/dashboard.html" },
+    { key: "pinpoint-limit", group: "run", points: 3, href: "/dashboard.html" },
+    { key: "after", group: "run", steps: 4, href: "/schedule.html" },
     { key: "change", group: "run", steps: 4, note: true, href: "/schedule.html" },
+    { key: "pause", group: "run", steps: 2, note: true, href: "/booking-settings.html" },
 
     // ===== 継続的な利用 =====
     { key: "contacts-about", group: "more", points: 3, href: "/contacts.html" },
     { key: "contacts-use", group: "more", steps: 4, href: "/contacts.html" },
-    { key: "plan", group: "more", fields: 3, note: true, href: "/plan.html" },
+    { key: "plan-free", group: "more", points: 4, href: "/plan.html" },
+    { key: "plan-pro", group: "more", points: 4, href: "/plan.html" },
+    { key: "plan-premium", group: "more", points: 3, note: true, href: "/plan.html" },
   ];
 
   let overlay = null;
@@ -106,21 +123,11 @@
         </div>
         <div class="guide-body" data-guide-body></div>
         <a class="button secondary btn-sm guide-cta" data-guide-cta hidden></a>
-        <div class="guide-foot">
-          <button class="button secondary btn-sm" type="button" data-guide-prev></button>
-          <span class="guide-count" data-guide-count></span>
-          <button class="button primary btn-sm" type="button" data-guide-next></button>
-        </div>
       </div>`;
     document.body.appendChild(overlay);
 
     overlay.addEventListener("click", (event) => {
-      if (event.target === overlay || event.target.closest("[data-guide-close]")) return close();
-      if (event.target.closest("[data-guide-prev]")) return show(index - 1);
-      if (event.target.closest("[data-guide-next]")) {
-        // 最後の項目では「次へ」を「ガイドを閉じる」に変える（行き止まりのボタンを押させない）。
-        return index >= ENTRIES.length - 1 ? close() : show(index + 1);
-      }
+      if (event.target === overlay || event.target.closest("[data-guide-close]")) close();
     });
     // 言語を切り替えたら、開いたまま今の項目を組み直す（閉じて開き直させない）。
     document.addEventListener("kimaru:languagechange", () => { if (overlay && !overlay.hidden) show(index); });
@@ -136,14 +143,9 @@
     const cta = q("[data-guide-cta]");
     cta.hidden = !entry.href;
     if (entry.href) { cta.href = entry.href; cta.textContent = t("guide.open"); }
-    q("[data-guide-count]").textContent = `${index + 1} / ${ENTRIES.length}`;
-    const prev = q("[data-guide-prev]");
-    prev.textContent = t("guide.prev");
-    prev.disabled = index === 0;
-    q("[data-guide-next]").textContent = index >= ENTRIES.length - 1 ? t("guide.finish") : t("guide.next");
     q(".guide").scrollTop = 0;
-    // 送るたびにURLを合わせる。pushState にしないのは、16項目送ったあとの「戻る」が
-    // 16回ぶん必要になるため（戻る＝一覧に戻る、でいい）。
+    // 開いている項目をURLに載せる。pushState にしないのは、閉じる操作を「戻る」と
+    // 二重に持たせないため（戻る＝一覧に戻る、でいい）。
     if (location.hash.slice(1) !== entry.key) history.replaceState(null, "", `${location.pathname}${location.search}#${entry.key}`);
   }
 
@@ -153,7 +155,7 @@
     overlay.hidden = false;
     document.body.classList.add("modal-open");
     show(at);
-    overlay.querySelector("[data-guide-next]").focus();
+    overlay.querySelector("[data-guide-close]").focus();
   }
 
   function close() {
@@ -210,25 +212,7 @@
   document.addEventListener("keydown", (event) => {
     if (!overlay || overlay.hidden) return;
     if (event.key === "Escape") { event.preventDefault(); close(); }
-    else if (event.key === "ArrowRight") { event.preventDefault(); show(index + 1); }
-    else if (event.key === "ArrowLeft") { event.preventDefault(); show(index - 1); }
   });
-
-  // スワイプで送る（スマホ）。縦スクロールを邪魔しないよう、横移動が縦より大きいときだけ拾う。
-  let touchX = 0;
-  let touchY = 0;
-  document.addEventListener("touchstart", (event) => {
-    if (!overlay || overlay.hidden) return;
-    touchX = event.changedTouches[0].clientX;
-    touchY = event.changedTouches[0].clientY;
-  }, { passive: true });
-  document.addEventListener("touchend", (event) => {
-    if (!overlay || overlay.hidden || !touchX) return;
-    const dx = event.changedTouches[0].clientX - touchX;
-    const dy = event.changedTouches[0].clientY - touchY;
-    touchX = 0;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) show(index + (dx < 0 ? 1 : -1));
-  }, { passive: true });
 
   // 一覧の描画と、/guide.html#zoom-connect のような直リンク（案内メールから特定の説明へ送れるようにする）。
   function start() {

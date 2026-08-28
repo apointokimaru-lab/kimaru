@@ -1094,11 +1094,11 @@ section("setup card + user guide (#353)");
   ok("the guide modal stays closed until an entry is clicked", (await page.locator("#guide-modal .guide").count()) === 0);
 
   // 単ページの項目：送りを出さない（押しても何も起きないボタンを置かない）
-  await page.click('.guide-item[data-guide-open="hours"]');
+  await page.click('.guide-item[data-guide-open="change"]');
   await page.waitForTimeout(300);
   ok("clicking an entry opens the guide", await page.locator("#guide-modal .guide").isVisible());
   ok("a single-page entry has no paging", !(await page.locator("#guide-modal .guide-foot").isVisible()));
-  ok("a single-page entry renders its steps", (await page.locator("#guide-modal .guide-steps li").count()) === 3);
+  ok("a single-page entry renders its steps", (await page.locator("#guide-modal .guide-steps li").count()) === 4);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
   ok("escape returns to the list", !(await page.locator("#guide-modal .guide").isVisible()));
@@ -1124,6 +1124,16 @@ section("setup card + user guide (#353)");
   await page.click("[data-guide-prev]");
   await page.waitForTimeout(250);
   ok("back returns to the previous page", (await page.textContent("[data-guide-title]")) === firstHeading);
+  // 予約ページ設定の画面で触る項目は、この1つのModalに揃っている（別ボタンに散らさない）
+  const headings = [];
+  for (let i = 0; i < pages; i++) {
+    await page.evaluate((n) => window.KimaruGuide.goto(n), i);
+    await page.waitForTimeout(45);
+    headings.push((await page.textContent("[data-guide-title]")).trim());
+  }
+  ok(`the booking-page entry covers every settings section (${pages} pages)`, pages === 7 && new Set(headings).size === 7);
+  ok("hours, buffers and questions are pages of this entry, not separate buttons",
+    (await page.locator('.guide-item[data-guide-open="hours"], .guide-item[data-guide-open="buffer"], .guide-item[data-guide-open="survey-setup"]').count()) === 0);
   // 最後のページで止まる（別の項目へ送らない）
   await page.evaluate((n) => window.KimaruGuide.goto(n - 1), pages);
   await page.waitForTimeout(200);
@@ -1138,7 +1148,7 @@ section("setup card + user guide (#353)");
   ok("an overview entry has no numbered steps", (await page.locator("#guide-modal .guide-steps li").count()) === 0);
   await page.click("[data-guide-close]");
   await page.waitForTimeout(200);
-  await page.click('.guide-item[data-guide-open="buffer"]');
+  await page.click('.guide-item[data-guide-open="pause"]');
   await page.waitForTimeout(250);
   ok("an entry with a caveat renders the note", await page.locator("#guide-modal .guide-note").isVisible());
   await page.click("[data-guide-close]");

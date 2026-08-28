@@ -53,16 +53,17 @@
       { steps: 4 },
       { steps: 3, note: true },
     ] },
+    // 予約ページ設定の画面で上から順に触る項目を、そのままページの順にしている
+    // （作成 → 基本 → 面談の条件 → 受付時間 → 前後バッファ → 候補の出し方 → 事前アンケート）。
     { key: "page-create", group: "setup", href: "/booking-settings.html", pages: [
       { steps: 5 },
       { fields: 4 },
       { fields: 3 },
+      { steps: 3 },
+      { steps: 4, note: true },
       { fields: 3 },
+      { steps: 4, note: true },
     ] },
-    { key: "hours", group: "setup", steps: 3, href: "/booking-settings.html" },
-    { key: "buffer", group: "setup", steps: 4, note: true, href: "/booking-settings.html" },
-    { key: "survey-setup", group: "setup", steps: 4, note: true, href: "/booking-settings.html" },
-    { key: "survey-answers", group: "setup", points: 3, href: "/answers.html" },
     { key: "profile", group: "setup", href: "/profile.html", pages: [
       { steps: 3, note: true },
       { fields: 4 },
@@ -75,6 +76,8 @@
       { points: 3 },
     ] },
     { key: "after", group: "run", steps: 4, href: "/schedule.html" },
+    // 回答を「読む」のは予約が入ったあとの作業なので、設定の章ではなくこちらに置く
+    { key: "survey-answers", group: "run", points: 3, href: "/answers.html" },
     { key: "change", group: "run", steps: 4, note: true, href: "/schedule.html" },
     { key: "pause", group: "run", steps: 2, note: true, href: "/booking-settings.html" },
 

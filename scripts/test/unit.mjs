@@ -75,15 +75,21 @@ const entries = guide.entries;
 ok(`guide has entries (${entries.length})`, entries.length >= 10);
 for (const entry of entries) {
   // 部品の件数から、その項目に必要な i18n キーを組み立てる（guide.js の描画と同じ規則）。
-  const keys = [`guide.${entry.key}.title`, `guide.${entry.key}.lead`];
-  for (let i = 1; i <= entry.steps; i++) keys.push(`guide.${entry.key}.step${i}`);
-  for (let i = 1; i <= entry.points; i++) keys.push(`guide.${entry.key}.point${i}`);
-  for (let i = 1; i <= entry.fields; i++) keys.push(`guide.${entry.key}.field${i}.name`, `guide.${entry.key}.field${i}.desc`);
-  if (entry.note) keys.push(`guide.${entry.key}.note`);
+  // ページの接頭辞は guide.js が prefixOf で決めたものをそのまま使う
+  //（単ページ = guide.<key>、複数ページ = guide.<key>.p<n>）。
+  const keys = [`guide.${entry.key}.title`];
+  for (const p of entry.pages) {
+    if (entry.pages.length > 1) keys.push(`${p.prefix}.title`);
+    keys.push(`${p.prefix}.lead`);
+    for (let i = 1; i <= p.steps; i++) keys.push(`${p.prefix}.step${i}`);
+    for (let i = 1; i <= p.points; i++) keys.push(`${p.prefix}.point${i}`);
+    for (let i = 1; i <= p.fields; i++) keys.push(`${p.prefix}.field${i}.name`, `${p.prefix}.field${i}.desc`);
+    if (p.note) keys.push(`${p.prefix}.note`);
+  }
   const missing = langs.flatMap((l) => keys.filter((k) => !messages[l][k]).map((k) => `${l}:${k}`));
   ok(`guide.${entry.key}: ${keys.length} texts present in all langs` + (missing.length ? ` (missing ${missing.slice(0, 3).join(", ")})` : ""), missing.length === 0);
-  // 説明の部品が1つも無い項目は、タイトルと要約だけの空の説明になる（部品の付け忘れ）。
-  ok(`guide.${entry.key}: has at least one body block`, Boolean(entry.steps || entry.points || entry.fields));
+  // 部品が1つも無いページは、見出しと要約だけの空の説明になる（部品の付け忘れ）。
+  ok(`guide.${entry.key}: every page has a body block`, entry.pages.every((p) => p.steps || p.points || p.fields));
   // 「該当画面を開く」の行き先は必ず自サイトの実在ページ（外部URLや打ち間違いを弾く）。
   ok(`guide.${entry.key}: href points at a real page` + (entry.href ? ` (${entry.href})` : ""),
     !entry.href || fs.existsSync(path.join(repo, "public", entry.href.replace(/[?#].*$/, "").replace(/^\//, ""))));
@@ -96,7 +102,7 @@ for (const group of guide.groups) {
 }
 ok("guide chrome keys exist in all langs",
   langs.every((l) => ["guide.pageTitle", "guide.index.eyebrow", "guide.index.heading", "guide.index.lead",
-    "guide.note", "guide.open", "guide.close"].every((k) => messages[l][k])));
+    "guide.note", "guide.open", "guide.prev", "guide.next", "guide.close"].every((k) => messages[l][k])));
 // 一覧ページ本体。guide.js は t() で組むので、i18n.js が先に読まれていないと日本語で固まる。
 const guideHtml = fs.readFileSync(path.join(repo, "public/guide.html"), "utf8");
 ok("guide.html has the list container", guideHtml.includes("data-guide-index"));

@@ -1377,14 +1377,6 @@ body.modal-open{overflow:hidden}
 .guide-item b{font:inherit}
 @media(max-width:620px){
   .guide-list{grid-template-columns:1fr}
-  /* スマホでは1項目ぶんがスクロールなしで収まる量に抑えている（iPhone 12 = 390×664 基準）。
-     余白を詰めるのと、注記のラベルを本文の上に載せるので、1行あたりの文字数が増える。 */
-  .guide{padding:18px}
-  .guide-head{padding-bottom:12px}
-  .guide-body{margin-top:14px}
-  .guide-lead{margin-bottom:14px}
-  .guide-steps li,.guide-points li{margin-bottom:9px}
-  .guide-note{flex-direction:column;align-items:flex-start;gap:6px;padding:12px}
 }
 /* --- 1項目ぶんの説明Modal --- */
 .guide{width:min(720px,100%);max-height:calc(100dvh - 40px);overflow-y:auto;text-align:left;padding:clamp(20px,3vw,28px)}
@@ -1409,6 +1401,23 @@ body.modal-open{overflow:hidden}
 .guide-tag{flex:none;padding:3px 10px;border-radius:var(--radius-pill);background:var(--accent-soft);color:var(--accent-ink);font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;white-space:nowrap}
 .guide-cta{margin-top:6px}
 .guide-cta[hidden]{display:none}
+/* ページ送り。複数ページの項目でだけ出る（項目をまたぐ送りではない）。 */
+.guide-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.guide-foot[hidden]{display:none}
+.guide-count{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--muted)}
+/* スマホでは1ページぶんがスクロールなしで収まる量に抑えている（iPhone 12 = 390×664 基準）。
+   余白を詰め、注記のラベルを本文の上に載せて1行あたりの文字数を増やす。
+   ここは .guide 系の指定より後ろに置くこと（同じ詳細度なので、前に置くと上書きされて効かない）。 */
+@media(max-width:620px){
+  .guide{padding:16px}
+  .guide-head{padding-bottom:12px}
+  .guide-body{margin-top:14px}
+  .guide-lead{margin-bottom:14px}
+  .guide-steps li,.guide-points li{margin-bottom:9px}
+  .guide-fields dd{margin-bottom:10px}
+  .guide-note{flex-direction:column;align-items:flex-start;gap:6px;padding:12px}
+  .guide-foot{margin-top:12px;padding-top:10px}
+}
 @media(prefers-reduced-motion:reduce){
   .guide-item{transition:none}
   .guide-item:active{transform:none}

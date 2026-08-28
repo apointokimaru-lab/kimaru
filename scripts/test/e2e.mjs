@@ -1093,27 +1093,45 @@ section("setup card + user guide (#353)");
   ok("no untranslated keys in the list", !/guide\.(group|index)\./.test(indexText));
   ok("the guide modal stays closed until an entry is clicked", (await page.locator("#guide-modal .guide").count()) === 0);
 
-  // 押した項目のModalが開き、その項目だけで完結する（他の項目へ送る操作を持たない）
-  const itemTitle = (await page.textContent('.guide-item[data-guide-open="zoom-connect"] b')).trim();
-  await page.click('.guide-item[data-guide-open="zoom-connect"]');
+  // 単ページの項目：送りを出さない（押しても何も起きないボタンを置かない）
+  await page.click('.guide-item[data-guide-open="hours"]');
   await page.waitForTimeout(300);
   ok("clicking an entry opens the guide", await page.locator("#guide-modal .guide").isVisible());
-  ok("it opens the entry that was clicked", (await page.textContent("[data-guide-title]")).trim() === itemTitle);
-  ok("a how-to entry renders its numbered steps", (await page.locator("#guide-modal .guide-steps li").count()) === 4);
-  ok("the modal has no paging controls",
-    (await page.locator("#guide-modal [data-guide-next], #guide-modal [data-guide-prev], #guide-modal .guide-count").count()) === 0);
+  ok("a single-page entry has no paging", !(await page.locator("#guide-modal .guide-foot").isVisible()));
+  ok("a single-page entry renders its steps", (await page.locator("#guide-modal .guide-steps li").count()) === 3);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
   ok("escape returns to the list", !(await page.locator("#guide-modal .guide").isVisible()));
 
-  // 説明の形は項目ごとに違う：設定項目は名前と説明の対、「〜とは」は順序なしの箇条書き、注記は注記の枠
-  await page.click('.guide-item[data-guide-open="page-settings-basic"]');
+  // 複数ページの項目：1つのボタンから開き、Modalの中だけで送る（他の項目へは行かない）
+  const entryTitle = (await page.textContent('.guide-item[data-guide-open="page-create"] b')).trim();
+  await page.click('.guide-item[data-guide-open="page-create"]');
+  await page.waitForTimeout(300);
+  const pages = await page.evaluate(() => window.KimaruGuide.entries.find((e) => e.key === "page-create").pages.length);
+  ok(`a multi-page entry shows its page count (1 / ${pages})`, (await page.textContent(".guide-count")).trim() === `1 / ${pages}`);
+  ok("the entry name moves to the label", (await page.textContent("[data-guide-eyebrow]")).trim() === entryTitle);
+  ok("the heading is the page name, not the entry name", (await page.textContent("[data-guide-title]")).trim() !== entryTitle);
+  ok("back is disabled on the first page", await page.locator("[data-guide-prev]").isDisabled());
+  ok("the first page renders the creation steps", (await page.locator("#guide-modal .guide-steps li").count()) === 5);
+  const firstHeading = await page.textContent("[data-guide-title]");
+  await page.click("[data-guide-next]");
   await page.waitForTimeout(250);
-  ok("a reference entry renders field name/description pairs",
+  ok("next moves one page on", (await page.textContent(".guide-count")).trim() === `2 / ${pages}`);
+  ok("the page heading changes", (await page.textContent("[data-guide-title]")) !== firstHeading);
+  ok("the second page renders field name/description pairs",
     (await page.locator("#guide-modal .guide-fields dt").count()) === 4 && (await page.locator("#guide-modal .guide-fields dd").count()) === 4);
-  ok("a reference entry has no numbered steps", (await page.locator("#guide-modal .guide-steps li").count()) === 0);
+  ok("the second page has no numbered steps", (await page.locator("#guide-modal .guide-steps li").count()) === 0);
+  await page.click("[data-guide-prev]");
+  await page.waitForTimeout(250);
+  ok("back returns to the previous page", (await page.textContent("[data-guide-title]")) === firstHeading);
+  // 最後のページで止まる（別の項目へ送らない）
+  await page.evaluate((n) => window.KimaruGuide.goto(n - 1), pages);
+  await page.waitForTimeout(200);
+  ok("next is disabled on the last page", await page.locator("[data-guide-next]").isDisabled());
   await page.click("[data-guide-close]");
   await page.waitForTimeout(200);
+
+  // 概要の項目は順序のない箇条書き、注意のある項目は注記の枠が出る
   await page.click('.guide-item[data-guide-open="page-about"]');
   await page.waitForTimeout(250);
   ok("an overview entry renders unordered points", (await page.locator("#guide-modal .guide-points li").count()) === 3);
@@ -1126,44 +1144,48 @@ section("setup card + user guide (#353)");
   await page.click("[data-guide-close]");
   await page.waitForTimeout(200);
 
-  // 全項目：翻訳キーがそのまま出ない（i18n の貼り忘れ検出）＆本文が空でない
+  // 全ページ：翻訳キーがそのまま出ない（i18n の貼り忘れ検出）＆本文が空でない
+  const shape = await page.evaluate(() => window.KimaruGuide.entries.map((e) => e.pages.length));
   let rawKeys = 0;
   let emptyBodies = 0;
-  for (let i = 0; i < total; i++) {
-    await page.evaluate((n) => window.KimaruGuide.open(n), i);
-    await page.waitForTimeout(50);
-    const text = await page.textContent(".guide-body");
-    if (/guide\.[a-z-]+\.(lead|title|step\d|point\d|field\d|note)/.test(text)) rawKeys++;
-    if ((await page.locator(".guide-body li, .guide-body dt").count()) === 0) emptyBodies++;
-    await page.evaluate(() => window.KimaruGuide.close());
+  for (let i = 0; i < shape.length; i++) {
+    for (let j = 0; j < shape[i]; j++) {
+      await page.evaluate(([n, p]) => { window.KimaruGuide.open(n); window.KimaruGuide.goto(p); }, [i, j]);
+      await page.waitForTimeout(45);
+      const text = await page.textContent(".guide-body");
+      if (/guide\.[a-z-]+\.(p\d\.)?(lead|title|step\d|point\d|field\d|note)/.test(text)) rawKeys++;
+      if ((await page.locator(".guide-body li, .guide-body dt").count()) === 0) emptyBodies++;
+      await page.evaluate(() => window.KimaruGuide.close());
+    }
   }
-  ok("no untranslated keys on any entry", rawKeys === 0);
-  ok("every entry has a body", emptyBodies === 0);
+  ok("no untranslated keys on any page", rawKeys === 0);
+  ok("every page has a body", emptyBodies === 0);
   ok("no JS exception", page._errors.length === 0);
   await page.close();
 }
 
-// 1項目ぶんが iPhone 12（390×664 = Safariのツールバーが出ている状態）でスクロールせずに収まること。
-// 収まらなくなったら、文を削るのではなく項目を分ける、という判断のための固定。
+// 1ページぶんが iPhone 12（390×664 = Safariのツールバーが出ている状態）でスクロールせずに収まること。
+// 収まらなくなったら、文を削るのではなくページを足す、という判断のための固定。
 {
   const page = await newPage();
   await page.setViewportSize({ width: 390, height: 664 });
   await page.goto(`${base}/guide.html`, { waitUntil: "networkidle" });
   await page.waitForSelector(".guide-item", { timeout: 8000 });
-  const total = await page.evaluate(() => window.KimaruGuide.entries.length);
+  const shape = await page.evaluate(() => window.KimaruGuide.entries.map((e) => ({ key: e.key, pages: e.pages.length })));
   const over = [];
-  for (let i = 0; i < total; i++) {
-    await page.evaluate((n) => window.KimaruGuide.open(n), i);
-    await page.waitForTimeout(50);
-    // 開いている項目は show() が URL の #key に載せているので、そこから拾う。
-    const m = await page.evaluate(() => {
-      const el = document.querySelector(".guide");
-      return { key: location.hash.slice(1), over: el.scrollHeight - el.clientHeight };
-    });
-    if (m.over > 0) over.push(`${m.key}+${m.over}`);
-    await page.evaluate(() => window.KimaruGuide.close());
+  for (let i = 0; i < shape.length; i++) {
+    for (let j = 0; j < shape[i].pages; j++) {
+      await page.evaluate(([n, p]) => { window.KimaruGuide.open(n); window.KimaruGuide.goto(p); }, [i, j]);
+      await page.waitForTimeout(45);
+      const gap = await page.evaluate(() => {
+        const el = document.querySelector(".guide");
+        return el.scrollHeight - el.clientHeight;
+      });
+      if (gap > 0) over.push(`${shape[i].key}#${j + 1}+${gap}`);
+      await page.evaluate(() => window.KimaruGuide.close());
+    }
   }
-  ok(`every entry fits an iPhone 12 without scrolling` + (over.length ? ` (over: ${over.slice(0, 4).join(", ")})` : ""), over.length === 0);
+  ok("every page fits an iPhone 12 without scrolling" + (over.length ? ` (over: ${over.slice(0, 4).join(", ")})` : ""), over.length === 0);
   ok("no JS exception", page._errors.length === 0);
   await page.close();
 }

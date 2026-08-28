@@ -3,11 +3,11 @@
 // なぜ必要か: 「初期設定の方法がわかりにくい」という声への対応。画面ごとの短い注記だけでは
 // 「どの機能を・どんなときに・どう設定するのか」が伝わらない。
 //
-// なぜ1項目ずつ独立しているか: 当初はModalに「前へ/次へ」を付けて16項目を通しで送れるようにしていたが、
+// なぜ送りが「項目の中だけ」なのか: 当初はModalの「前へ/次へ」で全項目を通しで送れるようにしていたが、
 // 「Googleカレンダーの連携方法」を押しても他の項目と同じ器が開くため、どこまでがその説明なのかが
-// 分からなかった。1項目＝1つのModalで閉じ、送りは持たない（一覧に戻って次を選ぶ）。
-// あわせて、1項目ぶんが iPhone 12（390×664）でスクロールせずに収まる量に抑えている。
-// 収まらない説明は文を削るのではなく、項目を分ける。
+// 分からなかった。送りは1項目の中のページ間だけに限り、項目をまたがない（次の項目は一覧に戻って選ぶ）。
+// あわせて、1ページぶんが iPhone 12（390×664）でスクロールせずに収まる量に抑えている。
+// 収まらない説明は文を削るのではなく、ページを足す（一覧のボタンは増やさない）。
 //
 // なぜ項目ごとに中身の形が違うか: 当初は全項目を「図＋利用場面＋3ステップ」の同じ型で書いていたが、
 // それでは「Zoomはどう連携するのか」「予約ページの各欄は何を意味するのか」に答えられなかった。
@@ -45,25 +45,35 @@
     { key: "page-about", group: "overview", points: 3, href: "/booking-settings.html" },
 
     // ===== 予約受付の準備 =====
-    { key: "calendar-connect", group: "setup", steps: 4, href: "/settings.html#integrations" },
-    { key: "calendar-manage", group: "setup", steps: 2, note: true, href: "/settings.html#integrations" },
-    { key: "zoom-connect", group: "setup", steps: 4, href: "/settings.html#integrations" },
-    { key: "zoom-use", group: "setup", steps: 3, note: true, href: "/booking-settings.html" },
-    { key: "page-create", group: "setup", steps: 5, href: "/booking-settings.html?new=1" },
-    { key: "page-settings-basic", group: "setup", fields: 4, href: "/booking-settings.html" },
-    { key: "page-settings-meeting", group: "setup", fields: 3, href: "/booking-settings.html" },
-    { key: "page-settings-slots", group: "setup", fields: 3, href: "/booking-settings.html" },
+    { key: "calendar", group: "setup", href: "/settings.html#integrations", pages: [
+      { steps: 4 },
+      { steps: 2, note: true },
+    ] },
+    { key: "zoom", group: "setup", href: "/settings.html#integrations", pages: [
+      { steps: 4 },
+      { steps: 3, note: true },
+    ] },
+    { key: "page-create", group: "setup", href: "/booking-settings.html", pages: [
+      { steps: 5 },
+      { fields: 4 },
+      { fields: 3 },
+      { fields: 3 },
+    ] },
     { key: "hours", group: "setup", steps: 3, href: "/booking-settings.html" },
     { key: "buffer", group: "setup", steps: 4, note: true, href: "/booking-settings.html" },
     { key: "survey-setup", group: "setup", steps: 4, note: true, href: "/booking-settings.html" },
     { key: "survey-answers", group: "setup", points: 3, href: "/answers.html" },
-    { key: "profile-setup", group: "setup", steps: 3, note: true, href: "/profile.html" },
-    { key: "profile-fields", group: "setup", fields: 4, href: "/profile.html" },
+    { key: "profile", group: "setup", href: "/profile.html", pages: [
+      { steps: 3, note: true },
+      { fields: 4 },
+    ] },
 
     // ===== 案内から面談当日まで =====
     { key: "share", group: "run", steps: 4, note: true, href: "/dashboard.html" },
-    { key: "pinpoint", group: "run", steps: 5, href: "/dashboard.html" },
-    { key: "pinpoint-limit", group: "run", points: 3, href: "/dashboard.html" },
+    { key: "pinpoint", group: "run", href: "/dashboard.html", pages: [
+      { steps: 5 },
+      { points: 3 },
+    ] },
     { key: "after", group: "run", steps: 4, href: "/schedule.html" },
     { key: "change", group: "run", steps: 4, note: true, href: "/schedule.html" },
     { key: "pause", group: "run", steps: 2, note: true, href: "/booking-settings.html" },
@@ -71,13 +81,23 @@
     // ===== 継続的な利用 =====
     { key: "contacts-about", group: "more", points: 3, href: "/contacts.html" },
     { key: "contacts-use", group: "more", steps: 4, href: "/contacts.html" },
-    { key: "plan-free", group: "more", points: 4, href: "/plan.html" },
-    { key: "plan-pro", group: "more", points: 4, href: "/plan.html" },
-    { key: "plan-premium", group: "more", points: 3, note: true, href: "/plan.html" },
+    { key: "plan", group: "more", href: "/plan.html", pages: [
+      { points: 4 },
+      { points: 4 },
+      { points: 3, note: true },
+    ] },
   ];
+
+  // 1項目は1ページ以上を持つ。単ページの項目は pages を書かず、上のブロック指定をそのまま1ページとして扱う。
+  // 文言のキーは「単ページ = guide.<key>.*」「複数ページ = guide.<key>.p<n>.*」。単ページ側にまで
+  // p1 を付けると既存の20項目ぶんのキーを機械的に書き換えることになるので、ここだけ規則を分けている。
+  // この2つの規則は pagesOf / prefixOf に閉じ込め、テスト（unit.mjs）も同じ関数を通して必要なキーを出す。
+  const pagesOf = (entry) => entry.pages || [{ steps: entry.steps, points: entry.points, fields: entry.fields, note: entry.note }];
+  const prefixOf = (entry, i) => (entry.pages ? `guide.${entry.key}.p${i + 1}` : `guide.${entry.key}`);
 
   let overlay = null;
   let index = 0;
+  let page = 0;
   let lastFocus = null;
 
   const indexOfKey = (key) => ENTRIES.findIndex((e) => e.key === key);
@@ -87,24 +107,26 @@
     return String(value == null ? "" : value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
-  const tx = (entry, suffix) => escapeText(t(`guide.${entry.key}.${suffix}`));
+  const tx = (prefix, suffix) => escapeText(t(`${prefix}.${suffix}`));
   const times = (n, fn) => Array.from({ length: n || 0 }, (_, i) => fn(i + 1)).join("");
 
   // ---- 説明の本文（部品を並べるだけ。持っていない部品は出さない）--------------------
-  function bodyHtml(entry) {
-    let out = `<p class="guide-lead">${tx(entry, "lead")}</p>`;
-    if (entry.points) {
-      out += `<ul class="guide-points">${times(entry.points, (i) => `<li>${tx(entry, `point${i}`)}</li>`)}</ul>`;
+  function bodyHtml(entry, pageIndex) {
+    const block = pagesOf(entry)[pageIndex];
+    const prefix = prefixOf(entry, pageIndex);
+    let out = `<p class="guide-lead">${tx(prefix, "lead")}</p>`;
+    if (block.points) {
+      out += `<ul class="guide-points">${times(block.points, (i) => `<li>${tx(prefix, `point${i}`)}</li>`)}</ul>`;
     }
-    if (entry.steps) {
-      out += `<ol class="guide-steps">${times(entry.steps, (i) => `<li>${tx(entry, `step${i}`)}</li>`)}</ol>`;
+    if (block.steps) {
+      out += `<ol class="guide-steps">${times(block.steps, (i) => `<li>${tx(prefix, `step${i}`)}</li>`)}</ol>`;
     }
-    if (entry.fields) {
-      out += `<dl class="guide-fields">${times(entry.fields, (i) =>
-        `<dt>${tx(entry, `field${i}.name`)}</dt><dd>${tx(entry, `field${i}.desc`)}</dd>`)}</dl>`;
+    if (block.fields) {
+      out += `<dl class="guide-fields">${times(block.fields, (i) =>
+        `<dt>${tx(prefix, `field${i}.name`)}</dt><dd>${tx(prefix, `field${i}.desc`)}</dd>`)}</dl>`;
     }
-    if (entry.note) {
-      out += `<p class="guide-note"><span class="guide-tag">${escapeText(t("guide.note"))}</span><span>${tx(entry, "note")}</span></p>`;
+    if (block.note) {
+      out += `<p class="guide-note"><span class="guide-tag">${escapeText(t("guide.note"))}</span><span>${tx(prefix, "note")}</span></p>`;
     }
     return out;
   }
@@ -123,29 +145,52 @@
         </div>
         <div class="guide-body" data-guide-body></div>
         <a class="button secondary btn-sm guide-cta" data-guide-cta hidden></a>
+        <div class="guide-foot" data-guide-foot hidden>
+          <button class="button secondary btn-sm" type="button" data-guide-prev></button>
+          <span class="guide-count" data-guide-count></span>
+          <button class="button primary btn-sm" type="button" data-guide-next></button>
+        </div>
       </div>`;
     document.body.appendChild(overlay);
 
     overlay.addEventListener("click", (event) => {
-      if (event.target === overlay || event.target.closest("[data-guide-close]")) close();
+      if (event.target === overlay || event.target.closest("[data-guide-close]")) return close();
+      if (event.target.closest("[data-guide-prev]")) return show(index, page - 1);
+      if (event.target.closest("[data-guide-next]")) return show(index, page + 1);
     });
     // 言語を切り替えたら、開いたまま今の項目を組み直す（閉じて開き直させない）。
-    document.addEventListener("kimaru:languagechange", () => { if (overlay && !overlay.hidden) show(index); });
+    document.addEventListener("kimaru:languagechange", () => { if (overlay && !overlay.hidden) show(index, page); });
   }
 
-  function show(next) {
-    index = Math.max(0, Math.min(ENTRIES.length - 1, next));
+  function show(nextEntry, nextPage = 0) {
+    index = Math.max(0, Math.min(ENTRIES.length - 1, nextEntry));
     const entry = ENTRIES[index];
+    const pages = pagesOf(entry);
+    page = Math.max(0, Math.min(pages.length - 1, nextPage));
     const q = (sel) => overlay.querySelector(sel);
-    q("[data-guide-eyebrow]").textContent = t(`guide.group.${entry.group}`);
-    q("[data-guide-title]").textContent = t(`guide.${entry.key}.title`);
-    q("[data-guide-body]").innerHTML = bodyHtml(entry);
+    // 複数ページの項目は、見出しに今のページ名を出し、項目名は上のラベルへ回す
+    //（見出しが項目名のままだと、送っても同じ画面に見える）。
+    const multi = pages.length > 1;
+    q("[data-guide-eyebrow]").textContent = multi ? t(`guide.${entry.key}.title`) : t(`guide.group.${entry.group}`);
+    q("[data-guide-title]").textContent = multi ? t(`${prefixOf(entry, page)}.title`) : t(`guide.${entry.key}.title`);
+    q("[data-guide-body]").innerHTML = bodyHtml(entry, page);
     const cta = q("[data-guide-cta]");
     cta.hidden = !entry.href;
     if (entry.href) { cta.href = entry.href; cta.textContent = t("guide.open"); }
+    const foot = q("[data-guide-foot]");
+    foot.hidden = !multi;
+    if (multi) {
+      q("[data-guide-count]").textContent = `${page + 1} / ${pages.length}`;
+      const prev = q("[data-guide-prev]");
+      prev.textContent = t("guide.prev");
+      prev.disabled = page === 0;
+      const next = q("[data-guide-next]");
+      next.textContent = t("guide.next");
+      next.disabled = page === pages.length - 1;
+    }
     q(".guide").scrollTop = 0;
-    // 開いている項目をURLに載せる。pushState にしないのは、閉じる操作を「戻る」と
-    // 二重に持たせないため（戻る＝一覧に戻る、でいい）。
+    // 開いている項目をURLに載せる。ページ番号は載せない（案内したいのは説明の単位で、
+    // その何ページ目かではない）。pushState にしないのは、閉じる操作を「戻る」と二重に持たせないため。
     if (location.hash.slice(1) !== entry.key) history.replaceState(null, "", `${location.pathname}${location.search}#${entry.key}`);
   }
 
@@ -154,7 +199,7 @@
     lastFocus = document.activeElement;
     overlay.hidden = false;
     document.body.classList.add("modal-open");
-    show(at);
+    show(at, 0);
     overlay.querySelector("[data-guide-close]").focus();
   }
 
@@ -190,7 +235,7 @@
         <ul class="guide-list">${entries.map((entry) => `
           <li>
             <button class="guide-item" type="button" data-guide-open="${escapeText(entry.key)}">
-              <b>${tx(entry, "title")}</b>
+              <b>${escapeText(t(`guide.${entry.key}.title`))}</b>
             </button>
           </li>`).join("")}</ul>`;
       host.appendChild(section);
@@ -211,7 +256,10 @@
 
   document.addEventListener("keydown", (event) => {
     if (!overlay || overlay.hidden) return;
-    if (event.key === "Escape") { event.preventDefault(); close(); }
+    if (event.key === "Escape") { event.preventDefault(); return close(); }
+    if (pagesOf(ENTRIES[index]).length < 2) return; // 単ページの項目に送りは無い
+    if (event.key === "ArrowRight") { event.preventDefault(); show(index, page + 1); }
+    else if (event.key === "ArrowLeft") { event.preventDefault(); show(index, page - 1); }
   });
 
   // 一覧の描画と、/guide.html#zoom-connect のような直リンク（案内メールから特定の説明へ送れるようにする）。
@@ -232,7 +280,15 @@
   window.KimaruGuide = {
     open,
     close,
+    goto: (p) => show(index, p), // テストから特定のページを出すため
+
     groups: GROUPS,
-    entries: ENTRIES.map((e) => ({ key: e.key, group: e.group, href: e.href || "", steps: e.steps || 0, points: e.points || 0, fields: e.fields || 0, note: Boolean(e.note) })),
+    entries: ENTRIES.map((e) => ({
+      key: e.key,
+      group: e.group,
+      href: e.href || "",
+      // ページごとの部品と、そのページの文言キーの接頭辞。テストはこれを見て必要なキーを組み立てる。
+      pages: pagesOf(e).map((b, i) => ({ prefix: prefixOf(e, i), steps: b.steps || 0, points: b.points || 0, fields: b.fields || 0, note: Boolean(b.note) })),
+    })),
   };
 })();

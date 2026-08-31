@@ -961,14 +961,18 @@ section("analytics dashboard (#343)");
   const stats = await page.textContent("#overview-stats");
   ok("サマリーにアカウント数が出る", stats.includes("42"));
   // 「有料」は2つの意味を持つ。無償のCat Keyが「転換した」ように見えないよう、率は売上ベースで出す（#349）。
-  ok("サマリーの率は売上ベース（課金転換率）", stats.includes("19%") && stats.includes("課金転換率"));
-  ok("有料プランの内訳に課金とCat Keyが並ぶ", stats.includes("課金 8") && stats.includes("Cat Key 4"));
+  ok("サマリーの率は売上ベース（課金しているアカウントの割合）", stats.includes("19%") && stats.includes("課金しているアカウントの割合"));
+  ok("有料プランの内訳に課金とCat Keyが並ぶ", stats.includes("課金 8件") && stats.includes("Cat Key（無償） 4件"));
   ok("サマリーは予約の累計を出す", stats.includes("120") && stats.includes("11.7%"));
+  // 主語（誰の・何の数字か）と期間をタイトルに入れる。「登録ユーザー」「予約の累計」だけでは何を数えたか読めない。
+  ok("タイトルに主語と期間が入る",
+    ["登録アカウント（累計）", "有料プランのアカウント（累計）", "登録された予約（累計）"].every((label) => stats.includes(label)));
+  ok("単位の凡例を画面に出す", (await page.textContent("#unit-legend")).includes("件＝アカウント"));
   // #355: 全体像として「登録・有料・初期設定未完・アクセス」がサマリーに並ぶ
-  ok("初期設定が未完了の件数が出る", stats.includes("初期設定が未完了") && stats.includes("15"));
+  ok("初期設定が未完了の件数が出る", stats.includes("初期設定が終わっていないアカウント") && stats.includes("15"));
   // #355: アクセスは全画面の合計ではなく、予約の前後で使う4画面ぶん（合計は添え物として併記）
-  ok("画面のアクセスは4画面ぶんを直近30日で出す", stats.includes("4画面のアクセス") && stats.includes("620") && stats.includes("直近30日"));
-  ok("全画面の合計は添え物として併記する", stats.includes("全画面では 1,200回"));
+  ok("画面のアクセスは4画面ぶんを直近30日で出す", stats.includes("主要4画面の表示数（直近30日）") && stats.includes("620"));
+  ok("全画面の合計は添え物として併記する", stats.includes("全画面の合計では 1,200回"));
   ok("増減は矢印つきで出る", stats.includes("▲") && stats.includes("前月比"));
   ok("プランの構成がドーナツで出る", (await page.locator("#chart-plan-mix svg circle").count()) === 3);
   ok("ドーナツの中央に総数が出る", (await page.textContent("#chart-plan-mix")).includes("42"));
@@ -1026,7 +1030,7 @@ section("analytics dashboard (#343)");
   ok("コホートの転換率が出る", cohorts.includes("31.8%"));
   const planSource = await page.textContent("#plan-source-list");
   ok("プランごとに課金とCat Keyを分けて出す", planSource.includes("Pro") && planSource.includes("6") && planSource.includes("3"));
-  ok("無償の有料会員がまとめて出る", (await page.textContent("#revenue-stats")).includes("無償の有料会員"));
+  ok("無償の有料会員がまとめて出る", (await page.textContent("#revenue-stats")).includes("無償で有料プランのアカウント"));
 
   const limitHits = await page.textContent("#limit-hits-list");
   ok("有料の壁が機能別に出る", limitHits.includes("予約ページの数") && limitHits.includes("12"));

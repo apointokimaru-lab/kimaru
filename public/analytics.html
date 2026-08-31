@@ -27,7 +27,9 @@
       <header class="op-page-head">
         <p class="eyebrow">Admin / Analytics</p>
         <h1>分析ダッシュボード</h1>
-        <p class="lead">経営判断と機能改善の優先順位づけに使う数字をまとめています。サマリーは全体（累計）、ほかの3つは選んだ期間で集計します。</p>
+        <p class="lead">経営判断と機能改善の優先順位づけに使う数字をまとめています。サマリーは<strong>サービス全体の累計</strong>、ほかの4つ（獲得・定着・収益・機能）は<strong>選んだ期間</strong>で集計します。</p>
+        <!-- 単位の凡例（#355）。「7件」が何の7件かはタイトルに書くが、件・回・人の別はここで一度だけ決めておく。 -->
+        <p class="muted" id="unit-legend" style="margin:6px 0 0;">単位は <strong>件＝アカウント（キマルに登録したホスト）</strong>／<strong>回＝画面の表示数（PV・同じ人の再訪を含む）</strong>／<strong>人（延べ）＝日ごとに重複を除いた訪問者の合計</strong>です。</p>
         <div class="op-range" id="range-buttons" role="group" aria-label="集計期間">
           <button type="button" data-days="7">7日</button>
           <button type="button" data-days="30">30日</button>
@@ -40,7 +42,7 @@
       <section id="view-overview" class="op-view panel">
         <p class="eyebrow">Overview</p>
         <h2>サマリー</h2>
-        <p class="muted" style="margin:2px 0 0;">サービス全体の累計です（期間では絞りません）。推移は直近12ヶ月、画面のアクセスだけは直近30日・4画面（トップ／プラン比較／相手管理／事前の情報確認）で見ます。</p>
+        <p class="muted" style="margin:2px 0 0;">数字はすべて<strong>サービス全体の累計</strong>です（上の期間ボタンでは絞りません）。推移だけ直近12ヶ月、画面の表示数だけ直近30日・4画面（トップ／プラン比較／相手管理／事前の情報確認）で見ます。</p>
 
         <div class="op-north" id="northstar"></div>
 
@@ -52,14 +54,14 @@
              構成はドーナツ、時間の変化は折れ線・棒、と形を分けて出す。 -->
         <div class="op-trio" style="margin-top:24px;">
           <div class="op-block">
-            <h3>プランの構成</h3>
-            <p class="muted">アカウントを現在のプランで割ったもの。中央は総数です。</p>
+            <h3>アカウントのプラン内訳（累計）</h3>
+            <p class="muted">登録アカウントを、いま入っているプランで割ったもの。中央は登録アカウントの総数です。</p>
             <div class="op-chart is-donut" id="chart-plan-mix"></div>
             <div class="op-legend" id="plan-mix-legend"></div>
           </div>
           <div class="op-block">
-            <h3>初期設定の進み具合</h3>
-            <p class="muted">稼働中アカウントを、終わっている段の数で割ったもの。中央は3つとも終わった割合です。</p>
+            <h3>稼働中アカウントの初期設定の進み具合</h3>
+            <p class="muted">稼働中アカウントを、終わっている段（カレンダー連携／予約ページ／プロフィール）の数で割ったもの。中央は3つとも終わった人の割合です。</p>
             <div class="op-chart is-donut" id="chart-setup"></div>
             <div class="op-legend" id="setup-legend"></div>
             <div class="op-empty" id="setup-empty" hidden></div>
@@ -68,8 +70,8 @@
                合計はLPとゲストの予約ページが大半を占めるので、増減を見ても「予約が入る前と後で
                キマルの画面が使われているか」が読めない。 -->
           <div class="op-block">
-            <h3>画面のアクセス（直近30日）</h3>
-            <p class="muted">予約が入る前（検討）と入った後（準備）に使う4画面だけ。棒はいちばん多い画面を100%とした比、数字は表示数、UUは訪問者数（延べ）です。</p>
+            <h3>主要4画面の表示数（直近30日）</h3>
+            <p class="muted">予約が入る前（検討）と入った後（準備）に使う4画面だけ。棒はいちばん多い画面を100%とした長さ、数字は表示数（回）、UUは訪問者数（人・延べ）です。</p>
             <div class="op-funnel is-compact" id="usage-30-pages"></div>
             <div class="op-empty" id="usage-30-empty" hidden></div>
           </div>
@@ -77,20 +79,20 @@
 
         <div class="op-split" style="margin-top:24px;">
           <div class="op-block">
-            <h3>日程が決まった数の推移</h3>
-            <p class="muted">月ごとに成立した予約（キャンセルを除く・直近12ヶ月）。</p>
+            <h3>月ごとに成立した予約の件数（直近12ヶ月）</h3>
+            <p class="muted">キャンセルは含みません。</p>
             <div class="op-chart" id="chart-northstar"></div>
           </div>
           <div class="op-block">
-            <h3>登録数の推移</h3>
-            <p class="muted">月ごとに増えたアカウント数（JST・直近12ヶ月）。</p>
+            <h3>月ごとに増えた登録アカウントの件数（直近12ヶ月）</h3>
+            <p class="muted">登録日（JST）で数えています。</p>
             <div class="op-chart" id="chart-signups"></div>
           </div>
         </div>
 
         <div style="margin-top:26px;">
-          <h3 style="margin:0 0 2px;">初期設定で止まっている段</h3>
-          <p class="muted" style="margin:0;">稼働中アカウントのうち、その設定が終わっていない人数。ダッシュボードの初期設定カードと同じ3つで数えています。1人が複数の段で止まっていることがあるので、合計は未完了の人数と一致しません。</p>
+          <h3 style="margin:0 0 2px;">初期設定で止まっているアカウントの件数（段ごと）</h3>
+          <p class="muted" style="margin:0;">稼働中アカウントのうち、その設定が終わっていない件数。ダッシュボードの初期設定カードと同じ3つで数えています。1つのアカウントが複数の段で止まっていることがあるので、合計は「初期設定が終わっていないアカウント」の件数と一致しません。</p>
           <div class="op-funnel" id="setup-steps"></div>
         </div>
       </section>
@@ -98,29 +100,29 @@
       <section id="view-acquisition" class="op-view panel">
         <p class="eyebrow">Acquisition</p>
         <h2>獲得</h2>
-        <p class="muted" style="margin:2px 0 0;">どこから来て、どこで帰っているか。露出先とLP・登録フォームの直し所を決めます。</p>
+        <p class="muted" style="margin:2px 0 0;">登録するまでに、どこから来て、どこで帰っているか。露出先とLP・登録フォームの直し所を決めます。数字は<strong>選んだ期間</strong>の登録アカウントと画面の表示数です。</p>
         <div class="op-stats" id="acquisition-stats"></div>
         <div class="op-split" style="margin-top:24px;">
           <div class="op-block">
-            <h3>登録までのファネル</h3>
+            <h3>LPから登録までの段ごとの数（選んだ期間）</h3>
             <!-- 右の小さい数字を「先頭からの到達率」から「前の段からの通過率」に変えた。
                  到達率は棒の長さで見えているので数字にすると重複し、どの段で落ちたかが読めなかった。 -->
-            <p class="muted">棒は先頭の段を100%とした長さ、右の小さい数字は<strong>前の段からの通過率</strong>です。落ちている段が直す場所。登録完了だけは実際のアカウント数（計測が欠けても正しい値）、表示数は同じ人の再訪を含みます。</p>
+            <p class="muted">棒は先頭の段を100%とした長さ、右の小さい数字は<strong>前の段からの通過率</strong>です。落ちている段が直す場所。上3段は画面の表示数（回・同じ人の再訪を含む）、登録完了はアカウントの実数（件・計測が欠けても正しい値）。</p>
             <div class="op-funnel is-compact" id="acquisition-funnel"></div>
             <p class="op-funnel-note" id="acquisition-funnel-note" hidden></p>
             <div class="op-empty" id="acquisition-funnel-empty" hidden></div>
           </div>
           <div class="op-block">
-            <h3>流入元ごとの登録数</h3>
-            <p class="muted">登録した人が最初に来た外部サイト。「(不明)」は計測を入れる前の登録と、直接アクセスです。右の小さい数字は登録数に占める割合。</p>
+            <h3>登録アカウントの流入元（選んだ期間）</h3>
+            <p class="muted">登録した人が<strong>最初に</strong>キマルへ来た外部サイト。「(不明)」は計測を入れる前の登録と、直接アクセスです。棒はいちばん多い流入元を100%とした長さ、右の小さい数字は登録数に占める割合。</p>
             <!-- 表から横棒へ。流入元は数行しか無いことが多く、表だと1行だけが広い枠に浮いて読みにくかった。 -->
             <div class="op-funnel is-compact" id="signup-sources-list"></div>
             <div class="op-empty" id="signup-sources-empty" hidden></div>
           </div>
         </div>
         <div style="margin-top:26px;">
-          <h3 style="margin:0 0 2px;">登録数の推移</h3>
-          <p class="muted" style="margin:0;">選んだ期間の日別。</p>
+          <h3 style="margin:0 0 2px;">日ごとに登録したアカウントの件数（選んだ期間）</h3>
+          <p class="muted" style="margin:0;">登録日（JST）で数えています。</p>
           <div class="op-chart" id="chart-signups-daily"></div>
         </div>
       </section>
@@ -128,41 +130,41 @@
       <section id="view-retention" class="op-view panel">
         <p class="eyebrow">Retention</p>
         <h2>定着</h2>
-        <p class="muted" style="margin:2px 0 0;">登録した人が最初の1件までたどり着き、そのあとも使い続けているか。稼働中アカウントは <span id="activation-denominator">-</span> 件です。</p>
+        <p class="muted" style="margin:2px 0 0;">登録したアカウントが最初の予約1件までたどり着き、そのあとも使い続けているか。この画面の母数（稼働中アカウント）は <span id="activation-denominator">-</span> 件です。</p>
 
-        <h3 style="margin:24px 0 2px;">立ち上がり</h3>
-        <p class="muted" style="margin:0;">急に落ちる段が、いま直すべき画面です。到達率は「一度でも作った」を数えるので、初回予約までの日数と並べて読みます。</p>
+        <h3 style="margin:24px 0 2px;">稼働中アカウントが立ち上がるまでの到達率（段ごと）</h3>
+        <p class="muted" style="margin:0;">急に落ちる段が、いま直すべき画面です。到達率は「一度でも作った」を数えるので、登録から初回予約までの日数と並べて読みます。</p>
         <div class="op-funnel" id="activation-funnel"></div>
         <div class="op-stats" id="activation-stats" style="margin-top:20px;"></div>
 
         <div style="margin-top:26px;">
           <div class="op-section-head">
-            <h3 style="margin:0 0 2px;">予約が1件も入っていないアカウント <span id="stuck-count" class="op-count"></span></h3>
+            <h3 style="margin:0 0 2px;">予約が1件も入っていない稼働中アカウント <span id="stuck-count" class="op-count"></span></h3>
           </div>
           <p class="muted" style="margin:0;">どの段で止まっているか別。声をかける宛先としてそのまま使えます。</p>
           <div class="op-table-wrap" style="margin-top:12px;">
             <table class="op-table">
-              <thead><tr><th>止まっている段</th><th>名前</th><th>メール</th><th>プラン</th><th>登録</th></tr></thead>
+              <thead><tr><th>止まっている段</th><th>名前</th><th>メール</th><th>プラン</th><th>登録日</th></tr></thead>
               <tbody id="stuck-list"></tbody>
             </table>
           </div>
         </div>
 
-        <h3 style="margin:30px 0 2px;">継続</h3>
-        <p class="muted" style="margin:0;">画面を開いた・予約が入った人の数。計測（#342）を入れた日より前は記録がありません。</p>
+        <h3 style="margin:30px 0 2px;">立ち上がったあと使い続けているか</h3>
+        <p class="muted" style="margin:0;">管理画面を開いた・予約が入ったアカウントの数で見ます。計測（#342）を入れた日より前は記録がありません。</p>
         <div class="op-split" style="margin-top:14px;">
           <div class="op-block">
-            <h3>週ごとのアクティブなアカウント</h3>
-            <p class="muted">その週に管理画面を開いた、または予約が入った人数。</p>
+            <h3>週ごとに動きのあったアカウントの件数</h3>
+            <p class="muted">その週に管理画面を開いた、または予約が入ったアカウントの数。</p>
             <div class="op-chart" id="chart-wah"></div>
             <div class="op-empty" id="wah-empty" hidden></div>
           </div>
           <div class="op-block">
             <h3>30日以上動きのないアカウント <span id="dormant-count" class="op-count"></span></h3>
-            <p class="muted">解約や離脱の前触れ。掘り起こしの宛先です。</p>
+            <p class="muted">最後に画面を開いた日から30日以上たったアカウント。解約や離脱の前触れで、掘り起こしの宛先になります。</p>
             <div class="op-table-wrap" style="margin-top:12px;">
               <table class="op-table">
-                <thead><tr><th>名前</th><th>メール</th><th>プラン</th><th>最後の動き</th></tr></thead>
+                <thead><tr><th>名前</th><th>メール</th><th>プラン</th><th>最後に動きがあった日</th></tr></thead>
                 <tbody id="dormant-list"></tbody>
               </table>
             </div>
@@ -173,38 +175,38 @@
       <section id="view-revenue" class="op-view panel">
         <p class="eyebrow">Revenue</p>
         <h2>収益</h2>
-        <p class="muted" style="margin:2px 0 0;">無料の人はなぜ払わないのか、払った人は続いているか。価格とプランの境界を決めます。</p>
+        <p class="muted" style="margin:2px 0 0;">無料のアカウントはなぜ払わないのか、払ったアカウントは続いているか。価格とプランの境界を決めます。件数は<strong>累計</strong>、解約イベントだけ<strong>選んだ期間</strong>です。</p>
         <div class="op-stats" id="revenue-stats"></div>
 
         <div style="margin-top:26px;">
-          <h3 style="margin:0 0 2px;">有料プランの出どころ</h3>
+          <h3 style="margin:0 0 2px;">有料プランのアカウントの出どころ（累計）</h3>
           <p class="muted" style="margin:0;">同じ「Pro」でも、課金と Cat Key（無償）では売上への意味がまったく違います。運営コンソールから手で付けたぶんは「運営付与」。</p>
           <div class="op-table-wrap" style="margin-top:12px;">
             <table class="op-table">
-              <thead><tr><th>プラン</th><th>課金</th><th>Cat Key（無償）</th><th>運営付与（無償）</th><th>合計</th></tr></thead>
+              <thead><tr><th>プラン</th><th>課金（件）</th><th>Cat Key・無償（件）</th><th>運営付与・無償（件）</th><th>合計（件）</th></tr></thead>
               <tbody id="plan-source-list"></tbody>
             </table>
           </div>
         </div>
 
         <div style="margin-top:26px;">
-          <h3 style="margin:0 0 2px;">有料の壁に当たった回数</h3>
+          <h3 style="margin:0 0 2px;">無料・Proが有料の壁に当たった回数（選んだ期間）</h3>
           <p class="muted" style="margin:0;">上限や有料機能にぶつかった記録（#342）。回数の多い機能が、いま値付けをすべき場所です。プランは<strong>ぶつかった時点</strong>のもの。</p>
           <div class="op-table-wrap" style="margin-top:12px;">
             <table class="op-table">
-              <thead><tr><th>機能</th><th>当時のプラン</th><th>回数</th><th>延べ人数</th></tr></thead>
+              <thead><tr><th>機能</th><th>当時のプラン</th><th>回数（回）</th><th>ぶつかったアカウント（件）</th></tr></thead>
               <tbody id="limit-hits-list"></tbody>
             </table>
           </div>
         </div>
 
         <div style="margin-top:26px;">
-          <h3 style="margin:0 0 2px;">登録月ごとの有料転換率</h3>
-          <p class="muted" style="margin:0;">全体の転換率は母数の大きい古い月に薄まるため、登録した月ごとに分けて見ます。</p>
+          <h3 style="margin:0 0 2px;">登録した月ごとに有料プランへ進んだ割合（累計）</h3>
+          <p class="muted" style="margin:0;">全体の転換率は母数の大きい古い月に薄まるため、登録した月ごとに分けて見ます。右端の割合は<strong>Cat Keyなど無償の付与も含む</strong>「有料プラン」の割合で、実際の支払いは「うち課金」の列です。</p>
           <div class="op-table-wrap" style="margin-top:12px;">
             <table class="op-table">
               <thead>
-                <tr><th>登録月</th><th>登録数</th><th>うち有料</th><th>うち課金</th><th>転換率</th></tr>
+                <tr><th>登録月</th><th>登録数（件）</th><th>うち有料プラン（件）</th><th>うち課金（件）</th><th>有料プランの割合</th></tr>
               </thead>
               <tbody id="cohort-list"></tbody>
             </table>
@@ -215,14 +217,14 @@
       <section id="view-features" class="op-view panel">
         <p class="eyebrow">Features</p>
         <h2>機能</h2>
-        <p class="muted" style="margin:2px 0 0;">作ったものは使われているか。次に作るもの・手を入れるもの・畳むものを決めます。</p>
+        <p class="muted" style="margin:2px 0 0;">作った機能と画面は使われているか。次に作るもの・手を入れるもの・畳むものを決めます。採用率は<strong>累計</strong>、画面の数字は<strong>選んだ期間</strong>です。</p>
 
         <div style="margin-top:20px;">
-          <h3 style="margin:0 0 2px;">機能ごとの採用率</h3>
-          <p class="muted" style="margin:0;">稼働中アカウントのうち、その機能を使ったことがある割合。</p>
+          <h3 style="margin:0 0 2px;">機能を使ったことがある稼働中アカウントの割合（累計）</h3>
+          <p class="muted" style="margin:0;">一度でも使えば数えます（いま使っているかは見ません）。</p>
           <div class="op-table-wrap" style="margin-top:12px;">
             <table class="op-table">
-              <thead><tr><th>機能</th><th>使ったアカウント</th><th>採用率</th></tr></thead>
+              <thead><tr><th>機能</th><th>使ったアカウント（件）</th><th>稼働中に占める割合</th></tr></thead>
               <tbody id="adoption-list"></tbody>
             </table>
           </div>
@@ -231,19 +233,19 @@
         <div id="screens-body">
           <div class="op-split" style="margin-top:26px;">
             <div class="op-block">
-              <h3>表示数と訪問者数</h3>
-              <p class="muted">訪問者数は日ごとに重複を除いた数の合計（延べ）です。</p>
+              <h3>全画面の表示数と訪問者数（日ごと・選んだ期間）</h3>
+              <p class="muted">表示数は同じ人の再訪を含みます。訪問者数は日ごとに重複を除いた数の合計（延べ）です。</p>
               <div class="op-chart" id="chart-usage"></div>
               <div class="op-legend" id="usage-legend"></div>
             </div>
             <div class="op-block">
-              <h3>ゲストの予約ファネル</h3>
-              <p class="muted">予約ページを見た人のうち、予約まで進んだ割合。ここは1件の改善が全ホストに効きます。</p>
+              <h3>ゲストが予約ページを見てから予約するまで（選んだ期間）</h3>
+              <p class="muted">予約ページの表示数のうち、予約が成立した件数。ここは1件の改善が全ホストに効きます。</p>
               <div class="op-funnel" id="booking-funnel"></div>
-              <h3 style="margin-top:22px;">端末</h3>
+              <h3 style="margin-top:22px;">表示数の端末内訳（選んだ期間）</h3>
               <div class="op-table-wrap" style="margin-top:12px;">
                 <table class="op-table">
-                  <thead><tr><th>端末</th><th>表示数</th><th>割合</th></tr></thead>
+                  <thead><tr><th>端末</th><th>表示数（回）</th><th>割合</th></tr></thead>
                   <tbody id="devices-list"></tbody>
                 </table>
               </div>
@@ -251,18 +253,18 @@
           </div>
 
           <div style="margin-top:26px;">
-            <h3 style="margin:0 0 2px;">画面別</h3>
+            <h3 style="margin:0 0 2px;">画面ごとの表示数と訪問者数（選んだ期間）</h3>
             <div class="op-table-wrap" style="margin-top:12px;">
               <table class="op-table">
-                <thead><tr><th>画面</th><th>表示数</th><th>訪問者数（延べ）</th></tr></thead>
+                <thead><tr><th>画面</th><th>表示数（回）</th><th>訪問者数（人・延べ）</th></tr></thead>
                 <tbody id="pages-list"></tbody>
               </table>
             </div>
           </div>
 
           <div style="margin-top:26px;">
-            <h3 style="margin:0 0 2px;">画面 × プラン</h3>
-            <p class="muted" style="margin:0;">どのプランの人がその画面を使っているか。機能をどのプランに置くかの判断に使います。</p>
+            <h3 style="margin:0 0 2px;">画面ごとの表示数のプラン内訳（選んだ期間）</h3>
+            <p class="muted" style="margin:0;">どのプランのアカウントがその画面を使っているか。機能をどのプランに置くかの判断に使います。</p>
             <div class="op-legend" id="plan-legend"></div>
             <div class="op-table-wrap" style="margin-top:12px;">
               <table class="op-table">
@@ -273,11 +275,11 @@
           </div>
 
           <div style="margin-top:26px;">
-            <h3 style="margin:0 0 2px;">閲覧の流入元</h3>
+            <h3 style="margin:0 0 2px;">画面表示の流入元（選んだ期間）</h3>
             <p class="muted" style="margin:0;">外部サイトのホスト名のみ（(direct) は直接アクセス・リファラなし）。登録に至ったかは「獲得」で見ます。</p>
             <div class="op-table-wrap" style="margin-top:12px;">
               <table class="op-table">
-                <thead><tr><th>流入元</th><th>表示数</th></tr></thead>
+                <thead><tr><th>流入元</th><th>表示数（回）</th></tr></thead>
                 <tbody id="sources-list"></tbody>
               </table>
             </div>
@@ -499,10 +501,10 @@
       const delta = north.bookings - north.prev_bookings;
       const sign = delta > 0 ? "＋" : delta < 0 ? "−" : "±";
       document.querySelector('#northstar').innerHTML = `
-        <p class="op-north-label">今月（${escapeHtml(north.month)}）日程が決まった数</p>
+        <p class="op-north-label">今月（${escapeHtml(north.month)}）に成立した予約の件数</p>
         <div class="op-north-figures">
           <span class="op-north-value">${num(north.bookings)}<span class="op-unit">件</span></span>
-          <span class="op-north-sub">決まったアカウント <strong>${num(north.owners)}</strong>件</span>
+          <span class="op-north-sub">予約が入ったアカウント <strong>${num(north.owners)}</strong>件</span>
           <span class="op-north-sub">前月 ${num(north.prev_bookings)}件・${escapeHtml(sign)}${num(Math.abs(delta))}件</span>
         </div>
         <p class="op-north-note">キャンセルは含みません。登録数やMRRより先にこの数字を見ます（登録は無料で溜まり、MRRは結果が遅れて出るため）。</p>`;
@@ -516,26 +518,26 @@
       const usageReady = Boolean(data.usage && data.usage.available && summary);
 
       document.querySelector('#overview-stats').innerHTML = [
-        stat('登録ユーザー', num(accounts.total), '件',
-          `${signupsThisMonth == null ? '' : `今月 ${num(signupsThisMonth)}件・`}稼働中 ${num(accounts.active)}・停止 ${num(accounts.disabled)}`, null,
+        stat('登録アカウント（累計）', num(accounts.total), '件',
+          `${signupsThisMonth == null ? '' : `今月の登録 ${num(signupsThisMonth)}件・`}稼働中 ${num(accounts.active)}件・停止 ${num(accounts.disabled)}件`, null,
           deltaChip(signupsThisMonth, signupsPrevMonth, '今月の登録・前月比')),
         // 「有料」は2つの意味を持つ（有料プランの機能を使える人／実際に払っている人）。
         // 同じ言葉で1つの率にすると、無償のCat Keyが「転換した」ように見えて価格判断を誤る（#349）。
-        stat('有料ユーザー', num(accounts.paid), '件', `課金 ${num(accounts.paying)}・Cat Key ${num(accounts.cat_key_paid)}${accounts.granted_other ? `・その他 ${num(accounts.granted_other)}` : ''}`, accounts.paid_rate),
-        stat('課金転換率', pct(accounts.paying_rate), '', `売上になっているのは ${num(accounts.paying)} / ${num(accounts.total)}件`, accounts.paying_rate),
-        stat('MRR（概算）', revenue.available ? `¥${num(revenue.mrr_estimate)}` : '—', '', revenue.available ? `課金 ${num(revenue.paying_total)}件・無償 ${num(revenue.cat_key_paid + revenue.granted_other)}件` : '決済イベントを取得できません'),
+        stat('有料プランのアカウント（累計）', num(accounts.paid), '件', `Pro＋プレミアム。うち課金 ${num(accounts.paying)}件・Cat Key（無償） ${num(accounts.cat_key_paid)}件${accounts.granted_other ? `・運営付与（無償） ${num(accounts.granted_other)}件` : ''}`, accounts.paid_rate),
+        stat('課金しているアカウントの割合', pct(accounts.paying_rate), '', `支払いがあるのは 登録 ${num(accounts.total)}件のうち ${num(accounts.paying)}件（無償の有料会員は含みません）`, accounts.paying_rate),
+        stat('月あたりの売上（概算）', revenue.available ? `¥${num(revenue.mrr_estimate)}` : '—', '', revenue.available ? `課金 ${num(revenue.paying_total)}件 × 定価。無償の有料会員 ${num(revenue.cat_key_paid + revenue.granted_other)}件は含みません` : '決済イベントを取得できません'),
         // 初期設定（#353 の3ステップ）が終わっていない人。ここが多いほど「登録はしたが受付を始められていない」。
-        stat('初期設定が未完了', setup.available ? num(setup.incomplete) : '—', '件', setup.available
-          ? `稼働中 ${num(setup.denominator)}件のうち・3つとも完了 ${num(setup.done)}件`
+        stat('初期設定が終わっていないアカウント', setup.available ? num(setup.incomplete) : '—', '件', setup.available
+          ? `稼働中 ${num(setup.denominator)}件のうち。3つとも完了は ${num(setup.done)}件`
           : '連携・プロフィール・予約ページのどれかを取得できません', setup.done_rate),
         // 画面のアクセスは4画面ぶん（トップ・プラン比較・相手管理・事前の情報確認）。全画面の合計は
         // ゲストの予約ページとLPで埋まるので、タイルの数字にすると予約前後の使われ方が読めない（#355）。
-        stat('4画面のアクセス', usageReady ? num(summary.focus_views) : '—', '回', usageReady
-          ? `直近30日・訪問者 ${num(summary.focus_visitors)}件（延べ）・全画面では ${num(summary.all_views)}回`
+        stat('主要4画面の表示数（直近30日）', usageReady ? num(summary.focus_views) : '—', '回', usageReady
+          ? `訪問者 ${num(summary.focus_visitors)}人（延べ）。全画面の合計では ${num(summary.all_views)}回`
           : '画面の計測待ち（page_events）', null,
           usageReady ? deltaChip(summary.focus_views, summary.focus_prev_views, '前の30日比') : ''),
-        stat('予約の累計', data.bookings.available ? num(data.bookings.total_all_time) : '—', '件', data.bookings.available ? `キャンセル率 ${pct(data.bookings.cancel_rate_all_time)}` : '予約を取得できません'),
-        stat('承認待ち Cat Key', num(accounts.pending_cat_key), '件', accounts.pending_cat_key > 0 ? '運営コンソールで承認できます' : '未対応の申請はありません'),
+        stat('登録された予約（累計）', data.bookings.available ? num(data.bookings.total_all_time) : '—', '件', data.bookings.available ? `キャンセル済みを含む。キャンセル率 ${pct(data.bookings.cancel_rate_all_time)}` : '予約を取得できません'),
+        stat('Cat Keyの承認待ち申請', num(accounts.pending_cat_key), '件', accounts.pending_cat_key > 0 ? '運営が承認するとProになります（Cat Key認証の画面）' : '未対応の申請はありません'),
       ].join('');
 
       // プランの構成（ドーナツ）。系列色は画面ぜんぶで固定（無料=青／Pro=橙／プレミアム=緑）。
@@ -615,16 +617,18 @@
       const signupRate = usage.available && signupViews > 0
         ? Math.round((accounts.signups_in_range / signupViews) * 1000) / 10 : null;
       document.querySelector('#acquisition-stats').innerHTML = [
-        stat(`登録（直近${days}日）`, num(accounts.signups_in_range), '件', `累計 ${num(accounts.total)}件`),
+        stat(`新しく登録したアカウント（直近${days}日）`, num(accounts.signups_in_range), '件', `登録アカウントの累計 ${num(accounts.total)}件`),
         // 「—」だけだと壊れて見えるので、出せない理由（計測が無い／表示が0回）まで書く。
-        stat('登録画面からの完了率', signupRate == null ? '—' : pct(signupRate), '',
+        stat('登録画面を開いた人が登録した割合', signupRate == null ? '—' : pct(signupRate), '',
           !usage.available ? '画面の計測待ち（page_events）'
-            : signupViews > 0 ? `登録画面の表示 ${num(signupViews)}回のうち`
+            : signupViews > 0 ? `登録画面の表示 ${num(signupViews)}回に対して 登録 ${num(accounts.signups_in_range)}件`
             : '登録画面の表示が0回のため出せません', signupRate),
-        stat('流入元が分かる登録', num(data.acquisition.source_known), '件',
+        stat('流入元が分かった登録アカウント', num(data.acquisition.source_known), '件',
           `直近${days}日の登録 ${num(accounts.signups_in_range)}件のうち`,
           share(data.acquisition.source_known, accounts.signups_in_range)),
-        stat('メール確認済み', pct(accounts.email_verified_rate), '', `${num(accounts.email_verified)}件が確認済み`, accounts.email_verified_rate),
+        // 「メール確認済み」だけでは何の確認か分からない（#355の問い）。確認リンクを踏んだ人だと分かる名前にし、
+        // Googleログインで登録した人には確認メールを送っていない＝対象外であることも書く。
+        stat('メール確認リンクを踏んだアカウント（累計）', pct(accounts.email_verified_rate), '', `登録アカウント ${num(accounts.total)}件のうち ${num(accounts.email_verified)}件。Googleログインで登録した人は対象外`, accounts.email_verified_rate),
       ].join('');
 
       const funnelEmpty = document.querySelector('#acquisition-funnel-empty');
@@ -676,10 +680,10 @@
       const ttfb = data.activation.time_to_first_booking;
       const retention = data.retention;
       document.querySelector('#activation-stats').innerHTML = [
-        stat('初回予約までの日数', ttfb.median == null ? '—' : String(ttfb.median), '日', ttfb.samples ? `中央値（${num(ttfb.samples)}件：${ttfb.p25}〜${ttfb.p75}日）` : 'まだ予約が入ったアカウントがありません'),
-        stat('予約0のアカウント', num(data.activation.stuck_total), '件', `稼働中 ${num(data.activation.denominator)}件のうち`),
-        stat('2回目が入った割合', pct(retention.repeat_rate), '', `${num(retention.owners_with_repeat)} / ${num(retention.owners_with_booking)}件`, retention.repeat_rate),
-        stat('30日動きなし', retention.dormant_total == null ? '—' : num(retention.dormant_total), '件', retention.dormant_total == null ? '足あとの計測待ち' : '掘り起こしの宛先'),
+        stat('登録から初回予約までの日数（中央値）', ttfb.median == null ? '—' : String(ttfb.median), '日', ttfb.samples ? `予約が入った ${num(ttfb.samples)}件の中央値（早い順25%〜75%で ${ttfb.p25}〜${ttfb.p75}日）` : 'まだ予約が入ったアカウントがありません'),
+        stat('予約が1件も入っていないアカウント', num(data.activation.stuck_total), '件', `稼働中 ${num(data.activation.denominator)}件のうち`),
+        stat('2件目の予約が入ったアカウントの割合', pct(retention.repeat_rate), '', `予約が入った ${num(retention.owners_with_booking)}件のうち ${num(retention.owners_with_repeat)}件`, retention.repeat_rate),
+        stat('30日以上動きのないアカウント', retention.dormant_total == null ? '—' : num(retention.dormant_total), '件', retention.dormant_total == null ? '足あとの計測待ち（page_events）' : '最後に画面を開いた日から30日以上。掘り起こしの宛先'),
       ].join('');
 
       const stuck = data.activation.stuck || [];
@@ -722,12 +726,12 @@
       const revenue = data.revenue;
       const toPaid = revenue.days_to_paid;
       document.querySelector('#revenue-stats').innerHTML = [
-        stat('課金 Pro', num(revenue.paying_pro), '件', `¥${num(revenue.price.pro)}/月`),
-        stat('課金 プレミアム', num(revenue.paying_premium), '件', `¥${num(revenue.price.premium)}/月`),
-        stat('無償の有料会員', num(revenue.cat_key_paid + revenue.granted_other), '件', `Cat Key ${num(revenue.cat_key_paid)}・運営付与 ${num(revenue.granted_other)}`),
-        stat('登録→課金までの日数', toPaid.median == null ? '—' : String(toPaid.median), '日', toPaid.samples ? `中央値（${num(toPaid.samples)}件：${toPaid.p25}〜${toPaid.p75}日）` : '課金の実績がまだありません'),
-        stat(`解約イベント（直近${days}日）`, num(revenue.cancel_events_in_range), '件', `累計 ${num(revenue.cancel_events)}件`),
-        stat('MRR（概算）', `¥${num(revenue.mrr_estimate)}`, '', `課金 ${num(revenue.paying_total)}件`),
+        stat('Proを課金しているアカウント', num(revenue.paying_pro), '件', `¥${num(revenue.price.pro)}/月`),
+        stat('プレミアムを課金しているアカウント', num(revenue.paying_premium), '件', `¥${num(revenue.price.premium)}/月`),
+        stat('無償で有料プランのアカウント', num(revenue.cat_key_paid + revenue.granted_other), '件', `Cat Key ${num(revenue.cat_key_paid)}件・運営付与 ${num(revenue.granted_other)}件。売上には入りません`),
+        stat('登録から初回課金までの日数（中央値）', toPaid.median == null ? '—' : String(toPaid.median), '日', toPaid.samples ? `課金した ${num(toPaid.samples)}件の中央値（早い順25%〜75%で ${toPaid.p25}〜${toPaid.p75}日）` : '課金の実績がまだありません'),
+        stat(`解約・支払い失敗のイベント（直近${days}日）`, num(revenue.cancel_events_in_range), '件', `Squareの通知を数えたもの。累計 ${num(revenue.cancel_events)}件`),
+        stat('月あたりの売上（概算）', `¥${num(revenue.mrr_estimate)}`, '', `課金 ${num(revenue.paying_total)}件 × 定価`),
       ].join('');
 
       const source = revenue.by_plan_source || { pro: {}, premium: {} };

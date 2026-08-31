@@ -560,6 +560,15 @@
 .operator-console .op-funnel-track > i { display: block; height: 100%; background: var(--op-blue); }
 .operator-console .op-funnel-value { font-family: var(--op-mono); font-size: 13px; color: var(--op-ink); text-align: right; font-variant-numeric: tabular-nums; }
 .operator-console .op-funnel-value small { color: var(--op-dim); margin-left: 6px; }
+/* 予約の前／後の仕切り（サマリーの画面アクセス・#355）。同じ横棒の並びでも、どこまでが
+   「予約が入る前」の画面かが一目で分かるようにする。op-funnel の grid の中に置くので1行を占める。 */
+.operator-console .op-phase { margin: 6px 0 0; font-family: var(--op-mono); font-size: 11px; letter-spacing: .04em; color: var(--op-dim); }
+.operator-console .op-phase:first-child { margin-top: 0; }
+/* 3カラムの右端（1/3幅）に入る横棒は列を詰める。既定の 200px + 118px のままだと棒に数十pxしか
+   残らず、画面どうしの長短が読めない。 */
+.operator-console .op-funnel.is-compact { gap: 6px; }
+.operator-console .op-funnel.is-compact .op-funnel-row { grid-template-columns: minmax(84px, auto) minmax(56px, 1fr) max-content; gap: 10px; }
+.operator-console .op-funnel.is-compact .op-funnel-value { font-size: 12px; }
 
 /* ---- 表の中の棒（画面別PV・コホート率） ---- */
 .operator-console .op-cell-bar { display: grid; grid-template-columns: minmax(48px, 1fr) max-content; align-items: center; gap: 8px; min-width: 130px; }
@@ -623,4 +632,9 @@
 @media (max-width: 620px) {
   .operator-console .op-funnel-row { grid-template-columns: 1fr 96px; }
   .operator-console .op-funnel-label { grid-column: 1 / -1; }
+  /* 画面アクセスの棒（#355）は名前が短いので、狭くても3列のまま。上の指定のように名前を
+     別の行へ送ると、名前と棒が離れてどの画面の棒か読めなくなる。この2行は上より後ろに置くこと
+     （同詳細度なので、前だと黙って上書きされる）。 */
+  .operator-console .op-funnel.is-compact .op-funnel-row { grid-template-columns: minmax(72px, auto) minmax(40px, 1fr) max-content; }
+  .operator-console .op-funnel.is-compact .op-funnel-label { grid-column: auto; }
 }

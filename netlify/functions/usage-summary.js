@@ -98,6 +98,20 @@ function quantile(sorted, q) {
   return Math.round((next !== undefined ? sorted[base] + rest * (next - sorted[base]) : sorted[base]) * 10) / 10;
 }
 
+// サマリーの「画面のアクセス」で見る画面（#355）。全画面の合計ではなく、この4つに絞る。
+//
+// なぜ必要か: 合計はLPとゲストが見る予約ページが大半を占めるため、数字が増えても
+// 「予約が入る前（検討）と入った後（準備）に、キマルの画面が実際に使われているか」が読めない。
+// 何をしているか: 役目ごとにパスをまとめ、予約の前後（phase）で並べる。1グループが複数の
+// パスを持つのは、同じ役目の画面が分かれているため（トップは旧LPの landing3、事前の情報確認は
+// 相手の詳細とアンケート回答の2画面）。パスは _lib/analytics.js の normalizePath 後の形で書く。
+const SUMMARY_PAGE_GROUPS = [
+  { key: "top", label: "トップ", phase: "before", paths: ["/index.html", "/landing3.html"] },
+  { key: "plan", label: "プラン比較", phase: "before", paths: ["/plan.html"] },
+  { key: "contacts", label: "相手管理", phase: "after", paths: ["/contacts.html"] },
+  { key: "prep", label: "事前の情報確認", phase: "after", paths: ["/meeting.html", "/answers.html"] },
+];
+
 exports.handler = async (event) => {
   try {
     requireOperator(event);
@@ -431,19 +445,22 @@ exports.handler = async (event) => {
     // サマリー用（期間ボタンと無関係の直近30日）と、その前30日
     const recent = { views: 0, visitors: 0 };
     const previous = { views: 0, visitors: 0 };
-    const recentViewsByDay = {};
-    const recentVisitorsByDay = {};
+    // サマリーで絞る4画面（SUMMARY_PAGE_GROUPS）は画面ごとの数が要るので、日ごとではなく画面ごとに足す。
+    const recentViewsByPage = {};
+    const recentVisitorsByPage = {};
+    const prevViewsByPage = {};
     for (const row of usageDaily || []) {
       const views = Number(row.views) || 0;
       const visitors = Number(row.visitors) || 0;
       if (row.day >= day30) {
         recent.views += views;
         recent.visitors += visitors;
-        bump(recentViewsByDay, row.day, views);
-        bump(recentVisitorsByDay, row.day, visitors);
+        bump(recentViewsByPage, row.page, views);
+        bump(recentVisitorsByPage, row.page, visitors);
       } else if (row.day >= day60) {
         previous.views += views;
         previous.visitors += visitors;
+        bump(prevViewsByPage, row.page, views);
       }
       // ここから下は「選んだ期間」の集計。60日ぶん引いているので、期間外の行は落とす。
       if (row.day < sinceDay) continue;
@@ -452,7 +469,25 @@ exports.handler = async (event) => {
       bump(viewsByDay, row.day, views);
       bump(visitorsByDay, row.day, visitors);
     }
-    const recentDayList = dayRange(30, now);
+    // 4画面ぶんに畳む。訪問者数は page_events_daily の画面別UUなので、グループ内で足すと
+    // 同じ人を二重に数えるが、ここは「その画面が見られているか」を見る数字なので延べで足す
+    // （合計を全体のUUとして使わないよう、画面側にも「延べ」と書く）。
+    const sumPaths = (map, paths) => paths.reduce((total, path) => total + (map[path] || 0), 0);
+    const summaryPages = SUMMARY_PAGE_GROUPS.map((group) => ({
+      key: group.key,
+      label: group.label,
+      phase: group.phase,
+      paths: group.paths,
+      views: sumPaths(recentViewsByPage, group.paths),
+      visitors: sumPaths(recentVisitorsByPage, group.paths),
+      prev_views: sumPaths(prevViewsByPage, group.paths),
+    }));
+    const focus = summaryPages.reduce((acc, group) => ({
+      views: acc.views + group.views,
+      visitors: acc.visitors + group.visitors,
+      prev_views: acc.prev_views + group.prev_views,
+    }), { views: 0, visitors: 0, prev_views: 0 });
+
     const topPages = Object.keys(viewsByPage)
       .map((page) => ({ page, views: viewsByPage[page], visitors: visitorsByPage[page] || 0 }))
       .sort((a, b) => b.views - a.views);
@@ -611,14 +646,16 @@ exports.handler = async (event) => {
         devices: deviceViews,
         acquisition_funnel: acquisitionFunnel,
         booking_funnel: bookingFunnel,
-        // サマリー専用（期間ボタンを隠している画面なので、期間の選択に関わらず直近30日で固定）
+        // サマリー専用（期間ボタンを隠している画面なので、期間の選択に関わらず直近30日で固定）。
+        // 主役は絞った4画面（focus_*）で、全画面の合計（all_*）は「4画面だけを見ている」と分かるための添え物。
         summary: {
           days: 30,
-          views: recent.views,
-          visitors: recent.visitors,
-          prev_views: previous.views,
-          prev_visitors: previous.visitors,
-          daily: recentDayList.map((day) => ({ day, views: recentViewsByDay[day] || 0, visitors: recentVisitorsByDay[day] || 0 })),
+          focus_views: focus.views,
+          focus_visitors: focus.visitors,
+          focus_prev_views: focus.prev_views,
+          pages: summaryPages,
+          all_views: recent.views,
+          all_visitors: recent.visitors,
         },
       },
     });

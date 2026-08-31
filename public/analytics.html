@@ -40,7 +40,7 @@
       <section id="view-overview" class="op-view panel">
         <p class="eyebrow">Overview</p>
         <h2>サマリー</h2>
-        <p class="muted" style="margin:2px 0 0;">サービス全体の累計です（期間では絞りません）。推移は直近12ヶ月、画面のアクセスだけは直近30日で見ます。</p>
+        <p class="muted" style="margin:2px 0 0;">サービス全体の累計です（期間では絞りません）。推移は直近12ヶ月、画面のアクセスだけは直近30日・4画面（トップ／プラン比較／相手管理／事前の情報確認）で見ます。</p>
 
         <div class="op-north" id="northstar"></div>
 
@@ -64,11 +64,13 @@
             <div class="op-legend" id="setup-legend"></div>
             <div class="op-empty" id="setup-empty" hidden></div>
           </div>
+          <!-- 画面のアクセス（#355）。全画面の合計ではなく、予約の前後で使う4画面だけを並べる。
+               合計はLPとゲストの予約ページが大半を占めるので、増減を見ても「予約が入る前と後で
+               キマルの画面が使われているか」が読めない。 -->
           <div class="op-block">
             <h3>画面のアクセス（直近30日）</h3>
-            <p class="muted">全画面の合計。ゲストが見る予約ページを含みます。</p>
-            <div class="op-chart" id="chart-usage-30"></div>
-            <div class="op-legend" id="usage-30-legend"></div>
+            <p class="muted">予約が入る前（検討）と入った後（準備）に使う4画面だけ。棒はいちばん多い画面を100%とした比、数字は表示数、UUは訪問者数（延べ）です。</p>
+            <div class="op-funnel is-compact" id="usage-30-pages"></div>
             <div class="op-empty" id="usage-30-empty" hidden></div>
           </div>
         </div>
@@ -510,10 +512,12 @@
         stat('初期設定が未完了', setup.available ? num(setup.incomplete) : '—', '件', setup.available
           ? `稼働中 ${num(setup.denominator)}件のうち・3つとも完了 ${num(setup.done)}件`
           : '連携・プロフィール・予約ページのどれかを取得できません', setup.done_rate),
-        stat('画面のアクセス', usageReady ? num(summary.views) : '—', '回', usageReady
-          ? `直近30日・訪問者 ${num(summary.visitors)}件（延べ）`
+        // 画面のアクセスは4画面ぶん（トップ・プラン比較・相手管理・事前の情報確認）。全画面の合計は
+        // ゲストの予約ページとLPで埋まるので、タイルの数字にすると予約前後の使われ方が読めない（#355）。
+        stat('4画面のアクセス', usageReady ? num(summary.focus_views) : '—', '回', usageReady
+          ? `直近30日・訪問者 ${num(summary.focus_visitors)}件（延べ）・全画面では ${num(summary.all_views)}回`
           : '画面の計測待ち（page_events）', null,
-          usageReady ? deltaChip(summary.views, summary.prev_views, '前の30日比') : ''),
+          usageReady ? deltaChip(summary.focus_views, summary.focus_prev_views, '前の30日比') : ''),
         stat('予約の累計', data.bookings.available ? num(data.bookings.total_all_time) : '—', '件', data.bookings.available ? `キャンセル率 ${pct(data.bookings.cancel_rate_all_time)}` : '予約を取得できません'),
         stat('承認待ち Cat Key', num(accounts.pending_cat_key), '件', accounts.pending_cat_key > 0 ? '運営コンソールで承認できます' : '未対応の申請はありません'),
       ].join('');
@@ -546,21 +550,29 @@
         setupEmpty.textContent = '連携・プロフィール・予約ページのいずれかを取得できないため、初期設定の進み具合は出せません（0件として数えると、終わっている人まで未完了に見えます）。';
       }
 
-      // 画面のアクセス（折れ線）。期間ボタンを隠しているビューなので、選んだ期間ではなく直近30日で固定。
+      // 画面のアクセス（横棒）。期間ボタンを隠しているビューなので、選んだ期間ではなく直近30日で固定。
+      // 画面はサーバ（usage-summary.js の SUMMARY_PAGE_GROUPS）が決めた4つをそのまま並べる。ここで
+      // パスを書き足すと、タイルの合計（focus_views）と棒の合計がずれる。
       const usageEmpty = document.querySelector('#usage-30-empty');
+      const usagePages = document.querySelector('#usage-30-pages');
       if (usageReady) {
         usageEmpty.hidden = true;
-        document.querySelector('#chart-usage-30').innerHTML = lineChart(summary.daily, [
-          { key: 'views', label: '表示数', color: SERIES.free },
-          { key: 'visitors', label: '訪問者数', color: SERIES.pro },
-        ], { width: 520 });
-        document.querySelector('#usage-30-legend').innerHTML = [
-          `<span><i style="background:${SERIES.free}"></i>表示数（PV）</span>`,
-          `<span><i style="background:${SERIES.pro}"></i>訪問者数（延べ）</span>`,
-        ].join('');
+        const focusPages = summary.pages || [];
+        // 棒の基準は最大値。ファネルではなく画面どうしの比べものなので、先頭を100%にすると
+        // 「トップの何割」という無い意味を読ませてしまう。
+        const maxPageViews = Math.max(1, ...focusPages.map((row) => row.views || 0));
+        let phase = '';
+        usagePages.innerHTML = focusPages.map((row) => {
+          const head = row.phase === phase ? '' : `<p class="op-phase">${row.phase === 'before' ? '予約の前' : '予約の後'}</p>`;
+          phase = row.phase;
+          return `${head}<div class="op-funnel-row" title="${escapeHtml((row.paths || []).join(' / '))}">
+            <span class="op-funnel-label">${escapeHtml(row.label)}</span>
+            <span class="op-funnel-track"><i style="width:${((row.views || 0) / maxPageViews * 100).toFixed(1)}%"></i></span>
+            <span class="op-funnel-value">${num(row.views || 0)}<small>UU ${num(row.visitors || 0)}</small></span>
+          </div>`;
+        }).join('');
       } else {
-        document.querySelector('#chart-usage-30').innerHTML = '';
-        document.querySelector('#usage-30-legend').innerHTML = '';
+        usagePages.innerHTML = '';
         usageEmpty.hidden = false;
         usageEmpty.textContent = '画面の計測データがまだありません（page_events を適用すると、適用した日から記録が入ります）。';
       }

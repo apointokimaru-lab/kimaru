@@ -146,10 +146,17 @@ const MOCK_USAGE_SUMMARY = {
       { label: "登録画面を開いた", value: 90 }, { label: "登録完了", value: 7 },
     ],
     booking_funnel: [{ label: "予約ページ閲覧", value: 310 }, { label: "予約完了", value: 18 }],
-    // サマリー用（期間ボタンと無関係の直近30日）
+    // サマリー用（期間ボタンと無関係の直近30日）。#355 で「予約の前後で使う4画面」に絞ったので、
+    // タイルも棒もこの focus_*/pages を見る（all_* は全画面の合計＝添え物）。
     summary: {
-      days: 30, views: 1200, visitors: 480, prev_views: 900, prev_visitors: 400,
-      daily: USAGE_DAYS.map((day, i) => ({ day, views: 30 + i, visitors: 10 + (i % 5) })),
+      days: 30, focus_views: 620, focus_visitors: 240, focus_prev_views: 500,
+      pages: [
+        { key: "top", label: "トップ", phase: "before", paths: ["/index.html", "/landing3.html"], views: 400, visitors: 150, prev_views: 330 },
+        { key: "plan", label: "プラン比較", phase: "before", paths: ["/plan.html"], views: 120, visitors: 60, prev_views: 100 },
+        { key: "contacts", label: "相手管理", phase: "after", paths: ["/contacts.html"], views: 80, visitors: 25, prev_views: 55 },
+        { key: "prep", label: "事前の情報確認", phase: "after", paths: ["/meeting.html", "/answers.html"], views: 20, visitors: 5, prev_views: 15 },
+      ],
+      all_views: 1200, all_visitors: 480,
     },
   },
 };
@@ -959,13 +966,21 @@ section("analytics dashboard (#343)");
   ok("サマリーは予約の累計を出す", stats.includes("120") && stats.includes("11.7%"));
   // #355: 全体像として「登録・有料・初期設定未完・アクセス」がサマリーに並ぶ
   ok("初期設定が未完了の件数が出る", stats.includes("初期設定が未完了") && stats.includes("15"));
-  ok("画面のアクセスが直近30日で出る", stats.includes("画面のアクセス") && stats.includes("1,200") && stats.includes("直近30日"));
+  // #355: アクセスは全画面の合計ではなく、予約の前後で使う4画面ぶん（合計は添え物として併記）
+  ok("画面のアクセスは4画面ぶんを直近30日で出す", stats.includes("4画面のアクセス") && stats.includes("620") && stats.includes("直近30日"));
+  ok("全画面の合計は添え物として併記する", stats.includes("全画面では 1,200回"));
   ok("増減は矢印つきで出る", stats.includes("▲") && stats.includes("前月比"));
   ok("プランの構成がドーナツで出る", (await page.locator("#chart-plan-mix svg circle").count()) === 3);
   ok("ドーナツの中央に総数が出る", (await page.textContent("#chart-plan-mix")).includes("42"));
   ok("初期設定の進み具合もドーナツで出る",
     (await page.locator("#chart-setup svg circle").count()) === 4 && (await page.textContent("#chart-setup")).includes("62.5%"));
-  ok("アクセスの折れ線は表示数と訪問者数の2本", (await page.locator("#chart-usage-30 svg path").count()) === 2);
+  const usagePages = await page.textContent("#usage-30-pages");
+  ok("アクセスは4画面が予約の前後に分かれて並ぶ",
+    (await page.locator("#usage-30-pages .op-funnel-row").count()) === 4
+    && usagePages.includes("予約の前") && usagePages.includes("予約の後"));
+  ok("4画面はトップ・プラン比較・相手管理・事前の情報確認",
+    ["トップ", "プラン比較", "相手管理", "事前の情報確認"].every((label) => usagePages.includes(label)));
+  ok("画面ごとに表示数と訪問者数が出る", usagePages.includes("400") && usagePages.includes("UU 150"));
   const setupSteps = await page.textContent("#setup-steps");
   ok("止まっている段が人数で出る", setupSteps.includes("Googleカレンダー未連携") && setupSteps.includes("12") && setupSteps.includes("予約ページ未作成"));
   ok("サマリーでは期間タブを隠す", await page.locator("#range-buttons").isHidden());

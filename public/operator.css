@@ -584,6 +584,42 @@
 }
 .operator-console .op-note { margin: 10px 0 0; padding-left: 16px; color: var(--op-amber); font-size: 12px; }
 
+/* ---- サマリーの主要数値（#355）----
+   8枚を4×2で読ませる。auto-fit のままだと画面幅しだいで1行7枚などに割れ、
+   「人 → 使われ方 → 運営の宿題」という並びの意味が消える。 */
+.operator-console .op-stats.is-kpi { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* 前の期間との差。向きは記号（▲▼±）で出し、色は補助にとどめる */
+.operator-console .op-delta {
+  display: inline-flex; align-items: baseline; gap: 5px; margin-top: 7px;
+  font-family: var(--op-mono); font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.operator-console .op-delta.is-up { color: var(--op-green); }
+.operator-console .op-delta.is-down { color: var(--op-red); }
+.operator-console .op-delta.is-flat { color: var(--op-dim); }
+.operator-console .op-delta small { font-weight: 600; color: var(--op-dim); }
+
+/* ---- 3カラム（内訳のドーナツ2つ＋推移の折れ線）---- */
+/* 内訳（正方形のドーナツ）と推移（横長の折れ線）は必要な幅が違う。等分に割ると折れ線だけが潰れる。 */
+.operator-console .op-trio { display: grid; grid-template-columns: minmax(230px, 1fr) minmax(230px, 1fr) minmax(320px, 1.55fr); gap: 22px; }
+@media (max-width: 1180px) { .operator-console .op-trio { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 700px) { .operator-console .op-trio { grid-template-columns: 1fr; } }
+
+/* ---- ドーナツ（内訳）----
+   .op-chart svg は幅100%なので、正方形のまま置くと1枚で画面を占領する。ここだけ幅を止める。 */
+.operator-console .op-chart.is-donut svg { max-width: 208px; margin: 6px auto 0; }
+.operator-console .op-donut-value { fill: var(--op-ink); font-family: var(--op-mono); font-size: 26px; font-weight: 700; }
+.operator-console .op-donut-label { fill: var(--op-dim); font-family: var(--op-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; }
+
+/* KPIの列数は幅で落とす。ここは .op-stats.is-kpi より後ろに置くこと（同詳細度なので、前だと効かない） */
+@media (max-width: 1180px) {
+  .operator-console .op-stats.is-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .operator-console .op-stats.is-kpi { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 620px) {
   .operator-console .op-funnel-row { grid-template-columns: 1fr 96px; }
   .operator-console .op-funnel-label { grid-column: 1 / -1; }

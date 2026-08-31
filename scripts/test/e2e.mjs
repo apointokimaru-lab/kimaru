@@ -97,6 +97,21 @@ const MOCK_USAGE_SUMMARY = {
     ],
   },
   conversion: { cohorts: [{ month: "2026-07", signups: 20, paid: 5, paying: 3, rate: 25 }, { month: "2026-08", signups: 22, paid: 7, paying: 5, rate: 31.8 }] },
+  // 初期設定の完了状況（#355）。ダッシュボードの初期設定カード（#353）と同じ3ステップ。
+  setup: {
+    available: true, denominator: 40, done: 25, incomplete: 15, done_rate: 62.5,
+    distribution: [
+      { key: "done", label: "3つとも完了", count: 25 },
+      { key: "one_left", label: "あと1つ", count: 8 },
+      { key: "two_left", label: "あと2つ", count: 5 },
+      { key: "none", label: "未着手", count: 2 },
+    ],
+    steps: [
+      { key: "calendar", label: "Googleカレンダー", available: true, pending: 12 },
+      { key: "profile", label: "プロフィール", available: true, pending: 9 },
+      { key: "page", label: "予約ページ", available: true, pending: 7 },
+    ],
+  },
   activation: {
     denominator: 40,
     time_to_first_booking: { samples: 14, p25: 1, median: 3.5, p75: 9 },
@@ -131,6 +146,11 @@ const MOCK_USAGE_SUMMARY = {
       { label: "登録画面を開いた", value: 90 }, { label: "登録完了", value: 7 },
     ],
     booking_funnel: [{ label: "予約ページ閲覧", value: 310 }, { label: "予約完了", value: 18 }],
+    // サマリー用（期間ボタンと無関係の直近30日）
+    summary: {
+      days: 30, views: 1200, visitors: 480, prev_views: 900, prev_visitors: 400,
+      daily: USAGE_DAYS.map((day, i) => ({ day, views: 30 + i, visitors: 10 + (i % 5) })),
+    },
   },
 };
 
@@ -937,6 +957,17 @@ section("analytics dashboard (#343)");
   ok("サマリーの率は売上ベース（課金転換率）", stats.includes("19%") && stats.includes("課金転換率"));
   ok("有料プランの内訳に課金とCat Keyが並ぶ", stats.includes("課金 8") && stats.includes("Cat Key 4"));
   ok("サマリーは予約の累計を出す", stats.includes("120") && stats.includes("11.7%"));
+  // #355: 全体像として「登録・有料・初期設定未完・アクセス」がサマリーに並ぶ
+  ok("初期設定が未完了の件数が出る", stats.includes("初期設定が未完了") && stats.includes("15"));
+  ok("画面のアクセスが直近30日で出る", stats.includes("画面のアクセス") && stats.includes("1,200") && stats.includes("直近30日"));
+  ok("増減は矢印つきで出る", stats.includes("▲") && stats.includes("前月比"));
+  ok("プランの構成がドーナツで出る", (await page.locator("#chart-plan-mix svg circle").count()) === 3);
+  ok("ドーナツの中央に総数が出る", (await page.textContent("#chart-plan-mix")).includes("42"));
+  ok("初期設定の進み具合もドーナツで出る",
+    (await page.locator("#chart-setup svg circle").count()) === 4 && (await page.textContent("#chart-setup")).includes("62.5%"));
+  ok("アクセスの折れ線は表示数と訪問者数の2本", (await page.locator("#chart-usage-30 svg path").count()) === 2);
+  const setupSteps = await page.textContent("#setup-steps");
+  ok("止まっている段が人数で出る", setupSteps.includes("Googleカレンダー未連携") && setupSteps.includes("12") && setupSteps.includes("予約ページ未作成"));
   ok("サマリーでは期間タブを隠す", await page.locator("#range-buttons").isHidden());
   ok("サマリーの但し書きは全体の累計", (await page.textContent("#admin-message")).includes("全体の累計"));
   ok("推移は月次（直近12ヶ月）", (await page.locator("#chart-northstar svg rect").count()) === 3 && (await page.locator("#chart-signups svg rect").count()) === 3);
@@ -1004,6 +1035,7 @@ section("analytics dashboard (#343)");
       usage: { ...MOCK_USAGE_SUMMARY.usage, available: false },
       retention: { ...MOCK_USAGE_SUMMARY.retention, available: false, dormant_total: null, dormant: [] },
       revenue: { ...MOCK_USAGE_SUMMARY.revenue, limit_hits_available: false, limit_hits: [] },
+      setup: { ...MOCK_USAGE_SUMMARY.setup, available: false, done: null, incomplete: null, done_rate: null, distribution: [], steps: MOCK_USAGE_SUMMARY.setup.steps.map((step) => ({ ...step, available: false, pending: null })) },
     }),
   }));
   await notReady.goto(`${base}/analytics.html#features`, { waitUntil: "networkidle" });
@@ -1013,6 +1045,11 @@ section("analytics dashboard (#343)");
   await notReady.waitForTimeout(200);
   ok("休眠は0件ではなく計測待ちと出す", (await notReady.textContent("#activation-stats")).includes("足あとの計測待ち"));
   ok("週次アクティブも理由を出す", !(await notReady.locator("#wah-empty").isHidden()));
+  // #355: 初期設定・アクセスも「0件」ではなく取れない理由を出す
+  await notReady.click('.op-nav-sub[data-nav-href="/analytics.html#overview"]');
+  await notReady.waitForTimeout(200);
+  ok("初期設定は0件ではなく取得できない旨を出す", !(await notReady.locator("#setup-empty").isHidden()));
+  ok("サマリーのアクセスも計測待ちと出す", (await notReady.textContent("#overview-stats")).includes("画面の計測待ち"));
   await notReady.click('.op-nav-sub[data-nav-href="/analytics.html#revenue"]');
   await notReady.waitForTimeout(200);
   ok("壁の記録も計測待ちと出す", (await notReady.textContent("#limit-hits-list")).includes("計測待ち"));

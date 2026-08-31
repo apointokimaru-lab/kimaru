@@ -40,11 +40,39 @@
       <section id="view-overview" class="op-view panel">
         <p class="eyebrow">Overview</p>
         <h2>サマリー</h2>
-        <p class="muted" style="margin:2px 0 0;">サービス全体の累計です（期間では絞りません）。推移は直近12ヶ月。</p>
+        <p class="muted" style="margin:2px 0 0;">サービス全体の累計です（期間では絞りません）。推移は直近12ヶ月、画面のアクセスだけは直近30日で見ます。</p>
 
         <div class="op-north" id="northstar"></div>
 
-        <div class="op-stats" id="overview-stats" style="margin-top:22px;"></div>
+        <!-- 主要数値（#355）。上の北極星が「いちばん大きい数字」で、ここは全体像の8枚。
+             並びは 人（登録・有料・転換・売上）→ 使われ方（初期設定・アクセス・予約）→ 運営の宿題（承認待ち）。 -->
+        <div class="op-stats is-kpi" id="overview-stats" style="margin-top:22px;"></div>
+
+        <!-- 内訳と推移（#355）。数字のタイルだけだと「42件のうち何がどうなっているか」が読めないため、
+             構成はドーナツ、時間の変化は折れ線・棒、と形を分けて出す。 -->
+        <div class="op-trio" style="margin-top:24px;">
+          <div class="op-block">
+            <h3>プランの構成</h3>
+            <p class="muted">アカウントを現在のプランで割ったもの。中央は総数です。</p>
+            <div class="op-chart is-donut" id="chart-plan-mix"></div>
+            <div class="op-legend" id="plan-mix-legend"></div>
+          </div>
+          <div class="op-block">
+            <h3>初期設定の進み具合</h3>
+            <p class="muted">稼働中アカウントを、終わっている段の数で割ったもの。中央は3つとも終わった割合です。</p>
+            <div class="op-chart is-donut" id="chart-setup"></div>
+            <div class="op-legend" id="setup-legend"></div>
+            <div class="op-empty" id="setup-empty" hidden></div>
+          </div>
+          <div class="op-block">
+            <h3>画面のアクセス（直近30日）</h3>
+            <p class="muted">全画面の合計。ゲストが見る予約ページを含みます。</p>
+            <div class="op-chart" id="chart-usage-30"></div>
+            <div class="op-legend" id="usage-30-legend"></div>
+            <div class="op-empty" id="usage-30-empty" hidden></div>
+          </div>
+        </div>
+
         <div class="op-split" style="margin-top:24px;">
           <div class="op-block">
             <h3>日程が決まった数の推移</h3>
@@ -56,6 +84,12 @@
             <p class="muted">月ごとに増えたアカウント数（JST・直近12ヶ月）。</p>
             <div class="op-chart" id="chart-signups"></div>
           </div>
+        </div>
+
+        <div style="margin-top:26px;">
+          <h3 style="margin:0 0 2px;">初期設定で止まっている段</h3>
+          <p class="muted" style="margin:0;">稼働中アカウントのうち、その設定が終わっていない人数。ダッシュボードの初期設定カードと同じ3つで数えています。1人が複数の段で止まっていることがあるので、合計は未完了の人数と一致しません。</p>
+          <div class="op-funnel" id="setup-steps"></div>
         </div>
       </section>
 
@@ -278,15 +312,27 @@
     const pct = (value) => (value == null ? '—' : `${value}%`);
     const share = (part, whole) => (whole > 0 ? Math.round((part / whole) * 1000) / 10 : 0);
 
-    function stat(label, value, unit, sub, meter) {
+    function stat(label, value, unit, sub, meter, extra) {
       // meter は 0–100。率をもう一度グラフにせず、タイルの中で大小が分かるようにするための細い定規。
       const bar = meter == null ? '' : `<span class="op-stat-meter"><i style="width:${Math.max(0, Math.min(100, meter))}%"></i></span>`;
+      // extra は deltaChip() が作る増減。値のすぐ下に置く（数字と増減が離れると別の指標に見える）。
       return `<div class="op-stat">
         <p class="op-stat-label">${escapeHtml(label)}</p>
         <strong class="op-stat-value">${escapeHtml(value)}${unit ? `<span class="op-unit">${escapeHtml(unit)}</span>` : ''}</strong>
+        ${extra || ''}
         ${sub ? `<p class="op-stat-sub">${escapeHtml(sub)}</p>` : ''}
         ${bar}
       </div>`;
+    }
+
+    // 前の期間との差。矢印と符号を必ず添える（色だけに意味を持たせない＝色が見分けにくい人にも読める）。
+    // 増減の善し悪しは指標によって逆になるので、ここでは向きだけを出し、良し悪しの色は付けない。
+    function deltaChip(current, previous, note) {
+      if (current == null || previous == null) return '';
+      const diff = current - previous;
+      const kind = diff > 0 ? 'is-up' : diff < 0 ? 'is-down' : 'is-flat';
+      const mark = diff > 0 ? '▲' : diff < 0 ? '▼' : '±';
+      return `<span class="op-delta ${kind}">${mark} ${num(Math.abs(diff))}<small>${escapeHtml(note)}</small></span>`;
     }
 
     // ---- グラフ（インラインSVG。ライブラリは入れない） ----
@@ -338,9 +384,11 @@
       </svg>`;
     }
 
-    function lineChart(points, series) {
+    function lineChart(points, series, options = {}) {
       if (!points.length) return '<p class="muted">データがありません。</p>';
-      const W = 720, H = 190, padL = 44, padR = 8, padT = 12, padB = 26;
+      // 枠が狭い場所では viewBox も狭くする。720幅のまま縮めると軸の文字だけが小さくなって読めない。
+      // 右端の余白は日付ラベルの半分ぶん要る（padR=8 だと最後の「08/31」が枠の外にはみ出て切れる）
+      const W = options.width || 720, H = 190, padL = 44, padR = 22, padT = 12, padB = 26;
       const innerW = W - padL - padR, innerH = H - padT - padB;
       const max = niceMax(Math.max(1, ...points.flatMap((p) => series.map((s) => p[s.key] || 0))));
       const x = (i) => padL + (points.length === 1 ? innerW / 2 : (i / (points.length - 1)) * innerW);
@@ -360,6 +408,33 @@
         ${lines}${labels}
       </svg>`;
     }
+
+    // ドーナツ（内訳）。合計に対する割合を面で見せ、中央に総数（または率）を置く。
+    // 弧は path の座標計算ではなく circle の stroke-dasharray で描く。角度→座標を自前で持たないので、
+    // 90度またぎや1件だけのときの描き分けが構造的に壊れない。区切りは2〜3pxの隙間（.op-stack と同じ考え方で、
+    // 色が隣り合っても溶けない）。
+    function donutChart(segments, options = {}) {
+      const list = (segments || []).filter((seg) => (seg.value || 0) > 0);
+      const total = list.reduce((sum, seg) => sum + seg.value, 0);
+      if (!total) return '<p class="muted">データがありません。</p>';
+      const R = 62, SW = 22, C = 2 * Math.PI * R;
+      const gap = list.length > 1 ? 3 : 0;
+      let offset = 0;
+      const arcs = list.map((seg) => {
+        const len = (seg.value / total) * C;
+        const draw = Math.max(1, len - gap);
+        const arc = `<circle cx="90" cy="90" r="${R}" fill="none" stroke="${seg.color}" stroke-width="${SW}" stroke-dasharray="${draw.toFixed(2)} ${(C - draw).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}"><title>${escapeHtml(seg.label)} ${num(seg.value)}（${share(seg.value, total)}%）</title></circle>`;
+        offset += len;
+        return arc;
+      }).join('');
+      const value = options.centerValue == null ? '' : `<text class="op-donut-value" x="90" y="89" text-anchor="middle">${escapeHtml(String(options.centerValue))}</text>`;
+      const label = options.centerLabel ? `<text class="op-donut-label" x="90" y="107" text-anchor="middle">${escapeHtml(options.centerLabel)}</text>` : '';
+      return `<svg viewBox="0 0 180 180" role="img" aria-label="${escapeHtml(options.title || '内訳')}"><g transform="rotate(-90 90 90)">${arcs}</g>${value}${label}</svg>`;
+    }
+
+    // ドーナツの凡例は「色・名前・件数」まで出す。面の大小だけでは何件かが読めないため。
+    const donutLegend = (segments) => (segments || []).filter((seg) => (seg.value || 0) > 0)
+      .map((seg) => `<span><i style="background:${seg.color}"></i>${escapeHtml(seg.label)} ${num(seg.value)}</span>`).join('');
 
     // 段ごとの到達率。基準は先頭の段（ファネル）か、指定した母数（定着）。
     function funnel(target, steps, baseValue) {
@@ -390,6 +465,10 @@
       no_calendar: "カレンダー 未連携", no_booking: "予約 待ち",
     };
     const PLAN_PILL = { free: "無料", pro: "Pro", premium: "プレミアム", "": "不明" };
+    // 初期設定（#353 の3ステップ）。段の名前は「何が終わっていないか」で出す（"プロフィール 30件" では読めない）。
+    const SETUP_PENDING_LABEL = { calendar: "Googleカレンダー未連携", profile: "プロフィール未入力", page: "予約ページ未作成" };
+    // 進み具合は段階なので、系列色（プランの3色）ではなく青1色の濃淡。同じ色を別の意味に使わない。
+    const SETUP_SHADES = { done: "#3B5BD9", one_left: "#7C8FE4", two_left: "#B9C3EF", none: "#DDE2EC" };
     const monthLabel = (value) => String(value || "").replace("-", "/");
     const dateLabel = (value) => (value ? new Date(value).toLocaleDateString("ja-JP") : "—");
 
@@ -410,19 +489,94 @@
         </div>
         <p class="op-north-note">キャンセルは含みません。登録数やMRRより先にこの数字を見ます（登録は無料で溜まり、MRRは結果が遅れて出るため）。</p>`;
 
+      // 主要数値（#355）。並びは 人（登録・有料・転換・売上）→ 使われ方（初期設定・アクセス・予約）→ 運営の宿題。
+      const monthlySignups = accounts.signups_monthly || [];
+      const signupsThisMonth = monthlySignups.length ? monthlySignups[monthlySignups.length - 1].count : null;
+      const signupsPrevMonth = monthlySignups.length > 1 ? monthlySignups[monthlySignups.length - 2].count : null;
+      const setup = data.setup || { available: false, steps: [], distribution: [] };
+      const summary = (data.usage && data.usage.summary) || null;
+      const usageReady = Boolean(data.usage && data.usage.available && summary);
+
       document.querySelector('#overview-stats').innerHTML = [
-        stat('アカウント総数', num(accounts.total), '件', `稼働中 ${num(accounts.active)}・停止 ${num(accounts.disabled)}`),
+        stat('登録ユーザー', num(accounts.total), '件',
+          `${signupsThisMonth == null ? '' : `今月 ${num(signupsThisMonth)}件・`}稼働中 ${num(accounts.active)}・停止 ${num(accounts.disabled)}`, null,
+          deltaChip(signupsThisMonth, signupsPrevMonth, '今月の登録・前月比')),
         // 「有料」は2つの意味を持つ（有料プランの機能を使える人／実際に払っている人）。
         // 同じ言葉で1つの率にすると、無償のCat Keyが「転換した」ように見えて価格判断を誤る（#349）。
-        stat('有料プランのアカウント', num(accounts.paid), '件', `課金 ${num(accounts.paying)}・Cat Key ${num(accounts.cat_key_paid)}${accounts.granted_other ? `・その他 ${num(accounts.granted_other)}` : ''}`, accounts.paid_rate),
+        stat('有料ユーザー', num(accounts.paid), '件', `課金 ${num(accounts.paying)}・Cat Key ${num(accounts.cat_key_paid)}${accounts.granted_other ? `・その他 ${num(accounts.granted_other)}` : ''}`, accounts.paid_rate),
         stat('課金転換率', pct(accounts.paying_rate), '', `売上になっているのは ${num(accounts.paying)} / ${num(accounts.total)}件`, accounts.paying_rate),
-        stat('MRR（概算）', revenue.available ? `¥${num(revenue.mrr_estimate)}` : '—', '', revenue.available ? `課金 ${num(revenue.paying_total)}件・無償 ${num(revenue.cat_key_paid)}件` : '決済イベントを取得できません'),
+        stat('MRR（概算）', revenue.available ? `¥${num(revenue.mrr_estimate)}` : '—', '', revenue.available ? `課金 ${num(revenue.paying_total)}件・無償 ${num(revenue.cat_key_paid + revenue.granted_other)}件` : '決済イベントを取得できません'),
+        // 初期設定（#353 の3ステップ）が終わっていない人。ここが多いほど「登録はしたが受付を始められていない」。
+        stat('初期設定が未完了', setup.available ? num(setup.incomplete) : '—', '件', setup.available
+          ? `稼働中 ${num(setup.denominator)}件のうち・3つとも完了 ${num(setup.done)}件`
+          : '連携・プロフィール・予約ページのどれかを取得できません', setup.done_rate),
+        stat('画面のアクセス', usageReady ? num(summary.views) : '—', '回', usageReady
+          ? `直近30日・訪問者 ${num(summary.visitors)}件（延べ）`
+          : '画面の計測待ち（page_events）', null,
+          usageReady ? deltaChip(summary.views, summary.prev_views, '前の30日比') : ''),
         stat('予約の累計', data.bookings.available ? num(data.bookings.total_all_time) : '—', '件', data.bookings.available ? `キャンセル率 ${pct(data.bookings.cancel_rate_all_time)}` : '予約を取得できません'),
         stat('承認待ち Cat Key', num(accounts.pending_cat_key), '件', accounts.pending_cat_key > 0 ? '運営コンソールで承認できます' : '未対応の申請はありません'),
       ].join('');
 
+      // プランの構成（ドーナツ）。系列色は画面ぜんぶで固定（無料=青／Pro=橙／プレミアム=緑）。
+      const planMix = ['free', 'pro', 'premium'].map((plan) => ({
+        label: PLAN_LABEL[plan], value: (accounts.by_plan || {})[plan] || 0, color: SERIES[plan],
+      }));
+      document.querySelector('#chart-plan-mix').innerHTML = donutChart(planMix, {
+        centerValue: num(accounts.total), centerLabel: 'アカウント', title: 'プランの構成',
+      });
+      document.querySelector('#plan-mix-legend').innerHTML = donutLegend(planMix);
+
+      // 初期設定の進み具合（ドーナツ）。段階なので系列色ではなく1色の濃淡で出す
+      // （プランの内訳と同じ色にすると、別の意味が同じ色で並ぶ）。
+      const setupMix = (setup.distribution || []).map((row) => ({
+        label: row.label, value: row.count || 0, color: SETUP_SHADES[row.key] || SETUP_SHADES.none,
+      }));
+      const setupEmpty = document.querySelector('#setup-empty');
+      if (setup.available) {
+        setupEmpty.hidden = true;
+        document.querySelector('#chart-setup').innerHTML = donutChart(setupMix, {
+          centerValue: pct(setup.done_rate), centerLabel: '3つとも完了', title: '初期設定の進み具合',
+        });
+        document.querySelector('#setup-legend').innerHTML = donutLegend(setupMix);
+      } else {
+        document.querySelector('#chart-setup').innerHTML = '';
+        document.querySelector('#setup-legend').innerHTML = '';
+        setupEmpty.hidden = false;
+        setupEmpty.textContent = '連携・プロフィール・予約ページのいずれかを取得できないため、初期設定の進み具合は出せません（0件として数えると、終わっている人まで未完了に見えます）。';
+      }
+
+      // 画面のアクセス（折れ線）。期間ボタンを隠しているビューなので、選んだ期間ではなく直近30日で固定。
+      const usageEmpty = document.querySelector('#usage-30-empty');
+      if (usageReady) {
+        usageEmpty.hidden = true;
+        document.querySelector('#chart-usage-30').innerHTML = lineChart(summary.daily, [
+          { key: 'views', label: '表示数', color: SERIES.free },
+          { key: 'visitors', label: '訪問者数', color: SERIES.pro },
+        ], { width: 520 });
+        document.querySelector('#usage-30-legend').innerHTML = [
+          `<span><i style="background:${SERIES.free}"></i>表示数（PV）</span>`,
+          `<span><i style="background:${SERIES.pro}"></i>訪問者数（延べ）</span>`,
+        ].join('');
+      } else {
+        document.querySelector('#chart-usage-30').innerHTML = '';
+        document.querySelector('#usage-30-legend').innerHTML = '';
+        usageEmpty.hidden = false;
+        usageEmpty.textContent = '画面の計測データがまだありません（page_events を適用すると、適用した日から記録が入ります）。';
+      }
+
       document.querySelector('#chart-northstar').innerHTML = barChart(north.monthly, { labelKey: 'month', formatLabel: monthLabel });
       document.querySelector('#chart-signups').innerHTML = barChart(accounts.signups_monthly, { labelKey: 'month', formatLabel: monthLabel });
+
+      // どの段で止まっているか（横棒）。母数は稼働中アカウントなので、割合がそのまま「何割が未完了か」。
+      funnel(
+        document.querySelector('#setup-steps'),
+        (setup.steps || []).map((step) => ({
+          label: SETUP_PENDING_LABEL[step.key] || step.label,
+          value: step.available ? step.pending : null,
+        })),
+        setup.denominator
+      );
     }
 
     function renderAcquisition(data) {

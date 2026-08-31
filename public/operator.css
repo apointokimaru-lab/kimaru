@@ -560,6 +560,8 @@
 .operator-console .op-funnel-track > i { display: block; height: 100%; background: var(--op-blue); }
 .operator-console .op-funnel-value { font-family: var(--op-mono); font-size: 13px; color: var(--op-ink); text-align: right; font-variant-numeric: tabular-nums; }
 .operator-console .op-funnel-value small { color: var(--op-dim); margin-left: 6px; }
+/* ファネルの締め（先頭の段 → 最後の段の通過率）。段ごとの通過率だけだと、全体でどれだけ通ったかが出ない。 */
+.operator-console .op-funnel-note { margin: 12px 0 0; font-family: var(--op-mono); font-size: 12px; color: var(--op-soft); }
 /* 予約の前／後の仕切り（サマリーの画面アクセス・#355）。同じ横棒の並びでも、どこまでが
    「予約が入る前」の画面かが一目で分かるようにする。op-funnel の grid の中に置くので1行を占める。 */
 .operator-console .op-phase { margin: 6px 0 0; font-family: var(--op-mono); font-size: 11px; letter-spacing: .04em; color: var(--op-dim); }

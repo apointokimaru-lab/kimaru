@@ -103,19 +103,19 @@
         <div class="op-split" style="margin-top:24px;">
           <div class="op-block">
             <h3>登録までのファネル</h3>
-            <p class="muted">登録完了だけは実際のアカウント数（計測が欠けても正しい値）。表示数は同じ人の再訪を含みます。</p>
-            <div class="op-funnel" id="acquisition-funnel"></div>
+            <!-- 右の小さい数字を「先頭からの到達率」から「前の段からの通過率」に変えた。
+                 到達率は棒の長さで見えているので数字にすると重複し、どの段で落ちたかが読めなかった。 -->
+            <p class="muted">棒は先頭の段を100%とした長さ、右の小さい数字は<strong>前の段からの通過率</strong>です。落ちている段が直す場所。登録完了だけは実際のアカウント数（計測が欠けても正しい値）、表示数は同じ人の再訪を含みます。</p>
+            <div class="op-funnel is-compact" id="acquisition-funnel"></div>
+            <p class="op-funnel-note" id="acquisition-funnel-note" hidden></p>
             <div class="op-empty" id="acquisition-funnel-empty" hidden></div>
           </div>
           <div class="op-block">
             <h3>流入元ごとの登録数</h3>
-            <p class="muted">登録した人が最初に来た外部サイト。「(不明)」は計測を入れる前の登録と、直接アクセスです。</p>
-            <div class="op-table-wrap" style="margin-top:12px;">
-              <table class="op-table">
-                <thead><tr><th>流入元</th><th>登録数</th></tr></thead>
-                <tbody id="signup-sources-list"></tbody>
-              </table>
-            </div>
+            <p class="muted">登録した人が最初に来た外部サイト。「(不明)」は計測を入れる前の登録と、直接アクセスです。右の小さい数字は登録数に占める割合。</p>
+            <!-- 表から横棒へ。流入元は数行しか無いことが多く、表だと1行だけが広い枠に浮いて読みにくかった。 -->
+            <div class="op-funnel is-compact" id="signup-sources-list"></div>
+            <div class="op-empty" id="signup-sources-empty" hidden></div>
           </div>
         </div>
         <div style="margin-top:26px;">
@@ -361,7 +361,9 @@
       const color = options.color || 'var(--op-blue)';
       const formatLabel = options.formatLabel || shortDay;
       if (!points.length) return '<p class="muted">データがありません。</p>';
-      const W = 720, H = 190, padL = 44, padR = 8, padT = 12, padB = 26;
+      // svg は width:100% なので、描かれる高さは「枠の幅 × H/W」で決まる。全幅に置くグラフで 720 のままだと
+      // 縦が枠の半分ほどまで伸びて、数本の棒のために1画面ぶんの余白ができる。幅広の枠には広い viewBox を渡す。
+      const W = options.width || 720, H = 190, padL = 44, padR = 8, padT = 12, padB = 26;
       const innerW = W - padL - padR, innerH = H - padT - padB;
       const max = niceMax(Math.max(1, ...points.map((p) => p[valueKey] || 0)));
       const step = innerW / points.length;
@@ -439,17 +441,31 @@
       .map((seg) => `<span><i style="background:${seg.color}"></i>${escapeHtml(seg.label)} ${num(seg.value)}</span>`).join('');
 
     // 段ごとの到達率。基準は先頭の段（ファネル）か、指定した母数（定着）。
-    function funnel(target, steps, baseValue) {
+    // options.stepRate を立てると、右の小さい数字を「先頭からの到達率」ではなく「前の段からの通過率」にする。
+    // 到達率は棒の長さがすでに表しているので、数字にすると同じことを2回言うだけで、どの段で落ちたかが読めない。
+    function funnel(target, steps, baseValue, options = {}) {
       const base = baseValue != null ? baseValue : (steps[0] ? steps[0].value : 0);
-      target.innerHTML = steps.map((step) => {
+      target.innerHTML = steps.map((step, index) => {
         if (step.value == null) {
           return `<div class="op-funnel-row"><span class="op-funnel-label">${escapeHtml(step.label)}</span><span class="op-funnel-track"></span><span class="op-funnel-value">—</span></div>`;
         }
         const ratio = base > 0 ? Math.min(100, (step.value / base) * 100) : 0;
+        // 前の段が0（計測がまだ薄い）や、実データの段が計測の段を上回るときは率を出さない。
+        // 0で割った数字や100%超えを出すと、ファネルが壊れているように見える。
+        const prev = index > 0 ? steps[index - 1].value : null;
+        const canRate = index > 0 && prev > 0 && step.value <= prev;
+        const stepRate = !options.stepRate ? null
+          : index === 0 ? '基準'
+          : (canRate ? `${Math.round((step.value / prev) * 1000) / 10}%` : '—');
+        // 「—」の理由は画面に書ききれないので、マウスを載せたときに出す（0で割った・計測が薄い、の区別）。
+        const rateNote = !options.stepRate || index === 0 || canRate ? ''
+          : prev > 0 ? ' title="前の段より多いため出せません（登録完了だけは実データのため起こります）"'
+          : ' title="前の段が0回のため出せません（画面の計測がまだ薄い可能性があります）"';
+        const small = options.stepRate ? stepRate : (base > 0 ? `${Math.round(ratio * 10) / 10}%` : '');
         return `<div class="op-funnel-row">
           <span class="op-funnel-label">${escapeHtml(step.label)}</span>
           <span class="op-funnel-track"><i style="width:${ratio.toFixed(1)}%"></i></span>
-          <span class="op-funnel-value">${num(step.value)}<small>${base > 0 ? `${Math.round(ratio * 10) / 10}%` : ''}</small></span>
+          <span class="op-funnel-value"${rateNote}>${num(step.value)}<small>${escapeHtml(small || '')}</small></span>
         </div>`;
       }).join('');
     }
@@ -596,32 +612,57 @@
       const accounts = data.accounts;
       const funnel3 = usage.acquisition_funnel || [];
       const signupViews = funnel3.length >= 3 ? funnel3[2].value : 0;
+      const signupRate = usage.available && signupViews > 0
+        ? Math.round((accounts.signups_in_range / signupViews) * 1000) / 10 : null;
       document.querySelector('#acquisition-stats').innerHTML = [
         stat(`登録（直近${days}日）`, num(accounts.signups_in_range), '件', `累計 ${num(accounts.total)}件`),
-        stat('登録画面からの完了率', usage.available && signupViews > 0 ? pct(Math.round((accounts.signups_in_range / signupViews) * 1000) / 10) : '—', '', usage.available ? `登録画面の表示 ${num(signupViews)}回` : '画面の計測待ち'),
-        stat('流入元が分かる登録', num(data.acquisition.source_known), '件', `直近${days}日の登録のうち`),
+        // 「—」だけだと壊れて見えるので、出せない理由（計測が無い／表示が0回）まで書く。
+        stat('登録画面からの完了率', signupRate == null ? '—' : pct(signupRate), '',
+          !usage.available ? '画面の計測待ち（page_events）'
+            : signupViews > 0 ? `登録画面の表示 ${num(signupViews)}回のうち`
+            : '登録画面の表示が0回のため出せません', signupRate),
+        stat('流入元が分かる登録', num(data.acquisition.source_known), '件',
+          `直近${days}日の登録 ${num(accounts.signups_in_range)}件のうち`,
+          share(data.acquisition.source_known, accounts.signups_in_range)),
         stat('メール確認済み', pct(accounts.email_verified_rate), '', `${num(accounts.email_verified)}件が確認済み`, accounts.email_verified_rate),
       ].join('');
 
       const funnelEmpty = document.querySelector('#acquisition-funnel-empty');
+      const funnelNote = document.querySelector('#acquisition-funnel-note');
       if (usage.available) {
         funnelEmpty.hidden = true;
-        funnel(document.querySelector('#acquisition-funnel'), usage.acquisition_funnel);
+        funnel(document.querySelector('#acquisition-funnel'), usage.acquisition_funnel, null, { stepRate: true });
+        // 段ごとの通過率だけだと「結局どれだけ通ったか」が出ないので、最初と最後を1行で足す。
+        const first = funnel3[0], last = funnel3[funnel3.length - 1];
+        funnelNote.hidden = !(first && last && first.value > 0);
+        if (!funnelNote.hidden) {
+          funnelNote.textContent = `${first.label} ${num(first.value)} → ${last.label} ${num(last.value)}（通過率 ${pct(share(last.value, first.value))}）`;
+        }
       } else {
         document.querySelector('#acquisition-funnel').innerHTML = '';
+        funnelNote.hidden = true;
         funnelEmpty.hidden = false;
         funnelEmpty.textContent = '画面の計測データがまだありません（page_events を適用すると、適用した日から記録が入ります）。';
       }
 
+      // 流入元は横棒。棒はいちばん多い流入元を100%とした長さ、小さい数字は登録数に占める割合。
       const sources = data.acquisition.sources || [];
-      document.querySelector('#signup-sources-list').innerHTML = sources.length
-        ? sources.map((row) => `<tr>
-            <td data-label="流入元" class="cell-mono">${escapeHtml(row.source)}</td>
-            <td data-label="登録数" class="cell-mono">${num(row.count)}</td>
-          </tr>`).join('')
-        : emptyRow(2, `直近${days}日の登録がありません。`);
+      const sourcesEmpty = document.querySelector('#signup-sources-empty');
+      const sourcesTotal = sources.reduce((total, row) => total + (row.count || 0), 0);
+      const maxSource = Math.max(1, ...sources.map((row) => row.count || 0));
+      sourcesEmpty.hidden = sources.length > 0;
+      if (!sources.length) sourcesEmpty.textContent = `直近${days}日の登録がありません。`;
+      document.querySelector('#signup-sources-list').innerHTML = sources.map((row) => `<div class="op-funnel-row">
+          <span class="op-funnel-label">${escapeHtml(row.source)}</span>
+          <span class="op-funnel-track"><i style="width:${((row.count || 0) / maxSource * 100).toFixed(1)}%"></i></span>
+          <span class="op-funnel-value">${num(row.count)}<small>${share(row.count, sourcesTotal)}%</small></span>
+        </div>`).join('');
 
-      document.querySelector('#chart-signups-daily').innerHTML = barChart(accounts.signups_daily);
+      // 枠が広いときは viewBox も広く取る（svg は width:100% なので、720 のままだと全幅の枠で
+      // 高さが枠の半分近くまで伸び、数本の棒のために1画面ぶんの余白ができる）。狭い枠では逆に
+      // 平べったくなりすぎるので、既定の 720 に戻す。
+      const signupsChart = document.querySelector('#chart-signups-daily');
+      signupsChart.innerHTML = barChart(accounts.signups_daily, { width: signupsChart.clientWidth >= 700 ? 1200 : 720 });
     }
 
     function renderRetention(data) {

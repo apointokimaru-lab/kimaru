@@ -992,8 +992,17 @@ section("analytics dashboard (#343)");
   await page.waitForTimeout(150);
   ok("期間で集計するビューでは期間タブが出る", await page.locator("#range-buttons").isVisible());
   ok("但し書きも期間表示に戻る", (await page.textContent("#admin-message")).includes("直近30日"));
-  ok("流入元ごとの登録数が出る", (await page.textContent("#signup-sources-list")).includes("www.google.com"));
-  ok("獲得ファネルが出る", (await page.textContent("#acquisition-funnel")).includes("登録完了"));
+  // 流入元は表ではなく横棒（1行だけのとき表が広い枠に浮いて読めなかった）。割合も添える。
+  const sourcesText = await page.textContent("#signup-sources-list");
+  ok("流入元ごとの登録数が横棒で出る",
+    (await page.locator("#signup-sources-list .op-funnel-row").count()) === 2
+    && sourcesText.includes("www.google.com") && sourcesText.includes("57.1%"));
+  const acqFunnel = await page.textContent("#acquisition-funnel");
+  ok("獲得ファネルが出る", acqFunnel.includes("登録完了"));
+  // 右の小さい数字は「前の段からの通過率」。先頭からの到達率は棒の長さが表しているので数字にしない。
+  ok("ファネルは前の段からの通過率を出す", acqFunnel.includes("基準") && acqFunnel.includes("35.6%") && acqFunnel.includes("28.1%"));
+  ok("ファネルの締めに先頭→最後の通過率が出る",
+    (await page.textContent("#acquisition-funnel-note")).includes("0.8%"));
 
   // 定着（立ち上がり＋継続）
   await page.click('.op-nav-sub[data-nav-href="/analytics.html#retention"]');

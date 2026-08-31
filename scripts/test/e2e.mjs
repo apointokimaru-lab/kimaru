@@ -1065,6 +1065,11 @@ section("setup card + user guide (#353)");
   ok("connected calendar is marked done", (await page.getAttribute("#setup-step-calendar", "data-state")) === "done");
   ok("existing booking page is marked done", (await page.getAttribute("#setup-step-page", "data-state")) === "done");
   ok("empty profile is still todo", (await page.getAttribute("#setup-step-profile", "data-state")) === "todo");
+  // 並び順は「連携 → プロフィール → 予約ページ」。HTMLの <li> と app.js の SETUP_STEPS が
+  // 別々に持っている情報なので、片方だけ直したときに番号と行が食い違うのをここで止める。
+  ok("the steps are ordered calendar → profile → page",
+    (await page.$$eval("#setup-card .setup-step", (els) => els.map((el) => `${el.id}:${el.querySelector(".setup-stamp").textContent.trim()}`).join(",")))
+      === "setup-step-calendar:✓,setup-step-profile:2,setup-step-page:✓");
   // 次にやる1つだけが朱のボタン（3つとも同じ強さだと、どれから手を付けるか分からない）
   ok("only the next step has the primary button", (await page.locator("#setup-card .setup-action.primary").count()) === 1);
   ok("the primary button is the unfinished step", (await page.locator("#setup-step-profile .setup-action.primary").count()) === 1);

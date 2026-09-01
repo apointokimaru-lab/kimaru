@@ -145,18 +145,24 @@ img, svg { max-width: 100%; }
 .tile h3 { margin-bottom: 8px; }
 .tile p { color: var(--ink-2); font-size: var(--fs-small); }
 
-/* ---- 痛み ---- */
-.pains { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); margin-top: 30px; }
-@media (min-width: 820px) { .pains { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; } }
+/* ---- 痛み ----
+   読み手が「自分のことだ」と思う場所なので、ページの中でいちばん字を大きく、余白も広く取る。
+   ここで小さくまとめると、以降の機能説明が他人事のまま読まれる。 */
+.pains-sec { padding-top: calc(var(--gap) * 1.15); padding-bottom: calc(var(--gap) * 1.15); }
+.pains-sec .head { max-width: 48ch; }   /* 前置きが4行に割れないよう、この節だけ幅を広げる */
+.pains-lead { font-size: clamp(16px, 1.7vw, 19px); line-height: 1.95; }
+.pains { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); margin-top: 44px; }
+@media (min-width: 860px) { .pains { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; } }
 .pain {
-  background: #fff; border-radius: var(--r); padding: 24px 22px;
-  border: 1px solid var(--line); position: relative;
+  background: #fff; border-radius: 22px; padding: clamp(28px, 3.4vw, 40px) clamp(24px, 2.6vw, 32px);
+  border: 1px solid var(--line); box-shadow: var(--shadow); position: relative;
 }
-.pain .bubble { font-weight: 900; font-size: 17px; line-height: 1.6; }
+.pain-art { display: block; width: 96px; height: 72px; margin-bottom: 18px; }
+.pain .bubble { font-weight: 900; font-size: clamp(19px, 2vw, 24px); line-height: 1.65; letter-spacing: -.01em; }
 .pain .bubble::before, .pain .bubble::after { color: var(--seal); }
 .pain .bubble::before { content: "「"; }
 .pain .bubble::after { content: "」"; }
-.pain p { margin-top: 10px; color: var(--ink-2); font-size: var(--fs-small); }
+.pain p { margin-top: 14px; color: var(--ink-2); font-size: var(--fs-body); line-height: 1.9; }
 
 /* ---- 機能（左右交互） ---- */
 .feat { display: grid; gap: clamp(24px, 4vw, 44px); align-items: center; padding: clamp(28px, 4vw, 44px) 0; }

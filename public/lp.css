@@ -267,6 +267,26 @@ figure.shot figcaption { margin-top: 10px; font-size: var(--fs-small); color: va
 .faq details[open] summary::after { transform: rotate(-135deg); top: 30px; }
 .faq .a { padding: 0 20px 20px; color: var(--ink-2); font-size: var(--fs-small); line-height: 1.95; }
 
+/* ---- 常識の書き換え（問題提起の直後の1枚）----
+   ここだけ地を反転させる。「予定を作って終わる／だからはじめましてに戻る」という、
+   このLPでいちばん引っくり返したい思い込みを置く場所なので、面で断ち切って読ませる。 */
+.band { background: var(--ink); color: #fff; padding: clamp(52px, 8vw, 88px) 0; text-align: center; }
+.band-lead { font-size: var(--fs-small); color: rgba(255,255,255,.72); font-weight: 500; }
+.band-main {
+  margin-top: 10px; font-weight: 900; letter-spacing: -.01em; line-height: 1.4;
+  font-size: clamp(24px, 4.6vw, 42px);
+}
+.band-mk { background: linear-gradient(transparent 62%, rgba(222,74,46,.85) 62%); padding: 0 .06em; }
+.band-note {
+  margin: 18px auto 0; max-width: 38em; color: rgba(255,255,255,.78); font-size: var(--fs-small);
+}
+
+/* ---- 使い続けた先（未来提示）---- */
+.future-grid { display: grid; gap: clamp(28px, 5vw, 48px); align-items: center; }
+@media (min-width: 940px) { .future-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); } }
+.future-art { width: 100%; height: auto; display: block; }
+.future .lede { margin-top: 16px; max-width: 34em; color: var(--ink-2); }
+
 /* ---- クロージング ---- */
 .close { background: linear-gradient(180deg, var(--wash) 0%, #DFF0E7 100%); padding: var(--gap) 0; text-align: center; }
 .close h2 { max-width: 18em; margin-inline: auto; }

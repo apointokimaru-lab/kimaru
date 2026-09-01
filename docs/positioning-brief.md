@@ -288,6 +288,8 @@ LPの見出し・比較表の主役にしてはいけない。「あって当た
 | B. 別ドメイン＋計測を移植 | ○ `usage.js` を読み込ませる（`/api/usage` はCORS要確認） | △ 登録リンクに `?src=` を付けて運ぶ（Googleは `google-auth-start?src=`、メール登録は本文の `source`。仕組みは既にある） | 実装が要る |
 | C. 別ドメイン・計測なし | ✗ 取れない | ✗ | **主指標が測れないので不可** |
 
+**決定（2026-09-01・#364）: A を採用。** 新LPは `public/lp.html`（URL `/lp.html`）に置いた。Edge Function が全HTMLに `usage.js` を差し込むので閲覧は `page_events` にそのまま入り、`/lp.html` は運営の「獲得」タブのLP閲覧（`usage-summary.js` の `acquisition_funnel`）にも合算している。**別ドメインへ移すと分母と流入元が同時に切れる。**
+
 ### 6.4 目標値
 
 - **業界平均は手元に無い。数値目標を先に置かない（要確認）。**

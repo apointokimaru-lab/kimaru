@@ -123,6 +123,8 @@ Vanilla JS, no framework. i18n is attribute-driven: `data-i18n` / `data-i18n-pla
 ### 予約のキャンセル・日程変更
 ゲストは確認メール/完了画面の管理リンク（`/manage-booking.html?id=&t=`、`t` は `bookingToken`=booking idのHMAC）から、ログイン不要でキャンセル・日程変更できる（`booking-manage.js`）。リスケは同一bookingを更新し、Googleイベントは新規作成成功時のみ旧を削除して差し替え。新規予約・キャンセル・変更時はホストへも通知メール（`book.js sendHostNotification`）。
 
+**面談の名前（Googleカレンダーの予定名・Zoomのミーティング名）は `_lib/booking-format.js` の `meetingTitle()` だけで作る**（#358）。`bookings.topic` は**事前アンケート1問目の回答のコピー**（#312 以降、独立した相談内容の欄ではない）なので、**外から見える名前には使わない**——Zoomのミーティング名に使っていたため、相談内容が参加画面・招待・録画の一覧に出ていた。回答を載せてよいのはホストしか見ない場所（カレンダーの説明欄・ホスト通知メール・相手管理）だけ。
+
 ## Design workflow — ブランチ上で public/ に直接（mock/ は廃止・#317）
 
 以前は `mock/` サンドボックスで設計してから `public/` へ移植していたが、**issue＋ブランチ運用に切り替えたことでその役割はブランチが代替した**ため `mock/` を削除した。移植は二度手間（構造とCSSを移したうえで `data-i18n` の3言語貼り直しとJS結線をやり直す）で、実際 `mock/` は更新が止まって `public/` と乖離し、古い画面を参照して設計を誤る原因になっていた。

@@ -3,17 +3,9 @@ const { sb, eq } = require("./_lib/supabase");
 
 // 公開プロフィール取得（#176）。認証不要・誰でも閲覧可。owner の slug で引く。
 // profile_public === 'off' の場合のみ非公開。公開する項目はホワイトリストで限定（goal/email等の内部情報は出さない）。
-const PUBLIC_FIELDS = [
-  "profile_name",
-  "profile_title",
-  "profile_headline",
-  "profile_bio_rich",
-  "profile_accent_color",
-  "profile_strengths",
-  "profile_offer",
-  "profile_values",
-  "profile_links",
-];
+// 一覧は `_lib/profile-fields.js` に集約した。ここと予約完了メール・カレンダー招待が別々の配列を
+// 持っていたため、片方にだけホスト向けの項目（profile_goal）が残っていた（#360）。
+const { PUBLIC_PROFILE_FIELDS: PUBLIC_FIELDS } = require("./_lib/profile-fields");
 
 function safeParse(text) {
   try {

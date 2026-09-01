@@ -7,18 +7,17 @@ const pinpoint = require("./_lib/pinpoint");
 const { sendMail } = require("./_lib/mail");
 const { appBaseUrl } = require("./_lib/config");
 const { LOCATION_LABELS, formatJst, manageUrl, answerUrl, answersSummary } = require("./_lib/booking-format");
+const { GUEST_PROFILE_FIELDS } = require("./_lib/profile-fields");
 
 const APP_ESC = (v) => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // ホストのプロフィール項目（値があるものだけ）。相手（ゲスト）向けの表示に使う。値が無い項目は出さない。
+// 出してよい項目はここで決めない。`_lib/profile-fields.js` の GUEST_PROFILE_FIELDS が唯一の出どころ
+// （ここに独自の配列を持っていたため、公開プロフィールでは内部情報として外していた profile_goal
+// ＝「今回キメたいこと・次につなげたいこと」が、メールとカレンダー招待にだけ出ていた・#360）。
 function hostProfileFields(profile) {
-  return [
-    ["肩書き・活動内容", profile.profile_title],
-    ["キャッチコピー", profile.profile_headline],
-    ["強み・得意なこと", profile.profile_strengths],
-    ["提供できる価値", profile.profile_offer],
-    ["大切にしていること", profile.profile_values],
-    ["次につなげたいこと", profile.profile_goal],
-  ].filter(([, v]) => v != null && String(v).trim());
+  return GUEST_PROFILE_FIELDS
+    .map(([label, key]) => [label, profile[key]])
+    .filter(([, v]) => v != null && String(v).trim());
 }
 // 公開プロフィールURL（公開設定がoff/slug無しなら空）。
 function hostProfileUrl(owner, profile) {

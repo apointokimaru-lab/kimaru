@@ -16,7 +16,7 @@
 | [`features/README.md`](./features/README.md) | 機能一覧（ユーザー機能／運営者機能で分割・優先度付き）。各機能1ファイル |
 | [`current-features.md`](./current-features.md) | 現状の実装棚卸し（実装済み／未実装／決定未反映） |
 | [`plan-comparison.md`](./plan-comparison.md) | 無料版 / 有料版の説明資料（比較表） |
-| [`positioning-brief.md`](./positioning-brief.md) | **ポジショニング**（新LP用・#362）。ターゲット定義・痛み・差別化軸・狙わない領域・メインコピー案・想定反論。競合（TimeRex/Spir/Jicoo/eeasy/Calendly）の料金と口コミ引用つき |
+| [`positioning-brief.md`](./positioning-brief.md) | **ポジショニング**（新LP用・#362）。ターゲット定義・痛み・差別化軸・狙わない領域・メインコピー案・想定反論・**合否の指標（LP閲覧→会員登録の転換率）**。競合（TimeRex/Spir/Jicoo/eeasy/Calendly）の料金と口コミ引用は**裏取り用でLPには出さない** |
 | [`running-costs.md`](./running-costs.md) | ランニングコスト（インフラ固定費・決済/AI変動費・損益の目安） |
 | [`zoom-marketplace-submission.md`](./zoom-marketplace-submission.md) | Zoom Marketplace 公開申請の提出物（チェックリスト・Listing文面・審査手順・セキュリティ回答草案） |
 | [`kimaru_ai_bot_development_roadmap.md`](./kimaru_ai_bot_development_roadmap.md) | **開発ロードマップ**（開発順序・フルリプレイス方針・自作AI会議Bot・CRM/タスク拡張） |

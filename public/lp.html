@@ -3,364 +3,490 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>キマル | 聞いた答えが、そのまま相手の記録になる</title>
+  <title>キマル | 聞いてから会える、相手ごとに残る日程調整</title>
   <meta name="description" content="キマルは、予約を受けるときに聞きたいことを聞けて、その答えが相手ごとに残るツールです。会う前に開けば相手のことが分かり、会ったあとのメモも同じ1枚に貯まります。" />
   <link rel="icon" href="/favicon.ico" />
-  <!-- 書体は3役（見出し=明朝／本文=ゴシック／数値=等幅）。CSPで許可済みのGoogle Fontsのみ使う。 -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@700&family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/lp.css" />
 </head>
 <body>
   <a class="skip" href="#main">本文へ移動</a>
-  <!-- 読み進みの罫。台帳の「どこまで綴じたか」を1本で表す（装飾ではなく現在地） -->
-  <div class="progress" aria-hidden="true"><i></i></div>
 
   <header class="bar">
-    <a class="mark" href="/">キマル</a>
-    <span class="bar-spacer"></span>
-    <a class="plain" href="/login.html">ログイン</a>
-    <a class="cta" href="/signup.html">無料で始める</a>
+    <div class="bar-in">
+      <a class="mark" href="/"><i aria-hidden="true"></i>キマル</a>
+      <span class="bar-spacer"></span>
+      <a class="plain" href="/login.html">ログイン</a>
+      <a class="cta" href="/signup.html">無料で始める</a>
+    </div>
   </header>
 
   <main id="main">
-    <!-- ============ 01 ヒーロー：痛み → 一行定義 → CTA ============ -->
-    <section class="sec hero">
-      <div class="sec-grid">
-        <p class="idx">01 / 悩み</p>
-        <div class="hero-grid">
-          <div>
-            <p class="eyebrow">個人事業主のための日程調整</p>
-            <h1><span class="cl">この人、前に</span><span class="cl">何を話したんだっけ。</span></h1>
-            <p class="define">
-              キマルは、<b>予約を受けるときに聞きたいことを聞けて、その答えが相手ごとに残る</b>ツールです。
-              会う前に開けば相手のことが分かり、会ったあとのメモも同じ1枚に貯まります。
-              日程を決める作業が、そのまま相手の情報になります。
-            </p>
-            <div class="hero-actions">
-              <a class="cta" href="/signup.html">無料で始める</a>
-              <span class="cta-note">無料のままで、日程調整は最後まで使えます。</span>
-            </div>
-          </div>
-
-          <!-- シグネチャー（1）：まだ何も書かれていない「相手の1枚」 -->
-          <figure class="card card-empty" aria-label="相手の記録カード（記入前の例）">
-            <div class="card-head">
-              <span class="card-title">相手の1枚</span>
-              <span class="card-meta">記入前</span>
-            </div>
-            <div class="row">
-              <span class="row-k">氏名</span>
-              <span class="blank" aria-hidden="true"></span>
-            </div>
-            <div class="row">
-              <span class="row-k">Q1</span>
-              <span class="row-q">今日いちばん相談したいこと</span>
-              <span class="row-k">A1</span>
-              <span class="blank" aria-hidden="true"></span>
-            </div>
-            <div class="row">
-              <span class="row-k">Q2</span>
-              <span class="row-q">いまの状況をひとことで</span>
-              <span class="row-k">A2</span>
-              <span class="blank" aria-hidden="true"></span>
-            </div>
-            <div class="card-foot">面談メモ・印象はまだありません</div>
-          </figure>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ 02 こうなっていませんか ============ -->
-    <section class="sec">
-      <div class="sec-grid">
-        <p class="idx">02 / 現状</p>
+    <!-- ============ ヒーロー ============ -->
+    <section class="hero">
+      <div class="in hero-grid">
         <div>
-          <h2>こうなっていませんか。</h2>
-          <p class="lede">日程は決まる。会えている。それでも、会う前と会ったあとが手元に残らない。</p>
-          <div class="pains">
-            <article class="pain">
-              <h3>この人、前に何を話したんだっけ</h3>
-              <p>会う直前に、メールとカレンダーとメモアプリを行き来して、相手のことを思い出そうとしている。</p>
-            </article>
-            <article class="pain">
-              <h3>予約は入るのに、次につながらない</h3>
-              <p>日程は決まる。会えている。それでも一度きりで終わり、何が足りなかったのかも残っていない。</p>
-            </article>
-            <article class="pain">
-              <h3>ツールを増やすほど、記録がバラける</h3>
-              <p>日程調整と顧客管理と手元のメモが別々で、結局どれも中途半端に埋まっている。運用ルールを決める相手もいない。</p>
-            </article>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ 03 できること（差別化軸3つ） ============ -->
-    <section class="sec">
-      <div class="sec-grid">
-        <p class="idx">03 / 機能</p>
-        <div>
-          <h2><span class="cl">聞ける。</span><span class="cl">残る。</span><span class="cl">会う前に返ってくる。</span></h2>
-          <p class="lede">この3つはつながっています。聞いた答えが予約フォームの提出物で終わらず、相手の記録として積み上がります。</p>
-
-          <div class="axes">
-            <div class="axes-main">
-              <article class="axis" data-axis="1">
-                <p class="axis-k">01 — 聞ける</p>
-                <h3>予約のときに、聞いておく。</h3>
-                <p>何を聞くかは自分で決められます。相手は予約と同時に答えるので、別途アンケートを送る手間も、答えてもらえない心配もありません。</p>
-                <p class="note">無料は2問まで。Proは5問まで、選択式の回答にもできます。</p>
-                <figure class="shot">
-                  <div class="shot-frame" data-ratio="16:10">
-                    <span class="shot-use">質問をつくる画面</span>
-                    <span class="shot-ratio">16:10 / 画像は差し替え予定</span>
-                  </div>
-                  <figcaption>予約ページごとに、聞きたいことを並べる画面。</figcaption>
-                </figure>
-              </article>
-
-              <article class="axis" data-axis="2">
-                <p class="axis-k">02 — 残る</p>
-                <h3>聞いた答えが、そのまま相手の記録になる。</h3>
-                <p>回答も、会ったあとの面談メモも、印象も、相手ごとに1枚に貯まります。予約1件ごとのフォームの控えではなく、その人の情報として積み上がります。</p>
-                <p class="note">相手管理（面談メモ・印象スコア）はPro以上の機能です。</p>
-                <figure class="shot">
-                  <div class="shot-frame" data-ratio="16:10">
-                    <span class="shot-use">相手の1枚（相手の詳細画面）</span>
-                    <span class="shot-ratio">16:10 / 画像は差し替え予定</span>
-                  </div>
-                  <figcaption>アンケートの回答・面談メモ・印象が1枚に並んでいる画面。</figcaption>
-                </figure>
-              </article>
-
-              <article class="axis" data-axis="3">
-                <p class="axis-k">03 — 会う前に返ってくる</p>
-                <h3>当日の22分前に、相手のことが届く。</h3>
-                <p>面談の直前にリマインドが届きます。予約ページから相手が見られる公開プロフィールも用意できます。会う前に思い出す作業を、こちらから減らします。</p>
-                <p class="note">
-                  さらにプレミアムでは、自分が契約している ChatGPT / Claude をつないで、次の一手を出せます。AIの料金を二重に払わずに済みます。<span class="soon">近日公開</span>
-                </p>
-                <figure class="shot">
-                  <div class="shot-frame" data-ratio="3:2">
-                    <span class="shot-use">22分前のリマインドメール</span>
-                    <span class="shot-ratio">3:2 / 画像は差し替え予定</span>
-                  </div>
-                  <figcaption>面談の直前に届く、相手のプロフィール付きのリマインド。</figcaption>
-                </figure>
-              </article>
-            </div>
-
-            <!-- シグネチャー（2）：スクロールに合わせて埋まっていく同じカード -->
-            <div class="axes-side">
-              <figure class="card" id="fill-card" data-state="0" aria-label="相手の記録カード（記入例）">
-                <div class="card-head">
-                  <span class="card-title">相手の1枚</span>
-                  <span class="card-meta">例</span>
-                </div>
-                <div class="row">
-                  <span class="row-k">Q1</span>
-                  <span class="row-q">今日いちばん相談したいこと</span>
-                  <span class="row-k">A1</span>
-                  <span class="row-a fill s1">新しい取引先を増やしたい。まず何から手をつけるか相談したいです。</span>
-                </div>
-                <div class="row">
-                  <span class="row-k">Q2</span>
-                  <span class="row-q">いまの状況をひとことで</span>
-                  <span class="row-k">A2</span>
-                  <span class="row-a fill s2">紹介で名前だけ知っている状態です。</span>
-                </div>
-                <div class="row">
-                  <span class="row-k">メモ</span>
-                  <span class="row-a fill s3">来月の展示会に出るとのこと。次は資料を持って伺う。</span>
-                </div>
-                <div class="card-foot">
-                  <span class="fill s3">面談メモと印象を記録</span>
-                  <span class="seal fill s3" aria-hidden="true">印</span>
-                </div>
-              </figure>
-              <p class="cta-note">1人ぶんの記録が、こうして1枚に貯まります。</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ 04 比較（他社名は出さない） ============ -->
-    <section class="sec">
-      <div class="sec-grid">
-        <p class="idx">04 / 違い</p>
-        <div>
-          <h2><span class="cl">日程を決めるところまでは、</span><span class="cl">どれも同じです。</span></h2>
-          <p class="lede">カレンダー連携も、会議URLの自動発行も、リマインドも、いまはどのツールにもあります。違いが出るのは、聞いた答えの行き先です。</p>
-
-          <div class="cmp">
-            <div class="cmp-row cmp-h">
-              <div class="cmp-c">項目</div>
-              <div class="cmp-c">一般的な日程調整ツール</div>
-              <div class="cmp-c">キマル</div>
-            </div>
-            <div class="cmp-row">
-              <div class="cmp-c">カレンダー連携・空き枠の反映</div>
-              <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>あり</div>
-              <div class="cmp-c"><span class="cmp-label">キマル</span>あり</div>
-            </div>
-            <div class="cmp-row">
-              <div class="cmp-c">会議URLの自動発行・リマインド</div>
-              <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>あり</div>
-              <div class="cmp-c"><span class="cmp-label">キマル</span>あり（無料から）</div>
-            </div>
-            <div class="cmp-row">
-              <div class="cmp-c">予約のときに質問する</div>
-              <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>できるものもある</div>
-              <div class="cmp-c"><span class="cmp-label">キマル</span>できる（無料2問／Pro5問・選択式）</div>
-            </div>
-            <div class="cmp-row is-key">
-              <div class="cmp-c">聞いた答えの行き先</div>
-              <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>予約1件ごとの控えとして残る</div>
-              <div class="cmp-c"><span class="cmp-label">キマル</span>相手ごとに束ねて残る</div>
-            </div>
-            <div class="cmp-row">
-              <div class="cmp-c">会ったあとのメモ・印象</div>
-              <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>—</div>
-              <div class="cmp-c"><span class="cmp-label">キマル</span>同じ1枚に足せる（Pro）</div>
-            </div>
-            <div class="cmp-row">
-              <div class="cmp-c">会う前に返ってくるか</div>
-              <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>—</div>
-              <div class="cmp-c"><span class="cmp-label">キマル</span>相手の詳細と、22分前のリマインド</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ 05 導入の流れ ============ -->
-    <section class="sec">
-      <div class="sec-grid">
-        <p class="idx">05 / 始め方</p>
-        <div>
-          <h2>始めるのは、3つだけ。</h2>
-          <p class="lede">登録したあと、この3つが終われば予約を受け付けられます。項目ごとの使い方ガイドも用意しています。</p>
-          <div class="flow">
-            <div class="step">
-              <h3>Googleカレンダーをつなぐ</h3>
-              <p>空いている時間だけが相手に見えるようになります。</p>
-            </div>
-            <div class="step">
-              <h3>予約ページを作り、聞きたいことを決める</h3>
-              <p>面談の長さや受付時間と一緒に、当日までに聞いておきたいことを質問として並べます。</p>
-            </div>
-            <div class="step">
-              <h3>URLを送る</h3>
-              <p>相手が時間を選んで質問に答えると、日程が決まり、会議URLとリマインドが自動で用意されます。</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ 06 料金 ============ -->
-    <section class="sec">
-      <div class="sec-grid">
-        <p class="idx">06 / 料金</p>
-        <div>
-          <h2><span class="cl">無料のままでも、</span><span class="cl">日程調整は最後まで。</span></h2>
-          <p class="lede">記録を残し始めるところからが有料です。アカウント単位の定額で、人数で増えることはありません。</p>
-
-          <div class="plans">
-            <article class="plan">
-              <p class="plan-name">無料</p>
-              <p class="plan-price">¥0<small>/月</small></p>
-              <ul>
-                <li>予約ページ 1つ・受付2ヶ月先まで</li>
-                <li>事前アンケート 最大2問</li>
-                <li>Google Meet 自動発行・22分前リマインド</li>
-                <li>予約のキャンセル / 日程変更</li>
-                <li>予約履歴の閲覧</li>
-                <li>ピンポイント日程調整 1本・候補3つ</li>
-              </ul>
-              <a class="cta plan-cta" href="/signup.html">無料で始める</a>
-            </article>
-
-            <article class="plan is-main">
-              <p class="plan-name">Pro</p>
-              <p class="plan-price">¥980<small>/月</small></p>
-              <ul>
-                <li>予約ページ 2つ・受付6ヶ月先まで</li>
-                <li>事前アンケート 最大5問・自由編集／選択式回答</li>
-                <li>相手管理（面談メモ・印象スコア）</li>
-                <li>高度プロフィール＋公開ページ</li>
-                <li>占いベース相手分析（算命学＋数秘術）</li>
-                <li>ピンポイント日程調整 3本・候補7つ・枠の押さえ</li>
-              </ul>
-              <a class="cta plan-cta" href="/signup.html">無料で始める</a>
-            </article>
-
-            <article class="plan">
-              <p class="plan-name">プレミアム <span class="soon">近日公開</span></p>
-              <p class="plan-price">¥4,800<small>/月</small></p>
-              <ul>
-                <li>Pro の全機能＋予約ページ5つ</li>
-                <li>AIアシスト（自分の ChatGPT / Claude を接続・回数無制限）</li>
-                <li>相手データから次回アポの戦略提案</li>
-                <li>ピンポイント日程調整 5本・候補30</li>
-              </ul>
-              <a class="cta plan-cta" href="/signup.html">無料で始める</a>
-            </article>
-          </div>
-          <p class="pricing-note">
-            いつでも解約でき、隠れた追加料金はありません。有料プランの決済は Square です。無料お試し期間はなく、有料プランは申し込み時から課金されます。
-            <a href="/plan.html">料金・プランの詳細</a>
+          <span class="chip">個人事業主のための日程調整</span>
+          <h1>聞いてから会える。<br /><span class="mk">相手ごとに残る。</span></h1>
+          <p class="sub">
+            予約を受けるときに、聞きたいことを聞けます。その答えは相手ごとに残るので、会う前に開けばこの人のことが分かる。会ったあとのメモも、同じ1枚に貯まります。
           </p>
+          <ul class="hero-points">
+            <li>
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="#D5EBE3" /><path d="M4.5 8.4l2.2 2.2 4.6-4.9" fill="none" stroke="#1E7F6B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              質問は無料で2問から
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="#D5EBE3" /><path d="M4.5 8.4l2.2 2.2 4.6-4.9" fill="none" stroke="#1E7F6B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              Google Meet を自動発行
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="#D5EBE3" /><path d="M4.5 8.4l2.2 2.2 4.6-4.9" fill="none" stroke="#1E7F6B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              22分前にリマインド
+            </li>
+          </ul>
+          <div class="actions">
+            <a class="cta" href="/signup.html">無料で始める</a>
+          </div>
+          <span class="cta-note">クレジットカードの登録は要りません。無料のままで日程調整は最後まで使えます。</span>
+        </div>
+
+        <!-- ヒーローのイラスト（手描きのインラインSVG。生成画像は使っていない）。
+             中身は「予約ページ → 質問 → 相手の1枚」という、このLPの主張そのもの。 -->
+        <div class="hero-art">
+          <svg viewBox="0 0 620 540" role="img" aria-label="予約ページで日程を選び、質問に答え、その答えが相手ごとの1枚に残るまでのイラスト">
+            <defs>
+              <linearGradient id="g-mint" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#E4F3EC" /><stop offset="1" stop-color="#F6FAF7" />
+              </linearGradient>
+              <linearGradient id="g-teal" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#2F9A82" /><stop offset="1" stop-color="#1E7F6B" />
+              </linearGradient>
+              <linearGradient id="g-seal" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#EE6146" /><stop offset="1" stop-color="#DE4A2E" />
+              </linearGradient>
+              <filter id="sh" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#16202A" flood-opacity=".16" />
+              </filter>
+              <filter id="sh-s" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#16202A" flood-opacity=".14" />
+              </filter>
+            </defs>
+
+            <ellipse cx="330" cy="270" rx="288" ry="248" fill="url(#g-mint)" />
+            <circle cx="96" cy="118" r="12" fill="#D5EBE3" />
+            <circle cx="560" cy="446" r="9" fill="#D5EBE3" />
+
+            <!-- 奥：予約ページ（週グリッド） -->
+            <g class="float" filter="url(#sh)">
+              <rect x="250" y="42" width="330" height="220" rx="16" fill="#fff" />
+              <path d="M250 58a16 16 0 0116-16h298a16 16 0 0116 16v18H250V58z" fill="#F6FAF7" />
+              <circle cx="268" cy="59" r="4" fill="#DDE6E1" /><circle cx="282" cy="59" r="4" fill="#DDE6E1" /><circle cx="296" cy="59" r="4" fill="#DDE6E1" />
+              <rect x="268" y="92" width="96" height="9" rx="4.5" fill="#D9E2DD" />
+              <g fill="#EFF4F1">
+                <rect x="268" y="112" width="54" height="26" rx="6" /><rect x="330" y="112" width="54" height="26" rx="6" />
+                <rect x="392" y="112" width="54" height="26" rx="6" /><rect x="454" y="112" width="54" height="26" rx="6" />
+                <rect x="516" y="112" width="46" height="26" rx="6" />
+                <rect x="268" y="146" width="54" height="26" rx="6" /><rect x="392" y="146" width="54" height="26" rx="6" />
+                <rect x="454" y="146" width="54" height="26" rx="6" />
+                <rect x="268" y="180" width="54" height="26" rx="6" /><rect x="330" y="180" width="54" height="26" rx="6" />
+                <rect x="516" y="180" width="46" height="26" rx="6" />
+              </g>
+              <g fill="url(#g-teal)">
+                <rect x="330" y="146" width="54" height="26" rx="6" />
+                <rect x="516" y="146" width="46" height="26" rx="6" />
+                <rect x="392" y="180" width="54" height="26" rx="6" />
+              </g>
+              <rect x="454" y="180" width="54" height="26" rx="6" fill="#BFE0D5" />
+              <rect x="268" y="222" width="120" height="10" rx="5" fill="#E7EDEA" />
+            </g>
+
+            <!-- 中：質問カード -->
+            <g class="float d1" filter="url(#sh)">
+              <rect x="60" y="176" width="300" height="168" rx="16" fill="#fff" />
+              <rect x="84" y="200" width="22" height="10" rx="5" fill="#1E7F6B" opacity=".85" />
+              <rect x="114" y="200" width="150" height="10" rx="5" fill="#D9E2DD" />
+              <rect x="84" y="224" width="252" height="30" rx="8" fill="#F1F6F3" />
+              <rect x="96" y="234" width="170" height="10" rx="5" fill="#CFDBD5" />
+              <rect x="84" y="266" width="22" height="10" rx="5" fill="#1E7F6B" opacity=".85" />
+              <rect x="114" y="266" width="120" height="10" rx="5" fill="#D9E2DD" />
+              <rect x="84" y="290" width="252" height="30" rx="8" fill="#F1F6F3" />
+              <rect x="96" y="300" width="130" height="10" rx="5" fill="#CFDBD5" />
+            </g>
+
+            <!-- 手前：相手の1枚（答えが入っている） -->
+            <g class="float d2" filter="url(#sh)">
+              <rect x="196" y="300" width="330" height="212" rx="16" fill="#fff" />
+              <circle cx="230" cy="336" r="16" fill="#DFEAF5" />
+              <path d="M230 330a6 6 0 110 12 6 6 0 010-12zm0 14c7 0 12 4 12 8h-24c0-4 5-8 12-8z" fill="#9CB6CE" />
+              <rect x="256" y="328" width="104" height="11" rx="5.5" fill="#D9E2DD" />
+              <rect x="256" y="345" width="66" height="9" rx="4.5" fill="#E7EDEA" />
+              <rect x="220" y="372" width="24" height="9" rx="4.5" fill="#9BB0A8" />
+              <rect x="252" y="368" width="250" height="34" rx="8" fill="#D5EBE3" />
+              <rect x="264" y="379" width="190" height="10" rx="5" fill="#8CC3B2" />
+              <rect x="220" y="418" width="24" height="9" rx="4.5" fill="#9BB0A8" />
+              <rect x="252" y="414" width="250" height="34" rx="8" fill="#D5EBE3" />
+              <rect x="264" y="425" width="140" height="10" rx="5" fill="#8CC3B2" />
+              <rect x="220" y="466" width="176" height="10" rx="5" fill="#E7EDEA" />
+              <g transform="rotate(-9 470 470)">
+                <circle cx="470" cy="470" r="26" fill="none" stroke="url(#g-seal)" stroke-width="3" />
+                <path d="M459 470.5l7.5 7.5 14-15" fill="none" stroke="url(#g-seal)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" />
+              </g>
+            </g>
+
+            <!-- 立体的なカレンダー -->
+            <g transform="translate(34 384)">
+             <g class="float d1" filter="url(#sh-s)">
+              <rect x="0" y="10" width="92" height="84" rx="12" fill="#fff" />
+              <path d="M0 22a12 12 0 0112-12h68a12 12 0 0112 12v10H0V22z" fill="url(#g-seal)" />
+              <rect x="20" y="2" width="8" height="16" rx="4" fill="#C63F25" />
+              <rect x="64" y="2" width="8" height="16" rx="4" fill="#C63F25" />
+              <g fill="#DDE6E1">
+                <rect x="14" y="44" width="14" height="12" rx="3" /><rect x="39" y="44" width="14" height="12" rx="3" /><rect x="64" y="44" width="14" height="12" rx="3" />
+                <rect x="14" y="64" width="14" height="12" rx="3" /><rect x="64" y="64" width="14" height="12" rx="3" />
+              </g>
+              <rect x="39" y="64" width="14" height="12" rx="3" fill="#1E7F6B" />
+             </g>
+            </g>
+
+            <!-- 封筒（リマインド） -->
+            <g transform="translate(500 262)">
+             <g class="float" filter="url(#sh-s)">
+              <rect x="0" y="0" width="86" height="60" rx="10" fill="#fff" />
+              <path d="M8 12l35 25 35-25" fill="none" stroke="#1E7F6B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="78" cy="8" r="9" fill="url(#g-seal)" />
+             </g>
+            </g>
+          </svg>
         </div>
       </div>
     </section>
 
-    <!-- ============ 07 FAQ ============ -->
+    <!-- ============ 3つのできること ============ -->
     <section class="sec">
-      <div class="sec-grid">
-        <p class="idx">07 / 質問</p>
-        <div>
-          <h2>よくある質問</h2>
-          <div class="faq">
-            <details>
-              <summary>無料の日程調整ツールで足りています</summary>
-              <div class="a">足ります、日程を決めるだけなら。キマルが引き受けるのは、決まったあとです。会う前に相手を思い出すことと、会ったあとに残すこと。そこはいま、たぶん手元のメモに散っています。</div>
-            </details>
-            <details>
-              <summary>ほかのツールにも顧客管理があるのでは</summary>
-              <div class="a">あります。ただし多くは、名簿と予約履歴までです。キマルに残るのは面談の中身——アンケートの回答、面談メモ、印象。前回の会話を思い出す用途に耐えるかどうかが違いです。</div>
-            </details>
-            <details>
-              <summary>¥980を払う理由は？ 無料のままでいい</summary>
-              <div class="a">無料でも日程調整は最後まで回ります（Google Meet の自動発行・22分前のリマインド・キャンセル / 日程変更）。¥980は、相手の記録を残し始めるときの金額です。</div>
-            </details>
-            <details>
-              <summary>複数人の予定は調整できないの？</summary>
-              <div class="a">現在は、これから会う相手と1人ずつ日程を決める作りです。複数人の同席調整には対応していません。</div>
-            </details>
-            <details>
-              <summary>占いが入っているのは業務ツールとしてどうなのか</summary>
-              <div class="a">相手を決めつけるためではなく、話の入り口を探すための補助情報として置いています。使わなくても機能します。</div>
-            </details>
-            <details>
-              <summary>AIは結局、自分で契約が必要なのか</summary>
-              <div class="a">プレミアムは、自分が契約している ChatGPT / Claude を接続する方式です。だから回数の上限がなく、AIの料金を二重に払わずに済みます（近日公開）。</div>
-            </details>
+      <div class="in">
+        <div class="head center">
+          <h2>日程が決まるだけでは、<br /><span class="mk">次につながらない。</span></h2>
+          <p>キマルがやるのは、決まったあとまでです。聞く・残す・返す。この3つがひと続きになっています。</p>
+        </div>
+        <div class="tiles">
+          <article class="tile reveal">
+            <svg class="art" width="86" height="72" viewBox="0 0 86 72" aria-hidden="true">
+              <rect x="6" y="8" width="62" height="44" rx="10" fill="#D5EBE3" />
+              <path d="M22 52l-4 12 16-12z" fill="#D5EBE3" />
+              <rect x="18" y="22" width="38" height="6" rx="3" fill="#1E7F6B" opacity=".55" />
+              <rect x="18" y="34" width="24" height="6" rx="3" fill="#1E7F6B" opacity=".3" />
+              <circle cx="70" cy="46" r="14" fill="#DE4A2E" />
+              <path d="M64 46.5l4 4 8-8.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <h3>予約のときに、聞く</h3>
+            <p>何を聞くかは自分で決められます。相手は日程を選ぶついでに答えるので、別でアンケートを送らずに済みます。</p>
+          </article>
+          <article class="tile reveal">
+            <svg class="art" width="86" height="72" viewBox="0 0 86 72" aria-hidden="true">
+              <rect x="10" y="16" width="52" height="44" rx="9" fill="#E7EDEA" transform="rotate(-8 36 38)" />
+              <rect x="20" y="10" width="52" height="46" rx="9" fill="#fff" stroke="#CFDBD5" stroke-width="2" />
+              <rect x="30" y="22" width="32" height="6" rx="3" fill="#CFDBD5" />
+              <rect x="30" y="34" width="26" height="8" rx="4" fill="#D5EBE3" />
+              <circle cx="66" cy="52" r="13" fill="none" stroke="#DE4A2E" stroke-width="2.6" />
+              <path d="M60 52h12M66 46v12" stroke="#DE4A2E" stroke-width="2.6" stroke-linecap="round" />
+            </svg>
+            <h3>相手ごとに、残る</h3>
+            <p>回答も、会ったあとのメモも、印象も、その人の1枚に貯まります。予約ごとの控えではなく、人の情報として積み上がります。</p>
+          </article>
+          <article class="tile reveal">
+            <svg class="art" width="86" height="72" viewBox="0 0 86 72" aria-hidden="true">
+              <circle cx="43" cy="36" r="26" fill="#D5EBE3" />
+              <path d="M43 20v17l11 7" fill="none" stroke="#1E7F6B" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" />
+              <rect x="52" y="6" width="28" height="20" rx="6" fill="#fff" stroke="#DE4A2E" stroke-width="2.4" />
+              <path d="M57 12l9 6 9-6" fill="none" stroke="#DE4A2E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <h3>会う前に、返ってくる</h3>
+            <p>当日の22分前にリマインドが届きます。相手の1枚を開けば、前回なにを話したかがすぐ分かります。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 痛み ============ -->
+    <section class="sec on-wash">
+      <div class="in">
+        <div class="head center">
+          <h2>こうなっていませんか。</h2>
+          <p>日程は決まる。会えている。それでも、会う前と会ったあとが手元に残らない。</p>
+        </div>
+        <div class="pains">
+          <article class="pain reveal">
+            <p class="bubble">この人、前に何を話したんだっけ</p>
+            <p>会う直前に、メールとカレンダーとメモアプリを行き来して、相手のことを思い出そうとしている。</p>
+          </article>
+          <article class="pain reveal">
+            <p class="bubble">予約は入るのに、次につながらない</p>
+            <p>日程は決まる。会えている。それでも一度きりで終わり、何が足りなかったのかも残っていない。</p>
+          </article>
+          <article class="pain reveal">
+            <p class="bubble">ツールを増やすほど、記録がバラける</p>
+            <p>日程調整と顧客管理と手元のメモが別々で、結局どれも中途半端に埋まっている。運用ルールを決める相手もいない。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 機能（左右交互・実UIの置き場所） ============ -->
+    <section class="sec">
+      <div class="in">
+        <article class="feat reveal">
+          <div class="feat-text">
+            <p class="kicker">01 — 聞ける</p>
+            <h2>予約のときに、<span class="mk">聞いておく。</span></h2>
+            <p>面談の長さや受付時間と一緒に、当日までに聞いておきたいことを質問として並べられます。相手は日程を選ぶ流れのまま答えるので、答えが返ってこない、ということが起きません。</p>
+            <p class="note">無料は2問まで。Proは5問まで、選択式の回答にもできます。</p>
           </div>
+          <figure class="shot">
+            <div class="frame">
+              <div class="frame-bar"><i></i><i></i><i></i></div>
+              <div class="frame-body" data-ratio="16:10">
+                <span class="frame-use">質問をつくる画面</span>
+                <span class="frame-note">16:10 / 実画面のキャプチャに差し替え</span>
+              </div>
+            </div>
+            <figcaption>予約ページごとに、聞きたいことを並べる画面。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feat flip reveal">
+          <div class="feat-text">
+            <p class="kicker">02 — 残る</p>
+            <h2>聞いた答えが、<span class="mk">そのまま記録になる。</span></h2>
+            <p>回答は相手ごとに束ねて残ります。会ったあとの面談メモや印象も同じ1枚に足せるので、次に会うときは前回の続きから話せます。</p>
+            <p class="note">相手管理（面談メモ・印象スコア）はPro以上の機能です。</p>
+          </div>
+          <figure class="shot">
+            <div class="frame">
+              <div class="frame-bar"><i></i><i></i><i></i></div>
+              <div class="frame-body" data-ratio="16:10">
+                <span class="frame-use">相手の1枚（相手の詳細画面）</span>
+                <span class="frame-note">16:10 / 実画面のキャプチャに差し替え</span>
+              </div>
+            </div>
+            <figcaption>アンケートの回答・面談メモ・印象が1枚に並んでいる画面。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feat reveal">
+          <div class="feat-text">
+            <p class="kicker">03 — 返ってくる</p>
+            <h2>当日の22分前に、<span class="mk">相手のことが届く。</span></h2>
+            <p>面談の直前にリマインドが届きます。予約ページから相手が見られる公開プロフィールも用意できます。会う前に思い出す作業を、こちらから減らします。</p>
+            <p class="note">プレミアムでは、自分が契約している ChatGPT / Claude をつないで次の一手を出せます。AIの料金を二重に払わずに済みます。<span class="badge">近日公開</span></p>
+          </div>
+          <figure class="shot">
+            <div class="frame">
+              <div class="frame-bar"><i></i><i></i><i></i></div>
+              <div class="frame-body" data-ratio="3:2">
+                <span class="frame-use">22分前のリマインドメール</span>
+                <span class="frame-note">3:2 / 実画面のキャプチャに差し替え</span>
+              </div>
+            </div>
+            <figcaption>面談の直前に届く、相手のプロフィール付きのリマインド。</figcaption>
+          </figure>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ 比較（他社名は出さない） ============ -->
+    <section class="sec on-wash">
+      <div class="in">
+        <div class="head center">
+          <h2>日程を決めるところまでは、<br /><span class="mk">どれも同じです。</span></h2>
+          <p>カレンダー連携も、会議URLの自動発行も、リマインドも、いまはどのツールにもあります。違いが出るのは、聞いた答えの行き先です。</p>
+        </div>
+        <div class="cmp">
+          <div class="cmp-row cmp-h">
+            <div class="cmp-c">項目</div>
+            <div class="cmp-c">一般的な日程調整ツール</div>
+            <div class="cmp-c">キマル</div>
+          </div>
+          <div class="cmp-row">
+            <div class="cmp-c">カレンダー連携・空き枠の反映</div>
+            <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>あり</div>
+            <div class="cmp-c"><span class="cmp-label">キマル</span>あり</div>
+          </div>
+          <div class="cmp-row">
+            <div class="cmp-c">会議URLの自動発行・リマインド</div>
+            <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>あり</div>
+            <div class="cmp-c"><span class="cmp-label">キマル</span>あり（無料から）</div>
+          </div>
+          <div class="cmp-row">
+            <div class="cmp-c">予約のときに質問する</div>
+            <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>できるものもある</div>
+            <div class="cmp-c"><span class="cmp-label">キマル</span>できる（無料2問／Pro5問・選択式）</div>
+          </div>
+          <div class="cmp-row is-key">
+            <div class="cmp-c">聞いた答えの行き先</div>
+            <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>予約1件ごとの控えとして残る</div>
+            <div class="cmp-c"><span class="cmp-label">キマル</span>相手ごとに束ねて残る</div>
+          </div>
+          <div class="cmp-row">
+            <div class="cmp-c">会ったあとのメモ・印象</div>
+            <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>—</div>
+            <div class="cmp-c"><span class="cmp-label">キマル</span>同じ1枚に足せる（Pro）</div>
+          </div>
+          <div class="cmp-row">
+            <div class="cmp-c">会う前に返ってくるか</div>
+            <div class="cmp-c"><span class="cmp-label">一般的な日程調整ツール</span>—</div>
+            <div class="cmp-c"><span class="cmp-label">キマル</span>相手の詳細と、22分前のリマインド</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 3ステップ ============ -->
+    <section class="sec">
+      <div class="in">
+        <div class="head center">
+          <h2>始めるのは、<span class="mk">3つだけ。</span></h2>
+          <p>登録したあと、この3つが終われば予約を受け付けられます。項目ごとの使い方ガイドも用意しています。</p>
+        </div>
+        <div class="steps">
+          <article class="step reveal">
+            <h3>Googleカレンダーをつなぐ</h3>
+            <p>空いている時間だけが相手に見えるようになります。</p>
+            <svg class="art" width="100%" height="72" viewBox="0 0 260 72" aria-hidden="true">
+              <rect x="8" y="12" width="104" height="48" rx="10" fill="#EFF7F2" />
+              <rect x="20" y="26" width="34" height="8" rx="4" fill="#BFD8CE" /><rect x="20" y="42" width="60" height="8" rx="4" fill="#DDE6E1" />
+              <path d="M124 36h26m0 0l-8-7m8 7l-8 7" stroke="#DE4A2E" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+              <rect x="164" y="12" width="88" height="48" rx="10" fill="#fff" stroke="#DDE6E1" stroke-width="2" />
+              <rect x="176" y="26" width="26" height="10" rx="4" fill="#1E7F6B" /><rect x="210" y="26" width="26" height="10" rx="4" fill="#DDE6E1" />
+              <rect x="176" y="42" width="26" height="10" rx="4" fill="#DDE6E1" /><rect x="210" y="42" width="26" height="10" rx="4" fill="#1E7F6B" />
+            </svg>
+          </article>
+          <article class="step reveal">
+            <h3>予約ページを作り、聞きたいことを決める</h3>
+            <p>面談の長さ・受付時間と一緒に、当日までに聞いておきたいことを並べます。</p>
+            <svg class="art" width="100%" height="72" viewBox="0 0 260 72" aria-hidden="true">
+              <rect x="14" y="8" width="232" height="56" rx="10" fill="#fff" stroke="#DDE6E1" stroke-width="2" />
+              <rect x="28" y="20" width="18" height="8" rx="4" fill="#1E7F6B" /><rect x="54" y="20" width="120" height="8" rx="4" fill="#DDE6E1" />
+              <rect x="28" y="38" width="18" height="8" rx="4" fill="#1E7F6B" /><rect x="54" y="38" width="86" height="8" rx="4" fill="#DDE6E1" />
+              <circle cx="222" cy="32" r="12" fill="#DE4A2E" /><path d="M216 32h12M222 26v12" stroke="#fff" stroke-width="2.6" stroke-linecap="round" />
+            </svg>
+          </article>
+          <article class="step reveal">
+            <h3>URLを送る</h3>
+            <p>相手が時間を選んで質問に答えると、日程が決まり、会議URLとリマインドが自動で用意されます。</p>
+            <svg class="art" width="100%" height="72" viewBox="0 0 260 72" aria-hidden="true">
+              <rect x="14" y="18" width="120" height="36" rx="18" fill="#EFF7F2" />
+              <rect x="30" y="32" width="80" height="8" rx="4" fill="#BFD8CE" />
+              <path d="M146 36h24m0 0l-8-7m8 7l-8 7" stroke="#DE4A2E" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+              <rect x="184" y="12" width="62" height="48" rx="10" fill="#fff" stroke="#DDE6E1" stroke-width="2" />
+              <path d="M196 30l19 13 19-13" fill="none" stroke="#1E7F6B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 料金 ============ -->
+    <section class="sec on-wash">
+      <div class="in">
+        <div class="head center">
+          <h2>無料のままでも、<span class="mk">日程調整は最後まで。</span></h2>
+          <p>記録を残し始めるところからが有料です。アカウント単位の定額なので、人数で増えることはありません。</p>
+        </div>
+        <div class="plans">
+          <article class="plan">
+            <p class="plan-name">無料</p>
+            <p class="plan-price">¥0<small>/月</small></p>
+            <ul>
+              <li>予約ページ 1つ・受付2ヶ月先まで</li>
+              <li>事前アンケート 最大2問</li>
+              <li>Google Meet 自動発行・22分前リマインド</li>
+              <li>予約のキャンセル / 日程変更</li>
+              <li>予約履歴の閲覧</li>
+              <li>ピンポイント日程調整 1本・候補3つ</li>
+            </ul>
+            <a class="cta ghost" href="/signup.html">無料で始める</a>
+          </article>
+
+          <article class="plan is-main">
+            <p class="plan-name">Pro</p>
+            <p class="plan-price">¥980<small>/月</small></p>
+            <ul>
+              <li>予約ページ 2つ・受付6ヶ月先まで</li>
+              <li>事前アンケート 最大5問・自由編集／選択式回答</li>
+              <li>相手管理（面談メモ・印象スコア）</li>
+              <li>高度プロフィール＋公開ページ</li>
+              <li>占いベース相手分析（算命学＋数秘術）</li>
+              <li>ピンポイント日程調整 3本・候補7つ・枠の押さえ</li>
+            </ul>
+            <a class="cta" href="/signup.html">無料で始める</a>
+          </article>
+
+          <article class="plan">
+            <p class="plan-name">プレミアム <span class="badge">近日公開</span></p>
+            <p class="plan-price">¥4,800<small>/月</small></p>
+            <ul>
+              <li>Pro の全機能＋予約ページ5つ</li>
+              <li>AIアシスト（自分の ChatGPT / Claude を接続・回数無制限）</li>
+              <li>相手データから次回アポの戦略提案</li>
+              <li>ピンポイント日程調整 5本・候補30</li>
+            </ul>
+            <a class="cta ghost" href="/signup.html">無料で始める</a>
+          </article>
+        </div>
+        <p class="note-line">
+          いつでも解約でき、隠れた追加料金はありません。有料プランの決済は Square です。無料お試し期間はなく、有料プランは申し込み時から課金されます。
+          <a href="/plan.html">料金・プランの詳細</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section class="sec">
+      <div class="in">
+        <div class="head center">
+          <h2>よくある質問</h2>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>無料の日程調整ツールで足りています</summary>
+            <div class="a">足ります、日程を決めるだけなら。キマルが引き受けるのは、決まったあとです。会う前に相手を思い出すことと、会ったあとに残すこと。そこはいま、たぶん手元のメモに散っています。</div>
+          </details>
+          <details>
+            <summary>ほかのツールにも顧客管理があるのでは</summary>
+            <div class="a">あります。ただし多くは、名簿と予約履歴までです。キマルに残るのは面談の中身——アンケートの回答、面談メモ、印象。前回の会話を思い出す用途に耐えるかどうかが違いです。</div>
+          </details>
+          <details>
+            <summary>¥980を払う理由は？ 無料のままでいい</summary>
+            <div class="a">無料でも日程調整は最後まで回ります（Google Meet の自動発行・22分前のリマインド・キャンセル / 日程変更）。¥980は、相手の記録を残し始めるときの金額です。</div>
+          </details>
+          <details>
+            <summary>複数人の予定は調整できないの？</summary>
+            <div class="a">現在は、これから会う相手と1人ずつ日程を決める作りです。複数人の同席調整には対応していません。</div>
+          </details>
+          <details>
+            <summary>占いが入っているのは業務ツールとしてどうなのか</summary>
+            <div class="a">相手を決めつけるためではなく、話の入り口を探すための補助情報として置いています。使わなくても機能します。</div>
+          </details>
+          <details>
+            <summary>AIは結局、自分で契約が必要なのか</summary>
+            <div class="a">プレミアムは、自分が契約している ChatGPT / Claude を接続する方式です。だから回数の上限がなく、AIの料金を二重に払わずに済みます（近日公開）。</div>
+          </details>
         </div>
       </div>
     </section>
   </main>
 
-  <!-- ============ 08 クロージング ============ -->
+  <!-- ============ クロージング ============ -->
   <section class="close">
-    <div class="close-in">
-      <h2><span class="cl">次に会うときは、</span><span class="cl">前回の続きから。</span></h2>
+    <div class="in">
+      <h2>次に会うときは、<span class="mk">前回の続きから。</span></h2>
       <p>予約を受けるときに聞いておく。答えは相手ごとに残る。会ったあとのメモも同じ1枚に。まずは無料のまま、1件受けてみてください。</p>
-      <a class="cta on-dark" href="/signup.html">無料で始める</a>
+      <div class="actions center-actions">
+        <a class="cta" href="/signup.html">無料で始める</a>
+      </div>
       <span class="cta-note">クレジットカードの登録は要りません。</span>
     </div>
   </section>

@@ -42,6 +42,11 @@
         </div>
       </div>
       <ol class="setup-steps">
+        <!-- 順番は「カレンダー連携 → プロフィール → 予約ページ」。予約ページは作った時点で共有できる
+             URLが発行される＝人を招ける状態になるので最後に置く。先にプロフィールを埋めておけば、
+             最初に案内したURLから相手が見る情報が欠けない。
+             番号（.setup-stamp）は app.js の renderSetupCard が SETUP_STEPS の並びで上書きするため、
+             並べ替えるときは app.js の SETUP_STEPS も同じ順に直すこと。 -->
         <!-- 1. カレンダー連携は /api/google-auth-start?connect=1 へ直接送る（設定画面を1枚挟まない）。
              連携が終わると Google 側から /settings.html?calendar=connected#integrations に戻る。 -->
         <li class="setup-step" id="setup-step-calendar" data-state="todo">
@@ -53,23 +58,23 @@
           <span class="setup-badge" data-i18n="setup.done">完了</span>
           <a class="button primary btn-sm setup-action" href="/api/google-auth-start?connect=1" data-i18n="setup.calendar.cta">連携する</a>
         </li>
-        <li class="setup-step" id="setup-step-page" data-state="todo">
-          <span class="setup-stamp">2</span>
-          <span class="setup-tx">
-            <b data-i18n="setup.page.title">予約ページを作成する</b>
-            <small data-i18n="setup.page.desc">所要時間・実施方法・受付時間を設定します。相手に案内するURLはこの画面で発行されます。</small>
-          </span>
-          <span class="setup-badge" data-i18n="setup.done">完了</span>
-          <a class="button secondary btn-sm setup-action" href="/booking-settings.html?new=1" data-i18n="setup.page.cta">予約ページを作成</a>
-        </li>
         <li class="setup-step" id="setup-step-profile" data-state="todo">
-          <span class="setup-stamp">3</span>
+          <span class="setup-stamp">2</span>
           <span class="setup-tx">
             <b data-i18n="setup.profile.title">プロフィールを設定する</b>
             <small data-i18n="setup.profile.desc">予約前に相手が閲覧する情報です。リマインダーメールにも記載されます。</small>
           </span>
           <span class="setup-badge" data-i18n="setup.done">完了</span>
           <a class="button secondary btn-sm setup-action" href="/profile.html" data-i18n="setup.profile.cta">プロフィールを設定</a>
+        </li>
+        <li class="setup-step" id="setup-step-page" data-state="todo">
+          <span class="setup-stamp">3</span>
+          <span class="setup-tx">
+            <b data-i18n="setup.page.title">予約ページを作成する</b>
+            <small data-i18n="setup.page.desc">所要時間・実施方法・受付時間を設定します。相手に案内するURLはこの画面で発行されます。</small>
+          </span>
+          <span class="setup-badge" data-i18n="setup.done">完了</span>
+          <a class="button secondary btn-sm setup-action" href="/booking-settings.html?new=1" data-i18n="setup.page.cta">予約ページを作成</a>
         </li>
       </ol>
       <div class="setup-complete" id="setup-complete" hidden>

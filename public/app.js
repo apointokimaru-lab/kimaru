@@ -558,7 +558,7 @@ async function loadDashboardShare() {
   try {
     const data = await api("booking-pages");
     const slug = (data.pages || [])[0]?.slug;
-    setSetupStep("page", Boolean(slug)); // 初期設定②（#353）：予約ページが1枚でもあれば完了
+    setSetupStep("page", Boolean(slug)); // 初期設定③（#353）：予約ページが1枚でもあれば完了
     if (slug) {
       urlEl.textContent = bookingPageUrl(slug);
       // プレビューボタンは削除（#321）。URLをコピーして開けば同じものが見られる。
@@ -594,7 +594,7 @@ async function loadDashboardProfileTodo() {
     const cnt = document.getElementById("todo-profile-count");
     if (cnt) cnt.textContent = String(missing);
     row.style.display = missing > 0 ? "" : "none";
-    setSetupStep("profile", missing === 0); // 初期設定③（#353）：「要対応」と同じ基準で完了とみなす
+    setSetupStep("profile", missing === 0); // 初期設定②（#353）：「要対応」と同じ基準で完了とみなす
     updateDashboardTodoEmpty();
   } catch (_) { /* 非致命 */ }
 }
@@ -605,13 +605,17 @@ async function loadDashboardProfileTodo() {
 // 何をしているか: ダッシュボードがすでに取っている実データを使い回して達成状況を判定する
 // （このカードのために /api の呼び出しを増やさない）。
 //   calendar … /api/me の calendar_connected（refreshAdmin から）
-//   page     … /api/booking-pages の件数（loadDashboardShare から）
 //   profile  … /api/profile の未入力項目（loadDashboardProfileTodo から。「要対応」と同じ基準）
+//   page     … /api/booking-pages の件数（loadDashboardShare から）
 // 3つとも判明するまで（＝どれかが null の間は）カードを出さない。取得に失敗した項目を「未完了」と
 // 決めつけると、連携済みの人に「連携する」と出してしまうため。
 const SETUP_DISMISS_KEY = "kimaru.setupDone";
-const SETUP_STEPS = ["calendar", "page", "profile"];
-const setupState = { calendar: null, page: null, profile: null };
+// 並び順＝画面に出る順（連携 → プロフィール → 予約ページ）。番号（.setup-stamp）もこの並びで振るので、
+// 変えるときは dashboard.html の <li> の並びも同じ順に直すこと。予約ページを最後にしているのは、
+// 作った時点で共有URLが出る＝人を招ける状態になるため。先にプロフィールが埋まっていれば、
+// 最初に案内したURLから相手が見る情報が欠けない。
+const SETUP_STEPS = ["calendar", "profile", "page"];
+const setupState = { calendar: null, profile: null, page: null };
 
 function setSetupStep(key, done) {
   if (!(key in setupState)) return;

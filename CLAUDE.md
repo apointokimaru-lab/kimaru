@@ -67,6 +67,8 @@ exports.handler = async (event) => { /* event.httpMethod, event.headers, readJso
 - `crypto.js` — HMAC-signed session cookie `kimaru_session` (30d, HttpOnly/Secure), and token encryption for stored Google tokens.
 - `google.js` — Google OAuth + Calendar (freeBusy, event creation, Google Meet via conferenceData).
 
+**ホストのプロフィールを外（ゲスト・公開ページ）へ出す項目は `_lib/profile-fields.js` の1か所で決める**（#360）。公開プロフィール（`profile-public.js`）／予約完了メール・カレンダー招待（`book.js`）／リマインダー（`reminder-mails.js`）が別々に項目の配列を持っていたため、公開側では内部情報として外していた `profile_goal`（今回キメたいこと＝ホストの狙い）が、メールとカレンダーにだけ出ていた。`profile_goal` / `profile_email` / `profile_style` は**ホスト専用**（`HOST_ONLY_PROFILE_FIELDS`）で、外向きのどの面にも出さない。
+
 ### Auth & accounts
 Accounts authenticate via **Google OAuth** (`google-auth-start` → `google-auth-callback`) **and email/password** (`signup.js`/`auth-register.js`/`verify-email.js`/`password-reset-request.js`/`password-reset.js`; passwords scrypt-hashed). Both upsert into the **`owners`** table and set the same `kimaru_session` cookie. `owners` is the **live** account table. Note the schema also contains legacy/aspirational duplicates that are **not** the source of truth: `users` (legacy of `owners`), `google_calendar_tokens` (legacy of `google_connections`), and duplicate columns on `bookings` (`visitor_*`/`guest_*`, `start_at`/`start_time`). Prefer `owners` / `google_connections` / `visitor_*` / `start_at`.
 

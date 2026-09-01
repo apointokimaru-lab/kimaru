@@ -121,6 +121,8 @@ function buildMessage(booking, owner, profile, answers, isPro) {
   if (qa) lines.push("", "― 事前アンケート ―", qa);
 
   // お相手の基本プロフィール — 全プラン（肩書き/活動内容・相手に提供できる価値があるときのみ枠を出す）
+  // 項目を足すときは `_lib/profile-fields.js` の GUEST_PROFILE_FIELDS にある項目だけにする。
+  // ホストだけが見る項目（profile_goal など）を足すと、ゲストのメールに内部の狙いが出る（#360）。
   if (profile.profile_title || profile.profile_offer) {
     lines.push("", "― お相手のプロフィール ―", ownerName);
     if (profile.profile_title) lines.push(`肩書き・活動内容: ${profile.profile_title}`);

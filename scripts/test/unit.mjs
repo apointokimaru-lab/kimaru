@@ -1313,6 +1313,30 @@ section("book.js host profile block (email/calendar)");
   ok("linesToHtml: 公開URLは「{名前}のプロフィール」文言のハイパーリンク", html.includes(`<a href="${url}">田中彰吾のプロフィール</a>`) && html.indexOf("▼ 田中彰吾のプロフィール") === -1);
   const noneProfile = { profile_name: "X" };
   ok("hostProfileTextLines: 値もURLも無ければ空", book.hostProfileTextLines(noneProfile, "X", "").length === 0);
+
+  // #360: ホストだけが見る項目を、ゲスト宛のメール・カレンダー招待に出さない。
+  // 「今回キメたいこと・次につなげたいこと」はホスト側の狙い（例: 提案書送付・紹介依頼）で、
+  // 公開プロフィールは内部情報として外していたのに、メールとカレンダーにだけ出ていた。
+  const hostOnly = {
+    profile_name: "田中彰吾", profile_title: "肩書",
+    profile_goal: "提案書の送付まで持っていく", profile_email: "host@example.com", profile_style: "logical",
+  };
+  const hostOnlyText = book.hostProfileTextLines(hostOnly, "田中彰吾", "").join("\n");
+  ok("ゲスト向けの本文にホストの「今回キメたいこと」を出さない", !hostOnlyText.includes("提案書の送付まで持っていく"));
+  ok("ゲスト向けの本文に連絡先メール・提案スタイルを出さない",
+    !hostOnlyText.includes("host@example.com") && !hostOnlyText.includes("logical"));
+  ok("値のある公開項目は今までどおり出る", hostOnlyText.includes("肩書き・活動内容: 肩書"));
+
+  // 外向きの一覧は1か所（_lib/profile-fields.js）から。3つの面で配列が別々だったのが原因。
+  const pf = requireCjs(path.join(repo, "netlify/functions/_lib/profile-fields.js"));
+  const guestKeys = pf.GUEST_PROFILE_FIELDS.map(([, key]) => key);
+  ok("メール・カレンダーの項目は公開プロフィールの項目の一部", guestKeys.every((key) => pf.PUBLIC_PROFILE_FIELDS.includes(key)));
+  ok("ホスト専用の項目はどちらの一覧にも入っていない",
+    pf.HOST_ONLY_PROFILE_FIELDS.every((key) => !guestKeys.includes(key) && !pf.PUBLIC_PROFILE_FIELDS.includes(key)));
+
+  // 公開プロフィールAPIも同じ一覧を使う（片方だけ直して食い違うのを防ぐ）。
+  const publicSrc = fs.readFileSync(path.join(repo, "netlify/functions/profile-public.js"), "utf8");
+  ok("公開プロフィールAPIも同じ一覧を読む", publicSrc.includes('require("./_lib/profile-fields")'));
 }
 
 // ---------- 14) 受付時間は予約ページ単位（#263: ページBの保存がページAに漏れない） ----------

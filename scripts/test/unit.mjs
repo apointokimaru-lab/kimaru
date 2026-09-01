@@ -1720,6 +1720,60 @@ section("buffer calendar event is busy (#300)");
     ![openAfter(0, null), openAfter(20, null), openAfter(0, 30), openAfter(20, 30)].some(invades));
 }
 
+// ---------- 14e) #358 面談の名前に事前アンケートの回答を使わない ----------
+// Zoom のミーティング名が bookings.topic（＝アンケート1問目の回答のコピー・#312）になっていて、
+// 相談内容が参加画面・招待・録画の一覧に出ていた。名前はカレンダーの予定名と同じ規則に寄せる。
+section("meeting title never leaks questionnaire answers (#358)");
+{
+  const { meetingTitle } = requireCjs(path.join(repo, "netlify/functions/_lib/booking-format.js"));
+  const BOOKING = {
+    visitor_name: "予約 太郎", guest_name: "予約 太郎",
+    topic: "転職の相談をしたい",
+    start_at: "2026-09-10T01:00:00.000Z", end_at: "2026-09-10T01:30:00.000Z",
+    location_type: "zoom", visitor_email: "guest@example.com",
+  };
+  ok("面談の名前は「キマル：<ゲスト名> さんとの面談」", meetingTitle(BOOKING) === "キマル：予約 太郎 さんとの面談");
+  ok("アンケートの回答は名前に入らない", !meetingTitle(BOOKING).includes("転職"));
+  ok("ゲスト名が無くても欠けた名前を作らない", meetingTitle({ topic: "相談したいこと" }) === "キマル：面談");
+
+  // カレンダーの予定名も同じヘルパから作る（片方だけ直すと、また食い違う）。
+  const OWNER_T = { id: "77777777-7777-7777-7777-777777777777" };
+  process.env.TOKEN_ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY || "0".repeat(64);
+  const { encrypt: encTitle } = requireCjs(path.join(repo, "netlify/functions/_lib/crypto.js"));
+  const prevFetch = globalThis.fetch;
+  const calendarSent = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const u = String(url);
+    if (u.includes("/rest/v1/google_connections")) {
+      return { ok: true, status: 200, text: async () => JSON.stringify([{
+        owner_id: OWNER_T.id,
+        access_token: encTitle("fake-access-token"),
+        refresh_token: encTitle("fake-refresh-token"),
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+      }]) };
+    }
+    if (u.includes("googleapis.com/calendar/v3")) {
+      calendarSent.push(JSON.parse(options.body || "{}"));
+      return { ok: true, status: 200, json: async () => ({ id: "ev-title" }) };
+    }
+    return { ok: true, status: 200, text: async () => "[]", json: async () => ({}) };
+  };
+  const googleTitle = requireCjs(path.join(repo, "netlify/functions/_lib/google.js"));
+  await googleTitle.createCalendarEvent(OWNER_T.id, BOOKING);
+  ok("カレンダーの予定名も同じヘルパから作る", calendarSent[0]?.summary === meetingTitle(BOOKING));
+  ok("回答は予定の説明欄にだけ入る", String(calendarSent[0]?.description || "").includes("転職の相談をしたい"));
+  globalThis.fetch = prevFetch;
+
+  // Zoom へ何を渡しているかは book.js 側にしか出てこないので、呼び出しの形で固定する
+  // （回答を渡す実装に戻したら、ここで落ちる）。
+  const bookSrc = fs.readFileSync(path.join(repo, "netlify/functions/book.js"), "utf8");
+  ok("book.js は Zoom のミーティング名に meetingTitle を渡す", /createMeetingFor\([^)]*topic: meetingTitle\(booking\)/.test(bookSrc));
+  ok("book.js は Zoom のミーティング名に booking.topic を渡さない", !/createMeetingFor\([^)]*booking\.topic/.test(bookSrc));
+  // 日程変更でも名前を送り直す（#358 より前に作られた回答入りの名前を直せる唯一の経路）。
+  const manageSrc = fs.readFileSync(path.join(repo, "netlify/functions/booking-manage.js"), "utf8");
+  ok("日程変更でもミーティング名を正しい名前へ直す", /updateMeetingByUrl\([^)]*topic: meetingTitle\(booking\)/.test(manageSrc));
+}
+
 // ---------- 15) Google連携: slug を壊さない／ログイン中はアカウントを切り替えない ----------
 // (1) upsertOwner が既存アカウントの slug を上書きしない（公開URL /u/{slug} が切れる・unique違反で500になる）
 // (2) 新規は衝突しにくいランダムサフィックス付き slug を採番し、衝突したらリトライする

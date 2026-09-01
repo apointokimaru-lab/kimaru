@@ -1,4 +1,5 @@
 const { required, googleRedirectUri } = require("./config");
+const { meetingTitle } = require("./booking-format");
 const { encrypt, decrypt } = require("./crypto");
 const { sb, eq } = require("./supabase");
 
@@ -130,7 +131,8 @@ async function createCalendarEvent(ownerId, booking) {
   if (!accessToken) return null;
   const shouldCreateMeet = (booking.location_type || "google_meet") === "google_meet";
   const eventBody = {
-    summary: `キマル：${booking.visitor_name || booking.guest_name || "面談"} さんとの面談`,
+    // 予定名は Zoom のミーティング名と同じヘルパから作る（片方だけ直すと食い違う・#358）。
+    summary: meetingTitle(booking),
     description: booking.calendar_description != null
       ? booking.calendar_description
       : `${booking.topic || ""}\n\nキマルで予約された面談です。`,

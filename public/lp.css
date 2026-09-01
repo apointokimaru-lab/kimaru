@@ -64,6 +64,8 @@ img, svg { max-width: 100%; }
   padding: 0 .06em;
 }
 .tl { color: var(--teal); }
+/* 日本語の見出しは文節ごとに折る（語の途中で改行させない） */
+.cl { display: inline-block; }
 
 .skip { position: absolute; left: -9999px; top: 0; background: var(--ink); color: #fff; padding: 10px 16px; z-index: 60; }
 .skip:focus { left: 8px; top: 8px; }

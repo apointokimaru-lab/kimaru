@@ -40,6 +40,27 @@ async function fetchOwners() {
   return rows(`owners?select=${OWNER_COLUMNS}&order=created_at.asc&limit=${ROW_CAP}`);
 }
 
+// プロフィールは owners の列ではなく profiles 表の data(jsonb) に入る（`bio` に JSON 文字列で
+// 入っている環境もある：profile.js のフォールバックと同じ形）。列の有無で全体が落ちないよう、
+// 重い順に落として引き直す。
+async function fetchProfiles() {
+  const withData = await rows(`profiles?select=owner_id,data,bio&limit=${ROW_CAP}`);
+  if (withData !== null) return withData;
+  return rows(`profiles?select=owner_id,bio&limit=${ROW_CAP}`);
+}
+
+// 初期設定カード（#353）の「プロフィール設定ずみ」と同じ基準＝基本7項目がすべて埋まっていること。
+// ここだけ違う数え方をすると、ユーザーの画面では完了なのに運営の画面では未完了、が起きる。
+const PROFILE_REQUIRED = ["profile_name", "profile_title", "profile_strengths", "profile_style", "profile_offer", "profile_values", "profile_goal"];
+function profileFilled(row) {
+  let data = row && row.data && typeof row.data === "object" ? row.data : null;
+  if (!data || !Object.keys(data).length) {
+    try { data = JSON.parse((row && row.bio) || "{}"); } catch (_) { data = {}; }
+  }
+  if (!data || typeof data !== "object") return false;
+  return PROFILE_REQUIRED.every((field) => String(data[field] || "").trim());
+}
+
 const jstDay = (value) => {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? jstDayKey(date) : "";
@@ -77,6 +98,20 @@ function quantile(sorted, q) {
   return Math.round((next !== undefined ? sorted[base] + rest * (next - sorted[base]) : sorted[base]) * 10) / 10;
 }
 
+// サマリーの「画面のアクセス」で見る画面（#355）。全画面の合計ではなく、この4つに絞る。
+//
+// なぜ必要か: 合計はLPとゲストが見る予約ページが大半を占めるため、数字が増えても
+// 「予約が入る前（検討）と入った後（準備）に、キマルの画面が実際に使われているか」が読めない。
+// 何をしているか: 役目ごとにパスをまとめ、予約の前後（phase）で並べる。1グループが複数の
+// パスを持つのは、同じ役目の画面が分かれているため（トップは旧LPの landing3、事前の情報確認は
+// 相手の詳細とアンケート回答の2画面）。パスは _lib/analytics.js の normalizePath 後の形で書く。
+const SUMMARY_PAGE_GROUPS = [
+  { key: "top", label: "トップ", phase: "before", paths: ["/index.html", "/landing3.html"] },
+  { key: "plan", label: "プラン比較", phase: "before", paths: ["/plan.html"] },
+  { key: "contacts", label: "相手管理", phase: "after", paths: ["/contacts.html"] },
+  { key: "prep", label: "事前の情報確認", phase: "after", paths: ["/meeting.html", "/answers.html"] },
+];
+
 exports.handler = async (event) => {
   try {
     requireOperator(event);
@@ -90,12 +125,18 @@ exports.handler = async (event) => {
     // 休眠は「30日動きが無い」で見るので、期間の選択に関わらず最低30日ぶんの足あとを引く
     // （7日を選んだだけで全員が休眠に見える、という読み違えを構造的に防ぐ）。
     const activitySinceIso = new Date(Math.min(since.getTime(), now.getTime() - 30 * 86400000)).toISOString();
+    // サマリーは期間ボタンを隠している画面なので、アクセス数は選んだ期間ではなく「直近30日」で固定して出す
+    // （7日を選んだ人と30日を選んだ人で、同じ「サマリー」の数字が変わると読み違える）。前30日と比べる
+    // ぶんも要るので、画面の計測は最低60日ぶん引いてから、期間ぶんに絞り直して集計する。
+    const usageSinceDay = jstDayKey(new Date(Math.min(since.getTime(), now.getTime() - 60 * 86400000)));
+    const day30 = jstDayKey(new Date(now.getTime() - 29 * 86400000)); // 当日を含めて30日
+    const day60 = jstDayKey(new Date(now.getTime() - 59 * 86400000));
     const monthStart = `${jstDayKey(now).slice(0, 7)}-01T00:00:00+09:00`; // AIアシストの当月集計はJST月で数える（上限判定と同じ切り方）
     const notes = [];
 
     const [
       ownerRows, paymentRows, bookingRows, pageRows, availabilityRows, googleRows, zoomRows,
-      questionRows, aiRows, pinpointRows, noteRows, logRows, manualRows,
+      questionRows, aiRows, pinpointRows, noteRows, logRows, manualRows, profileRows,
       usageDaily, usageByPlan, usageSources, ownerActivity, limitHitRows,
     ] = await Promise.all([
       fetchOwners(),
@@ -111,7 +152,8 @@ exports.handler = async (event) => {
       rows(`booking_notes?select=owner_id&limit=${ROW_CAP}`),
       rows(`appointment_logs?select=owner_id&limit=${ROW_CAP}`),
       rows(`manual_contacts?select=owner_id&limit=${ROW_CAP}`),
-      rows(`page_events_daily?select=day,page,views,visitors&day=gte.${sinceDay}&limit=${ROW_CAP}`),
+      fetchProfiles(),
+      rows(`page_events_daily?select=day,page,views,visitors&day=gte.${usageSinceDay}&limit=${ROW_CAP}`),
       rows(`page_events_by_plan?select=day,page,plan,views&day=gte.${sinceDay}&limit=${ROW_CAP}`),
       rows(`page_events_sources?select=day,source,device,views&day=gte.${sinceDay}&limit=${ROW_CAP}`),
       // ログイン中の足あと。WAH（週次アクティブ）と休眠の判定に使う。owner_id が付く行だけで足りる。
@@ -289,6 +331,50 @@ exports.handler = async (event) => {
       }))
       .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 
+    // ---- 初期設定の完了状況（#355）----
+    // なぜ必要か: 「登録はしたが受付を始められていない人が何人いるか」が運営の全体像に出ていなかった
+    // （止まっている人の名簿はあるが、件数として並べる場所が無かった）。
+    // 何をしているか: ダッシュボードの初期設定カード（#353）とまったく同じ3ステップで数える。
+    // ユーザーの画面では完了なのに運営の画面では未完了、という食い違いを作らないため、判定条件は
+    // 増やさない（受付時間の設定はカードに無いので、ここでも見ない）。
+    const profileDoneOwners = new Set((profileRows || []).filter(profileFilled).map((row) => row.owner_id).filter(Boolean));
+    const setupSteps = [
+      { key: "calendar", label: "Googleカレンダー", done: googleOwners, available: googleRows !== null },
+      { key: "profile", label: "プロフィール", done: profileDoneOwners, available: profileRows !== null },
+      { key: "page", label: "予約ページ", done: pageOwners, available: pageRows !== null },
+    ];
+    const setupAvailable = setupSteps.every((step) => step.available);
+    // 取れなかった項目を「未完了」として数えると、実際より未完了が多く見える。3つとも取れたときだけ数える。
+    const setupDoneCounts = [0, 0, 0, 0]; // 添字＝終わっている段の数（0〜3）
+    if (setupAvailable) {
+      for (const owner of activeOwners) {
+        setupDoneCounts[setupSteps.filter((step) => step.done.has(owner.id)).length] += 1;
+      }
+    }
+    const setup = {
+      available: setupAvailable,
+      denominator: activeOwners.length,
+      done: setupAvailable ? setupDoneCounts[3] : null,
+      incomplete: setupAvailable ? activeOwners.length - setupDoneCounts[3] : null,
+      done_rate: setupAvailable ? rate(setupDoneCounts[3], activeOwners.length) : null,
+      // 「あと何段」の分布。1人が複数の段に足りていないことがあるので、下の steps とは合計が一致しない。
+      distribution: setupAvailable
+        ? [
+            { key: "done", label: "3つとも完了", count: setupDoneCounts[3] },
+            { key: "one_left", label: "あと1つ", count: setupDoneCounts[2] },
+            { key: "two_left", label: "あと2つ", count: setupDoneCounts[1] },
+            { key: "none", label: "未着手", count: setupDoneCounts[0] },
+          ]
+        : [],
+      // 段ごとの「終わっていない人数」。どの段でいちばん止まっているか＝案内や画面を直す場所。
+      steps: setupSteps.map((step) => ({
+        key: step.key,
+        label: step.label,
+        available: step.available,
+        pending: step.available ? activeOwners.filter((owner) => !step.done.has(owner.id)).length : null,
+      })),
+    };
+
     // ---- 継続: 週次アクティブ・休眠・2回目率 ----
     // 「その週に管理画面を開いた or 予約が入った」人。#342 を適用した日より前は足あとが無いので、
     // 計測開始前の週は 0 に見える（画面側でその旨を出す）。
@@ -356,12 +442,52 @@ exports.handler = async (event) => {
     const visitorsByPage = {};
     const viewsByDay = {};
     const visitorsByDay = {};
+    // サマリー用（期間ボタンと無関係の直近30日）と、その前30日
+    const recent = { views: 0, visitors: 0 };
+    const previous = { views: 0, visitors: 0 };
+    // サマリーで絞る4画面（SUMMARY_PAGE_GROUPS）は画面ごとの数が要るので、日ごとではなく画面ごとに足す。
+    const recentViewsByPage = {};
+    const recentVisitorsByPage = {};
+    const prevViewsByPage = {};
     for (const row of usageDaily || []) {
-      bump(viewsByPage, row.page, Number(row.views) || 0);
-      bump(visitorsByPage, row.page, Number(row.visitors) || 0);
-      bump(viewsByDay, row.day, Number(row.views) || 0);
-      bump(visitorsByDay, row.day, Number(row.visitors) || 0);
+      const views = Number(row.views) || 0;
+      const visitors = Number(row.visitors) || 0;
+      if (row.day >= day30) {
+        recent.views += views;
+        recent.visitors += visitors;
+        bump(recentViewsByPage, row.page, views);
+        bump(recentVisitorsByPage, row.page, visitors);
+      } else if (row.day >= day60) {
+        previous.views += views;
+        previous.visitors += visitors;
+        bump(prevViewsByPage, row.page, views);
+      }
+      // ここから下は「選んだ期間」の集計。60日ぶん引いているので、期間外の行は落とす。
+      if (row.day < sinceDay) continue;
+      bump(viewsByPage, row.page, views);
+      bump(visitorsByPage, row.page, visitors);
+      bump(viewsByDay, row.day, views);
+      bump(visitorsByDay, row.day, visitors);
     }
+    // 4画面ぶんに畳む。訪問者数は page_events_daily の画面別UUなので、グループ内で足すと
+    // 同じ人を二重に数えるが、ここは「その画面が見られているか」を見る数字なので延べで足す
+    // （合計を全体のUUとして使わないよう、画面側にも「延べ」と書く）。
+    const sumPaths = (map, paths) => paths.reduce((total, path) => total + (map[path] || 0), 0);
+    const summaryPages = SUMMARY_PAGE_GROUPS.map((group) => ({
+      key: group.key,
+      label: group.label,
+      phase: group.phase,
+      paths: group.paths,
+      views: sumPaths(recentViewsByPage, group.paths),
+      visitors: sumPaths(recentVisitorsByPage, group.paths),
+      prev_views: sumPaths(prevViewsByPage, group.paths),
+    }));
+    const focus = summaryPages.reduce((acc, group) => ({
+      views: acc.views + group.views,
+      visitors: acc.visitors + group.visitors,
+      prev_views: acc.prev_views + group.prev_views,
+    }), { views: 0, visitors: 0, prev_views: 0 });
+
     const topPages = Object.keys(viewsByPage)
       .map((page) => ({ page, views: viewsByPage[page], visitors: visitorsByPage[page] || 0 }))
       .sort((a, b) => b.views - a.views);
@@ -462,6 +588,7 @@ exports.handler = async (event) => {
         },
       },
       conversion: { cohorts },
+      setup,
       acquisition: {
         // 流入元は #342 で入れた owners.signup_source。入れる前に登録した人は「(不明)」に落ちる。
         sources: Object.keys(sourceSignups).map((source) => ({ source, count: sourceSignups[source] })).sort((a, b) => b.count - a.count),
@@ -519,6 +646,17 @@ exports.handler = async (event) => {
         devices: deviceViews,
         acquisition_funnel: acquisitionFunnel,
         booking_funnel: bookingFunnel,
+        // サマリー専用（期間ボタンを隠している画面なので、期間の選択に関わらず直近30日で固定）。
+        // 主役は絞った4画面（focus_*）で、全画面の合計（all_*）は「4画面だけを見ている」と分かるための添え物。
+        summary: {
+          days: 30,
+          focus_views: focus.views,
+          focus_visitors: focus.visitors,
+          focus_prev_views: focus.prev_views,
+          pages: summaryPages,
+          all_views: recent.views,
+          all_visitors: recent.visitors,
+        },
       },
     });
   } catch (error) {

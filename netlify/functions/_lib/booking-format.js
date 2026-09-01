@@ -11,6 +11,20 @@ const LOCATION_LABELS = {
   later: "後日連絡",
 };
 
+// 面談の名前。Googleカレンダーの予定名と Zoom のミーティング名で共通に使う（#358）。
+//
+// なぜ必要か: Zoom のミーティング名に `bookings.topic` を渡していたため、**事前アンケート1問目の回答**が
+// そのままミーティング名になっていた（topic は #312 以降「最初に埋まっている回答のコピー」で、
+// 独立した相談内容の欄ではない）。Zoom のミーティング名は参加画面・招待・録画の一覧に出るので、
+// 相談内容が本人の意図しない場所へ出てしまう。カレンダー側は昔から「キマル：◯◯さんとの面談」で、
+// 回答は説明欄にしか入れていない。
+// 何をしているか: 名前の作り方をこの1か所に集約する（カレンダーと Zoom で二度と食い違わせない）。
+// ゲスト名が空のときはサービス名だけにする（"キマル： さんとの面談" のような欠けた名前を作らない）。
+function meetingTitle(booking) {
+  const name = String(booking?.visitor_name || booking?.guest_name || "").trim().slice(0, 80);
+  return name ? `キマル：${name} さんとの面談` : "キマル：面談";
+}
+
 function formatJst(iso) {
   try {
     return new Intl.DateTimeFormat("ja-JP", {
@@ -51,4 +65,4 @@ function answersSummary(answers) {
     .join("\n\n");
 }
 
-module.exports = { LOCATION_LABELS, formatJst, manageUrl, answerUrl, briefingUrl, answersSummary };
+module.exports = { LOCATION_LABELS, formatJst, manageUrl, answerUrl, briefingUrl, answersSummary, meetingTitle };

@@ -560,6 +560,17 @@
 .operator-console .op-funnel-track > i { display: block; height: 100%; background: var(--op-blue); }
 .operator-console .op-funnel-value { font-family: var(--op-mono); font-size: 13px; color: var(--op-ink); text-align: right; font-variant-numeric: tabular-nums; }
 .operator-console .op-funnel-value small { color: var(--op-dim); margin-left: 6px; }
+/* ファネルの締め（先頭の段 → 最後の段の通過率）。段ごとの通過率だけだと、全体でどれだけ通ったかが出ない。 */
+.operator-console .op-funnel-note { margin: 12px 0 0; font-family: var(--op-mono); font-size: 12px; color: var(--op-soft); }
+/* 予約の前／後の仕切り（サマリーの画面アクセス・#355）。同じ横棒の並びでも、どこまでが
+   「予約が入る前」の画面かが一目で分かるようにする。op-funnel の grid の中に置くので1行を占める。 */
+.operator-console .op-phase { margin: 6px 0 0; font-family: var(--op-mono); font-size: 11px; letter-spacing: .04em; color: var(--op-dim); }
+.operator-console .op-phase:first-child { margin-top: 0; }
+/* 3カラムの右端（1/3幅）に入る横棒は列を詰める。既定の 200px + 118px のままだと棒に数十pxしか
+   残らず、画面どうしの長短が読めない。 */
+.operator-console .op-funnel.is-compact { gap: 6px; }
+.operator-console .op-funnel.is-compact .op-funnel-row { grid-template-columns: minmax(84px, auto) minmax(56px, 1fr) max-content; gap: 10px; }
+.operator-console .op-funnel.is-compact .op-funnel-value { font-size: 12px; }
 
 /* ---- 表の中の棒（画面別PV・コホート率） ---- */
 .operator-console .op-cell-bar { display: grid; grid-template-columns: minmax(48px, 1fr) max-content; align-items: center; gap: 8px; min-width: 130px; }
@@ -584,7 +595,48 @@
 }
 .operator-console .op-note { margin: 10px 0 0; padding-left: 16px; color: var(--op-amber); font-size: 12px; }
 
+/* ---- サマリーの主要数値（#355）----
+   8枚を4×2で読ませる。auto-fit のままだと画面幅しだいで1行7枚などに割れ、
+   「人 → 使われ方 → 運営の宿題」という並びの意味が消える。 */
+.operator-console .op-stats.is-kpi { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* 前の期間との差。向きは記号（▲▼±）で出し、色は補助にとどめる */
+.operator-console .op-delta {
+  display: inline-flex; align-items: baseline; gap: 5px; margin-top: 7px;
+  font-family: var(--op-mono); font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.operator-console .op-delta.is-up { color: var(--op-green); }
+.operator-console .op-delta.is-down { color: var(--op-red); }
+.operator-console .op-delta.is-flat { color: var(--op-dim); }
+.operator-console .op-delta small { font-weight: 600; color: var(--op-dim); }
+
+/* ---- 3カラム（内訳のドーナツ2つ＋推移の折れ線）---- */
+/* 内訳（正方形のドーナツ）と推移（横長の折れ線）は必要な幅が違う。等分に割ると折れ線だけが潰れる。 */
+.operator-console .op-trio { display: grid; grid-template-columns: minmax(230px, 1fr) minmax(230px, 1fr) minmax(320px, 1.55fr); gap: 22px; }
+@media (max-width: 1180px) { .operator-console .op-trio { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 700px) { .operator-console .op-trio { grid-template-columns: 1fr; } }
+
+/* ---- ドーナツ（内訳）----
+   .op-chart svg は幅100%なので、正方形のまま置くと1枚で画面を占領する。ここだけ幅を止める。 */
+.operator-console .op-chart.is-donut svg { max-width: 208px; margin: 6px auto 0; }
+.operator-console .op-donut-value { fill: var(--op-ink); font-family: var(--op-mono); font-size: 26px; font-weight: 700; }
+.operator-console .op-donut-label { fill: var(--op-dim); font-family: var(--op-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; }
+
+/* KPIの列数は幅で落とす。ここは .op-stats.is-kpi より後ろに置くこと（同詳細度なので、前だと効かない） */
+@media (max-width: 1180px) {
+  .operator-console .op-stats.is-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .operator-console .op-stats.is-kpi { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 620px) {
   .operator-console .op-funnel-row { grid-template-columns: 1fr 96px; }
   .operator-console .op-funnel-label { grid-column: 1 / -1; }
+  /* 画面アクセスの棒（#355）は名前が短いので、狭くても3列のまま。上の指定のように名前を
+     別の行へ送ると、名前と棒が離れてどの画面の棒か読めなくなる。この2行は上より後ろに置くこと
+     （同詳細度なので、前だと黙って上書きされる）。 */
+  .operator-console .op-funnel.is-compact .op-funnel-row { grid-template-columns: minmax(72px, auto) minmax(40px, 1fr) max-content; }
+  .operator-console .op-funnel.is-compact .op-funnel-label { grid-column: auto; }
 }

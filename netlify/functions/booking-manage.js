@@ -4,7 +4,7 @@ const { verifyBookingToken } = require("./_lib/crypto");
 const { createCalendarEvent, createBufferEventsFor, deleteCalendarEvent } = require("./_lib/google");
 const zoom = require("./_lib/zoom");
 const { sendMail } = require("./_lib/mail");
-const { LOCATION_LABELS, formatJst, manageUrl } = require("./_lib/booking-format");
+const { LOCATION_LABELS, formatJst, manageUrl, meetingTitle } = require("./_lib/booking-format");
 
 function clean(value, max = 500) {
   return String(value || "").trim().slice(0, max);
@@ -186,7 +186,9 @@ exports.handler = async (event) => {
         // Zoom 予約は既存ミーティングの日時を新しい時間に更新（URL不変・失敗は非致命）。
         if (booking.location_type === "zoom") {
           const durationMinutes = Math.max(1, Math.round((end - start) / 60000));
-          await zoom.updateMeetingByUrl(booking.owner_id, booking.meeting_url, { startIso: updated.start_at, durationMinutes }).catch(() => {});
+          // 日時だけでなく名前も送る。#358 より前に作られたミーティングは名前が事前アンケートの回答のままなので、
+          // 日程変更のたびに正しい名前へ直す（ここが既存ミーティングを直せる唯一の経路）。
+          await zoom.updateMeetingByUrl(booking.owner_id, booking.meeting_url, { topic: meetingTitle(booking), startIso: updated.start_at, durationMinutes }).catch(() => {});
         }
         await sb(`bookings?id=${eq(booking.id)}`, { method: "PATCH", body: JSON.stringify(patch) });
 

@@ -6,7 +6,7 @@ const zoom = require("./_lib/zoom");
 const pinpoint = require("./_lib/pinpoint");
 const { sendMail } = require("./_lib/mail");
 const { appBaseUrl } = require("./_lib/config");
-const { LOCATION_LABELS, formatJst, manageUrl, answerUrl, answersSummary } = require("./_lib/booking-format");
+const { LOCATION_LABELS, formatJst, manageUrl, answerUrl, answersSummary, meetingTitle } = require("./_lib/booking-format");
 const { GUEST_PROFILE_FIELDS } = require("./_lib/profile-fields");
 
 const APP_ESC = (v) => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -262,7 +262,9 @@ exports.handler = async (event) => {
     if (booking?.id && bookingPayload.location_type === "zoom") {
       try {
         const durationMinutes = Math.max(1, Math.round((end - start) / 60000));
-        const meeting = await zoom.createMeetingFor(owner.id, { topic: booking.topic || `面談: ${visitorName}`, startIso: start.toISOString(), durationMinutes });
+        // ミーティング名に booking.topic（＝事前アンケート1問目の回答のコピー）を使わない。
+        // 参加画面・招待・録画一覧に相談内容がそのまま出ていた（#358）。カレンダーの予定名と同じ規則にする。
+        const meeting = await zoom.createMeetingFor(owner.id, { topic: meetingTitle(booking), startIso: start.toISOString(), durationMinutes });
         if (meeting?.joinUrl) {
           zoomUrl = meeting.joinUrl;
           booking.meeting_url = zoomUrl;

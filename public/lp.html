@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>キマル | 予約から次の一手までキマる</title>
+    <meta name="description" content="キマルは、予約URLを送るだけで日程調整、事前アンケート、Web会議URL、リマインド、面談後の相手管理までまとめる1対1向け予約システムです。" />
+    <meta name="theme-color" content="#eaf8fb" />
+    <link rel="icon" href="/favicon.ico" />
+    <!-- 別案のLP（#366）。既存プレビューの再現。スタイルは /lp.css に出してある（表示は同じ）。
+         プレビュー側にあった Cloudflare の挿入スクリプトは持ち込んでいない（表示に不要で、
+         このサイトのCSPでは外部スクリプトを読み込めないため）。
+         画面の計測は Edge Function が </body> 直前に usage.js を差し込むので、ここには何も書かない。 -->
+    <link rel="stylesheet" href="/lp.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <div class="nav-in">
+        <a class="brand" href="/">kimaru</a>
+        <nav class="nav-actions" aria-label="主要導線">
+          <a class="login" href="/login.html">ログイン</a>
+          <a class="doc" href="/plan.html">料金を見る</a>
+          <a class="consult" href="/signup.html">無料で始める</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div class="hero-copy">
+            <p class="sub"><span>日程調整の、その先へ。</span></p>
+            <h1>kimaru</h1>
+            <p class="hero-lead">キマルは、1対1の面談や商談に特化した予約システムです。予約URLを送るだけで、日程調整、事前アンケート、Google Meet / Zoom URL発行、22分前リマインド、面談後の相手管理までまとめて進みます。</p>
+            <p class="hero-url-copy">相手に送るのは、予約ページ設定で作成したURLだけ。</p>
+            <div class="value-row" aria-label="キマルの価値">
+              <div class="value-badge">予定を合わせる<br /><strong>手間を削減</strong></div>
+              <div class="value-badge">会う前から、<br /><strong>差がつく。</strong></div>
+              <div class="value-badge">ご縁を、予定で<br /><strong>終わらせない。</strong></div>
+            </div>
+            <div class="hero-actions">
+              <div class="cta-stack">
+                <a class="btn primary" href="/signup.html">まずは無料で始める</a>
+                <span class="cta-note">Google連携で登録30秒</span>
+              </div>
+              <a class="btn secondary" href="#solve">できることを見る</a>
+            </div>
+            <figure class="hero-plan-preview">
+              <img src="/kimaru-hyou.jpg" alt="キマルのプラン一覧。Free、Pro、Premium、Masterの料金と機能比較。" />
+            </figure>
+          </div>
+
+          <aside class="dashboard" aria-label="キマルの予約画面イメージ">
+            <figure class="booking-screenshot">
+              <img src="/aki2.jpg" alt="キマルの予約ページ。所要時間、Google Meet自動発行、5日間の空き枠から選べる予約画面。" />
+            </figure>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="solve">
+        <div class="wrap">
+          <div class="head">
+            <p class="label">SOLVE</p>
+            <h2>空き枠、事前アンケート、Web会議URL発行、顧客管理までひとつに。</h2>
+            <p>相手は予約ページから空き枠を選ぶだけ。</p>
+          </div>
+          <div class="solve-grid">
+            <article class="card"><div class="icon">1</div><h3>空き枠を自動表示</h3><p>Googleカレンダーと連携し、予定がある時間を避けます。ピンポイントで候補日時からの日程調整も可能です。</p></article>
+            <article class="card"><div class="icon">2</div><h3>事前アンケートの回収で</h3><p>相談内容確認やプロフィールの共有を、会う前にできるので、関係性の構築や契約率を高める事ができます。</p></article>
+            <article class="card"><div class="icon">3</div><h3>Google Meet / Zoom URLを自動発行</h3><p>予約確定と同時にオンライン面談の入口を作ります。</p></article>
+            <article class="card"><div class="icon">4</div><h3>面談後の記録を残す</h3><p>メモ、印象スコア、次回の打ち手を管理できます。※無料版では閲覧のみ。</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section tint">
+        <div class="wrap">
+          <div class="head">
+            <p class="label">START FLOW</p>
+            <h2>登録からURL送信まで、迷わず進める。</h2>
+            <p>無料登録から予約用URLの送信まで、必要な設定を順番に進めるだけです。</p>
+          </div>
+          <div class="setup-steps">
+            <div class="setup-step"><i>1</i><b>無料で始める</b><span>まずは無料で利用を開始できます。</span></div>
+            <div class="setup-step"><i>2</i><b>Googleで無料登録</b><span>Google連携で登録。もしくは手入力でも登録できます。</span></div>
+            <div class="setup-step"><i>3</i><b>プロフィール設定</b><span>名前、紹介文、公開ページに表示する情報を整えます。</span></div>
+            <div class="setup-step"><i>4</i><b>予約ページ設定</b><span>所要時間、受付時間、事前アンケート、Web会議URLを設定します。</span></div>
+            <div class="setup-step"><i>5</i><b>予約用のURLを相手に送信</b><span>発行された予約URLを送るだけで、日程調整が始まります。</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="head">
+            <p class="label">FEATURES</p>
+            <h2>キマルの機能一覧</h2>
+            <p>日程調整、事前準備、当日の案内、面談後の管理まで。1対1の面談で起きる細かい手間を、ひとつの流れで減らします。</p>
+          </div>
+          <div class="feature-table-wrap">
+            <table class="feature-table">
+              <thead>
+                <tr>
+                  <th>機能</th>
+                  <th>できること</th>
+                  <th>便利になるポイント</th>
+                  <th>対応</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>予約ページ作成</td>
+                  <td>面談用の予約URLを作成し、相手に送るだけで受付できます。</td>
+                  <td>「いつ空いてますか？」の往復を減らし、相手が自分で空き枠を選べます。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>Googleカレンダー連携</td>
+                  <td>既存予定を避けて、予約可能な時間だけを表示します。</td>
+                  <td>ダブルブッキングを防ぎ、予定確認の手間を減らせます。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>予約受付期間設定</td>
+                  <td>2ヶ月先、6ヶ月先など、プランに応じた受付期間を設定できます。</td>
+                  <td>先すぎる予定や直前すぎる予約をコントロールできます。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>事前アンケート</td>
+                  <td>相談内容、目的、聞きたいことを予約時に回収できます。</td>
+                  <td>面談前から相手の状況がわかり、当日の会話が深くなります。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>Gmailリマインダー</td>
+                  <td>面談前にメールで予定を知らせます。</td>
+                  <td>うっかり忘れや直前の確認漏れを防げます。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>Google Meet / Zoom URL発行</td>
+                  <td>オンライン面談のURLを予約に紐づけて案内できます。</td>
+                  <td>当日に「URLどこですか？」が起きにくくなります。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>相手管理</td>
+                  <td>会った人の情報、面談メモ、履歴を残せます。</td>
+                  <td>一度会った人との関係を、次回の提案やフォローにつなげられます。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>印象スコア・相手分析</td>
+                  <td>相手の傾向や相性を整理し、理解を深めます。</td>
+                  <td>話し方や提案内容を相手に合わせやすくなります。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>AI連携モード</td>
+                  <td>商談内容の要点整理、要約、次回アクションのヒントを支援します。</td>
+                  <td>面談後の振り返りとフォローが速くなります。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="plans">
+        <div class="wrap">
+          <div class="head">
+            <p class="label">PLAN</p>
+            <h2>無料で始めて、必要な分だけ広げる。</h2>
+            <p>高度な相手管理やAIアシスト等が必要になったら、上位プランへ拡張できます。</p>
+          </div>
+          <figure class="pricing-image">
+            <img src="/kimaru-hyou.jpg" alt="キマル プラン一覧。各プランの料金、AIカルテ利用時間、予約ページ数、予約受付期間、事前アンケート、リマインダー、相手管理などの比較表。" />
+          </figure>
+          <div class="plans">
+            <article class="card plan">
+              <span class="tag">無料</span>
+              <h3>無料版</h3>
+              <div class="price">¥0<span> /月</span></div>
+              <ul><li>予約ページ 1つ</li><li>受付 2ヶ月先まで</li><li>事前アンケート 2問</li><li>22分前リマインド</li></ul>
+              <a class="btn secondary" href="/signup.html">無料で始める</a>
+            </article>
+            <article class="card plan popular">
+              <span class="tag limited">先着100名限定</span>
+              <h3>Pro</h3>
+              <div class="price">¥980<span> /月</span></div>
+              <p class="regular-price">通常 ¥2,200 /月</p>
+              <ul><li>予約ページ 2つ</li><li>受付 6ヶ月先まで</li><li>アンケート 5問</li><li>相手管理と印象スコア</li></ul>
+              <a class="btn primary" href="/plan.html">Proを見る</a>
+            </article>
+            <article class="card plan">
+              <span class="tag">近日</span>
+              <h3>Premium</h3>
+              <div class="price">¥4,800<span> /月</span></div>
+              <ul><li>Proの全機能</li><li>予約ページ 5つ</li><li>AIアシスト</li><li>次の一手の提案</li></ul>
+              <a class="btn secondary" href="/ai-assist.html">AIアシストを見る</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="final">
+        <div class="wrap">
+          <h2>会う前から、差がつく。<br />ご縁を、予定で終わらせない。</h2>
+          <p>1対1の面談を、ただの日程調整で終わらせない。会う前から会った後まで、キマルで整えましょう。</p>
+          <div class="hero-actions">
+            <div class="cta-stack">
+              <a class="btn primary" href="/signup.html">無料で始める</a>
+              <span class="cta-note">Google連携で登録30秒</span>
+            </div>
+            <a class="btn secondary" href="/plan.html">料金を見る</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap footer-in">
+        <div><a href="/terms.html">利用規約</a><a href="/privacy.html">プライバシーポリシー</a><a href="/tokushoho.html">特定商取引法に基づく表記</a></div>
+        <span>© 2026 キマル</span>
+      </div>
+    </footer>
+  </body>
+</html>

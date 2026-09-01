@@ -1,0 +1,358 @@
+/* 新LP（#364）専用のスタイル。styles.css は読み込まない。
+   なぜ分けるか: このページのアートディレクション（帳票の紙・明朝の見出し・綴じ代）は
+   アプリ側のデザインシステム（真っ白・ゴシック・角丸）と別物で、混ぜると両方が濁る。
+   代わりに朱（--seal）だけをアプリと同じ値にして、登録後の画面と地続きに見せる。 */
+
+:root {
+  /* パレット5色（#364 で承認）。帳簿・カルテ・台帳の紙面から取っている＝
+     「聞いた答えが積み上がる」というこのLPの主張と、色の出どころを一致させる。 */
+  --sumi:   #14150F;  /* 墨。黒より温かく、紙に沈む */
+  --paper:  #EEF0E8;  /* 帳票紙。白ではなく、わずかに緑を含む生成り */
+  --rule:   #C7D6BE;  /* 罫の緑。書き込まれた面にも使う */
+  --seal:   #DE4A2E;  /* 朱。CTAと「決まった」印だけ。面では使わない */
+  --forest: #233227;  /* 深緑。ページの終端を沈める面 */
+
+  --ink-2: rgba(20, 21, 15, .72);
+  --ink-3: rgba(20, 21, 15, .52);
+  --line:  rgba(20, 21, 15, .16);
+  --line-2:rgba(20, 21, 15, .08);
+  --card:  #FBFCF8;   /* カードだけは紙より明るい＝記入用紙が載っている */
+
+  --mincho: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --gothic: "Noto Sans JP", system-ui, sans-serif;
+  --mono:   "IBM Plex Mono", ui-monospace, monospace;
+
+  --shell: 1120px;
+  --gut: clamp(20px, 5vw, 40px);
+  --gap-sec: clamp(64px, 10vw, 128px);   /* セクション間 */
+  --spine: 72px;                          /* 綴じ代の幅（デスクトップのみ） */
+
+  --fs-hero:  clamp(30px, 7.4vw, 62px);
+  --fs-h2:    clamp(23px, 4.4vw, 38px);
+  --fs-h3:    clamp(18px, 2.4vw, 23px);
+  --fs-body:  clamp(15px, 1.4vw, 17px);
+  --fs-small: clamp(13px, 1.1vw, 14px);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--sumi);
+  font-family: var(--gothic);
+  font-size: var(--fs-body);
+  line-height: 1.85;                     /* 日本語の本文。1.7〜1.9の範囲 */
+  font-feature-settings: "palt" 1;       /* 約物を詰める */
+  line-break: strict;                    /* 禁則 */
+  word-break: normal;
+  overflow-wrap: normal;
+  text-underline-offset: 3px;
+}
+
+h1, h2, h3 {
+  font-family: var(--mincho);
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: .01em;
+  margin: 0;
+  text-wrap: pretty;
+}
+h1 { font-size: var(--fs-hero); line-height: 1.28; letter-spacing: -.01em; }
+/* 日本語の見出しは文節ごとに inline-block にして、文節の途中で折れないようにする
+   （自動折り返しに任せると「話した／んだっけ」のような切れ方をする） */
+.cl { display: inline-block; }
+h2 { font-size: var(--fs-h2); }
+h3 { font-size: var(--fs-h3); line-height: 1.55; }
+p  { margin: 0; }
+a  { color: inherit; }
+
+:focus-visible { outline: 2px solid var(--seal); outline-offset: 3px; }
+
+.skip {
+  position: absolute; left: -9999px; top: 0;
+  background: var(--sumi); color: var(--paper); padding: 10px 16px; z-index: 50;
+}
+.skip:focus { left: 8px; top: 8px; }
+
+/* ---- 読み進みの罫（画面上端）。台帳の「どこまで綴じたか」を1本で表す ---- */
+.progress {
+  position: fixed; inset: 0 auto auto 0; z-index: 40;
+  height: 3px; width: 100%;
+  background: var(--line-2);
+}
+.progress > i {
+  display: block; height: 100%; width: 0;
+  background: var(--seal);
+  transform-origin: left center;
+}
+
+/* ---- 上部バー ---- */
+.bar {
+  position: relative; z-index: 30;
+  display: flex; align-items: center; gap: 16px;
+  max-width: var(--shell); margin: 0 auto;
+  padding: 18px var(--gut) 0;
+}
+.mark {
+  font-family: var(--mincho); font-size: 20px; letter-spacing: .04em;
+  text-decoration: none;
+}
+.mark::after {                            /* 朱印の点。ブランドの朱をここで一度だけ出す */
+  content: ""; display: inline-block; width: 7px; height: 7px;
+  margin-left: 7px; vertical-align: 3px; background: var(--seal);
+}
+.bar-spacer { flex: 1; }
+.bar a.plain { font-size: var(--fs-small); text-decoration: none; color: var(--ink-2); }
+.bar a.plain:hover { color: var(--sumi); text-decoration: underline; }
+
+/* ---- ボタン ---- */
+.cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 52px; padding: 0 26px;
+  background: var(--seal); color: #fff;
+  font-family: var(--gothic); font-weight: 700; font-size: 16px;
+  text-decoration: none; border: 0;
+  box-shadow: 0 1px 0 rgba(20,21,15,.2);
+}
+.cta:hover { background: #C63F25; }
+.cta.on-dark { background: var(--seal); }
+.cta-note { display: block; margin-top: 10px; font-size: var(--fs-small); color: var(--ink-3); }
+.bar .cta { min-height: 40px; padding: 0 16px; font-size: 14px; }
+
+/* ---- セクションの骨格：綴じ代（左）＋本体（右） ---- */
+.sec {
+  max-width: var(--shell); margin: 0 auto;
+  padding: var(--gap-sec) var(--gut) 0;
+}
+.sec-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+.idx {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .12em;
+  color: var(--ink-3);
+  border-top: 1px solid var(--sumi); padding-top: 8px;
+}
+.lede { margin-top: 18px; max-width: 62ch; color: var(--ink-2); }
+
+@media (min-width: 900px) {
+  .sec-grid { grid-template-columns: var(--spine) minmax(0, 1fr); gap: 0 32px; }
+  .idx {
+    position: sticky; top: 28px; align-self: start;
+    border-top: 0; padding-top: 4px;
+    writing-mode: vertical-rl;             /* 綴じ代の番号は縦。台帳の背に振った番号 */
+    height: auto; letter-spacing: .3em;    /* 高さを固定すると長いラベルが切れる */
+  }
+  .idx::before {
+    content: ""; display: block; width: 1px; height: 44px;
+    margin: 0 auto 12px; background: var(--sumi);
+  }
+}
+
+/* ---- ヒーロー ---- */
+.hero { padding-top: clamp(36px, 7vw, 72px); }
+.hero .eyebrow {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .14em;
+  color: var(--ink-3); margin-bottom: 18px;
+}
+.hero h1 { max-width: 16em; }
+.hero .define {
+  margin-top: 24px; max-width: 34em;
+  font-size: clamp(16px, 1.7vw, 19px);
+}
+.hero .define b { font-weight: 700; }
+.hero-actions { margin-top: 30px; }
+.hero-grid { display: grid; gap: clamp(32px, 6vw, 56px); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1000px) {
+  .hero-grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); align-items: start; }
+}
+
+/* ---- シグネチャー：相手の1枚（記入用紙） ---- */
+.card {
+  margin: 0;                                   /* figure の既定マージン（左右40px）を消す。放置すると枠からはみ出す */
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 14px 14px 0 -1px var(--rule);   /* 紙が重なっている厚み。影ではなく2枚目の紙 */
+  padding: clamp(18px, 3vw, 26px);
+}
+.card-head {
+  display: flex; align-items: baseline; gap: 10px;
+  border-bottom: 2px solid var(--sumi); padding-bottom: 10px;
+}
+.card-title { font-family: var(--mincho); font-size: 17px; }
+.card-meta { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.row {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr);
+  gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--line-2);
+}
+.row-k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); padding-top: 4px; }
+.row-q { font-weight: 500; }
+.row-a { background: var(--rule); padding: 6px 10px; margin-top: 2px; }
+.row:last-child { border-bottom: 0; }
+.card-foot {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
+  font-size: var(--fs-small); color: var(--ink-3);
+}
+.seal {                                   /* 印象スコア＝朱印。押されると出る */
+  margin-left: auto; width: 46px; height: 46px;
+  border: 2px solid var(--seal); color: var(--seal);
+  display: grid; place-items: center;
+  font-family: var(--mono); font-size: 12px; line-height: 1;
+  transform: rotate(-8deg);
+}
+/* 空欄の状態。ヒーローでは「まだ何も書かれていない」ことがそのまま主張になる */
+.card .fill { opacity: 0; transform: translateY(4px); transition: opacity .5s ease, transform .5s ease; }
+.card[data-state="1"] .s1,
+.card[data-state="2"] .s1, .card[data-state="2"] .s2,
+.card[data-state="3"] .s1, .card[data-state="3"] .s2, .card[data-state="3"] .s3,
+.card.is-done .fill { opacity: 1; transform: none; }
+.card-empty .blank { display: block; height: 22px; background: repeating-linear-gradient(
+  to right, var(--line) 0 8px, transparent 8px 16px) bottom / 100% 1px no-repeat; }
+
+/* ---- 痛み（3つ） ---- */
+.pains { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); margin-top: 26px; }
+@media (min-width: 820px) { .pains { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; } }
+.pain { background: var(--card); border: 1px solid var(--line); padding: 22px 20px 24px; }
+.pain h3 { margin-bottom: 10px; }
+.pain h3::before {
+  content: "「"; color: var(--seal);
+}
+.pain h3::after { content: "」"; color: var(--seal); }
+.pain p { color: var(--ink-2); font-size: var(--fs-small); line-height: 1.9; }
+
+/* ---- 差別化軸（左に説明・右にカードとUI） ---- */
+.axes { display: grid; gap: 40px; grid-template-columns: minmax(0, 1fr); margin-top: 30px; }
+@media (min-width: 1000px) {
+  .axes { grid-template-columns: minmax(0, 1fr) minmax(0, .92fr); gap: 56px; align-items: start; }
+  .axes-side { position: sticky; top: 96px; }
+}
+.axis { padding: 30px 0; border-top: 1px solid var(--line); }
+.axis:first-child { border-top: 0; padding-top: 0; }
+.axis-k {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .12em; color: var(--seal);
+  margin-bottom: 10px;
+}
+.axis p { margin-top: 12px; color: var(--ink-2); }
+.axis .note { margin-top: 10px; font-size: var(--fs-small); color: var(--ink-3); }
+.soon {
+  display: inline-block; margin-left: 8px; padding: 2px 8px;
+  border: 1px solid var(--line); font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+  vertical-align: 2px;
+}
+
+/* ---- 画像プレースホルダ（未確定。用途と比率を明示する） ---- */
+.shot { margin: 18px 0 0; }
+.shot-frame {
+  display: grid; place-items: center; gap: 6px;
+  background:
+    repeating-linear-gradient(-45deg, var(--line-2) 0 6px, transparent 6px 14px),
+    var(--card);
+  border: 1px dashed var(--line);
+  aspect-ratio: 16 / 10;
+  padding: 16px; text-align: center;
+}
+.shot-frame[data-ratio="4:5"] { aspect-ratio: 4 / 5; }
+.shot-frame[data-ratio="3:2"] { aspect-ratio: 3 / 2; }
+.shot-use { font-weight: 700; font-size: var(--fs-small); }
+.shot-ratio { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.shot figcaption { margin-top: 8px; font-size: var(--fs-small); color: var(--ink-3); }
+
+/* ---- 比較（他社名は出さない） ---- */
+.cmp { margin-top: 26px; border: 1px solid var(--sumi); background: var(--card); }
+.cmp-row {
+  display: grid; grid-template-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--line);
+}
+.cmp-row:first-child { border-top: 0; }
+.cmp-h { background: var(--sumi); color: var(--paper); }
+.cmp-h .cmp-c { color: var(--paper); font-family: var(--mono); font-size: 12px; letter-spacing: .08em; }
+.cmp-c { padding: 14px 18px; font-size: var(--fs-small); line-height: 1.8; }
+.cmp-c:first-child { font-weight: 700; }
+.cmp-label { font-family: var(--mono); font-size: 11px; color: var(--ink-3); display: block; }
+.cmp-row.is-key { background: var(--rule); }
+.cmp-row.is-key .cmp-c:last-child { font-weight: 700; }
+@media (min-width: 760px) {
+  .cmp-row { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.15fr); }
+  .cmp-c + .cmp-c { border-left: 1px solid var(--line); }
+  .cmp-label { display: none; }
+}
+
+/* ---- 導入の流れ ---- */
+.flow { counter-reset: step; display: grid; gap: 0; margin-top: 26px; }
+.step { display: grid; gap: 6px 20px; padding: 24px 0; border-top: 1px solid var(--line); }
+.step:first-child { border-top: 1px solid var(--sumi); }
+.step::before {
+  counter-increment: step; content: counter(step, decimal-leading-zero);
+  font-family: var(--mono); font-size: 12px; color: var(--seal); letter-spacing: .1em;
+}
+.step p { color: var(--ink-2); font-size: var(--fs-small); }
+@media (min-width: 760px) {
+  .step { grid-template-columns: 56px minmax(0, 15em) minmax(0, 1fr); align-items: baseline; }
+  .step::before { grid-row: span 2; }
+}
+
+/* ---- 料金 ---- */
+.plans { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); margin-top: 26px; }
+@media (min-width: 900px) { .plans { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.plan { background: var(--card); border: 1px solid var(--line); padding: 24px 22px 26px; display: flex; flex-direction: column; }
+.plan.is-main { border-color: var(--sumi); }
+.plan-name { font-family: var(--mincho); font-size: 19px; }
+.plan-price { font-family: var(--mono); font-size: 30px; margin-top: 10px; letter-spacing: -.01em; }
+.plan-price small { font-size: 13px; color: var(--ink-3); margin-left: 4px; }
+.plan ul { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 9px; }
+.plan li { font-size: var(--fs-small); line-height: 1.75; padding-left: 18px; position: relative; color: var(--ink-2); }
+.plan li::before { content: ""; position: absolute; left: 0; top: .72em; width: 8px; height: 1px; background: var(--seal); }
+.plan .plan-cta { margin-top: 22px; }
+.pricing-note { margin-top: 16px; font-size: var(--fs-small); color: var(--ink-3); }
+
+/* ---- FAQ ---- */
+.faq { margin-top: 26px; border-top: 1px solid var(--sumi); }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq summary {
+  cursor: pointer; list-style: none; padding: 20px 34px 20px 0; position: relative;
+  font-family: var(--mincho); font-size: clamp(16px, 2vw, 19px); line-height: 1.6;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after {
+  content: "＋"; position: absolute; right: 2px; top: 20px;
+  font-family: var(--mono); color: var(--seal);
+}
+.faq details[open] summary::after { content: "−"; }
+.faq .a { padding: 0 0 22px; color: var(--ink-2); font-size: var(--fs-small); line-height: 1.95; max-width: 62ch; }
+
+/* ---- クロージング ---- */
+.close { margin-top: var(--gap-sec); background: var(--forest); color: var(--paper); }
+.close-in { max-width: var(--shell); margin: 0 auto; padding: clamp(56px, 9vw, 96px) var(--gut); }
+.close h2 { color: var(--paper); max-width: 18em; }
+.close p { margin-top: 18px; color: rgba(238, 240, 232, .78); max-width: 40em; }
+.close .cta { margin-top: 30px; }
+.close .cta-note { color: rgba(238, 240, 232, .6); }
+
+/* ---- フッター ---- */
+.foot {
+  background: var(--forest); color: rgba(238, 240, 232, .7);
+  border-top: 1px solid rgba(238, 240, 232, .18);
+}
+.foot-in {
+  max-width: var(--shell); margin: 0 auto; padding: 22px var(--gut) 34px;
+  display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center;
+  font-size: var(--fs-small);
+}
+.foot a { color: inherit; text-decoration: none; }
+.foot a:hover { text-decoration: underline; }
+.foot .foot-mark { font-family: var(--mincho); color: var(--paper); }
+
+/* ---- モバイルの追従CTA（出口を1本にするため、常に登録だけを出す） ---- */
+.sticky-cta {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 35;
+  padding: 10px var(--gut) calc(10px + env(safe-area-inset-bottom));
+  background: rgba(238, 240, 232, .94);
+  border-top: 1px solid var(--line);
+  display: none;
+}
+.sticky-cta .cta { width: 100%; }
+@media (max-width: 899px) { .sticky-cta.is-on { display: block; } body { padding-bottom: 78px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .card .fill { opacity: 1; transform: none; transition: none; }
+  .progress > i { transition: none; }
+}

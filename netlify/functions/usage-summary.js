@@ -518,7 +518,9 @@ exports.handler = async (event) => {
     const signupsInRange = owners.filter((owner) => owner.created_at >= sinceIso).length;
     // 獲得ファネル。閲覧数は page_events、登録数は owners の実数（計測が落ちても登録数だけは正しい）。
     const acquisitionFunnel = [
-      { label: "LP（トップ）閲覧", value: pageViews("/index.html") + pageViews("/landing3.html") },
+      // 新LP（/lp.html・#364）もLPの閲覧として数える。ここに足さないと、新LPを見て登録した人が
+      // 分母のいない転換率になり、LPの合否（閲覧→登録）が測れない。
+      { label: "LP（トップ）閲覧", value: pageViews("/index.html") + pageViews("/landing3.html") + pageViews("/lp.html") },
       { label: "料金ページ閲覧", value: pageViews("/plan.html") },
       { label: "登録画面を開いた", value: pageViews("/signup.html") },
       { label: "登録完了", value: signupsInRange },

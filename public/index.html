@@ -1,243 +1,231 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>キマル | 日程調整と面談前準備</title>
-  <link rel="stylesheet" href="/styles.css">
-</head>
-<body data-i18n-title="home.pageTitle">
-<!-- site-header -->
-<main>
-  <!-- ログイン中：コンパクトな挨拶＋目的地タイル -->
-  <section class="section app-only home-welcome" id="authed-hero">
-    <header class="home-welcome-head">
-      <div>
-        <p class="eyebrow" data-i18n="home.authed.eyebrow">マイページ</p>
-        <h1><span data-i18n="home.authed.welcome">おかえりなさい</span><span id="welcome-name"></span></h1>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>キマル | 予約から次の一手までキマる</title>
+    <meta name="description" content="キマルは、予約URLを送るだけで日程調整、事前アンケート、Web会議URL、リマインド、面談後の相手管理までまとめる1対1向け予約システムです。" />
+    <meta name="theme-color" content="#eaf8fb" />
+    <link rel="icon" href="/favicon.ico" />
+    <!-- 別案のLP（#366）。既存プレビューの再現。スタイルは /lp.css に出してある（表示は同じ）。
+         プレビュー側にあった Cloudflare の挿入スクリプトは持ち込んでいない（表示に不要で、
+         このサイトのCSPでは外部スクリプトを読み込めないため）。
+         画面の計測は Edge Function が </body> 直前に usage.js を差し込むので、ここには何も書かない。 -->
+    <link rel="stylesheet" href="/lp.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <div class="nav-in">
+        <a class="brand" href="/">キマル</a>
+        <nav class="nav-actions" aria-label="主要導線">
+          <a class="login" href="/login.html">ログイン</a>
+          <a class="doc" href="/plan.html">料金を見る</a>
+          <a class="consult" href="/signup.html">無料で始める</a>
+        </nav>
       </div>
-      <p id="home-plan-line" class="home-plan-chip" hidden></p>
     </header>
-    <p class="home-welcome-lead" data-i18n="home.authed.lead">今日はどこから始めますか。よく使う機能へすぐ移動できます。</p>
-    <nav class="home-grid" aria-label="クイックアクセス">
-      <a class="home-tile" href="/dashboard.html" style="--i:0">
-        <span class="home-tile-name" data-i18n="home.tile.dashboard">ホーム</span>
-        <span class="home-tile-desc" data-i18n="home.tile.dashboardDesc">3ステップと予約の入口</span>
-        <span class="home-tile-go" aria-hidden="true">→</span>
-      </a>
-      <a class="home-tile" href="/booking-settings.html" style="--i:1">
-        <span class="home-tile-name" data-i18n="home.tile.booking">予約ページ設定</span>
-        <span class="home-tile-desc" data-i18n="home.tile.bookingDesc">予約ページの作成・編集</span>
-        <span class="home-tile-go" aria-hidden="true">→</span>
-      </a>
-      <a class="home-tile" href="/profile.html" style="--i:2">
-        <span class="home-tile-name" data-i18n="home.tile.profile">プロフィール設定</span>
-        <span class="home-tile-desc" data-i18n="home.tile.profileDesc">公開プロフィールを整える</span>
-        <span class="home-tile-go" aria-hidden="true">→</span>
-      </a>
-      <a class="home-tile" href="/contacts.html" style="--i:3">
-        <span class="home-tile-name" data-i18n="home.tile.contacts">相手管理</span>
-        <span class="home-tile-desc" data-i18n="home.tile.contactsDesc">予約履歴・面談メモ</span>
-        <span class="home-tile-go" aria-hidden="true">→</span>
-      </a>
-      <a class="home-tile" href="/ai-assist.html" style="--i:4">
-        <span class="home-tile-name" data-i18n="home.tile.ai">AIアシスト</span>
-        <span class="home-tile-desc" data-i18n="home.tile.aiDesc">次の一手のヒント</span>
-        <span class="home-tile-go" aria-hidden="true">→</span>
-      </a>
-      <a class="home-tile" href="/settings.html" style="--i:5">
-        <span class="home-tile-name" data-i18n="home.tile.settings">設定</span>
-        <span class="home-tile-desc" data-i18n="home.tile.settingsDesc">アカウント・カレンダー連携</span>
-        <span class="home-tile-go" aria-hidden="true">→</span>
-      </a>
-    </nav>
-    <p id="home-upsell" class="home-welcome-upsell" hidden></p>
-  </section>
 
-  <!-- 未ログイン：ヒーロー（署名＝「キマル」朱印スタンプ＋「決まった週」プレビュー） -->
-  <section class="hero guest-only">
-    <div class="shell hero-grid">
-      <div>
-        <span class="eyebrow" data-i18n="home.hero.pillars">Scheduling · Prep · CRM · AI</span>
-        <h1 class="hero-title">
-          <span class="hero-line"><span data-i18n="home.hero.h1pre">日程が</span><span class="stamp" data-i18n="home.hero.h1kw">キマル</span><span data-i18n="home.hero.h1post">。</span></span>
-          <span class="hero-line" data-i18n="home.hero.h1b1">会う前の準備と、</span>
-          <span class="hero-line" data-i18n="home.hero.h1b2">次の一手まで。</span>
-        </h1>
-        <p class="lead" data-i18n="home.lead1">キマルは、日程調整と事前アンケートと面談後の管理をひとつにした予約システムです。</p>
-        <div class="hero-cta">
-          <a class="btn btn-primary" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
-          <a class="btn btn-ghost" href="/login.html" data-i18n="nav.signin">ログイン</a>
-          <a class="btn btn-ghost" href="/plan.html" data-i18n="home.hero.viewPro">Pro版を見る</a>
-        </div>
-        <div class="hero-meta">
-          <span data-i18n="home.hero.meta1">1対1の面談に最適</span>
-          <span data-i18n="home.hero.meta2">22分前リマインド</span>
-          <span data-i18n="home.hero.meta3">Google / Zoom 自動発行</span>
-        </div>
-      </div>
-      <!-- 被写体：空き枠 → 1枠が決定（朱） -->
-      <aside class="slotboard" aria-hidden="true">
-        <div class="slotboard-top"><b data-i18n="home.slot.date">水 6/25</b><span data-i18n="home.slot.range">10:00–18:00 / 30min</span></div>
-        <div class="slotlist">
-          <div class="slot"><span>10:00</span><small data-i18n="home.slot.open">空き</small></div>
-          <div class="slot"><span>11:30</span><small data-i18n="home.slot.open">空き</small></div>
-          <div class="slot is-decided"><span>14:00</span><span class="slot-chk" data-i18n="home.slot.decided">決定 ✓</span></div>
-          <div class="slot"><span>15:30</span><small data-i18n="home.slot.open">空き</small></div>
-          <div class="slot"><span>17:00</span><small data-i18n="home.slot.open">空き</small></div>
-        </div>
-      </aside>
-    </div>
-  </section>
+    <main>
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div class="hero-copy">
+            <p class="sub"><span>日程調整の、その先へ。</span></p>
+            <h1>キマル</h1>
+            <p class="hero-lead"><span class="nb">キマルは、1対1の面談や商談に特化した予約システムです。</span><span class="nb">予約URLを送るだけで、</span><span class="nb">日程調整、事前アンケート、</span><span class="nb">Google Meet / Zoom URL発行、</span><span class="nb">22分前リマインド、</span><span class="nb">面談後の相手管理までまとめて進みます。</span></p>
+            <p class="hero-url-copy"><span class="nb">相手に送るのは、</span><span class="nb">予約ページ設定で作成したURLだけ。</span></p>
+            <div class="value-row" aria-label="キマルの価値">
+              <div class="value-badge">予定を合わせる<br /><strong>手間を削減</strong></div>
+              <div class="value-badge">会う前から、<br /><strong>差がつく。</strong></div>
+              <div class="value-badge">ご縁を、予定で<br /><strong>終わらせない。</strong></div>
+            </div>
+            <div class="hero-actions">
+              <div class="cta-stack">
+                <a class="btn primary" href="/signup.html">まずは無料で始める</a>
+                <span class="cta-note">Google連携で登録30秒</span>
+              </div>
+              <a class="btn secondary" href="#solve">できることを見る</a>
+            </div>
+            <figure class="hero-plan-preview">
+              <img src="/kimaru-hyou.jpg" alt="キマルのプラン一覧。Free、Pro、Premium、Masterの料金と機能比較。" />
+            </figure>
+          </div>
 
-  <!-- 面談のライフサイクル：予約 → 準備 → 次の一手 -->
-  <section class="section guest-only" id="lifecycle" style="padding-top:0">
-    <div class="shell">
-      <div class="sec-head">
-        <span class="eyebrow" data-i18n="home.life.eyebrow">Lifecycle</span>
-        <h2><span data-i18n="home.life.h2a">予約で終わらせない。</span><span data-i18n="home.life.h2b">会う前と、会った後まで。</span></h2>
-      </div>
-      <div class="cards">
-        <div class="card">
-          <div class="card-step" data-i18n="home.card.step1">01 — 会う前</div>
-          <h3 data-i18n="home.card.h1">理解してから会う</h3>
-          <p data-i18n="home.life.p1.body">日程調整・事前アンケート・占いベース相手分析で、会う前から相手を理解する。</p>
+          <aside class="dashboard" aria-label="キマルの予約画面イメージ">
+            <figure class="booking-screenshot">
+              <img src="/aki2.jpg" alt="キマルの予約ページ。所要時間、Google Meet自動発行、5日間の空き枠から選べる予約画面。" />
+            </figure>
+          </aside>
         </div>
-        <div class="card">
-          <div class="card-step" data-i18n="home.card.step2">02 — 当日</div>
-          <h3 data-i18n="home.card.h2">そのまま、決まる</h3>
-          <p data-i18n="home.card.body2">22分前にプロフィール付きリマインド。Google Meet / Zoom も自動で発行。</p>
-        </div>
-        <div class="card">
-          <div class="card-step" data-i18n="home.card.step3">03 — 会った後</div>
-          <h3 data-i18n="home.card.h3">関係を、育てる</h3>
-          <p data-i18n="home.card.body3">相手管理・印象スコアで記録。プレミアムはAIが次の一手まで提案。</p>
-        </div>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <!-- プラン -->
-  <section class="section guest-only" style="padding-top:0">
-    <div class="shell">
-      <div class="sec-head"><span class="eyebrow" data-i18n="home.plan.eyebrow">Plan</span><h2 data-i18n="home.plan.heading">3つのプラン</h2></div>
-      <div class="plans">
-        <div class="plan">
-          <span class="plan-tag" data-i18n="home.plan.tag.free">無料</span>
-          <div class="plan-name" data-i18n="home.plan.name.free">無料版</div>
-          <div class="plan-price">¥0<span data-i18n="home.plan.perMonth"> /月</span></div>
-          <ul>
-            <li data-i18n="home.plan.free.f1">予約ページ 1つ</li>
-            <li data-i18n="home.plan.free.f2">受付 2ヶ月先まで</li>
-            <li data-i18n="home.plan.free.f3">事前アンケート 2問（自由入力）</li>
-            <li data-i18n="home.plan.free.f4">22分前リマインド</li>
-            <li data-i18n="home.plan.free.f5">ピンポイント調整 1本</li>
-          </ul>
-          <a class="btn btn-ghost" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
+      <section class="section" id="solve">
+        <div class="wrap">
+          <div class="head">
+            <p class="label">SOLVE</p>
+            <h2><span class="nb">空き枠、事前アンケート、</span><span class="nb">Web会議URL発行、</span><span class="nb">顧客管理までひとつに。</span></h2>
+            <p>相手は予約ページから空き枠を選ぶだけ。</p>
+          </div>
+          <div class="solve-grid">
+            <article class="card"><div class="icon">1</div><h3>空き枠を自動表示</h3><p><span class="nb">Googleカレンダーと連携し、</span><span class="nb">予定がある時間を避けます。</span><span class="nb">ピンポイントで候補日時からの日程調整も可能です。</span></p></article>
+            <article class="card"><div class="icon">2</div><h3>事前アンケートの回収で</h3><p><span class="nb">相談内容確認やプロフィールの共有を、</span><span class="nb">会う前にできるので、</span><span class="nb">関係性の構築や契約率を高める事ができます。</span></p></article>
+            <article class="card"><div class="icon">3</div><h3>Google Meet / Zoom URLを自動発行</h3><p>予約確定と同時にオンライン面談の入口を作ります。</p></article>
+            <article class="card"><div class="icon">4</div><h3>面談後の記録を残す</h3><p><span class="nb">メモ、印象スコア、</span><span class="nb">次回の打ち手を管理できます。</span><span class="nb">※無料版では閲覧のみ。</span></p></article>
+          </div>
         </div>
-        <div class="plan is-pop">
-          <span class="plan-tag" data-i18n="home.plan.tag.pop">人気</span>
-          <div class="plan-name" data-i18n="home.plan.name.pro">Pro</div>
-          <div class="plan-price">¥980<span data-i18n="home.plan.perMonth"> /月</span></div>
-          <ul>
-            <li data-i18n="home.plan.pro.f1">予約ページ 2つ・受付6ヶ月</li>
-            <li data-i18n="home.plan.pro.f2">アンケート 5問・選択式も</li>
-            <li data-i18n="home.plan.pro.f3">相手管理（メモ・印象スコア）</li>
-            <li data-i18n="home.plan.pro.f4">占いベース相手分析</li>
-            <li data-i18n="home.plan.pro.f5">ピンポイント調整 3本・枠の押さえ</li>
-          </ul>
-          <a class="btn btn-primary" href="/plan.html" data-i18n="home.plan.startPro">Proを始める</a>
+      </section>
+
+      <section class="section tint">
+        <div class="wrap">
+          <div class="head">
+            <p class="label">START FLOW</p>
+            <h2><span class="nb">登録からURL送信まで、</span><span class="nb">迷わず進める。</span></h2>
+            <p><span class="nb">無料登録から予約用URLの送信まで、</span><span class="nb">必要な設定を順番に進めるだけです。</span></p>
+          </div>
+          <div class="setup-steps">
+            <div class="setup-step"><i>1</i><b>無料で始める</b><span>まずは無料で利用を開始できます。</span></div>
+            <div class="setup-step"><i>2</i><b>Googleで無料登録</b><span>Google連携で登録。もしくは手入力でも登録できます。</span></div>
+            <div class="setup-step"><i>3</i><b>プロフィール設定</b><span>名前、紹介文、公開ページに表示する情報を整えます。</span></div>
+            <div class="setup-step"><i>4</i><b>予約ページ設定</b><span>所要時間、受付時間、事前アンケート、Web会議URLを設定します。</span></div>
+            <div class="setup-step"><i>5</i><b>予約用のURLを相手に送信</b><span>発行された予約URLを送るだけで、日程調整が始まります。</span></div>
+          </div>
         </div>
-        <div class="plan is-ai">
-          <span class="plan-tag" data-i18n="home.plan.tag.soon">近日</span>
-          <div class="plan-name" data-i18n="home.plan.name.premium">プレミアム</div>
-          <div class="plan-price">¥4,800<span data-i18n="home.plan.perMonth"> /月</span></div>
-          <ul>
-            <li data-i18n="home.plan.prem.f1">Pro 全機能＋予約ページ5つ</li>
-            <li data-i18n="home.plan.prem.f2">AIアシスト（次の一手）</li>
-            <li data-i18n="home.plan.prem.f3">相手の手動追加</li>
-            <li data-i18n="home.plan.prem.f4">AI要約 / 検索（将来）</li>
-            <li data-i18n="home.plan.prem.f5">ピンポイント調整 5本・候補30</li>
-          </ul>
-          <a class="btn btn-aurora" href="/ai-assist.html" data-i18n="home.plan.seeAi">AIアシストを見る</a>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="head">
+            <p class="label">FEATURES</p>
+            <h2>キマルの機能一覧</h2>
+            <p><span class="nb">日程調整、事前準備、</span><span class="nb">当日の案内、面談後の管理まで。</span><span class="nb">1対1の面談で起きる細かい手間を、</span><span class="nb">ひとつの流れで減らします。</span></p>
+          </div>
+          <div class="feature-table-wrap">
+            <table class="feature-table">
+              <thead>
+                <tr>
+                  <th>機能</th>
+                  <th>できること</th>
+                  <th>便利になるポイント</th>
+                  <th>対応</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>予約ページ作成</td>
+                  <td>面談用の予約URLを作成し、相手に送るだけで受付できます。</td>
+                  <td>「いつ空いてますか？」の往復を減らし、相手が自分で空き枠を選べます。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>Googleカレンダー連携</td>
+                  <td>既存予定を避けて、予約可能な時間だけを表示します。</td>
+                  <td>ダブルブッキングを防ぎ、予定確認の手間を減らせます。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>予約受付期間設定</td>
+                  <td>2ヶ月先、6ヶ月先など、プランに応じた受付期間を設定できます。</td>
+                  <td>先すぎる予定や直前すぎる予約をコントロールできます。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>事前アンケート</td>
+                  <td>相談内容、目的、聞きたいことを予約時に回収できます。</td>
+                  <td>面談前から相手の状況がわかり、当日の会話が深くなります。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>Gmailリマインダー</td>
+                  <td>面談前にメールで予定を知らせます。</td>
+                  <td>うっかり忘れや直前の確認漏れを防げます。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>Google Meet / Zoom URL発行</td>
+                  <td>オンライン面談のURLを予約に紐づけて案内できます。</td>
+                  <td>当日に「URLどこですか？」が起きにくくなります。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>相手管理</td>
+                  <td>会った人の情報、面談メモ、履歴を残せます。</td>
+                  <td>一度会った人との関係を、次回の提案やフォローにつなげられます。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>印象スコア・相手分析</td>
+                  <td>相手の傾向や相性を整理し、理解を深めます。</td>
+                  <td>話し方や提案内容を相手に合わせやすくなります。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+                <tr>
+                  <td>AI連携モード</td>
+                  <td>商談内容の要点整理、要約、次回アクションのヒントを支援します。</td>
+                  <td>面談後の振り返りとフォローが速くなります。</td>
+                  <td class="mark-cell">✓</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-      <div class="actions" style="margin-top:18px">
-        <a class="button secondary" href="/plan.html" data-i18n="home.plan.proDetail">料金・プランを見る</a>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <!-- FAQ -->
-  <section class="section guest-only" style="padding-top:0">
-    <div class="shell">
-      <div class="sec-head"><span class="eyebrow" data-i18n="home.faq.eyebrow">FAQ</span><h2 data-i18n="home.faq.heading">よくある質問</h2></div>
-      <div class="faq">
-        <details open>
-          <summary data-i18n="home.faq.q1">無料でどこまで使えますか？</summary>
-          <p data-i18n="home.faq.a1">日程調整・予約・22分前リマインド・予約履歴の閲覧まで、無料で完結します。クレジットカードも不要です。</p>
-        </details>
-        <details>
-          <summary data-i18n="home.faq.q2">Google / Zoom と連携できますか？</summary>
-          <p data-i18n="home.faq.a2">はい。予約確定時に Google Meet / Zoom のURLを自動発行し、Googleカレンダーの予定とも自動で重複を避けます。</p>
-        </details>
-        <details>
-          <summary data-i18n="home.faq.q3">有料版との違いは？</summary>
-          <p data-i18n="home.faq.a3">Proは相手管理・占いベース相手分析・予約ページ追加で会う前後の関係づくりを強化。プレミアムはAIが次回アポの戦略まで提案します。</p>
-        </details>
-        <details>
-          <summary data-i18n="home.faq.q4">解約はいつでもできますか？</summary>
-          <p data-i18n="home.faq.a4">管理画面からいつでも解約できます。解約後も契約期間の終了まではご利用いただけます。</p>
-        </details>
-      </div>
-    </div>
-  </section>
-
-  <!-- 最終CTA -->
-  <section class="section guest-only" style="padding-top:0">
-    <div class="shell">
-      <div class="cta-band">
-        <h2><span data-i18n="home.cta.h2a">日程は、</span><span class="stamp" data-i18n="home.cta.h2kw">キマる</span><span data-i18n="home.cta.h2b">。</span></h2>
-        <p class="lead" data-i18n="home.cta.lead">会う前の準備と、次の一手まで。まずは無料で始めましょう。</p>
-        <div class="hero-cta">
-          <a class="btn btn-primary" href="/signup.html" data-i18n="home.hero.startFree">無料で始める</a>
-          <a class="btn btn-ghost" href="/plan.html" data-i18n="home.plan.proDetail">料金・プランを見る</a>
+      <section class="section" id="plans">
+        <div class="wrap">
+          <div class="head">
+            <p class="label">PLAN</p>
+            <h2><span class="nb">無料で始めて、</span><span class="nb">必要な分だけ広げる。</span></h2>
+            <p><span class="nb">高度な相手管理やAIアシスト等が必要になったら、</span><span class="nb">上位プランへ拡張できます。</span></p>
+          </div>
+          <figure class="pricing-image">
+            <img src="/kimaru-hyou.jpg" alt="キマル プラン一覧。各プランの料金、AIカルテ利用時間、予約ページ数、予約受付期間、事前アンケート、リマインダー、相手管理などの比較表。" />
+          </figure>
+          <div class="plans">
+            <article class="card plan">
+              <span class="tag">無料</span>
+              <h3>無料版</h3>
+              <div class="price">¥0<span> /月</span></div>
+              <ul><li>予約ページ 1つ</li><li>受付 2ヶ月先まで</li><li>事前アンケート 2問</li><li>22分前リマインド</li></ul>
+              <a class="btn secondary" href="/signup.html">無料で始める</a>
+            </article>
+            <article class="card plan popular">
+              <span class="tag limited">先着100名限定</span>
+              <h3>Pro</h3>
+              <div class="price">¥980<span> /月</span></div>
+              <p class="regular-price">通常 ¥2,200 /月</p>
+              <ul><li>予約ページ 2つ</li><li>受付 6ヶ月先まで</li><li>アンケート 5問</li><li>相手管理と印象スコア</li></ul>
+              <a class="btn primary" href="/plan.html">Proを見る</a>
+            </article>
+            <article class="card plan">
+              <span class="tag">近日</span>
+              <h3>Premium</h3>
+              <div class="price">¥4,800<span> /月</span></div>
+              <ul><li>Proの全機能</li><li>予約ページ 5つ</li><li>AIアシスト</li><li>次の一手の提案</li></ul>
+              <a class="btn secondary" href="/ai-assist.html">AIアシストを見る</a>
+            </article>
+          </div>
         </div>
+      </section>
+
+      <section class="final">
+        <div class="wrap">
+          <h2>会う前から、差がつく。<br />ご縁を、予定で終わらせない。</h2>
+          <p><span class="nb">1対1の面談を、</span><span class="nb">ただの日程調整で終わらせない。</span><span class="nb">会う前から会った後まで、</span><span class="nb">キマルで整えましょう。</span></p>
+          <div class="hero-actions">
+            <div class="cta-stack">
+              <a class="btn primary" href="/signup.html">無料で始める</a>
+              <span class="cta-note">Google連携で登録30秒</span>
+            </div>
+            <a class="btn secondary" href="/plan.html">料金を見る</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap footer-in">
+        <div><a href="/terms.html">利用規約</a><a href="/privacy.html">プライバシーポリシー</a><a href="/tokushoho.html">特定商取引法に基づく表記</a></div>
+        <span>© 2026 キマル</span>
       </div>
-    </div>
-  </section>
-</main>
-
-  <!-- site-footer -->
-
-<script>
-  // ログイン中：名前＋現在のプランを表示し、プラン別にアップグレード/AIナッジを出し分ける。
-  // （未ログインは app-only で非表示。要素は既定 hidden→判定後に表示でチラ見え防止）
-  fetch('/api/me', { credentials: 'include' })
-    .then((r) => r.json())
-    .then((d) => {
-      const owner = d && d.owner;
-      if (!owner) return;
-      const nameEl = document.getElementById('welcome-name');
-      if (nameEl) nameEl.textContent = `、${owner.name || owner.email} さん`;
-      const plan = owner.plan;
-      const label = plan === 'premium' ? 'プレミアム' : plan === 'pro' ? 'Pro' : '無料';
-      const planLine = document.getElementById('home-plan-line');
-      if (planLine) { planLine.innerHTML = `現在のプラン：<strong>${label}</strong>`; planLine.hidden = false; }
-      const upsell = document.getElementById('home-upsell');
-      if (upsell) {
-        if (plan === 'free') {
-          upsell.innerHTML = 'Proで相手管理・高度プロフィール、プレミアムでAIアシスト（近日）。<a href="/plan.html">プランを見る</a>';
-          upsell.hidden = false;
-        } else if (plan === 'pro') {
-          upsell.innerHTML = 'プレミアムでは、相手データからAIが次回アポの戦略を提案します（近日公開）。<a href="/plan.html#premium">詳しく見る</a>';
-          upsell.hidden = false;
-        }
-        // premium：ナッジなし
-      }
-    })
-    .catch(() => {});
-</script>
-<script src="/i18n.js" defer></script>
-</body>
+    </footer>
+  </body>
 </html>

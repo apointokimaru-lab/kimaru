@@ -11,6 +11,7 @@
 
 // ユーザー向け要ログイン画面（docs/screen-flow.md：無登録=−）
 const PROTECTED_PATHS = [
+  "/home.html",        // 旧トップ（ログイン後のホームタイル）。「/」はLPになったのでここへ移した（#366）
   "/dashboard.html",
   "/contacts.html",
   "/booking-settings.html",
@@ -166,6 +167,13 @@ export default async (request, context) => {
   // 認証判定より先に行う。未ログインならログイン画面ではなくここで完結させたいため。
   if (DISABLED_PATHS.includes(path)) {
     return Response.redirect(new URL("/dashboard.html", url.origin).toString(), 302);
+  }
+
+  // ⓪-2 「/」はLP（未登録の人に読ませる画面）。ログイン済みの人が来たらホームへ送る（#366）。
+  // なぜ必要か: トップをLPに差し替えたことで、ログイン済みの人がヘッダーのロゴ（href="/"）を
+  // 押すと営業用のページに戻ってしまう。以前のトップ（ホームタイル）は /home.html に移してある。
+  if (authed && (path === "/" || path === "/index.html")) {
+    return Response.redirect(new URL("/home.html", url.origin).toString(), 302);
   }
 
   // ① 運営ページの保護（ユーザーログインではなく運営セッションを要求）

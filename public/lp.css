@@ -29,6 +29,12 @@ body {
   font-family: "Noto Sans JP", "Yu Gothic", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.75;
   overflow-x: hidden;
+  /* 和文の折り返し（#366）。指定が無いと、行末で「だ／け」のように語の途中で切れる。
+     line-break:strict = 禁則を厳しく、palt = 約物（読点・括弧）のアキを詰める。 */
+  font-feature-settings: "palt" 1;
+  line-break: strict;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -511,3 +517,10 @@ footer a { font-weight: 800; margin-right: 14px; }
   .btn { width: 100%; }
   .head { text-align: left; }
 }
+
+/* 見出しと本文の折り返しを整える（#366）
+   .nb は「文節ごとの箱」。読点で区切った塊を inline-block にすると、その塊の途中では折れず、
+   入りきらないときだけ塊ごと次の行へ落ちる＝「予約ページ設定で作成したURLだ／け。」が起きない。
+   箱の中身は普通に折り返せるので、長い塊でもはみ出さない。 */
+h1, h2, h3 { text-wrap: pretty; }
+.nb { display: inline-block; }

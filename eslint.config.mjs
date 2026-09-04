@@ -16,6 +16,8 @@ export default defineConfig([
     "public/**",
     "netlify/**",
     "scripts/**",
+    // 生成物（scripts/i18n/split.mjs が書く辞書・型・レジストリ）
+    "messages/**",
   ]),
   ...nextVitals,
   ...nextTs,

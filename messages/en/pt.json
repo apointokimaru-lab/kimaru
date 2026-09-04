@@ -1,0 +1,14 @@
+{
+  "activating": "Activating your Pro plan. Please wait a moment…",
+  "checking": "Checking…",
+  "done": "✓ Your Pro plan is now active.",
+  "doneDesc": "All Pro features — contact management, advanced profile, and more — are now available.",
+  "eyebrow": "Payment",
+  "goDashboard": "Go to dashboard",
+  "goSettings": "Open settings",
+  "heading": "Thank you for your purchase",
+  "loginRequired": "Please log in. After logging in, check your plan on the settings page.",
+  "pageTitle": "Kimaru - Payment complete",
+  "timeout": "This is taking a little longer than usual.",
+  "timeoutDesc": "Your payment is complete. Please reload in a few minutes or check your plan on the settings page. If it still doesn't update, contact us."
+}

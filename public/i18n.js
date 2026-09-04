@@ -4832,9 +4832,23 @@
     return candidates.map(normalizeLanguage).find(Boolean) || null;
   }
 
+  // 新フロント（app/・Next.js）と同じ言語を見るための Cookie（#414）。新側はサーバー描画で言語を決めるため
+  // localStorage が読めず、Cookie を正にした。旧ページも Cookie を最優先で読み、無ければ従来どおり localStorage。
+  const COOKIE_KEY = "kimaru_lang";
+  function readCookieLanguage() {
+    const raw = typeof document.cookie === "string" ? document.cookie : "";
+    const match = raw.match(/(?:^|;\s*)kimaru_lang=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+  function writeCookieLanguage(code) {
+    const secure = typeof location !== "undefined" && location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${COOKIE_KEY}=${encodeURIComponent(code)}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+  }
+
   function pickLanguage() {
+    const fromCookie = normalizeLanguage(readCookieLanguage());
     const stored = normalizeLanguage(localStorage.getItem(STORAGE_KEY));
-    return stored || normalizeLanguage(defaultLanguage) || getBrowserLanguage() || normalizeLanguage(fallbackLanguage) || defaultLanguage;
+    return fromCookie || stored || normalizeLanguage(defaultLanguage) || getBrowserLanguage() || normalizeLanguage(fallbackLanguage) || defaultLanguage;
   }
 
   function t(key) {
@@ -4876,6 +4890,7 @@
   function setLanguage(code) {
     activeLanguage = normalizeLanguage(code) || defaultLanguage;
     localStorage.setItem(STORAGE_KEY, activeLanguage);
+    writeCookieLanguage(activeLanguage); // 新側（Cookie が正）と揃える（#414）
     populateLanguageSelects();
     applyTranslations();
     document.dispatchEvent(new CustomEvent("kimaru:languagechange", { detail: { language: activeLanguage } }));

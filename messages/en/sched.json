@@ -1,0 +1,20 @@
+{
+  "dow.fri": "Fri",
+  "dow.mon": "Mon",
+  "dow.sat": "Sat",
+  "dow.sun": "Sun",
+  "dow.thu": "Thu",
+  "dow.tue": "Tue",
+  "dow.wed": "Wed",
+  "empty": "No bookings",
+  "eyebrow": "Home / Schedule",
+  "next": "Next ▶",
+  "off": "Day off",
+  "pageTitle": "Kimaru - Weekly schedule",
+  "prev": "◀ Prev",
+  "sub": "See all your bookings for the week at a glance, alongside your Google Calendar events.",
+  "title": "Weekly schedule",
+  "toDashboard": "Today's agenda",
+  "today": "Today",
+  "todayTag": "Today"
+}

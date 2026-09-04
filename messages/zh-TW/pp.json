@@ -1,0 +1,13 @@
+{
+  "bookCta": "向這位預約 →",
+  "links": "連結",
+  "loadError": "無法載入個人檔案。",
+  "loading": "正在載入個人檔案...",
+  "nameFallback": "個人檔案",
+  "noSlug": "未指定個人檔案。",
+  "notFound": "找不到個人檔案。",
+  "offer": "可提供的價值",
+  "pageTitle": "Kimaru - 個人檔案",
+  "strengths": "強項・專長",
+  "values": "重視的事"
+}

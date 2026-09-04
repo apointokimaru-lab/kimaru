@@ -1,0 +1,19 @@
+{
+  "calendar.cta": "前往連結",
+  "calendar.desc": "已有行程的時間會自動從候選中移除，預約確定後也會寫回日曆。",
+  "calendar.title": "連結 Google 日曆",
+  "complete.close": "關閉",
+  "complete.desc": "傳送預約頁面的網址後，即可由對方選擇時間。",
+  "complete.heading": "初始設定已完成",
+  "desc": "註冊後需要設定的項目。請由上往下依序設定。",
+  "done": "已完成",
+  "eyebrow": "初始設定",
+  "guide": "使用指南",
+  "heading": "開始接受預約前需完成的三項設定",
+  "page.cta": "建立預約頁面",
+  "page.desc": "設定時長、地點與可預約時段。要傳給對方的網址就在這裡產生。",
+  "page.title": "建立預約頁面",
+  "profile.cta": "填寫個人檔案",
+  "profile.desc": "對方預約前會看到的自我介紹，也會出現在提醒信中。",
+  "profile.title": "填寫個人檔案"
+}

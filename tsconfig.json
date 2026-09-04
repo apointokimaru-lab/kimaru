@@ -33,6 +33,7 @@
     "features/**/*.tsx",
     "lib/**/*.ts",
     "lib/**/*.tsx",
+    "messages/**/*.ts",
     "types/**/*.d.ts",
     "tests/**/*.ts",
     "proxy.ts",

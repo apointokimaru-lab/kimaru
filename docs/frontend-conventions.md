@@ -117,7 +117,7 @@ kimaru/
 | 定数 | モジュール直下の不変リテラルだけ UPPER_SNAKE | `MAX_QUESTIONS` |
 | enum | **使わない**。文字列リテラルの union ＋ `as const` の配列 | `type Plan = "free" \| "pro" \| "premium"` |
 | export | **名前付き export**。default は Next が要求するファイル（page/layout 等）だけ | |
-| i18n キー | 現行と同じ `<ns>.<path>`（`bs.` `dash.` `pf.` …）。namespace ＝ JSON ファイル名 | `messages/ja/dash.json` の `{"todo.title": ...}` → `t("dash.todo.title")` |
+| i18n キー | 現行と同じ `<ns>.<path>`（`bs.` `dash.` `pf.` …）。namespace ＝ JSON ファイル名 | `messages/ja/dash.json` の `{"todo.title": ...}` → `getT("dash")` / `useT("dash")` で `t("todo.title")` |
 | CSS クラス | CSS Modules は camelCase（`styles.slotList`）。グローバルは現行の kebab-case を維持（`.shell` `.panel` `.button`） | |
 | データ属性 | e2e の目印は `data-testid="..."`（kebab-case）。スタイルに使わない | |
 
@@ -188,12 +188,14 @@ Next サーバー（page.tsx）──▶ lib/server/*（import "server-only"）�
 
 ## 6. i18n
 
-- 辞書は `messages/{ja,en,zh-TW}/<ns>.json`。**3 言語でキー集合が同一**（CI のテストで固定。#414 で `public/i18n.js` から機械変換）。
-- サーバー: `const t = await getT("dash")`（Cookie の言語で namespace を読む）。クライアント: `const t = useT("dash")`（Provider が必要な namespace だけ配る＝画面ごとに言語×画面ぶんだけ配信）。
-- 置換は `{name}` 記法（現行と同じ）。**HTML は入れない**（`t()` の戻りは文字列として描く。強調が要るなら要素を分ける）。
-- 既定言語は ja。未翻訳キーは **ビルド/テストで落とす**（実行時の ja フォールバックに頼らない）。
+- 辞書は `messages/{ja,en,zh-TW}/<ns>.json`（33 namespace・1,572 キー×3）。**旧 `public/i18n.js` が正本である間は生成物**で、`npm run i18n:split`（`scripts/i18n/split.mjs`）で再生成する。手で編集しない。`messages/index.ts`（言語×namespace の遅延 import）と `messages/keys.ts`（キーの union 型）も同時に生成される。旧 i18n.js を消す段階（#454）で `messages/` が正本になる。
+- **3 言語でキー集合が同一**、かつ**生成物が旧 i18n.js と差分ゼロ**を `lib/i18n/messages.test.ts` が固定する（旧 `scripts/test/unit.mjs` の対称性テストは旧ページが残る間は併走）。
+- サーバー: `const t = await getT("dash"); t("todo.title")`（`lib/i18n/server.ts`・Cookie の言語で namespace を読む）。クライアント: `getMessages(["dash", "nav"])` の結果を `I18nProvider` に渡し、部品は `const t = useT("dash")`（`lib/i18n/client.tsx`）。Provider には**画面が使う namespace だけ**を渡す（言語×画面ぶんだけ配信）。
+- 置換は `{name}` 記法（現行と同じ）で `t("metaFrom", { name })`。**HTML は入れない**（`t()` の戻りは文字列として描く。強調が要るなら要素を分ける）。
+- キーは型で守る（`messages/keys.ts`）。無いキーはコンパイルエラー。動的なキーが未定義だった場合は `ns.key` を返して落ちない（開発時は警告）。
+- 既定言語は ja。**ブラウザの `Accept-Language` では切り替えない**（旧 `pickLanguage` と同じ挙動。切り替えは利用者の明示操作だけ）。フォールバックは active → ja → en（旧 `t()` と同じ）。空文字は「意図的に空」として尊重する。
 - **JA 据え置き**（翻訳しない）は現行どおり: 法務 3 ページ・運営コンソール・占いベースの相手分析・ルールベース提案の本文。
-- 言語切替は Cookie `kimaru_lang`（`Path=/`・1 年・`SameSite=Lax`）。初回は `Accept-Language`。URL に言語を入れない。
+- 言語の保持は Cookie `kimaru_lang`（`Path=/`・1 年・`SameSite=Lax`・HttpOnly にしない）。切替は `useSetLang()`（Cookie と旧ページ用の localStorage `kimaru.language` の両方に書いて `router.refresh()`）。旧 `i18n.js` も Cookie を最優先で読む（#414）。URL に言語を入れない。
 
 ---
 
@@ -305,3 +307,4 @@ Next サーバー（page.tsx）──▶ lib/server/*（import "server-only"）�
 ## 変更履歴
 
 - 2026-09-04 初版（#416）。
+- 2026-09-04 6 章: 辞書は `public/i18n.js` からの生成物、`Accept-Language` は使わない（旧と同じ）、t() の呼び方を実装に合わせた（#414）。

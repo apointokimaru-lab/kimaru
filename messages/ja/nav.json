@@ -1,0 +1,20 @@
+{
+  "admin": "相手管理",
+  "aiAssist": "AIアシスト",
+  "answers": "アンケート回答",
+  "booking": "予約ページ",
+  "bookingSettings": "予約ページ設定",
+  "bookingSettingsShort": "予約設定",
+  "close": "閉じる",
+  "dashboard": "ホーム",
+  "guide": "使い方ガイド",
+  "login": "Google連携",
+  "logout": "ログアウト",
+  "pricing": "料金",
+  "pro": "Pro版",
+  "profile": "プロフィール設定",
+  "schedule": "スケジュール",
+  "settings": "設定",
+  "signin": "ログイン",
+  "signup": "無料登録"
+}

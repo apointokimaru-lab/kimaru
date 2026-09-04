@@ -1,0 +1,19 @@
+{
+  "calendar.cta": "Connect",
+  "calendar.desc": "Times you're already busy drop out of your slots, and confirmed bookings go into your calendar.",
+  "calendar.title": "Connect Google Calendar",
+  "complete.close": "Close",
+  "complete.desc": "Send the booking page URL and the other person can pick a time.",
+  "complete.heading": "Setup is done",
+  "desc": "These are the items to configure after signing up. Work down the list.",
+  "done": "Done",
+  "eyebrow": "Setup",
+  "guide": "User guide",
+  "heading": "Three settings before you can take bookings",
+  "page.cta": "Create a page",
+  "page.desc": "Set the length, the place and the hours you take bookings. Your link comes from here.",
+  "page.title": "Create a booking page",
+  "profile.cta": "Write your profile",
+  "profile.desc": "What guests read before booking. It also goes into the reminder email.",
+  "profile.title": "Fill in your profile"
+}

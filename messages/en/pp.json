@@ -1,0 +1,13 @@
+{
+  "bookCta": "Book a time with this person →",
+  "links": "Links",
+  "loadError": "Couldn't load the profile.",
+  "loading": "Loading profile...",
+  "nameFallback": "Profile",
+  "noSlug": "No profile specified.",
+  "notFound": "Profile not found.",
+  "offer": "What I offer",
+  "pageTitle": "Kimaru - Profile",
+  "strengths": "Strengths",
+  "values": "What I value"
+}

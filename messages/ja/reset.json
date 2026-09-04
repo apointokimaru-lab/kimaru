@@ -1,0 +1,15 @@
+{
+  "backToLogin": "← ログインに戻る",
+  "email.label": "メールアドレス",
+  "email.note": "アカウントに登録したメールアドレスをご入力ください。",
+  "email.placeholder": "you@example.com",
+  "password.label": "新しいパスワード",
+  "request.heading": "パスワード再設定",
+  "request.hint": "数分以内にメールが届きます。見当たらない場合は、迷惑メールフォルダもご確認ください。",
+  "request.sub": "ご登録のメールアドレス宛に、再設定用のリンクをお送りします。",
+  "request.submit": "再設定メールを送る",
+  "set.heading": "新しいパスワードを設定",
+  "set.sub": "新しいパスワード（8文字以上）を入力してください。",
+  "set.submit": "パスワードを変更する",
+  "title": "パスワード再設定 - キマル"
+}

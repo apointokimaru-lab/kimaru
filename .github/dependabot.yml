@@ -19,6 +19,9 @@ updates:
       # Node の型は本番の実行系（Netlify の Node）に合わせて手で上げる
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # TypeScript 7 系（Go 実装）は Next 16 が未対応。5 系に固定している（#412）。major は手で上げる
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"

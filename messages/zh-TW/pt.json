@@ -1,0 +1,14 @@
+{
+  "activating": "正在啟用 Pro 方案，請稍候…",
+  "checking": "確認中…",
+  "done": "✓ Pro 方案已啟用。",
+  "doneDesc": "對象管理、進階個人檔案等所有 Pro 功能皆可使用。",
+  "eyebrow": "付款",
+  "goDashboard": "前往儀表板",
+  "goSettings": "開啟設定",
+  "heading": "感謝您的購買",
+  "loginRequired": "需要登入。登入後請於設定畫面確認方案。",
+  "pageTitle": "Kimaru - 付款完成",
+  "timeout": "反映需要一點時間。",
+  "timeoutDesc": "付款已完成。請於數分鐘後重新整理，或於設定畫面確認方案。若仍未反映，請與營運方聯絡。"
+}

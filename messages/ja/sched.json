@@ -1,0 +1,20 @@
+{
+  "dow.fri": "金",
+  "dow.mon": "月",
+  "dow.sat": "土",
+  "dow.sun": "日",
+  "dow.thu": "木",
+  "dow.tue": "火",
+  "dow.wed": "水",
+  "empty": "予定なし",
+  "eyebrow": "ホーム / スケジュール",
+  "next": "次週 ▶",
+  "off": "休み",
+  "pageTitle": "キマル - 週間スケジュール",
+  "prev": "◀ 前週",
+  "sub": "あなたの予約を1週間でまとめて確認できます。Googleカレンダーの予定と合わせて表示します。",
+  "title": "週間スケジュール",
+  "toDashboard": "今日の予定へ",
+  "today": "今日",
+  "todayTag": "今日"
+}

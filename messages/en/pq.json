@@ -1,0 +1,13 @@
+{
+  "answerCta": "Answer →",
+  "badge": "Unanswered",
+  "empty": "No questions waiting for your answer.",
+  "eyebrow": "Mutual questions",
+  "heading": "Questions to answer",
+  "loadError": "Failed to load. Reload or sign in again.",
+  "loading": "Loading...",
+  "needLogin": "Please sign in.",
+  "pageTitle": "Kimaru | Questions to answer",
+  "questionLabel": "Their question",
+  "sub": "Questions from members who booked with you that you have not answered yet. Answer each from “Answer”."
+}

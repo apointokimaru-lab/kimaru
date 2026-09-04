@@ -1,0 +1,15 @@
+{
+  "backToLogin": "← Back to login",
+  "email.label": "Email address",
+  "email.note": "Enter the email address registered to your account.",
+  "email.placeholder": "you@example.com",
+  "password.label": "New password",
+  "request.heading": "Reset password",
+  "request.hint": "The email should arrive within a few minutes. If you can't find it, please check your spam folder.",
+  "request.sub": "We'll send a reset link to your registered email address.",
+  "request.submit": "Send reset email",
+  "set.heading": "Set a new password",
+  "set.sub": "Enter a new password (at least 8 characters).",
+  "set.submit": "Change password",
+  "title": "Password reset - Kimaru"
+}

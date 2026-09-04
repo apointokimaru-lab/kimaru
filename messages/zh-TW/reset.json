@@ -1,0 +1,15 @@
+{
+  "backToLogin": "← 返回登入",
+  "email.label": "電子郵件",
+  "email.note": "請輸入您帳號註冊的電子郵件。",
+  "email.placeholder": "you@example.com",
+  "password.label": "新密碼",
+  "request.heading": "重設密碼",
+  "request.hint": "郵件將在幾分鐘內送達。如果找不到，請檢查垃圾郵件資料夾。",
+  "request.sub": "我們會將重設連結寄送到您註冊的電子郵件。",
+  "request.submit": "寄送重設郵件",
+  "set.heading": "設定新密碼",
+  "set.sub": "請輸入新密碼（至少 8 個字元）。",
+  "set.submit": "變更密碼",
+  "title": "密碼重設 - Kimaru"
+}

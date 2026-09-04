@@ -1,0 +1,17 @@
+{
+  "answerLabel": "Your answer",
+  "answerPlaceholder": "Type your answer",
+  "answeredNote": "Already answered. You can update and resend.",
+  "empty": "Please enter your answer.",
+  "eyebrow": "Mutual questions",
+  "heading": "Answer their question",
+  "loadError": "Could not load this page. The link may be invalid or expired.",
+  "loading": "Loading...",
+  "metaFrom": "Question from {name}",
+  "pageTitle": "Kimaru | Answer their question",
+  "questionLabel": "Their question",
+  "sending": "Sending...",
+  "sent": "Your answer was sent and emailed to them. Thank you!",
+  "sub": "A question from the member who booked with you. Your answer is emailed to them.",
+  "submit": "Send answer"
+}

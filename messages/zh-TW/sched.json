@@ -1,0 +1,20 @@
+{
+  "dow.fri": "五",
+  "dow.mon": "一",
+  "dow.sat": "六",
+  "dow.sun": "日",
+  "dow.thu": "四",
+  "dow.tue": "二",
+  "dow.wed": "三",
+  "empty": "無預約",
+  "eyebrow": "首頁 / 行程",
+  "next": "下週 ▶",
+  "off": "休息",
+  "pageTitle": "Kimaru - 週行程",
+  "prev": "◀ 上週",
+  "sub": "一週的預約一目了然，並與 Google 日曆的行程一併顯示。",
+  "title": "週行程",
+  "toDashboard": "今日行程",
+  "today": "今天",
+  "todayTag": "今天"
+}

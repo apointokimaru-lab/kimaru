@@ -1,0 +1,17 @@
+{
+  "answerLabel": "您的回覆",
+  "answerPlaceholder": "請輸入您的回覆",
+  "answeredNote": "已回覆。可更新內容後再次送出。",
+  "empty": "請輸入您的回覆。",
+  "eyebrow": "互相提問",
+  "heading": "回覆對方的提問",
+  "loadError": "無法載入此頁面。連結可能無效或已過期。",
+  "loading": "載入中...",
+  "metaFrom": "{name} 的提問",
+  "pageTitle": "Kimaru | 回覆對方的提問",
+  "questionLabel": "對方的提問",
+  "sending": "傳送中...",
+  "sent": "已送出回覆並以電子郵件寄給對方。謝謝您！",
+  "sub": "這是向您預約的會員所提出的問題。回覆後會以電子郵件寄給對方。",
+  "submit": "送出回覆"
+}

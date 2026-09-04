@@ -1,0 +1,13 @@
+{
+  "answerCta": "回覆 →",
+  "badge": "未回覆",
+  "empty": "目前沒有待回覆的提問。",
+  "eyebrow": "互相提問",
+  "heading": "待回覆的提問",
+  "loadError": "載入失敗。請重新整理或重新登入。",
+  "loading": "載入中...",
+  "needLogin": "請先登入。",
+  "pageTitle": "Kimaru | 待回覆的提問",
+  "questionLabel": "對方的提問",
+  "sub": "向您預約的會員所提出、您尚未回覆的問題。可從「回覆」逐則回覆。"
+}

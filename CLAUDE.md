@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-キマル (Kimaru) — a Japanese, free-first 1-on-1 scheduling tool. Static HTML/CSS/vanilla JS frontend + serverless functions + Supabase. **No build step, no test framework, no linter.** The product is built incrementally; the working language is Japanese.
+キマル (Kimaru) — a Japanese, free-first 1-on-1 scheduling tool. Static HTML/CSS/vanilla JS frontend + serverless functions + Supabase. The product is built incrementally; the working language is Japanese.
+
+**フロント移行中（2026-09〜・#412／親 issue #406〜#411）**: 旧フロント（`public/` の静的 HTML 33 枚＋バニラ JS・ビルド無し）と **TypeScript + Next.js（App Router・リポジトリ直下の `app/`）** が同じサイトで同居している。`public/` は Next.js の静的フォルダそのものなので、旧ページは同じ URL（`/dashboard.html` 等）でそのまま配信される。`/` と未マッチ URL だけは `app/route.ts`・`app/[...path]/route.ts` が旧 `index.html`／`404.html` を返す暫定（段階1 で置き換え）。**新しい画面・機能は `app/` に作り、旧ページ（`public/*.html`・`app.js`）には足さない**。移行の順序・ルールは各段階の親 issue と #416（新スタックの開発規約）を参照。この文書の以下の記述は当面 **旧フロントと Functions について**のもの。
 
 ## 作業ルール（厳守）
 
@@ -33,14 +35,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev      # netlify dev → http://localhost:8888 (serves public/ + functions at /api/*)
+npm run dev      # netlify dev → http://localhost:8888 (Next.js dev を裏で起動し、public/ の旧ページ + functions at /api/* + netlify.toml の書き換えを再現)
+npm run build    # next build（Netlify の本番ビルド。旧ページは public/ からそのまま出力に含まれる）
+npm run start    # next start → http://localhost:3000（/api/* と /b/* 等の netlify.toml 書き換えは効かない。単体確認用）
+npm run typecheck # tsc --noEmit（app/ と next.config.ts のみ。netlify/functions は対象外）
 npm run deploy   # netlify deploy --prod
 npm test         # 軽量テスト: unit(Node) + e2e(Playwright)。CI/外部依存なし
 npm run test:unit # i18n対称性・ダッシュ描画ロジック・XSSエスケープ（vmでapp.js/i18n.jsを評価）
 npm run test:e2e  # public/ を静的配信し各ページをPlaywrightでロードしAPIをrouteでmock。実データ描画/ボタン/残ダミー無し/JS例外無しを検証
 ```
 
-- **No lint, no build.** Tests are **lightweight, framework-free** (`scripts/test/unit.mjs` = Node + `node:vm`, `scripts/test/e2e.mjs` = Playwright with `page.route` API mocking). Don't add a heavy test framework/CI; extend these scripts. Run `npm test` after frontend changes.
+- **旧フロントと Functions は lint 無し。ビルドは `next build` のみ（旧ページは無変換で通過）。** Tests are **lightweight, framework-free** (`scripts/test/unit.mjs` = Node + `node:vm`, `scripts/test/e2e.mjs` = Playwright with `page.route` API mocking). Don't add a heavy test framework/CI; extend these scripts. Run `npm test` after frontend changes.
 - DB changes: apply `supabase-schema.sql` manually in the Supabase SQL editor (no migration tool) — to **both** the dev and prod databases. Because migrations lag, new columns are added with idempotent `alter table ... add column if not exists`, **and** code that reads/writes them **degrades gracefully when the column is missing** (try/catch → fallback). See the `scores`, `answer_type`/`options`, `frozen`, and `manual_contacts` paths for the pattern; preserve it when adding columns.
 - Visual check (the only tooling beyond netlify — not a test runner): `node scripts/shoot.mjs <page> <lang> [plan]` (e.g. `index ja`, `plan ja pro`) serves `public/` headless via **Playwright** (a devDependency) and writes desktop+mobile screenshots to `/tmp/kimaru-shots/`. `[plan]` is passed through as `?plan=` for plan-gated UI. It does not inject the edge header, so both guest- and authed-only sections render. `scripts/shoot-batch.mjs` shoots several pages/languages at once and summarises console errors.
 - Reminder-mail dry run: `GET /api/reminder-mails?dry_run=1` (returns targets/message without sending). (Birthday-mail auto-send was removed — decision 17 / #180.)
@@ -178,3 +183,13 @@ npx netlify api lockDeploy --data '{"deploy_id":"<新デプロイのid>"}'
 - Don't re-introduce Vercel or rewrite the DB schema without explicit instruction.
 - **`<select>` の選択肢とサーバの許容値は必ず対応させる。** 保存済みの値が `<option>` に無いと `select.value = v` は「選択なし」になり（空表示・`selectedIndex = -1`）、そのまま保存すると `Number("") = 0` に落ちて**設定が黙って消える**（#300）。`app.js` の `fillBookingPageForm` は選択肢に無い保存済みの値を option として足す実装。サーバ側も、集合判定で弾くと画面から直せない値になるため、バッファのように**範囲クランプ**を選ぶ（`booking-page-save.js`）。
 - 本番データを読むスクリプトを書くときは Supabase REST を直に叩いてよい（読み取りのみ）。書き込み・削除は必ず確認を取る。
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

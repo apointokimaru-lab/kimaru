@@ -1,0 +1,29 @@
+# 依存の更新と脆弱性の追従（#413）。週 1 回・月曜の朝（JST）にまとめて PR を出す。
+# minor/patch は 1 本にまとめる（PR が毎日増えて埋もれるのを防ぐ）。major は個別（壊れやすいので 1 つずつ見る）。
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    # next / react は同時に上げないと動かないことがあるので、同じ PR にまとめる
+    # （Dependabot は上の groups と別に依存名でも束ねられる）
+    ignore:
+      # Node の型は本番の実行系（Netlify の Node）に合わせて手で上げる
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo

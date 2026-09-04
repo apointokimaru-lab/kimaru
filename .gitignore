@@ -13,3 +13,7 @@ node_modules
 .next
 next-env.d.ts
 *.tsbuildinfo
+
+# Playwright（@playwright/test）の出力
+playwright-report
+test-results

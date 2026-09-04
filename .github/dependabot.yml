@@ -22,6 +22,10 @@ updates:
       # TypeScript 7 系（Go 実装）は Next 16 が未対応。5 系に固定している（#412）。major は手で上げる
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      # ESLint 10 は eslint-config-next 16 の同梱プラグイン（eslint-plugin-import 等）が peer で ≤9 のみ対応。
+      # 初回実行の PR #464 が lint 段で落ちた。eslint-config-next 側が 10 に追従したら外す
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"

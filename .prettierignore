@@ -11,3 +11,6 @@ docs/
 *.md
 # 生成物（scripts/i18n/split.mjs）。手で整形しない
 messages/
+# public/styles.css からの逐語コピー（旧と見比べるため整形しない・#415）
+styles/tokens.css
+styles/base.css

@@ -1,0 +1,55 @@
+/* 共通の土台（#415・規約 7 章）。public/styles.css から reset・body・見出し・汎用クラス（.shell .eyebrow .lead .muted .actions
+   .panel .note .badge .button 系）を値を変えずに写したもの。画面固有のスタイルは各コンポーネントの CSS Modules に持つ。
+   旧サイトが残る間は両方に同じ値がある。変えるときは両方を同時に直す。 */
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:88px}
+@media(max-width:620px){html{scroll-padding-top:150px}}
+body{
+  margin:0;color:var(--ink);background:var(--bg);font-family:var(--jp);
+  font-size:var(--fs-body);line-height:1.8;-webkit-font-smoothing:antialiased;
+  font-feature-settings:"palt" 1;
+  overflow-wrap:anywhere;
+}
+p{line-height:1.8}
+h1,h2,h3,p{margin:0}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{word-break:auto-phrase;text-wrap:balance}
+p,li,.lead,.muted,.form-note,.plan-note,.message{text-wrap:pretty;word-break:auto-phrase}
+.brand,.site-header a,.nav a,.nav-links a,.link-button,.button,.primary,.btn,.eyebrow,.badge,.schedule-steps span{word-break:keep-all;overflow-wrap:normal}
+
+/* ===== 見出しの既定（mock は文脈ごとに上書きするが、素の h1〜h3 にも朱印を当てる） ===== */
+h1{font-family:var(--display);font-weight:700;font-size:var(--fs-title);line-height:1.35;letter-spacing:-.01em;margin-bottom:18px}
+h2{font-family:var(--display);font-weight:700;font-size:var(--fs-section);line-height:1.4;letter-spacing:-.01em;margin-bottom:14px}
+h3{font-family:var(--display);font-weight:700;font-size:var(--fs-subhead);line-height:1.45;letter-spacing:0;margin-bottom:8px}
+.hero h1{font-size:var(--fs-hero)}
+
+.shell{width:min(var(--shell),calc(100% - var(--gutter)));margin:0 auto;padding:48px 0}
+.shell.narrow{width:min(720px,calc(100% - var(--gutter)))}
+.shell.checkout{width:min(960px,calc(100% - 40px))}
+.section{width:min(var(--shell),calc(100% - var(--gutter)));margin:0 auto;padding:clamp(56px,9vw,104px) 0}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;margin:0 0 12px;font-family:var(--mono);font-size:var(--fs-note);font-weight:700;letter-spacing:.1em;color:var(--accent-ink)}
+.eyebrow::before{content:"";width:18px;height:1.5px;background:var(--accent)}
+.lead{color:var(--ink-2);font-size:var(--fs-body);line-height:1.8}
+.muted{color:var(--muted)}
+
+/* ---- 汎用クラス ---- */
+.btn,.button,.primary,.link-button.cta{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;border-radius:var(--radius-pill);font-family:var(--sans);font-weight:700;font-size:var(--fs-label);line-height:1.5;cursor:pointer;border:1.5px solid transparent;transition:transform .15s ease,box-shadow .15s ease,background .15s ease,color .15s ease;text-align:center}
+.btn:hover,.button:hover,.primary:hover{transform:translateY(-1px)}
+.btn-primary,.button.primary,.primary{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 8px 20px -10px rgba(222,74,46,.7)}
+.btn-primary:hover,.button.primary:hover,.primary:hover{background:var(--accent-ink);border-color:var(--accent-ink)}
+.btn-ghost,.button.secondary{background:transparent;color:var(--ink);border-color:var(--line-2)}
+.btn-ghost:hover,.button.secondary:hover{background:var(--surface);border-color:var(--ink)}
+.btn-aurora,.button.premium{color:#fff;background:var(--aurora);background-size:180% 180%;border:0;animation:au 14s ease-in-out infinite}
+.btn[disabled],.button[disabled],.primary[disabled]{opacity:.5;cursor:not-allowed;transform:none}
+.btn-sm{min-height:38px;padding:0 14px;font-size:13.5px}
+.btn.danger,.button.danger{background:#C0392B;border-color:#C0392B;color:#fff}
+.btn.danger:hover,.button.danger:hover{filter:brightness(1.06)}
+.btn-ghost.danger,.button.secondary.danger{color:#C0392B;border-color:#E6BBB3;background:transparent}
+.btn-ghost.danger:hover,.button.secondary.danger:hover{background:#FBE9E6;border-color:#C0392B}
+.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:28px}
+.actions+.form-note{margin-top:14px}
+.panel,.card,.form-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:clamp(20px,2.4vw,30px);box-shadow:var(--shadow);transition:transform .18s ease,box-shadow .18s ease}
+.note{padding:13px 15px;border-radius:var(--radius-sm);background:var(--accent-soft);color:var(--accent-ink);font-size:var(--fs-note);font-weight:600}
+.badge{display:inline-flex;align-items:center;gap:6px;margin-bottom:14px;padding:8px 12px;border-radius:var(--radius-pill);font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-soft)}
+.tag,.free-tag{display:inline-block;padding:2px 9px;border-radius:var(--radius-pill);font-size:12px;font-weight:700;background:var(--accent-soft);color:var(--accent-ink)}
+.button.mini{min-height:32px;padding:0 12px;font-size:12.5px;font-weight:700;border-radius:var(--radius-sm)}

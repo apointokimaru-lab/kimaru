@@ -6,7 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 キマル (Kimaru) — a Japanese, free-first 1-on-1 scheduling tool. Static HTML/CSS/vanilla JS frontend + serverless functions + Supabase. The product is built incrementally; the working language is Japanese.
 
-**フロント移行中（2026-09〜・#412／親 issue #406〜#411）**: 旧フロント（`public/` の静的 HTML 33 枚＋バニラ JS・ビルド無し）と **TypeScript + Next.js（App Router・リポジトリ直下の `app/`）** が同じサイトで同居している。`public/` は Next.js の静的フォルダそのものなので、旧ページは同じ URL（`/dashboard.html` 等）でそのまま配信される。`/` と未マッチ URL だけは `app/route.ts`・`app/[...path]/route.ts` が旧 `index.html`／`404.html` を返す暫定（段階1 で置き換え）。**新しい画面・機能は `app/` に作り、旧ページ（`public/*.html`・`app.js`）には足さない**。移行の順序・ルールは各段階の親 issue と #416（新スタックの開発規約）を参照。この文書の以下の記述は当面 **旧フロントと Functions について**のもの。
+**フロント移行中（2026-09〜・#412／親 issue #406〜#411）**: 旧フロント（`public/` の静的 HTML 33 枚＋バニラ JS・ビルド無し）と **TypeScript + Next.js（App Router・リポジトリ直下の `app/`）** が同じサイトで同居している。`public/` は Next.js の静的フォルダそのものなので、旧ページは同じ URL（`/dashboard.html` 等）でそのまま配信される。`/` と未マッチ URL だけは `app/route.ts`・`app/[...path]/route.ts` が旧 `index.html`／`404.html` を返す暫定（段階1 で置き換え）。**新しい画面・機能は `app/` に作り、旧ページ（`public/*.html`・`app.js`）には足さない**。この文書の以下の記述は当面 **旧フロントと Functions について**のもの。
+
+### 新フロント（`app/` 以下）の規約 — 正本は [`docs/frontend-conventions.md`](docs/frontend-conventions.md)（#416）
+`app/` に触る前に必ず読む。要点だけここに書く（詳細・理由は正本）:
+- **フォルダ**: `app/`（URL を持つものだけ・薄い page）／`components/`（語彙なしの部品）／`features/<機能>/`（画面の部品とロジック・`api.ts`・`*.test.ts`）／`lib/`（React 非依存。秘密に触るものは `lib/server/` ＋ `import "server-only"`）／`messages/{ja,en,zh-TW}/<ns>.json`／`styles/`（トークン）／`types/`／`tests/e2e/`／`proxy.ts`。1 ルート専用の部品は `_components/`、2 か所目で `features/` へ昇格。依存は `app → features → components/lib` の一方向。
+- **ルートグループ＝認証と描画**: `(public)` 静的生成、`(auth)` `(guest)` `(app)` `(operator)` は動的描画。Next 16 は `middleware.ts` ではなく **`proxy.ts`**（Node.js のみ）、`params`/`searchParams`/`cookies()`/`headers()` は **必ず `await`**、`next lint` は無い（`npm run lint`）、Turbopack 既定で `webpack` 設定は書かない。
+- **データ**: サーバー描画の読み取りは `lib/server/*` が `netlify/functions/_lib/*.js` を**直接 import**（自分の `/api/*` を HTTP で呼ばない）。書き込みは Client から既存 `/api/*` を `lib/api/` 経由で `fetch`。**Server Actions は使わない**。外から来る値は **Zod** で検証。
+- **禁止**（lint で落ちる）: `innerHTML`/`dangerouslySetInnerHTML`（例外は `lib/sanitize.ts` を通す `RichText` の 1 か所）、`any`、`enum`、`!`、`process.env` 直読み、`netlify/functions` の直 import（`lib/server/` 以外）、`useEffect` でのデータ取得、`<head>` 手書き。
+- **CSP は 2 モード**: 静的な `(public)` は当面 `'unsafe-inline'` 許容、動的ページは `proxy.ts` の **nonce**（`'strict-dynamic'`）。`proxy.ts` の `matcher` は `_next/static` と `public/` の旧資産を必ず除外。
+- **i18n**: 3 言語のキー集合は同一（CI で固定）。`{name}` 置換・HTML 不可。言語は Cookie `kimaru_lang`。法務・運営・占い本文は JA 据え置き。
+- **スタイル**: `styles/tokens.css` の変数だけを使い、部品は CSS Modules。見た目は作り直さない。プレミアム面だけオーロラ＋`prefers-reduced-motion`。
+- **テスト**: 純ロジックは `node:test`（隣に `*.test.ts`）、画面は `@playwright/test`（`tests/e2e/`・`/api/**` は `page.route` でモック・iPhone 12 とデスクトップ・JS 例外なし・残ダミーなし）。React 部品の jsdom テストは入れない。
+- **移行の型**: 1 ページ＝1 issue＝1 PR。移したら `public/<x>.html` 削除 → `next.config.ts` の `redirects()` に `/<x>.html → /<x>`（301）→ `docs/screen-flow.md` の配信列を更新 → 旧 e2e を消して新 spec。URL（`/b` `/p` `/u` `/api` `/.well-known`・OAuth/Webhook・`/pro-thanks.html`）は変えない。
+- **コメント**は日本語で「なぜ／何を」（旧と同じ慣習）。規約を変えるときは正本 → ここ → コードの順。
 
 ## 作業ルール（厳守）
 

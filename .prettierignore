@@ -1,0 +1,11 @@
+# 旧スタック（別規約）とビルド出力。整形対象は新フロントだけ（docs/frontend-conventions.md 10 章）
+public/
+netlify/
+scripts/
+.next/
+.netlify/
+node_modules/
+package-lock.json
+deno.lock
+docs/
+*.md

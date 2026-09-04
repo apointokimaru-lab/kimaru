@@ -1,6 +1,28 @@
+# 2026-09 から旧サイト（public/ の静的 HTML）と Next.js を同居させ、ページ単位で移行中（#412・親 #406〜#411）。
+# - publish は Next.js の出力（.next）。public/ は Next の静的フォルダとして同じ URL でそのまま配信される
+# - /api/* の Functions と Edge（auth-gate.js）は従来どおり。下の [[redirects]] もユーザー定義として
+#   Next.js ランタイムの内部ルールより優先される（/b/* → /booking.html 等が今までどおり効く理由）
+# - Next.js（関数）の応答には下の [[headers]] が付かないため、同じ値を next.config.ts でも付けている
 [build]
-  publish = "public"
+  command = "npm run build"
+  publish = ".next"
   functions = "netlify/functions"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# npm run dev（netlify dev）の裏で起動する開発サーバを固定する。
+# 自動検出に任せると package.json の start スクリプト（本番サーバ・PORT を無視）を選んでしまい、
+# 「Waiting for Next.js dev server on port …」のまま起動に失敗する。
+[dev]
+  command = "npm run dev:next"
+  targetPort = 3000
+  port = 8888
+  framework = "#custom"
+  # netlify dev は「/b/* → /booking.html」のような静的ファイルへの書き換え先を、この publish の中で探す
+  # （本番では public/ が CDN の静的資産になるので同じ意味）。既定の .next のままだと見つからず、
+  # 予約ページ /b/<slug> がローカルだけ 404 になる。
+  publish = "public"
 
 [functions]
   node_bundler = "esbuild"
@@ -51,10 +73,14 @@
   to = "/.netlify/functions/:splat"
   status = 200
 
+# ↓ /b/* /p/* /u/* の 3 つに force = true を付けている理由（#412）: netlify dev はフレームワーク（Next.js dev）が
+#   居る構成では「強制でない静的ファイルへの書き換え」をローカルだけ適用しない（CLI の proxy.js の条件
+#   `!options.framework && destStaticFile`）。これらのパスに実ファイルは存在しないので、本番 CDN での意味は変わらない。
 [[redirects]]
   from = "/b/*"
   to = "/booking.html"
   status = 200
+  force = true
 
 # ピンポイント日程調整リンク（#303）。/p/<token> も booking.html を使う。
 # 候補の出し方（週表→ラジオ一覧）だけ差し替え、質問・確認・完了は通常の予約と同じ画面を通す。
@@ -63,11 +89,13 @@
   from = "/p/*"
   to = "/booking.html"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/u/*"
   to = "/public-profile.html"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/pro.html"

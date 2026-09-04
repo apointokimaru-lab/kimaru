@@ -4,15 +4,35 @@
   "private": true,
   "scripts": {
     "dev": "netlify dev",
+    "dev:next": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "next typegen && tsc --noEmit",
     "deploy": "netlify deploy --prod",
     "test": "node scripts/test/unit.mjs && node scripts/test/e2e.mjs",
     "test:unit": "node scripts/test/unit.mjs",
     "test:e2e": "node scripts/test/e2e.mjs"
   },
   "dependencies": {
-    "nodemailer": "^9.0.1"
+    "next": "^16.3.4",
+    "nodemailer": "^9.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "playwright": "^1.61.0"
+    "@netlify/plugin-nextjs": "^5.15.13",
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.4",
+    "eslint-config-prettier": "^10.1.8",
+    "playwright": "^1.61.0",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3"
   }
 }

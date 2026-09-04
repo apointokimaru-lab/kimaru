@@ -22,27 +22,29 @@
 
 ## 2. 画面一覧
 
-| # | URL | 画面名 | 認証 | 区分 |
-|---|---|---|---|---|
-| 1 | `/` | トップ / ランディング | 不要 | 公開 |
-| 2 | `/plan.html` | 料金・プラン（旧Pro版紹介） | 不要 | 公開 |
-| 3 | `/signup.html` | 無料登録 | 不要 | 公開 |
-| 4 | `/login.html` | ログイン（メール+PW / Google） | 不要 | 公開 |
-| 5 | `/dashboard.html` | ホーム（ログイン後ハブ） | 要ログイン | ユーザー |
-| 6 | `/contacts.html` | 相手管理（予約一覧・面談メモ） | 要ログイン | ユーザー |
-| 7 | `/booking-settings.html` | 予約設定 | 要ログイン | ユーザー |
-| 8 | `/profile.html` | プロフィールシート | 要ログイン | ユーザー |
-| 9 | `/ai-assist.html` | AIアシスト | 要ログイン | ユーザー（有料） |
-| 10 | `/square.html` | Pro版決済（Square） | 要ログイン | ユーザー |
-| 11 | `/operator-login.html` | 運営ログイン（共有キー → 運営セッション発行） | 共有管理キー | 運営 |
-| 12 | `/cat-key-admin.html` | 運営コンソール（Cat Key・ユーザー管理） | 運営セッション | 運営 |
-| 13 | `/operators.html` | 運営者管理（運営アカウントの一覧・追加・削除） | 運営セッション | 運営 |
-| 14 | `/analytics.html` | 分析ダッシュボード（利用状況・転換率・定着の集計） | 運営セッション | 運営 |
-| 14 | `/booking.html`（`/b/{slug}`） | 予約ページ（ゲスト用） | 不要 | 公開 |
-| 15 | `/guide.html` | 使い方ガイド（機能一覧＋機能ごとのModal） | 不要 | 公開 |
-| 16 | `/terms.html` | 利用規約 | 不要 | 公開（法務） |
-| 17 | `/privacy.html` | プライバシーポリシー | 不要 | 公開（法務） |
-| 18 | `/tokushoho.html` | 特定商取引法に基づく表記 | 不要 | 公開（法務） |
+| # | URL | 画面名 | 認証 | 区分 | 配信（2026-09 移行中） |
+|---|---|---|---|---|---|
+| 1 | `/` | トップ / ランディング | 不要 | 公開 | Next（旧 index.html を返す暫定・#412） |
+| 2 | `/plan.html` | 料金・プラン（旧Pro版紹介） | 不要 | 公開 | 旧（public/） |
+| 3 | `/signup.html` | 無料登録 | 不要 | 公開 | 旧（public/） |
+| 4 | `/login.html` | ログイン（メール+PW / Google） | 不要 | 公開 | 旧（public/） |
+| 5 | `/dashboard.html` | ホーム（ログイン後ハブ） | 要ログイン | ユーザー | 旧（public/） |
+| 6 | `/contacts.html` | 相手管理（予約一覧・面談メモ） | 要ログイン | ユーザー | 旧（public/） |
+| 7 | `/booking-settings.html` | 予約設定 | 要ログイン | ユーザー | 旧（public/） |
+| 8 | `/profile.html` | プロフィールシート | 要ログイン | ユーザー | 旧（public/） |
+| 9 | `/ai-assist.html` | AIアシスト | 要ログイン | ユーザー（有料） | 旧（public/） |
+| 10 | `/square.html` | Pro版決済（Square） | 要ログイン | ユーザー | 旧（public/） |
+| 11 | `/operator-login.html` | 運営ログイン（共有キー → 運営セッション発行） | 共有管理キー | 運営 | 旧（public/） |
+| 12 | `/cat-key-admin.html` | 運営コンソール（Cat Key・ユーザー管理） | 運営セッション | 運営 | 旧（public/） |
+| 13 | `/operators.html` | 運営者管理（運営アカウントの一覧・追加・削除） | 運営セッション | 運営 | 旧（public/） |
+| 14 | `/analytics.html` | 分析ダッシュボード（利用状況・転換率・定着の集計） | 運営セッション | 運営 | 旧（public/） |
+| 14 | `/booking.html`（`/b/{slug}`） | 予約ページ（ゲスト用） | 不要 | 公開 | 旧（public/） |
+| 15 | `/guide.html` | 使い方ガイド（機能一覧＋機能ごとのModal） | 不要 | 公開 | 旧（public/） |
+| 16 | `/terms.html` | 利用規約 | 不要 | 公開（法務） | 旧（public/） |
+| 17 | `/privacy.html` | プライバシーポリシー | 不要 | 公開（法務） | 旧（public/） |
+| 18 | `/tokushoho.html` | 特定商取引法に基づく表記 | 不要 | 公開（法務） | 旧（public/） |
+
+> **配信列**: フロント刷新（#406〜#411）で画面を Next.js（`app/`）へ移すたびに「旧（public/）」→「Next」に更新する（規約 [`frontend-conventions.md`](./frontend-conventions.md) 11 章）。
 
 ---
 

@@ -8,3 +8,8 @@ node_modules
 .env
 .env.*
 !.env.example
+
+# Next.js（#412 で導入）。ビルド出力と、next が自動生成する型定義
+.next
+next-env.d.ts
+*.tsbuildinfo

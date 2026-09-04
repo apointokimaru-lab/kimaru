@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # Netlify の本番ビルド（既定の Node）に合わせて 22 系。ローカルは 24 でも動く
           node-version: 22

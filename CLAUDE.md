@@ -35,7 +35,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
    issue 番号が無い依頼は、先に issue を立てるか番号なし（`fix/booking-cancel-reachability` 形式）にするかを確認してから着手する。
 
-2. **PR 作成までが担当範囲。マージはユーザーが行う。** `gh pr create` は実行してよいが、**`gh pr merge` は実行しない**。PR 本文には「症状 / 原因 / 修正 / 確認したこと / 残る穴」を書く。
+2. **PR 作成までが担当範囲。マージはユーザーが行う。** `gh pr create` は実行してよいが、**`gh pr merge` は実行しない**。PR 本文には「症状 / 原因 / 修正 / 確認したこと / 残る穴」を書く。**push 前に `npm run ci` を通す。CI（GitHub Actions）が赤の PR はマージしない**（#413）。
 
 3. **本番デプロイは明示指示があったときだけ。** 手順は「Hosting」節（ロック解除を忘れると無言で失敗する）。
 
@@ -51,12 +51,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev      # netlify dev → http://localhost:8888 (Next.js dev を裏で起動し、public/ の旧ページ + functions at /api/* + netlify.toml の書き換えを再現)
 npm run build    # next build（Netlify の本番ビルド。旧ページは public/ からそのまま出力に含まれる）
 npm run start    # next start → http://localhost:3000（/api/* と /b/* 等の netlify.toml 書き換えは効かない。単体確認用）
-npm run typecheck # tsc --noEmit（app/ と next.config.ts のみ。netlify/functions は対象外）
+npm run typecheck # next typegen && tsc --noEmit（app/ components/ features/ lib/ tests/ 等の新フロントのみ。netlify/functions は対象外）
+npm run lint     # eslint（新フロントのみ。public/ netlify/ scripts/ は対象外）／ npm run lint:fix
+npm run format:check # prettier（同上）／ npm run format で整形
+npm run ci       # 上の check 全部 + build + test を順に回す（push 前のローカル確認用。CI と同じ内容）
 npm run deploy   # netlify deploy --prod
-npm test         # 軽量テスト: unit(Node) + e2e(Playwright)。CI/外部依存なし
-npm run test:unit # i18n対称性・ダッシュ描画ロジック・XSSエスケープ（vmでapp.js/i18n.jsを評価）
-npm run test:e2e  # public/ を静的配信し各ページをPlaywrightでロードしAPIをrouteでmock。実データ描画/ボタン/残ダミー無し/JS例外無しを検証
+npm test         # 軽量テスト: unit + e2e（旧ページ用と新フロント用の両方）。外部依存なし
+npm run test:unit # 旧: scripts/test/unit.mjs（i18n対称性・ダッシュ描画・XSSエスケープ）＋ 新: node:test（*.test.ts を tsx --test で）
+npm run test:e2e  # 旧: scripts/test/e2e.mjs（public/ を静的配信・APIをrouteでmock）＋ 新: @playwright/test（tests/e2e/・next build 済みのアプリを next start で立てて確認）
 ```
+
+- **CI（GitHub Actions・`.github/workflows/ci.yml`・#413）が PR ごとに `format:check` → `lint` → `typecheck` → `build` → `test:unit` → `test:e2e` を回す。赤の PR はマージしない。** 依存の更新は Dependabot（週 1・minor/patch はまとめて 1 本）。
 
 - **旧フロントと Functions は lint 無し。ビルドは `next build` のみ（旧ページは無変換で通過）。** Tests are **lightweight, framework-free** (`scripts/test/unit.mjs` = Node + `node:vm`, `scripts/test/e2e.mjs` = Playwright with `page.route` API mocking). Don't add a heavy test framework/CI; extend these scripts. Run `npm test` after frontend changes.
 - DB changes: apply `supabase-schema.sql` manually in the Supabase SQL editor (no migration tool) — to **both** the dev and prod databases. Because migrations lag, new columns are added with idempotent `alter table ... add column if not exists`, **and** code that reads/writes them **degrades gracefully when the column is missing** (try/catch → fallback). See the `scores`, `answer_type`/`options`, `frozen`, and `manual_contacts` paths for the pattern; preserve it when adding columns.

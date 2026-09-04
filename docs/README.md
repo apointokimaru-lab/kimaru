@@ -19,6 +19,7 @@
 | [`positioning-brief.md`](./positioning-brief.md) | **ポジショニング**（新LP用・#362）。ターゲット定義・痛み・差別化軸・狙わない領域・メインコピー案・想定反論・**合否の指標（LP閲覧→会員登録の転換率）**。競合（TimeRex/Spir/Jicoo/eeasy/Calendly）の料金と口コミ引用は**裏取り用でLPには出さない** |
 | [`running-costs.md`](./running-costs.md) | ランニングコスト（インフラ固定費・決済/AI変動費・損益の目安） |
 | [`zoom-marketplace-submission.md`](./zoom-marketplace-submission.md) | Zoom Marketplace 公開申請の提出物（チェックリスト・Listing文面・審査手順・セキュリティ回答草案） |
+| [`frontend-conventions.md`](./frontend-conventions.md) | **新フロント（Next.js）のコード規約とフォルダ構造（正本・#416）**。TypeScript/React の書き方・i18n・CSP・テスト・旧サイトとの同居ルール |
 | [`kimaru_ai_bot_development_roadmap.md`](./kimaru_ai_bot_development_roadmap.md) | **開発ロードマップ**（開発順序・フルリプレイス方針・自作AI会議Bot・CRM/タスク拡張） |
 | [`kimaru_infrastructure_architecture_v2 (1).md`](./kimaru_infrastructure_architecture_v2%20(1).md) | **インフラ基盤構成（正本）**（AWS構成・Bot/STT/AI要約基盤・データモデル・技術スタック） |
 | [`infrastructure-review.md`](./infrastructure-review.md) | 上記へのレビューと判断（DBはSupabase継続・PoCで削る構成・既存本番からの引き継ぎ・原価の含意） |

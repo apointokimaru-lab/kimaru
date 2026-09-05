@@ -279,7 +279,7 @@ Next サーバー（page.tsx）──▶ lib/server/*（import "server-only"）�
 ## 12. 旧サイトとの同居ルール（移行が終わるまで）
 
 - **旧ページ（`public/*.html` `app.js` `i18n.js`）に新機能を足さない**。不具合の修正だけ。新しい画面・機能は `app/` に作る。
-- **1 ページ＝1 issue＝1 PR**。PR 本文は「症状／原因／修正／確認したこと／残る穴」＋スクショ。
+- **1 ページ＝1 issue＝1 PR**。PR 本文は「症状／原因／修正／確認したこと／残る穴」＋スクショ。**マージ前にユーザーが手元で確認する**ので、報告に `gh pr checkout <番号>` → `npm install` → `npm run preview`（本番相当の Next を netlify dev の裏に置く。http://localhost:8888）→ 見る URL と観点を書く。開発中の確認は `npm run dev`（next dev）。`netlify serve` は使えない（publish=.next のため旧ページと Functions が 404）。
 - 移したページは同じ PR で: `public/<x>.html` を削除 → `next.config.ts` の `redirects()` に `/<x>.html → /<x>`（**`permanent: true`＝308。301 と同じ恒久・クエリ引き継ぎ**）→ 他ページからのリンクを更新 → `docs/screen-flow.md` の配信列を「Next」に。
 - **URL を変えない**: `/b/{slug}` `/p/{token}` `/u/{slug}` `/api/*` `/.well-known/*`、OAuth の redirect URI、Webhook の受信 URL、`/pro-thanks.html`（Square の戻り先。**同じパスで応答し続ける**）。送信済みメールの `manage-booking.html?k=` と旧形式 `?id=&t=` は動く状態を保つ。
 - `netlify.toml` の書き換え（`/b/*` 等）は、その画面を Next に移す PR で新ルートへ向ける（切り戻しは 1 行）。

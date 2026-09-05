@@ -75,10 +75,12 @@ test.describe("LP /（#418）", () => {
     await expect(
       presale.getByRole("heading", { name: "先着100名の先行価格について" }),
     ).toBeVisible();
-    await expect(presale).toContainText("Pro とプレミアムの合計");
-    await expect(presale).toContainText("Cat Key");
+    // 基準は「Pro プランの利用者が 100 名」。数え方の内訳（合算・Cat Key）や除外の説明は載せない（ユーザー決定 2026-09-05）
+    await expect(presale.locator("li")).toHaveCount(3);
+    await expect(presale).toContainText("Pro プランのご利用者が100名に達するまで");
     await expect(presale).toContainText("¥2,200");
-    await expect(presale).toContainText("プレミアムに先行価格はありません");
+    await expect(presale).not.toContainText("Cat Key");
+    await expect(presale).not.toContainText("プレミアム");
 
     const premium = page.locator("#plans article").filter({ hasText: "Premium" });
     await expect(premium).toHaveCount(1);

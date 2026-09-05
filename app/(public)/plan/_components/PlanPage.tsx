@@ -116,14 +116,13 @@ export function PlanPage() {
               </a>
             </article>
           </div>
-          {/* 先行価格の条件（#377）。プレミアムに先行価格が無いことも含めて明示する（ユーザー決定 2026-09-05） */}
+          {/* 先行価格の条件（#377）。基準は「Pro プランの利用者が 100 名」。数え方の内訳や除外の説明は載せない（ユーザー決定 2026-09-05） */}
           <div className={`panel ${s.presale}`} id="presale">
             <h3>{t("presale.heading")}</h3>
             <ul>
               <li>{t("presale.l1")}</li>
               <li>{t("presale.l2")}</li>
               <li>{t("presale.l3")}</li>
-              <li>{t("presale.l4")}</li>
             </ul>
           </div>
           <p className="muted plan-allnote">{t("allplans.note")}</p>
@@ -242,8 +241,6 @@ export function PlanPage() {
             <span className="eyebrow">{t("catkey.eyebrow")}</span>
             <h2>{t("catkey.heading")}</h2>
             <p className="muted">{t("catkey.desc")}</p>
-            {/* Cat Key の Pro は先着100名の人数に入らない（#377）。申請する人が「自分で枠を使う」と誤解しないように */}
-            <p className="muted">{t("presale.catkeyNote")}</p>
             <p className="message guest-only">
               <span>{t("catkey.loginNote")}</span>
               <a href="/signup.html">{t("catkey.signupLink")}</a>

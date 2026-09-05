@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **ルートグループ＝認証と描画**: `(public)` 静的生成、`(auth)` `(guest)` `(app)` `(operator)` は動的描画。Next 16 は `middleware.ts` ではなく **`proxy.ts`**（Node.js のみ）、`params`/`searchParams`/`cookies()`/`headers()` は **必ず `await`**、`next lint` は無い（`npm run lint`）、Turbopack 既定で `webpack` 設定は書かない。
 - **データ**: サーバー描画の読み取りは `lib/server/*` が `netlify/functions/_lib/*.js` を**直接 import**（自分の `/api/*` を HTTP で呼ばない）。書き込みは Client から既存 `/api/*` を `lib/api/` 経由で `fetch`。**Server Actions は使わない**。外から来る値は **Zod** で検証。
 - **禁止**（lint で落ちる）: `innerHTML`/`dangerouslySetInnerHTML`（例外は `lib/sanitize.ts` を通す `RichText` の 1 か所）、`any`、`enum`、`!`、`process.env` 直読み、`netlify/functions` の直 import（`lib/server/` 以外）、`useEffect` でのデータ取得、`<head>` 手書き。
-- **CSP は 2 モード**: 静的な `(public)` は当面 `'unsafe-inline'` 許容、動的ページは `proxy.ts` の **nonce**（`'strict-dynamic'`）。`proxy.ts` の `matcher` は `_next/static` と `public/` の旧資産を必ず除外。
+- **CSP は 2 モード**（正本 `lib/csp.ts`）: 静的な `(public)` は当面 `'unsafe-inline'` 許容、`(dynamic)` 配下は `proxy.ts` の **nonce**（`'strict-dynamic'` は Edge 撤去まで付けない）。**動的ページを足したら `DYNAMIC_ROUTES` に足す**。`style` 属性は使わない（lint）。開発用の確認ページは `KIMARU_DEV_ROUTES=1` のときだけ `/dev/*` に出る。
 - **i18n**: 3 言語のキー集合は同一（CI で固定）。`{name}` 置換・HTML 不可。言語は Cookie `kimaru_lang`。法務・運営・占い本文は JA 据え置き。
 - **スタイル**: `styles/tokens.css` の変数だけを使い、部品は CSS Modules。見た目は作り直さない。プレミアム面だけオーロラ＋`prefers-reduced-motion`。
 - **テスト**: 純ロジックは `node:test`（隣に `*.test.ts`）、画面は `@playwright/test`（`tests/e2e/`・`/api/**` は `page.route` でモック・iPhone 12 とデスクトップ・JS 例外なし・残ダミーなし）。React 部品の jsdom テストは入れない。

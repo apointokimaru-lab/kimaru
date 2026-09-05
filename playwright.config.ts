@@ -25,7 +25,8 @@ export default defineConfig({
   },
   webServer: {
     // 事前に `npm run build` が要る（CI では build ジョブの後に実行）。ローカルで起動済みならそれを使う
-    command: `npx next start -p ${PORT}`,
+    // KIMARU_DEV_ROUTES=1: 開発用の確認ページ（/dev/*・#415）を立てる。本番には無い
+    command: `KIMARU_DEV_ROUTES=1 npx next start -p ${PORT}`,
     url: `${baseURL}/styles.css`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

@@ -68,6 +68,18 @@ export default defineConfig([
       ],
       // ---- React ----
       "react/jsx-no-target-blank": ["error", { allowReferrer: false }],
+      // style 属性は動的ページの CSP（style-src に 'unsafe-inline' が無い）で効かない。CSS Modules を使う（規約 4・8 章）
+      "react/forbid-dom-props": [
+        "error",
+        {
+          forbid: [
+            {
+              propName: "style",
+              message: "style 属性は CSP で効かない。CSS Modules のクラスで書く。",
+            },
+          ],
+        },
+      ],
     },
   },
   {

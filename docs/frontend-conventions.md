@@ -40,23 +40,28 @@
 ```text
 kimaru/
 ├── app/                        # ルート＝URL。ページ・レイアウト・ルートハンドラ「だけ」置く（ロジックを持たない）
-│   ├── layout.tsx              # 唯一のルートレイアウト（<html lang> は Cookie の言語。metadata の既定）
-│   ├── globals.css             # styles/tokens.css 等を import する入口（グローバル CSS の import はここだけ）
-│   ├── not-found.tsx           # 404（#424）
-│   ├── (public)/               # 認証不要・静的生成: LP・料金・法務・ガイド
-│   │   ├── page.tsx            #   /
+│   ├── globals.css             # styles/tokens.css・base.css を import する入口（グローバル CSS の import はルートレイアウトだけ）
+│   ├── fonts.ts                # next/font（Noto Sans JP の自己ホスト・--font-noto-sans-jp）
+│   ├── (public)/               # 認証不要・**静的生成**。ルートレイアウト①（lang は ja 固定・Cookie を読まない・CSP は静的ポリシー）
+│   │   ├── layout.tsx
+│   │   ├── page.tsx            #   /（#418）
 │   │   ├── plan/page.tsx       #   /plan
 │   │   ├── terms/page.tsx …
+│   │   ├── not-found.tsx       #   404（#424）
 │   │   └── guide/
 │   │       ├── page.tsx
 │   │       └── _components/    #   このルートでしか使わない部品（先頭 _ は非ルート）
-│   ├── (auth)/                 # login / signup / reset-password（未ログイン専用）
-│   ├── (guest)/                # ゲスト向け・動的描画: b/[slug] p/[token] u/[slug] manage-booking answer-question
-│   ├── (app)/                  # ログイン後。layout.tsx で認証必須にする（proxy.ts と二重で守る）
+│   ├── (dynamic)/              # **動的描画**。ルートレイアウト②（Cookie の言語で <html lang>・CSP は proxy.ts の nonce）
 │   │   ├── layout.tsx
-│   │   ├── dashboard/page.tsx …
-│   ├── (operator)/             # 運営コンソール（kimaru_admin_session・別レイアウト・dark）
+│   │   ├── (auth)/             #   login / signup / reset-password（未ログイン専用）
+│   │   ├── (guest)/            #   ゲスト向け: b/[slug] p/[token] u/[slug] manage-booking answer-question
+│   │   ├── (app)/              #   ログイン後。layout.tsx で認証必須にする（proxy.ts と二重で守る）
+│   │   │   ├── layout.tsx
+│   │   │   └── dashboard/page.tsx …
+│   │   ├── (operator)/         #   運営コンソール（kimaru_admin_session・別レイアウト・dark）
+│   │   └── dev/                #   開発用の確認ページ（KIMARU_DEV_ROUTES=1 のときだけ。本番は 404）
 │   ├── _legacy/                # 旧 HTML を返す暫定（#412）。段階1 で削除
+│   ├── route.ts                # / → 旧 LP（#412）。#418 で削除
 │   └── [...path]/route.ts      # 未マッチ → 旧 404（#412）。#424 で削除
 ├── components/                 # 画面に依存しない再利用部品
 │   ├── ui/                     #   Button / Panel / Field / Modal / Badge …（トークンだけで描ける最小部品）
@@ -71,6 +76,7 @@ kimaru/
 │       ├── types.ts
 │       └── *.test.ts           #   純ロジックの単体テスト（同じ場所に置く）
 ├── lib/                        # 横断の共通ロジック（React に依存しない）
+│   ├── csp.ts                  #   セキュリティヘッダーと CSP の唯一の出どころ（DYNAMIC_ROUTES もここ）
 │   ├── server/                 #   サーバー専用（先頭で import "server-only"）。session / legacy（_lib への橋渡し）/ env
 │   ├── api/                    #   クライアント用の fetch ラッパー（同一オリジン・Zod・ApiError）
 │   ├── i18n/                   #   t() / 辞書ローダー / 言語 Cookie
@@ -97,7 +103,7 @@ kimaru/
 3. **画面（業務）の語彙を持つものは `features/`**、持たないものは `components/`（例: `WeekGrid` は booking の語彙 → features、`Button` は語彙なし → components）。
 4. **React を import しないものは `lib/`**。`lib/` から `features/` や `app/` を import しない（依存は `app → features → components/lib` の一方向）。
 5. **秘密情報・DB・Cookie の検証に触るものは `lib/server/`** に置き、先頭に `import "server-only";` を書く（Client から import するとビルドが落ちる＝仕組みで守る）。
-6. ルートグループ `(public)` `(auth)` `(guest)` `(app)` `(operator)` は **認証区分と描画方式**を表す。新しい画面はどれかに入れる。グループを増やすときは本書を直す。
+6. ルートグループは **認証区分と描画方式**を表す。`(public)` は静的生成（ルートレイアウト①）、`(dynamic)` 配下の `(auth)` `(guest)` `(app)` `(operator)` は動的描画（ルートレイアウト②）。ルートレイアウトが 2 つあるのは、静的ページで Cookie を読まないため（読むと配下すべてが動的になる）。**動的ページを足したら `lib/csp.ts` の `DYNAMIC_ROUTES` にパスを足す**（proxy.ts が nonce を付ける対象になる）。新しい画面はどれかに入れる。グループを増やすときは本書を直す。
 
 ---
 
@@ -165,6 +171,7 @@ kimaru/
 
 ### 禁止
 - `innerHTML` `outerHTML` `insertAdjacentHTML` `dangerouslySetInnerHTML`（lint で error）。例外は `lib/sanitize.ts` を通した **`components/ui/RichText.tsx` の 1 か所**だけ（`eslint-disable-next-line` に理由を書く）。
+- **`style` 属性**（`style={{...}}`）。動的ページの CSP は `style-src` に `'unsafe-inline'` が無いので効かない（lint で error）。CSS Modules のクラスで書く。旧 HTML には 232 か所あるが、移すときにクラスへ直す。
 - `document.querySelector` 等の DOM 直接操作（`ref` で足りる）。`useEffect` でのデータ取得。`window` をサーバー部品で触る。
 - 並列ルート（`@slot`）と intercepting ルートは使わない（Next 16 では `default.tsx` 必須で複雑になる。要らない）。
 
@@ -220,6 +227,8 @@ Next サーバー（page.tsx）──▶ lib/server/*（import "server-only"）�
 | `(auth)` `(guest)` `(app)` `(operator)` | **動的描画** | **nonce**（`proxy.ts` が要求ごとに生成し `x-nonce` と `Content-Security-Policy` に載せる。Next が自動で `<script nonce>` を付ける）。`script-src 'self' 'nonce-…' 'strict-dynamic'`、`style-src 'self' 'nonce-…'`、`connect-src 'self'`、`frame-ancestors 'none'`、`form-action 'self'`、`object-src 'none'`、`base-uri 'self'`。開発時だけ `'unsafe-eval'` |
 
 - nonce を要求ごとに変える以上、**動的ページは CDN にキャッシュされない**。それでよい（ユーザーデータを描くページはもともとキャッシュしない）。
+- `'strict-dynamic'` は**当面付けない**。Edge の `auth-gate.js` が全 HTML に `/usage.js` を注入しており、nonce の無い外部スクリプトが止まるため。`script-src 'self' 'nonce-…'` で同一オリジンの外部スクリプトは許し、インラインだけ nonce 必須にする。Edge を撤去する #452 で `'strict-dynamic'` を再検討。
+- 値の出どころは `lib/csp.ts` の 1 か所（`STATIC_CSP` / `nonceCsp()` / `SECURITY_HEADERS` / `DYNAMIC_ROUTES`）。`netlify.toml` と同値であることを `lib/csp.test.ts` が照合する。
 - `proxy.ts` の `matcher` は **必ず除外パターンを持つ**（`_next/static` `_next/image` `favicon.ico` と `public/` の旧資産）。除外を忘れると旧サイトの CSS/JS が止まる。
 - 他のヘッダー（`X-Frame-Options` `X-Content-Type-Options` `Referrer-Policy` `HSTS` `Permissions-Policy`）は `next.config.ts` の `headers()`（静的）と `proxy.ts`（動的）で**同じ値**。値を変えるときは `netlify.toml` も含め 3 か所を同時に直す（段階5 で 1 か所に寄せる）。
 
@@ -307,4 +316,5 @@ Next サーバー（page.tsx）──▶ lib/server/*（import "server-only"）�
 ## 変更履歴
 
 - 2026-09-04 初版（#416）。
+- 2026-09-04 1・4・8 章: ルートレイアウトを `(public)`（静的）と `(dynamic)`（動的）の 2 つに、`style` 属性を禁止、`'strict-dynamic'` は Edge 撤去まで保留、CSP の正本は `lib/csp.ts`（#415）。
 - 2026-09-04 6 章: 辞書は `public/i18n.js` からの生成物、`Accept-Language` は使わない（旧と同じ）、t() の呼び方を実装に合わせた（#414）。

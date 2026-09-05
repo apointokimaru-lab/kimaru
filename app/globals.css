@@ -1,0 +1,4 @@
+/* グローバル CSS の入口（#415・規約 7 章）。グローバル CSS を import してよいのはルートレイアウトだけ。
+   画面固有のスタイルは各コンポーネントの CSS Modules に持つ。 */
+@import "../styles/tokens.css";
+@import "../styles/base.css";

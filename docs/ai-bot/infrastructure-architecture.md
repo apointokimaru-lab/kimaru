@@ -5,7 +5,7 @@
 
 [← AI会議Bot ドキュメント索引](./README.md)　|　[← docs 全体索引](../README.md)
 
-> **2026-09-05 注記（#476）**: 本書は元設計（背景資料）で、Bot コンテナ＝Playwright + Chromium の前提で書かれている。**Zoom は RTMS（Realtime Media Streams）で音声を受けることに決まり、Zoom の会議に Bot は入室しない**（#370 / PR #473）。会議Bot の行（Playwright）は Meet のみに当てはまり、23-3 の「Zoom 等のネイティブ SDK を直接利用する」ための C++ は不要になった。現行の設計は [`system-spec.md`](./system-spec.md) 9章・FR-2 を正とする。
+> **2026-09-05 注記（#476）**: 本書は元設計（背景資料）で、Bot コンテナ＝Playwright + Chromium の前提で書かれている。**Zoom は RTMS（Realtime Media Streams）で音声を受けることに決まり、Zoom の会議に Bot は入室しない**（#370 / PR #473）。会議Bot の行（Playwright）は **先行する Meet** のみに当てはまり（#478）、23-3 の「Zoom 等のネイティブ SDK を直接利用する」ための C++ は不要になった。現行の設計は [`system-spec.md`](./system-spec.md) 9章・FR-2 を正とする。
 
 ### 対象機能
 

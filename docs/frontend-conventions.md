@@ -22,7 +22,7 @@
 | データ取得（サーバー） | **`lib/server/` から `netlify/functions/_lib/*.js` を直接 import**。自分の `/api/*` を HTTP で呼ばない | 自己 HTTP 呼び出しは往復とコールドスタートを 2 倍にする |
 | データ更新（クライアント） | **既存 `/api/*`（Functions）を `lib/api/` 経由で `fetch`**。**Server Actions は使わない**（当面） | 書き込み責任と CSRF/認証は Functions 側に一本化されている（並行稼働ルール） |
 | スタイル | **CSS Modules ＋ グローバルのトークン（`styles/`）**。Tailwind・CSS-in-JS は入れない | 現行 `styles.css` のトークンと部品をそのまま移す。「見た目は作り直さない」 |
-| フォント | **`next/font`** で自己ホスト | `fonts.googleapis.com` への依存を切り、CSP を縮める |
+| フォント | **公開ページはシステムフォント**（旧 LP と同じ）。アプリ画面は `next/font` の自己ホスト（当てるのは `(dynamic)` のレイアウトだけ） | `fonts.googleapis.com` への依存を切り CSP を縮める。ただし Noto Sans JP 5 ウェイトは 621 面・CSS 472 KB で公開ページの初回表示を遅くする（#418 で実測） |
 | i18n | **自前の薄い `t()`**（`messages/<lang>/<ns>.json`・`{name}` 置換）。ライブラリは入れない | 現行辞書（4,900 行・`{name}` 記法）を無変換で移せる。複数形・ICU が要る日が来たら再検討 |
 | 言語の保持 | **Cookie `kimaru_lang`**（旧 localStorage から移行）。URL に `/en/` は入れない | サーバー描画で言語を決めるため。URL は変えない（`/b/{slug}` は配布済み） |
 | 状態管理 | React の state と URL だけ。グローバルストアは入れない | 画面ごとに閉じる。サーバー状態はサーバーコンポーネントが持つ |
@@ -213,7 +213,7 @@ Next サーバー（page.tsx）──▶ lib/server/*（import "server-only"）�
 - 命名は現行のまま（`.panel` `.button.primary` `.eyebrow` `.lead` …）。**見た目を変えない移行**なので、旧 CSS を「動かす」だけで済むことを優先する。
 - レスポンシブは現行の閾値（`620px` / `900px` / `1180px`）を `styles/tokens.css` にコメントで固定。メディアクエリの順序で上書きが効かなくなる事故（#353）を避けるため、**同じ部品の狭幅ルールは同じ Module に、広幅の後に書く**。
 - プレミアム面だけオーロラ（`.aurora` `.premium-surface`）。必ず `@media (prefers-reduced-motion: reduce)` で止める。無料・Pro 面は静的。
-- フォントは `next/font`（`app/layout.tsx` で `className` を `<html>` に付ける）。`<link href="https://fonts.googleapis.com">` は書かない。
+- フォントは `next/font`（`app/fonts.ts`）。変数クラスを `<html>` に付けるのは **`(dynamic)` のルートレイアウトだけ**。`(public)` は付けない（LP はシステムフォント）。Next 16 の `next/font` は `@font-face` を実名（"Noto Sans JP"）で登録するので、変数クラスがある層で `font-family: "Noto Sans JP"` と書くと Web フォントを読みに行く。`<link href="https://fonts.googleapis.com">` は書かない。
 - 角丸・線・影はトークンの既定値に従う（デザインの方針は `docs/` と `frontend-design` スキルの運用に従う。画面を新しく作るときはそちら）。
 
 ---
@@ -308,6 +308,7 @@ Next サーバー（page.tsx）──▶ lib/server/*（import "server-only"）�
 | 論点 | いつ |
 |---|---|
 | 公開ページの CSP から `'unsafe-inline'` を外す（`experimental.sri` の安定待ち） | #453（段階5）で再評価 |
+| アプリ画面のフォント（Noto Sans JP 5 ウェイト＝CSS 472 KB・フォント最大 620 KB をどう減らすか。ウェイトを 400/700 に絞るか、システムフォントにするか） | 段階2 の最初の画面（#427 login）で実測して決める |
 | React Compiler を有効にするか | 段階4 で画面が揃ったら計測して判断 |
 | i18n ライブラリ（next-intl 等）への切替 | 複数形・ICU・日付書式が要る画面が出たとき |
 | Server Actions の採用 | Functions の TS 化が終わり、書き込み責任を Next 側へ移す判断のとき |
@@ -316,5 +317,6 @@ Next サーバー（page.tsx）──▶ lib/server/*（import "server-only"）�
 ## 変更履歴
 
 - 2026-09-04 初版（#416）。
+- 2026-09-05 0・7・14 章: 公開ページは Web フォントを当てない（next/font は実名で登録するため LP が読みに行った・#418）。恒久リダイレクトは 308。
 - 2026-09-04 1・4・8 章: ルートレイアウトを `(public)`（静的）と `(dynamic)`（動的）の 2 つに、`style` 属性を禁止、`'strict-dynamic'` は Edge 撤去まで保留、CSP の正本は `lib/csp.ts`（#415）。
 - 2026-09-04 6 章: 辞書は `public/i18n.js` からの生成物、`Accept-Language` は使わない（旧と同じ）、t() の呼び方を実装に合わせた（#414）。

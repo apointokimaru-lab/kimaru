@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **禁止**（lint で落ちる）: `innerHTML`/`dangerouslySetInnerHTML`（例外は `lib/sanitize.ts` を通す `RichText` の 1 か所）、`any`、`enum`、`!`、`process.env` 直読み、`netlify/functions` の直 import（`lib/server/` 以外）、`useEffect` でのデータ取得、`<head>` 手書き。
 - **CSP は 2 モード**（正本 `lib/csp.ts`）: 静的な `(public)` は当面 `'unsafe-inline'` 許容、`(dynamic)` 配下は `proxy.ts` の **nonce**（`'strict-dynamic'` は Edge 撤去まで付けない）。**動的ページを足したら `DYNAMIC_ROUTES` に足す**。`style` 属性は使わない（lint）。開発用の確認ページは `KIMARU_DEV_ROUTES=1` のときだけ `/dev/*` に出る。
 - **i18n**: 3 言語のキー集合は同一（CI で固定）。`{name}` 置換・HTML 不可。言語は Cookie `kimaru_lang`。法務・運営・占い本文は JA 据え置き。
-- **スタイル**: `styles/tokens.css` の変数だけを使い、部品は CSS Modules。見た目は作り直さない。プレミアム面だけオーロラ＋`prefers-reduced-motion`。
+- **スタイル**: `styles/tokens.css` の変数だけを使い、部品は CSS Modules。見た目は作り直さない。プレミアム面だけオーロラ＋`prefers-reduced-motion`。**Web フォント（next/font）は `(dynamic)` のレイアウトだけ**。公開ページはシステムフォント（`next/font` は実名 "Noto Sans JP" で登録するので、変数クラスがある層でその名前を書くと 600 KB 読みに行く・#418）。
 - **テスト**: 純ロジックは `node:test`（隣に `*.test.ts`）、画面は `@playwright/test`（`tests/e2e/`・`/api/**` は `page.route` でモック・iPhone 12 とデスクトップ・JS 例外なし・残ダミーなし）。React 部品の jsdom テストは入れない。
 - **移行の型**: 1 ページ＝1 issue＝1 PR。移したら `public/<x>.html` 削除 → `next.config.ts` の `redirects()` に `/<x>.html → /<x>`（301）→ `docs/screen-flow.md` の配信列を更新 → 旧 e2e を消して新 spec。URL（`/b` `/p` `/u` `/api` `/.well-known`・OAuth/Webhook・`/pro-thanks.html`）は変えない。
 - **コメント**は日本語で「なぜ／何を」（旧と同じ慣習）。規約を変えるときは正本 → ここ → コードの順。

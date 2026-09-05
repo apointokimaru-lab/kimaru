@@ -1,0 +1,18 @@
+{
+  "name": "kimaru-poc-meet-bot",
+  "private": true,
+  "type": "module",
+  "description": "Google Meet にヘッドレスブラウザで入室し、会議音声を 16 kHz モノラル WAV（15 分ごと）に保存して文字起こし PoC へ渡すローカル PoC（#478）",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "join": "tsx src/cli.ts join",
+    "login": "tsx src/cli.ts login",
+    "status": "tsx src/cli.ts status",
+    "selftest": "tsx src/cli.ts selftest",
+    "fake-meet": "tsx src/cli.ts fake-meet",
+    "test": "tsx --test --test-concurrency=1 \"src/**/*.test.ts\" \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}

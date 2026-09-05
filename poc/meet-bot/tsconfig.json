@@ -1,0 +1,23 @@
+{
+  // PoC 専用の tsconfig。リポジトリ直下の tsconfig.json（Next.js 用）には含めない（直下の exclude に poc を足してある）。
+  // 実行は tsx（ビルド無し）。tsc は型検査だけ（noEmit）。
+  // lib に DOM を入れているのは、ブラウザ側へ注入するスクリプト（audio-capture.ts の pageScript）を同じ型検査に通すため。
+  // 依存（playwright・tsx・typescript・@types/node）はリポジトリ直下の node_modules をそのまま使う（この PoC 固有の依存は無い）。
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowJs": true,
+    "checkJs": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.js", "test/**/*.ts"]
+}

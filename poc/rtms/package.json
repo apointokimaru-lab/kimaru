@@ -1,0 +1,24 @@
+{
+  "name": "kimaru-poc-rtms",
+  "private": true,
+  "type": "module",
+  "description": "Zoom RTMS（Realtime Media Streams）で会議の音声を受け取り、15 分ごとの WAV に保存して文字起こし PoC へ渡すローカル PoC（#475）",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "fake-zoom": "tsx scripts/fake-zoom.ts",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3"
+  }
+}

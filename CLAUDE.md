@@ -51,7 +51,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev      # netlify dev → http://localhost:8888 (Next.js dev を裏で起動し、public/ の旧ページ + functions at /api/* + netlify.toml の書き換えを再現)
 npm run build    # next build（Netlify の本番ビルド。旧ページは public/ からそのまま出力に含まれる）
 npm run start    # next start → http://localhost:3000（/api/* と /b/* 等の netlify.toml 書き換えは効かない。単体確認用）
-npm run typecheck # next typegen && tsc --noEmit（app/ components/ features/ lib/ tests/ 等の新フロントのみ。netlify/functions は対象外）
+npm run typecheck # 古い .next/dev/types を消してから next typegen && tsc --noEmit（新フロントのみ。netlify/functions は対象外。ルートを消した後に「app/route.js が無い」と出るのは next dev の残骸が原因）
 npm run lint     # eslint（新フロントのみ。public/ netlify/ scripts/ は対象外）／ npm run lint:fix
 npm run format:check # prettier（同上）／ npm run format で整形
 npm run ci       # 上の check 全部 + build + test を順に回す（push 前のローカル確認用。CI と同じ内容）

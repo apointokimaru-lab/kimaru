@@ -106,7 +106,7 @@ function quantile(sorted, q) {
 // パスを持つのは、同じ役目の画面が分かれているため（トップは旧LPの landing3、事前の情報確認は
 // 相手の詳細とアンケート回答の2画面）。パスは _lib/analytics.js の normalizePath 後の形で書く。
 const SUMMARY_PAGE_GROUPS = [
-  { key: "top", label: "トップ", phase: "before", paths: ["/index.html", "/landing3.html"] },
+  { key: "top", label: "トップ", phase: "before", paths: ["/index.html"] }, // /landing3.html は #418 で廃止
   { key: "plan", label: "プラン比較", phase: "before", paths: ["/plan.html"] },
   { key: "contacts", label: "相手管理", phase: "after", paths: ["/contacts.html"] },
   { key: "prep", label: "事前の情報確認", phase: "after", paths: ["/meeting.html", "/answers.html"] },
@@ -520,7 +520,7 @@ exports.handler = async (event) => {
     const acquisitionFunnel = [
       // LPは「/」＝ /index.html（#366 でトップをLPに差し替えた）。normalizePath が "/" を
       // "/index.html" に潰すので、ここは従来どおりで新LPの閲覧も数えられる。
-      { label: "LP（トップ）閲覧", value: pageViews("/index.html") + pageViews("/landing3.html") },
+      { label: "LP（トップ）閲覧", value: pageViews("/index.html") },
       { label: "料金ページ閲覧", value: pageViews("/plan.html") },
       { label: "登録画面を開いた", value: pageViews("/signup.html") },
       { label: "登録完了", value: signupsInRange },

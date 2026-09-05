@@ -151,7 +151,7 @@ const MOCK_USAGE_SUMMARY = {
     summary: {
       days: 30, focus_views: 620, focus_visitors: 240, focus_prev_views: 500,
       pages: [
-        { key: "top", label: "トップ", phase: "before", paths: ["/index.html", "/landing3.html"], views: 400, visitors: 150, prev_views: 330 },
+        { key: "top", label: "トップ", phase: "before", paths: ["/index.html"], views: 400, visitors: 150, prev_views: 330 },
         { key: "plan", label: "プラン比較", phase: "before", paths: ["/plan.html"], views: 120, visitors: 60, prev_views: 100 },
         { key: "contacts", label: "相手管理", phase: "after", paths: ["/contacts.html"], views: 80, visitors: 25, prev_views: 55 },
         { key: "prep", label: "事前の情報確認", phase: "after", paths: ["/meeting.html", "/answers.html"], views: 20, visitors: 5, prev_views: 15 },
@@ -213,7 +213,7 @@ const bodyText = (page) => page.evaluate(() => document.body.innerText);
 // ===== 1) 全ページ：JS例外なし＆ダミー文字列なし =====
 section("all pages: no JS exception, no dummy strings");
 const PAGES = [
-  "index", "landing3", "home", "plan", "login", "signup", "reset-password", "square", "pro-thanks",
+  "plan", "login", "signup", "reset-password", "square", "pro-thanks",
   "dashboard", "contacts", "booking-settings", "profile", "settings", "schedule", "answers",
   "meeting?id=b-today", "booking?slug=taro", "public-profile?slug=taro", "manage-booking?id=b-today&t=tok",
   "manage-booking?k=b-today.tok", // 新しい1パラメータ形式の管理リンク

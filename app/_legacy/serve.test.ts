@@ -24,8 +24,8 @@ test("legacyHtml は public/ の旧 HTML をそのまま読む（404.html の目
 });
 
 test("legacyHtml は同じファイルを 2 回読まない（Promise をキャッシュする）", async () => {
-  const a = legacyHtml("index.html");
-  const b = legacyHtml("index.html");
+  const a = legacyHtml("404.html");
+  const b = legacyHtml("404.html");
   assert.equal(a, b);
-  assert.match(await a, /キマル/);
+  assert.match(await a, /ページが見つかりません/);
 });

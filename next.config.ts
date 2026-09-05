@@ -20,8 +20,19 @@ const nextConfig: NextConfig = {
   // ファイルを関数バンドルへ含める。これが無いと、ローカルでは動くのに Netlify の関数側にだけファイルが無く
   // ENOENT になる（public/ は CDN 用の静的資産としてしか配置されない）。
   outputFileTracingIncludes: {
-    "/": ["./public/index.html"],
     "/[...path]": ["./public/404.html"],
+  },
+
+  async redirects() {
+    // 移した旧ページの URL は恒久リダイレクトで新 URL へ（規約 12 章。permanent は 308＝301 と同じ意味）。クエリは引き継がれる
+    return [
+      // #418: LP を Next の / に移した。/index.html は直接来る人（ブックマーク・外部リンク）向け
+      { source: "/index.html", destination: "/", permanent: true },
+      // #418: 旧トップ（ログイン後のホームタイル）は廃止。行き先はダッシュボード（Edge も同じ先へ送る）
+      { source: "/home.html", destination: "/dashboard.html", permanent: true },
+      // #418: 旧デザイン見本（どこからもリンクされていない）は廃止
+      { source: "/landing3.html", destination: "/", permanent: true },
+    ];
   },
 
   async headers() {

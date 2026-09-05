@@ -1,0 +1,12 @@
+/* 料金ページ固有の微調整（#419）。旧 plan.html の style 属性（style="padding-top:0" 等）をクラスに置き換えたもの。
+   値は旧と同じ。style 属性は動的ページの CSP で効かないため規約で禁止（4 章）。 */
+.tight {
+  padding-top: 0;
+}
+.panelGap {
+  margin-top: 24px;
+}
+.flatWrap {
+  box-shadow: none;
+  border: 0;
+}

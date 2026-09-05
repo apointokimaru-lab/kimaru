@@ -84,7 +84,7 @@
     // ===== 継続的な利用 =====
     { key: "contacts-about", group: "more", points: 3, href: "/contacts.html" },
     { key: "contacts-use", group: "more", steps: 4, href: "/contacts.html" },
-    { key: "plan", group: "more", href: "/plan.html", pages: [
+    { key: "plan", group: "more", href: "/plan", pages: [
       { points: 4 },
       { points: 4 },
       { points: 3, note: true },

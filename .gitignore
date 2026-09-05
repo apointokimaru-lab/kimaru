@@ -17,3 +17,7 @@ next-env.d.ts
 # Playwright（@playwright/test）の出力
 playwright-report
 test-results
+
+# WSL で外部ツールが Windows のパス文字列をそのままディレクトリ名にすることがある（chrome-launcher 等）
+C:*
+*wsl.localhost*

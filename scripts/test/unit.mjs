@@ -73,6 +73,18 @@ function loadGuide() {
 const guide = loadGuide();
 const entries = guide.entries;
 ok(`guide has entries (${entries.length})`, entries.length >= 10);
+// 「該当画面を開く」の行き先が実在するか。旧ページは public/<x>.html、Next に移した画面は app/**/<route>/page.tsx
+function pageExists(href) {
+  const clean = href.replace(/[?#].*$/, "");
+  if (/\.html$/.test(clean)) return fs.existsSync(path.join(repo, "public", clean.replace(/^\//, "")));
+  const route = clean.replace(/^\//, "").replace(/\/$/, "");
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).some((e) => {
+    const p = path.join(dir, e.name).replace(/\\/g, "/");
+    if (e.isDirectory()) return walk(p);
+    return e.name === "page.tsx" && (route === "" ? /\/app\/\([a-z]+\)\/page\.tsx$/.test(p) : p.endsWith(`/${route}/page.tsx`));
+  });
+  return walk(path.join(repo, "app"));
+}
 for (const entry of entries) {
   // 部品の件数から、その項目に必要な i18n キーを組み立てる（guide.js の描画と同じ規則）。
   // ページの接頭辞は guide.js が prefixOf で決めたものをそのまま使う
@@ -91,8 +103,9 @@ for (const entry of entries) {
   // 部品が1つも無いページは、見出しと要約だけの空の説明になる（部品の付け忘れ）。
   ok(`guide.${entry.key}: every page has a body block`, entry.pages.every((p) => p.steps || p.points || p.fields));
   // 「該当画面を開く」の行き先は必ず自サイトの実在ページ（外部URLや打ち間違いを弾く）。
+  // Next.js に移した画面（拡張子なしの URL）は app/**/<route>/page.tsx の存在で確かめる（#419〜）
   ok(`guide.${entry.key}: href points at a real page` + (entry.href ? ` (${entry.href})` : ""),
-    !entry.href || fs.existsSync(path.join(repo, "public", entry.href.replace(/[?#].*$/, "").replace(/^\//, ""))));
+    !entry.href || pageExists(entry.href));
   ok(`guide.${entry.key}: belongs to a listed group (${entry.group || "-"})`, guide.groups.includes(entry.group));
 }
 for (const group of guide.groups) {
@@ -2080,6 +2093,7 @@ section("usage tracking: path normalization (#342)");
 {
   const analytics = requireCjs(path.join(repo, "netlify/functions/_lib/analytics.js"));
   const n = analytics.normalizePath;
+  ok("Next に移した /plan は旧の集計キー /plan.html に揃う（#419）", n("/plan") === "/plan.html" && n("/plan?x=1") === "/plan.html");
 
   ok("トップは /index.html に寄せる", n("/") === "/index.html" && n("/index.html") === "/index.html");
   ok("通常の画面はそのまま", n("/dashboard.html") === "/dashboard.html");

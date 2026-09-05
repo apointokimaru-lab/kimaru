@@ -298,7 +298,7 @@
             <p class="field-note muted" data-i18n="pin.expiresNote">期限を過ぎると、相手はこのリンクを開けなくなります。</p>
             <!-- 無料は「1週間」を選べない（#338）。押せない理由を選択肢のすぐ下に出す。
                  data-i18n は textContent を入れるので翻訳文にリンクを書けず、文とリンクを別要素に割る。 -->
-            <p id="pp-expires-plan" class="field-warning" hidden>⚠️ <span data-i18n="pin.expiresPlan">無料プランの有効期限は3日です。1週間はProプラン以上でご利用いただけます。</span> <a href="/plan.html" data-i18n="pin.planCta">プランを見る</a></p>
+            <p id="pp-expires-plan" class="field-warning" hidden>⚠️ <span data-i18n="pin.expiresPlan">無料プランの有効期限は3日です。1週間はProプラン以上でご利用いただけます。</span> <a href="/plan" data-i18n="pin.planCta">プランを見る</a></p>
           </div>
           <div class="pp-field">
             <label><span data-i18n="pin.holdLabel">候補の枠の押さえ方</span>
@@ -314,7 +314,7 @@
             <!-- 押さえは Pro 以上（#338）。無料は連携しても押さえられないので、
                  未連携の警告（下）とは同時に出さない＝プランの理由を優先して1つだけ出す。
                  2つ並ぶと「何をすれば押さえられるのか」が読み取れなくなる。 -->
-            <p id="pp-hold-plan" class="field-warning" hidden>⚠️ <span data-i18n="pin.holdPlan">枠を押さえる機能はProプラン以上でご利用いただけます。</span> <a href="/plan.html" data-i18n="pin.planCta">プランを見る</a></p>
+            <p id="pp-hold-plan" class="field-warning" hidden>⚠️ <span data-i18n="pin.holdPlan">枠を押さえる機能はProプラン以上でご利用いただけます。</span> <a href="/plan" data-i18n="pin.planCta">プランを見る</a></p>
             <p id="pp-hold-nocal" class="field-warning" hidden>⚠️ <span data-i18n="pin.holdNeedsCalendar">枠を押さえるにはGoogleカレンダーの連携が必要です。</span> <a href="/settings.html#integrations" data-i18n="pin.holdConnectCta">カレンダーを連携する</a></p>
           </div>
           <!-- 予定名は「押さえる」を選んだときだけ出し、必須にする（#325）。
@@ -388,7 +388,7 @@
         <p class="muted" id="pp-limit-body"><!-- 上限件数を含む本文。app.js が入れる --></p>
         <div class="modal-actions">
           <button type="button" class="button secondary" id="pp-limit-cancel" data-i18n="pin.limit.close">閉じる</button>
-          <a class="button primary" id="pp-limit-plan" href="/plan.html" data-i18n="pin.limit.upgrade">プランを見る</a>
+          <a class="button primary" id="pp-limit-plan" href="/plan" data-i18n="pin.limit.upgrade">プランを見る</a>
         </div>
       </div>
     </div>

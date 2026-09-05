@@ -57,3 +57,23 @@ export function langCookieString(lang: Lang, secure: boolean): string {
   if (secure) parts.push("Secure");
   return parts.join("; ");
 }
+
+/** ブラウザ側で Cookie の言語を読む（サーバーでは null）。旧 i18n.js の readCookieLanguage と同じ */
+export function readLangCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${LANG_COOKIE}=([^;]+)`));
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * ブラウザ側で言語を保存する。Cookie（新側の正）と localStorage（旧ページが読む）の両方に書く。
+ * localStorage が使えない環境（プライベートモード等）でも Cookie があれば足りる
+ */
+export function writeLangCookie(lang: Lang): void {
+  document.cookie = langCookieString(lang, window.location.protocol === "https:");
+  try {
+    window.localStorage.setItem(LEGACY_STORAGE_KEY, lang);
+  } catch {
+    // noop
+  }
+}

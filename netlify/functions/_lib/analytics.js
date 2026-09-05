@@ -19,6 +19,8 @@ const { sb } = require("./supabase");
 // 計測から漏れるのを防ぐため（新規ページのたびに配列へ足す運用は必ずどこかで抜ける）。
 // 代わりに、長さ・使える文字を絞り、当てはまらないものは "other" の一語に潰して未知の文字列をDBへ通さない。
 const PAGE_RE = /^\/[a-z0-9][a-z0-9-]{0,39}\.html$/;
+// Next.js に移した画面（新 URL → 旧 URL の集計キー）。画面を移すたびに足す（#419〜）
+const MIGRATED_PATHS = { "/plan": "/plan.html" };
 
 function normalizePath(input) {
   let path = String(input || "");
@@ -26,6 +28,9 @@ function normalizePath(input) {
   path = path.split("#")[0].split("?")[0];
   if (!path.startsWith("/")) return "other";
   if (path === "/" || path === "/index.html") return "/index.html";
+  // 新フロント（Next.js）へ移した画面は拡張子の無い URL になる。集計キーは旧 URL のまま揃える
+  // （履歴と usage-summary.js の SUMMARY_PAGE_GROUPS が /plan.html を見ているため・#419）
+  if (MIGRATED_PATHS[path]) return MIGRATED_PATHS[path];
   // slug / token を含む公開ルート（netlify.toml の rewrite）。値は捨てて種類だけ残す。
   if (path.startsWith("/b/")) return "/b/:slug";
   if (path.startsWith("/p/")) return "/p/:token";

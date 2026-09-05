@@ -10,7 +10,7 @@ import s from "./LandingPage.module.css";
 // - 日本語のみ（旧 LP も data-i18n を持たない）。3 言語化はポジショニングの判断（docs/positioning-brief.md）と一緒に別 issue で
 // - 共通ヘッダー（SITE_HEADER）は使わない（旧と同じ。LP 単体で完結する）
 // - 画像は next/image（寸法をビルド時に取り CLS を防ぐ。Netlify の Image CDN で幅ごとに最適化）
-// - 旧ページへのリンク（/login.html 等）は <a>（next/link はプリフェッチで旧 HTML を取りに行く）。/ だけは Next のページなので Link
+// - 旧ページへのリンク（/login.html 等）は <a>（next/link はプリフェッチで旧 HTML を取りに行く）。/ と /plan は Next のページなので Link（#419）
 // - 文節ごとの折り返し（.nb・#366）はそのまま。クラス名は旧 lp.css のまま（kebab-case）なので s["..."] で引く
 
 const c = (...names: string[]) =>
@@ -31,9 +31,9 @@ export function LandingPage() {
             <a className={c("login")} href="/login.html">
               ログイン
             </a>
-            <a className={c("doc")} href="/plan.html">
+            <Link className={c("doc")} href="/plan">
               料金を見る
-            </a>
+            </Link>
             <a className={c("consult")} href="/signup.html">
               無料で始める
             </a>
@@ -292,9 +292,9 @@ export function LandingPage() {
                   <li>アンケート 5問</li>
                   <li>相手管理と印象スコア</li>
                 </ul>
-                <a className={c("btn", "primary")} href="/plan.html">
+                <Link className={c("btn", "primary")} href="/plan">
                   Proを見る
-                </a>
+                </Link>
               </article>
               <article className={c("card", "plan")}>
                 <span className={c("tag")}>近日</span>
@@ -336,9 +336,9 @@ export function LandingPage() {
                 </a>
                 <span className={c("cta-note")}>Google連携で登録30秒</span>
               </div>
-              <a className={c("btn", "secondary")} href="/plan.html">
+              <Link className={c("btn", "secondary")} href="/plan">
                 料金を見る
-              </a>
+              </Link>
             </div>
           </div>
         </section>

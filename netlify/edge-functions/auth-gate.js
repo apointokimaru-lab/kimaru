@@ -53,7 +53,7 @@ const SITE_HEADER = `<header class="site-header">
     <input type="checkbox" id="km-nav-toggle">
     <label class="nav-burger" for="km-nav-toggle" aria-label="Menu"><span></span><span></span><span></span></label>
     <nav>
-      <a class="guest-only" href="/plan.html" data-i18n="nav.pricing">料金</a>
+      <a class="guest-only" href="/plan" data-i18n="nav.pricing">料金</a>
       <a class="guest-only" href="/signup.html" data-i18n="nav.signup">無料登録</a>
       <a class="guest-only" href="/login.html" data-i18n="nav.signin">ログイン</a>
       <a class="app-only" href="/dashboard.html" data-i18n="nav.dashboard">ホーム</a>

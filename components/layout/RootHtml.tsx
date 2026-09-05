@@ -22,7 +22,9 @@ export function RootHtml({
 }) {
   return (
     <html lang={lang} className={fontClassName} data-scroll-behavior="smooth">
-      <body>{children}</body>
+      {/* Edge（auth-gate.js）が応答の <body> に data-auth="authed|guest" を足す（React の外）。その属性差で
+          hydration の警告を出さないため。属性は React が消さないので、CSS の出し分けはそのまま効く */}
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

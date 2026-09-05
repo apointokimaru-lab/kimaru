@@ -2,3 +2,4 @@
    画面固有のスタイルは各コンポーネントの CSS Modules に持つ。 */
 @import "../styles/tokens.css";
 @import "../styles/base.css";
+@import "../styles/shared.css";

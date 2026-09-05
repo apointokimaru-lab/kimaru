@@ -32,6 +32,8 @@ const nextConfig: NextConfig = {
       { source: "/home.html", destination: "/dashboard.html", permanent: true },
       // #418: 旧デザイン見本（どこからもリンクされていない）は廃止
       { source: "/landing3.html", destination: "/", permanent: true },
+      // #419: 料金・プランを Next の /plan に移した
+      { source: "/plan.html", destination: "/plan", permanent: true },
     ];
   },
 

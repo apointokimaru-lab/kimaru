@@ -23,10 +23,8 @@ test.describe("LP /（#418）", () => {
       "href",
       "/login.html",
     );
-    await expect(header.getByRole("link", { name: "料金を見る" })).toHaveAttribute(
-      "href",
-      "/plan.html",
-    );
+    // 料金ページは #419 で Next の /plan に移った
+    await expect(header.getByRole("link", { name: "料金を見る" })).toHaveAttribute("href", "/plan");
     await expect(header.getByRole("link", { name: "無料で始める" })).toHaveAttribute(
       "href",
       "/signup.html",

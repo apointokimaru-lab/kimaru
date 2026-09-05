@@ -97,9 +97,10 @@
   status = 200
   force = true
 
+# 旧 Pro 紹介ページ。料金ページは #419 で Next の /plan に移ったので、/plan.html を経由せず 1 段で送る
 [[redirects]]
   from = "/pro.html"
-  to = "/plan.html"
+  to = "/plan"
   status = 301
 
 [[headers]]

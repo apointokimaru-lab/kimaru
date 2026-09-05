@@ -10,3 +10,34 @@
   box-shadow: none;
   border: 0;
 }
+
+/* 先着100名の先行価格（#377）。トークンだけで組み、プレミアム列には何も足さない */
+.regular {
+  font-size: var(--fs-note);
+  font-weight: 600;
+  margin: -6px 0 6px;
+}
+.cmpNote {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 2px;
+}
+.presale {
+  margin-top: 24px;
+}
+.presale h3 {
+  font-size: var(--fs-subhead);
+  line-height: 1.4;
+  margin: 0 0 10px;
+}
+.presale ul {
+  color: var(--ink-2);
+  display: grid;
+  font-size: var(--fs-note);
+  gap: 6px;
+  line-height: 1.7;
+  margin: 0;
+  padding-left: 1.3em;
+}

@@ -66,11 +66,14 @@ export function PlanPage() {
             </article>
 
             <article className="plan is-pop">
-              <span className="plan-tag">{t("pro.tag")}</span>
+              {/* 先着100名の先行価格（#377）。札を「人気」から「先着100名限定」に替え、価格の下に通常価格を出す。
+                  条件（数え方・終わり方）はカードの外の #presale に 1 か所で書く */}
+              <span className="plan-tag">{t("presale.tag")}</span>
               <div className="plan-name">{t("pro.name")}</div>
               <div className="plan-price">
                 ¥980<span>{t("priceUnit")}</span>
               </div>
+              <p className={`muted ${s.regular}`}>{t("presale.regular")}</p>
               <p className="muted plan-sub">{t("pro.subdesc")}</p>
               <ul>
                 <li>{t("pro.f1")}</li>
@@ -113,6 +116,16 @@ export function PlanPage() {
               </a>
             </article>
           </div>
+          {/* 先行価格の条件（#377）。プレミアムに先行価格が無いことも含めて明示する（ユーザー決定 2026-09-05） */}
+          <div className={`panel ${s.presale}`} id="presale">
+            <h3>{t("presale.heading")}</h3>
+            <ul>
+              <li>{t("presale.l1")}</li>
+              <li>{t("presale.l2")}</li>
+              <li>{t("presale.l3")}</li>
+              <li>{t("presale.l4")}</li>
+            </ul>
+          </div>
           <p className="muted plan-allnote">{t("allplans.note")}</p>
           <p className="muted plan-allnote">{t("note")}</p>
         </div>
@@ -140,7 +153,9 @@ export function PlanPage() {
                   <tr>
                     <td>{th("plan.price.label")}</td>
                     <td>¥0</td>
-                    <td>¥980</td>
+                    <td>
+                      ¥980<small className={s.cmpNote}>{t("presale.cmpNote")}</small>
+                    </td>
                     <td>¥4,800</td>
                   </tr>
                   <tr>
@@ -227,6 +242,8 @@ export function PlanPage() {
             <span className="eyebrow">{t("catkey.eyebrow")}</span>
             <h2>{t("catkey.heading")}</h2>
             <p className="muted">{t("catkey.desc")}</p>
+            {/* Cat Key の Pro は先着100名の人数に入らない（#377）。申請する人が「自分で枠を使う」と誤解しないように */}
+            <p className="muted">{t("presale.catkeyNote")}</p>
             <p className="message guest-only">
               <span>{t("catkey.loginNote")}</span>
               <a href="/signup.html">{t("catkey.signupLink")}</a>

@@ -98,6 +98,7 @@ export function LandingPage() {
                   sizes="(max-width: 680px) 100vw, 620px"
                   priority
                 />
+                <figcaption>{PLAN_IMAGE_NOTE}</figcaption>
               </figure>
             </div>
 
@@ -217,6 +218,11 @@ export function LandingPage() {
                 <span className={c("nb")}>ひとつの流れで減らします。</span>
               </p>
             </div>
+            {/* 機能区分（#377）。表＝現在利用可能、下の枠＝開発予定。未完成の機能を「使える」と読ませない（景表法）ため、
+                区分名は issue の語をそのまま使い、開発予定の項目には 1 つずつ「開発予定」の札を付ける */}
+            <h3 className={c("group-title")}>
+              現在利用可能<small>いま提供している機能です</small>
+            </h3>
             <div className={c("feature-table-wrap")}>
               <table className={c("feature-table")}>
                 <thead>
@@ -238,6 +244,26 @@ export function LandingPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className={c("planned")} id="planned">
+              <h3 className={c("group-title")}>
+                開発予定<small>まだ提供していない機能です</small>
+              </h3>
+              <p>
+                <span className={c("nb")}>
+                  順番や時期は、開発の進み具合で変わることがあります。
+                </span>
+                <span className={c("nb")}>公開したものから順に、上の表へ移します。</span>
+              </p>
+              <ul className={c("planned-list")}>
+                {PLANNED.map((f) => (
+                  <li key={f.name}>
+                    <span className={c("tag", "planned-tag")}>開発予定</span>
+                    <b>{f.name}</b>
+                    <span className={c("planned-desc")}>{f.what}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </section>
@@ -261,6 +287,7 @@ export function LandingPage() {
                 alt="キマル プラン一覧。各プランの料金、AIカルテ利用時間、予約ページ数、予約受付期間、事前アンケート、リマインダー、相手管理などの比較表。"
                 sizes="(max-width: 1160px) 100vw, 1120px"
               />
+              <figcaption>{PLAN_IMAGE_NOTE}</figcaption>
             </figure>
             <div className={c("plans")}>
               <article className={c("card", "plan")}>
@@ -312,6 +339,16 @@ export function LandingPage() {
                   AIアシストを見る
                 </a>
               </article>
+            </div>
+            {/* 先着100名の先行価格の条件（#377）。数え方（Pro＋プレミアム合算・Cat Key 除外）と、100名到達後・解約後の扱いを
+                カードの外に 1 か所で書く。プレミアムに先行価格が無いことも、ここで明示する（ユーザー決定 2026-09-05） */}
+            <div className={c("presale")} id="presale">
+              <h3>先着100名の先行価格について</h3>
+              <ul>
+                {PRESALE_TERMS.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
             </div>
           </div>
         </section>
@@ -401,8 +438,62 @@ const FEATURES: ReadonlyArray<{ name: string; what: string; why: string }> = [
     why: "話し方や提案内容を相手に合わせやすくなります。",
   },
   {
+    name: "ピンポイント日程調整",
+    what: "候補の日時を数件だけ提示し、相手に選んでもらうURLを発行します。",
+    why: "予約ページを公開しなくても、1対1の調整だけを手早く済ませられます。",
+  },
+  {
+    name: "顧客一覧の並び替え",
+    what: "会った人の一覧を、面談が近い順・古い順・名前順などで並び替えられます。",
+    why: "フォローすべき相手が上から順に見つかります。",
+  },
+  {
+    // 会話の要約はまだ無い（開発予定の「AI要約」）。いまの AI アシストは相手の情報から次の一手を提案する機能なので、その範囲で書く（#377）
     name: "AI連携モード",
-    what: "商談内容の要点整理、要約、次回アクションのヒントを支援します。",
+    what: "相手の情報と面談メモから、次回アクションのヒントを提案します。",
     why: "面談後の振り返りとフォローが速くなります。",
   },
 ];
+
+// 開発予定の機能（#377・issue の区分どおり）。未完成のものを「使える」と読ませないため、表とは別の枠に出す。
+// 説明は「何を作る予定か」だけを書き、効果や時期は約束しない
+const PLANNED: ReadonlyArray<{ name: string; what: string }> = [
+  {
+    name: "自作会議Bot・自動文字起こし・AI要約",
+    what: "オンライン面談にBotが参加して音声を記録し、文字起こしと要約を自動で作る機能を開発しています。",
+  },
+  {
+    name: "タスク管理",
+    what: "面談で決まった宿題や、次回までのやることを相手ごとに記録します。",
+  },
+  {
+    name: "24時間前リマインド",
+    what: "22分前に加えて、前日にもメールでお知らせします（希望者のみ）。",
+  },
+  {
+    name: "再アポ",
+    what: "会った人の画面から、前回の条件を引き継いで次の日程調整を作ります。",
+  },
+  {
+    name: "会員プロフィール共有",
+    what: "予約が成立したときに、設定に応じてお互いのプロフィールを共有します。",
+  },
+  {
+    name: "MCP・API連携",
+    what: "キマルのデータを、自分の使うAIツールや他のサービスから扱えるようにします。",
+  },
+];
+
+// 先着100名の先行価格の条件（#377・docs 7章と system-spec の決定 2026-08-06）。
+// 「ずっと据え置き」とは書かない: 解約後の再契約・プラン変更では失効する決定になっている
+const PRESALE_TERMS: readonly string[] = [
+  "Pro を先行価格 ¥980/月 でご利用いただけるのは、有料会員が100名に達するまでです。100名は Pro とプレミアムの合計で数え、Cat Key で Pro をご利用の方は含みません。",
+  "100名に達した後、Pro の新規お申し込みは通常価格 ¥2,200/月 になります。",
+  "先行価格で契約された方は、契約を続けている間は ¥980/月 のままです。解約後に再契約した場合やプランを変更した場合は、通常価格になります。",
+  "プレミアムに先行価格はありません。",
+];
+
+// プラン表の画像に写っている「AIカルテ（会議Bot）」「AI連携モード（自動記録・要約）」「Master」はまだ提供していない。
+// 画像は差し替え待ちなので、注記で補う（#377）
+const PLAN_IMAGE_NOTE =
+  "※ 画像内の「AIカルテ」「AI連携モード（自動記録・要約）」と Master プランは開発予定で、まだ提供していません。";

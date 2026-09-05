@@ -36,8 +36,8 @@ test.describe("LP /（#418）", () => {
     await expect(page.locator("#solve")).toHaveCount(1);
     await expect(page.locator("#plans")).toHaveCount(1);
 
-    // 機能一覧 9 行・プラン 3 枚・フッターの法務リンク
-    await expect(page.locator("table tbody tr")).toHaveCount(9);
+    // 機能一覧 11 行（#377 で「ピンポイント日程調整」「顧客一覧の並び替え」を足した）・プラン 3 枚・フッターの法務リンク
+    await expect(page.locator("table tbody tr")).toHaveCount(11);
     await expect(page.getByRole("heading", { name: "Pro", exact: true })).toBeVisible();
     await expect(page.getByText("先着100名限定")).toBeVisible();
     await expect(page.getByText("通常 ¥2,200 /月")).toBeVisible();
@@ -47,6 +47,47 @@ test.describe("LP /（#418）", () => {
     );
 
     expect(errors).toEqual([]);
+  });
+
+  // 先行100名の訴求と機能区分（#377）。未完成の機能が「使える」と読めないこと（景表法）と、
+  // 先行価格の条件（数え方・終わり方・プレミアムは対象外）が見えることを固定する
+  test("機能区分: 「現在利用可能」の表と「開発予定」の枠が分かれ、開発予定の 6 項目に札が付く", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const table = page.locator("table");
+    await expect(page.getByRole("heading", { name: /^現在利用可能/ })).toBeVisible();
+    await expect(table).not.toContainText("開発予定");
+    await expect(table).not.toContainText("要約"); // 会話の要約はまだ無い
+
+    const planned = page.locator("#planned");
+    await expect(planned.getByRole("heading", { name: /^開発予定/ })).toBeVisible();
+    await expect(planned.locator("li")).toHaveCount(6);
+    await expect(planned.locator("li").filter({ hasText: "開発予定" })).toHaveCount(6);
+    await expect(planned).toContainText("自作会議Bot・自動文字起こし・AI要約");
+    await expect(planned).toContainText("MCP・API連携");
+    await expect(planned).toContainText("まだ提供していない");
+  });
+
+  test("先行価格: 条件が 1 か所に書かれ、プレミアムには先行価格の表記が無い", async ({ page }) => {
+    await page.goto("/");
+    const presale = page.locator("#presale");
+    await expect(
+      presale.getByRole("heading", { name: "先着100名の先行価格について" }),
+    ).toBeVisible();
+    // 基準は「Pro プランの利用者が 100 名」。数え方の内訳（合算・Cat Key）や除外の説明は載せない（ユーザー決定 2026-09-05）
+    await expect(presale.locator("li")).toHaveCount(3);
+    await expect(presale).toContainText("Pro プランのご利用者が100名に達するまで");
+    await expect(presale).toContainText("¥2,200");
+    await expect(presale).not.toContainText("Cat Key");
+    await expect(presale).not.toContainText("プレミアム");
+
+    const premium = page.locator("#plans article").filter({ hasText: "Premium" });
+    await expect(premium).toHaveCount(1);
+    await expect(premium).not.toContainText("先着");
+    await expect(premium).not.toContainText("通常");
+    // 画像に写る未提供の機能（AIカルテ・Master）には注記が付く
+    await expect(page.locator("figcaption").filter({ hasText: "開発予定" }).first()).toBeVisible();
   });
 
   test("画像 3 枚が読み込まれ、寸法を持つ（CLS を起こさない）", async ({ page }) => {

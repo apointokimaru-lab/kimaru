@@ -18,6 +18,8 @@ export default defineConfig([
     "scripts/**",
     // 生成物（scripts/i18n/split.mjs が書く辞書・型・レジストリ）
     "messages/**",
+    // 実験用 PoC（Python・#393）。新フロントの規約対象ではない
+    "poc/**",
   ]),
   ...nextVitals,
   ...nextTs,

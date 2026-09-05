@@ -6,7 +6,9 @@
 > 「会ったのに、何をされている方だったか思い出せない」という機会損失をなくすことが、AI議事録の存在理由。
 
 キマルを「日程調整ツール」から「**会う前後の業務までつなぐ業務プラットフォーム**」へ拡張するための設計文書一式。
-自作AI会議Bot（会議参加 → 音声取得 → バッチ文字起こし → AI要約 → CRM反映）と、それを動かすための基盤刷新を扱う。
+自作AI会議Bot（音声取得＝**Zoom は RTMS 受信・Meet は Bot の会議参加** → バッチ文字起こし → AI要約 → CRM反映）と、それを動かすための基盤刷新を扱う。
+
+> **2026-09-05 の決定（#476）**: ① **Zoom は RTMS（Realtime Media Streams）で進める。参加者 Bot・Meeting SDK は使わない**（#370 / PR #473 で規約原文を確認）。② **音声取得＋文字起こしを先に、LLM 要約は後**（STT PoC は PR #474・Zoom RTMS 受信 PoC は #475。LLM 準備 #379/#380 は後送）。反映先は `system-spec.md` v2.5 の 9章・FR-2・8章。
 
 ---
 
@@ -25,12 +27,12 @@
 
 | 文書 | 役割 | 状態 |
 |---|---|---|
-| **[`system-spec.md`](./system-spec.md)** | **最終仕様書（v2.4）**。要件定義・原子性設計・データモデル・非機能・セキュリティ・運用体制・コスト・タスク分解・決定事項 | **正本** |
+| **[`system-spec.md`](./system-spec.md)** | **最終仕様書（v2.5）**。要件定義・原子性設計・データモデル・非機能・セキュリティ・運用体制・コスト・タスク分解・決定事項 | **正本** |
 | [`development-roadmap.md`](./development-roadmap.md) | 開発順序（顧客一覧の並び替え → フルリプレイス → 自作Bot → タスク → CRM拡張 → チュートリアル → 会員同士の打ち合わせ → 微調整） | 有効 |
 | [`infrastructure-architecture.md`](./infrastructure-architecture.md) | インフラ基盤構成の元設計（AWS構成・Bot/STT/AI要約基盤・技術スタック） | 有効（背景資料） |
 | [`infrastructure-review.md`](./infrastructure-review.md) | 上記へのレビューと判断（DBはSupabase継続・PoCで削る構成・**既存本番からの引き継ぎ制約**） | 有効 |
 | **[`schedule.md`](./schedule.md)** | **開発スケジュール**。フェーズ別の期限・具体的手順・ゲート・クリティカルパス。GitHub のマイルストーンと対応 | 有効 |
-| **[`platform-research.md`](./platform-research.md)** | **T-001 の成果物**。Zoom/Meet の実装方式・規約・マーケットプレイス掲載状況・同意の業界実務。**T-002（法務相談）の持ち込み資料** | 有効 |
+| **[`platform-research.md`](./platform-research.md)** | **T-001 の成果物**。Zoom/Meet の実装方式・規約・マーケットプレイス掲載状況・同意の業界実務。**7章（PR #473・#370）で規約原文を確認し、Zoom = RTMS が確定**。**T-002（法務相談）の持ち込み資料** | 有効 |
 | [`archive/infrastructure-review-draft.md`](./archive/infrastructure-review-draft.md) | 上記の改訂ドラフト。**内容は統合済みで役目を終えている** | 保管のみ |
 
 > **数字の正本は `system-spec.md` の7章**。`infrastructure-review.md` にも原価の記述があるが、そちらは概算段階のもの。精緻な積み上げ（Fargate 単価・決済手数料・失敗コスト込みで **¥40.5795 / 課金対象1時間**）は仕様書側にある。
@@ -56,11 +58,12 @@
 
 | 項目 | 決定 |
 |---|---|
-| クラウド | AWS 東京。Bot は ECS Fargate（1会議1タスク） |
+| クラウド | AWS 東京。取得タスク（Meet の Bot コンテナ／Zoom の RTMS 受信）は ECS Fargate（1会議1タスク） |
 | キュー・起動 | SQS FIFO + DLQ / EventBridge Scheduler |
-| 言語 | TypeScript 主軸、文字起こしのみ Python（faster-whisper） |
+| 言語 | TypeScript 主軸、文字起こしのみ Python（faster-whisper）。**Zoom RTMS（WebSocket）も Meet Bot（Playwright）も TypeScript**——C++ の Meeting SDK 実装は不要になった |
 | DB | **Supabase 継続**（正式採用。RDS へは再評価トリガー成立時に移行判断） |
-| 対象プラットフォーム | **Meet + Zoom 両対応**。Meet 先行（M1）→ Zoom 追加（M2以降） |
+| 対象プラットフォーム | **Meet + Zoom 両対応**。**Zoom 先行（M1・方式は RTMS＝Bot は入室せず、ホストの承認のもとホストの Zoom から音声を受ける）→ Meet 追加（M2以降・ヘッドレスブラウザ Bot・ホストが admit する運用）**（2026-09-05 決定・#370/#476。`system-spec.md` 9章） |
+| 先行順序 | **音声取得＋文字起こしを先に、LLM 要約は後**（2026-09-05 決定）。STT PoC は PR #474（`poc/stt/`・small int8 CPU で RTF 0.19〜0.23）、Zoom RTMS 受信 PoC は #475（`poc/rtms/`）で先行。LLM 準備（#379/#380）は M2 の後 |
 | 文字起こし | **自前のみ**。外部STT API は使わない。障害時は `deferred` で音声を14日保持し復旧後に自動再投入 |
 | PoC の実行基盤 | Orchestrator・状態更新API・Reconciler・要約・クリーンアップは **Lambda**。Bot と STT のみ Fargate。**ALB・NAT・Redis は置かない** |
 
@@ -82,13 +85,15 @@
 
 ---
 
-## 3. 決まっていないこと（残り3件）
+## 3. 決まっていないこと（残り5件）
 
 | # | 論点 | いつ決まるか |
 |---:|---|---|
-| 2 | 文字起こしを自前CPU / GPU のどちらで回すか | **実測待ち**。判断材料の比較表は `system-spec.md` 7.2.2.1 にある。T-304 で品質と RTF を測れば決まる |
+| 2 | 文字起こしを自前CPU / GPU のどちらで回すか | **CPU は実測済み**（PR #474・2026-09-05: small RTF 0.19〜0.23 で NFR 内、medium 0.68〜0.76 で不成立）。残りは**実会議の録音での品質**と GPU。比較表は `system-spec.md` 7.2.2.1 |
 | **8** | **同意の成立要件・撤回・飛び入り参加者・1対1限定の可否** | **法務確認待ち（T-002）**。持ち込み資料は [`platform-research.md`](./platform-research.md) に用意済み |
 | 27 | インシデント報告の主担当・副担当・連絡窓口 | 3名体制の確定時 |
+| **30** | **Zoom RTMS のクレジット単価**（Developer pricing は Contact Sales のみ・**未確認**）。確定後に原価を Meet／Zoom 別に再計算 | Zoom sales の回答後 |
+| **31〜34** | RTMS の実機条件——起動の主語（Scheduler か webhook か）／ホスト側設定「Share realtime meeting content with apps」・verified の充足率／FR-7.7 の参加者数の取得手段／キマル側からストリームを止められるか | **#475（RTMS 受信 PoC）で確認** |
 
 > **#8 が着手のブロッカー。** 仕様書は「**M-1（T-001 規約調査・T-002 同意の法務確認）が通らなければ以降を実装しない**」と定めている。ここが起点。
 
@@ -104,6 +109,7 @@
 | v1.1〜v1.9 | 原子性（Scheduler/SQS/ECS/DB）、リースの fencing、音声 manifest 検証、利用量の直列化、テナント境界、同意仕様、コストの二重計上などを順次修正 |
 | **v2.0** | **判定「GO（実装着手可能）」**（M-1 の法務・規約確定を除く技術仕様として） |
 | v2.1〜v2.4 | プラン変更・枠切れ退出・両プラットフォーム対応・要約テンプレート・残る未決定事項の決定を反映 |
+| **v2.5** | **Zoom を RTMS 化（参加者 Bot 廃止）・Zoom 先行・「音声取得＋文字起こし先行、LLM 後」の順序**を反映（2026-09-05・#476。T-304 の CPU 実測を追記。**Codex レビューは未実施**） |
 
 **レビューで見つかった主な誤り**
 
@@ -117,10 +123,10 @@
 
 ## 5. 最初の一手
 
-1. ~~**T-001** Meet / Zoom の規約調査~~ → **一次調査は完了**（[`platform-research.md`](./platform-research.md)）。残作業6件は同書6章
+1. ~~**T-001** Meet / Zoom の規約調査~~ → **完了**（[`platform-research.md`](./platform-research.md)）。残作業は #370（PR #473・同書7章）で消化。**Zoom は Meeting SDK Bot ではなく RTMS**
 2. **T-002** 録音・文字起こしの同意設計の法務確認 → 未決定 #8 を解消。**論点リスト11件は用意済み**
 3. T-003 利用規約・プライバシーポリシーの改定案
 
-**調査で判明した重要な点**: Zoom は Meeting SDK による headless bot が公式ルートで、Notta・Fireflies・Otter が Marketplace に掲載済み。一方 Meet は bot-free 方式が **Google Workspace 管理者権限を要求**するためキマルの顧客層に届かず、**ヘッドレスブラウザしか選択肢がない**。→ **Zoom 先行への切り替えを提案**（詳細は同書5章）。
+**調査で判明した重要な点**（2026-09-05 更新）: Zoom の現行ドキュメントは「Meeting SDK は人間の利用向けで Bot・AI ノートテイカー非対応。RTMS を使え」と明記しており、**Zoom は Bot を入室させず RTMS でホストの Zoom から音声を受ける**（ホストの承認と参加者への開示は Zoom クライアントが担う。要件は非公開でも App Review・アカウントのクレジット・ホスト側設定「Share realtime meeting content with apps」）。旧記述「Meeting SDK による headless bot が公式ルート」は覆った。一方 Meet は bot-free 方式が **Google Workspace 管理者権限を要求**するためキマルの顧客層に届かず、**ヘッドレスブラウザしか選択肢がない**うえ、Google が製品側で第三者 Bot の「参加をリクエスト」を自動拒否できるため、**ホストが admit する運用**が前提。→ **Zoom（RTMS）先行に決定**（詳細は同書7章・`system-spec.md` 9章）。
 
 この3つが通ってから M0（基盤準備）へ進む。PoC で必ず測る項目は `system-spec.md` 8.3 にある。

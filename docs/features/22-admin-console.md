@@ -61,7 +61,7 @@
 
   | 段 | 画面 | パス |
   |---|---|---|
-  | 予約の前 | トップ | `/index.html`（旧LPの `/landing3.html` も合算） |
+  | 予約の前 | トップ | `/index.html`（`/landing3.html` は #418 で廃止） |
   | 予約の前 | プラン比較 | `/plan.html` |
   | 予約の後 | 相手管理 | `/contacts.html` |
   | 予約の後 | 事前の情報確認 | `/meeting.html`（相手の詳細）・`/answers.html`（事前アンケート回答） |

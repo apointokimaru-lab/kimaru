@@ -164,7 +164,10 @@ async function main() {
   if (!chromePath) throw new Error("Chrome が見つからない。npx playwright install chromium か CHROME_PATH=…");
   // Chrome のプロファイル置き場を明示する。WSL では Windows の環境変数 LOCALAPPDATA（C:\Users\…）が見えるため、
   // chrome-launcher の既定に任せると、その文字列をディレクトリ名にした一時フォルダがカレント直下に作られる
-  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "kimaru-lighthouse-"));
+  // Linux では /tmp 固定。WSL の環境によっては os.tmpdir() が \\wsl.localhost\… の UNC 文字列を返し、
+  // その名前のフォルダがカレント直下にできてしまう
+  const tmpBase = process.platform === "win32" ? os.tmpdir() : "/tmp";
+  const userDataDir = fs.mkdtempSync(path.join(tmpBase, "kimaru-lighthouse-"));
   const chrome = await launch({
     chromePath,
     userDataDir,
@@ -186,9 +189,9 @@ async function main() {
         const picked = median(runs);
         rows.push({ page: page.name, path: page.path, formFactor, ...picked.m, scores: runs.map((r) => r.m.score) });
         if (OUT) {
-          fs.mkdirSync(path.join(repo, OUT), { recursive: true });
+          fs.mkdirSync(path.resolve(repo, OUT), { recursive: true });
           const stem = page.path.replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "") || "root";
-          fs.writeFileSync(path.join(repo, OUT, `${stem}.${formFactor}.json`), JSON.stringify(picked.lhr, null, 1));
+          fs.writeFileSync(path.resolve(repo, OUT, `${stem}.${formFactor}.json`), JSON.stringify(picked.lhr, null, 1));
         }
       }
     }
@@ -201,10 +204,10 @@ async function main() {
   console.log(md);
   if (OUT) {
     fs.writeFileSync(
-      path.join(repo, OUT, "summary.json"),
+      path.resolve(repo, OUT, "summary.json"),
       JSON.stringify({ base: BASE, runs: RUNS, measuredAt: new Date().toISOString(), rows }, null, 2),
     );
-    fs.writeFileSync(path.join(repo, OUT, "summary.md"), md + "\n");
+    fs.writeFileSync(path.resolve(repo, OUT, "summary.md"), md + "\n");
   }
 }
 

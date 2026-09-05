@@ -3,14 +3,13 @@ import path from "node:path";
 
 // 旧サイトの HTML を Next.js から返すための最小の器（#412・段階0）。
 //
-// なぜ必要か: Next.js は public/ のファイルを同じパスで配信するが、「/」だけは public/index.html を返さない
-// （ルートにはページかルートハンドラが要る）。また、存在しない URL は旧サイトでは Netlify が public/404.html を
-// 返していたが、Next 同居後は Next の側に落ちるので、同じ内容・同じ 404 ステータスで返し直す必要がある。
-// どちらも段階1（#418 LP・#424 404）で Next のルートに置き換わり、このファイルは役目を終えて消える。
+// なぜ必要か: 存在しない URL は旧サイトでは Netlify が public/404.html を返していたが、Next 同居後は Next の側に
+// 落ちるので、同じ内容・同じ 404 ステータスで返し直す必要がある。#424 で not-found.tsx に置き換わり、このファイルは消える。
+// （「/」を旧 index.html で返す暫定は #418 で LP を Next に移したので撤去した）
 //
 // 中身は一切いじらない（i18n・共通ヘッダーの注入は旧サイトと同じく public/i18n.js と Edge の auth-gate.js が担う）。
 
-type LegacyFile = "index.html" | "404.html";
+type LegacyFile = "404.html";
 
 // 読み込みは 1 プロセスにつき 1 回（関数のコールドスタート毎）。Promise を入れておけば同時要求でも二重に読まない。
 const cache = new Map<LegacyFile, Promise<string>>();

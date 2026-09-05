@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 // 段階0 の同居確認（#412 の netlify dev / Deploy Preview で見た項目のうち、`next start` 単体で確かめられるもの）。
+// / は #418 で Next の LP になった（tests/e2e/lp.spec.ts）。
 // netlify.toml の書き換え（/b/* 等）と Edge の注入は next start では効かないので、ここでは見ない。
 
 test.describe("旧サイトと Next.js の同居（段階0）", () => {
-  test("トップ / は旧 LP を返し、JS 例外が無い", async ({ page }) => {
+  test("トップ / は LP（Next・#418）を返し、JS 例外が無い", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
 

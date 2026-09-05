@@ -197,7 +197,8 @@ Next サーバー（page.tsx）──▶ lib/server/*（import "server-only"）�
 
 - 辞書は `messages/{ja,en,zh-TW}/<ns>.json`（33 namespace・1,572 キー×3）。**旧 `public/i18n.js` が正本である間は生成物**で、`npm run i18n:split`（`scripts/i18n/split.mjs`）で再生成する。手で編集しない。`messages/index.ts`（言語×namespace の遅延 import）と `messages/keys.ts`（キーの union 型）も同時に生成される。旧 i18n.js を消す段階（#454）で `messages/` が正本になる。
 - **3 言語でキー集合が同一**、かつ**生成物が旧 i18n.js と差分ゼロ**を `lib/i18n/messages.test.ts` が固定する（旧 `scripts/test/unit.mjs` の対称性テストは旧ページが残る間は併走）。
-- サーバー: `const t = await getT("dash"); t("todo.title")`（`lib/i18n/server.ts`・Cookie の言語で namespace を読む）。クライアント: `getMessages(["dash", "nav"])` の結果を `I18nProvider` に渡し、部品は `const t = useT("dash")`（`lib/i18n/client.tsx`）。Provider には**画面が使う namespace だけ**を渡す（言語×画面ぶんだけ配信）。
+- **静的ページ（`(public)`）**: サーバーは Cookie を読まず ja で描く（`lib/i18n/static.ts` の `getStaticMessages([...namespace か [namespace, 使うキー]])`）。Client の `StaticI18nProvider` がマウント後に Cookie を見て、ja 以外なら辞書を遅延 import して差し替える（旧 `i18n.js` と同じ「ja が一瞬見える」挙動。CDN 配信を守るため）。部品は `useT(ns)` を使い、Client Component にする（#419）。
+- **動的ページ**: サーバー: `const t = await getT("dash"); t("todo.title")`（`lib/i18n/server.ts`・Cookie の言語で namespace を読む）。クライアント: `getMessages(["dash", "nav"])` の結果を `I18nProvider` に渡し、部品は `const t = useT("dash")`（`lib/i18n/client.tsx`）。Provider には**画面が使う namespace だけ**を渡す（言語×画面ぶんだけ配信）。
 - 置換は `{name}` 記法（現行と同じ）で `t("metaFrom", { name })`。**HTML は入れない**（`t()` の戻りは文字列として描く。強調が要るなら要素を分ける）。
 - キーは型で守る（`messages/keys.ts`）。無いキーはコンパイルエラー。動的なキーが未定義だった場合は `ns.key` を返して落ちない（開発時は警告）。
 - 既定言語は ja。**ブラウザの `Accept-Language` では切り替えない**（旧 `pickLanguage` と同じ挙動。切り替えは利用者の明示操作だけ）。フォールバックは active → ja → en（旧 `t()` と同じ）。空文字は「意図的に空」として尊重する。
@@ -317,6 +318,7 @@ Next サーバー（page.tsx）──▶ lib/server/*（import "server-only"）�
 ## 変更履歴
 
 - 2026-09-04 初版（#416）。
+- 2026-09-05 6 章: 静的ページの言語切替は `StaticI18nProvider`（Client 側で辞書差し替え）。共通ヘッダー/フッターは `components/layout/SiteHeader.tsx`/`SiteFooter.tsx`（#426 を #419 で前倒し）、出し分けは Edge の `body[data-auth]` に依存（#452 で見直し）。
 - 2026-09-05 0・7・14 章: 公開ページは Web フォントを当てない（next/font は実名で登録するため LP が読みに行った・#418）。恒久リダイレクトは 308。
 - 2026-09-04 1・4・8 章: ルートレイアウトを `(public)`（静的）と `(dynamic)`（動的）の 2 つに、`style` 属性を禁止、`'strict-dynamic'` は Edge 撤去まで保留、CSP の正本は `lib/csp.ts`（#415）。
 - 2026-09-04 6 章: 辞書は `public/i18n.js` からの生成物、`Accept-Language` は使わない（旧と同じ）、t() の呼び方を実装に合わせた（#414）。

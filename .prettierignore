@@ -14,3 +14,5 @@ messages/
 # public/styles.css からの逐語コピー（旧と見比べるため整形しない・#415）
 styles/tokens.css
 styles/base.css
+C:*
+*wsl.localhost*

@@ -213,7 +213,7 @@ const bodyText = (page) => page.evaluate(() => document.body.innerText);
 // ===== 1) 全ページ：JS例外なし＆ダミー文字列なし =====
 section("all pages: no JS exception, no dummy strings");
 const PAGES = [
-  "plan", "login", "signup", "reset-password", "square", "pro-thanks",
+  "login", "signup", "reset-password", "square", "pro-thanks",
   "dashboard", "contacts", "booking-settings", "profile", "settings", "schedule", "answers",
   "meeting?id=b-today", "booking?slug=taro", "public-profile?slug=taro", "manage-booking?id=b-today&t=tok",
   "manage-booking?k=b-today.tok", // 新しい1パラメータ形式の管理リンク
@@ -879,7 +879,7 @@ section("pinpoint scheduling link (#303)");
     ok("holding is disabled on the free plan", await page.locator('#pp-hold option[value="hold"]').evaluate((el) => el.disabled) === true);
     ok("the plan reason is shown", await page.locator("#pp-hold-plan").isVisible());
     ok("the calendar reason is not shown at the same time", await page.locator("#pp-hold-nocal").isHidden());
-    ok("the plan reason links to the pricing page", (await page.getAttribute("#pp-hold-plan a", "href")) === "/plan.html");
+    ok("the plan reason links to the pricing page", (await page.getAttribute("#pp-hold-plan a", "href")) === "/plan");
     // 候補は3つまで。4つ目は候補に入らず、理由を出す（黙って切らない）。
     for (const index of [0, 1, 2, 3]) {
       await page.locator("#pp-grid .wk-slot").nth(index).click();
@@ -927,7 +927,7 @@ section("pinpoint scheduling link (#303)");
     const message = await free.textContent("#pp-limit-body");
     ok("the message names the limit", message.includes("1件"));
     ok("it offers both disabling a link and upgrading", message.includes("無効") && message.includes("アップグレード"));
-    ok("the upgrade button points at the pricing page", (await free.getAttribute("#pp-limit-plan", "href")) === "/plan.html");
+    ok("the upgrade button points at the pricing page", (await free.getAttribute("#pp-limit-plan", "href")) === "/plan");
     await free.click("#pp-limit-cancel");
     await free.waitForTimeout(200);
     ok("closing leaves the page list in place", await free.locator("#pp-limit-modal").isHidden() && await free.locator("#list-view").isVisible());

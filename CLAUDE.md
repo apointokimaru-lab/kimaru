@@ -55,6 +55,7 @@ npm run typecheck # next typegen && tsc --noEmit（app/ components/ features/ li
 npm run lint     # eslint（新フロントのみ。public/ netlify/ scripts/ は対象外）／ npm run lint:fix
 npm run format:check # prettier（同上）／ npm run format で整形
 npm run ci       # 上の check 全部 + build + test を順に回す（push 前のローカル確認用。CI と同じ内容）
+npm run perf:lighthouse -- --base https://kimaru-co.jp --runs 3 --out <dir>  # 速度計測（Lighthouse・docs/perf/ と同じ条件。--from-dir で表だけ再生成）
 npm run deploy   # netlify deploy --prod
 npm test         # 軽量テスト: unit + e2e（旧ページ用と新フロント用の両方）。外部依存なし
 npm run test:unit # 旧: scripts/test/unit.mjs（i18n対称性・ダッシュ描画・XSSエスケープ）＋ 新: node:test（*.test.ts を tsx --test で）

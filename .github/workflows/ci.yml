@@ -6,7 +6,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, main_bot] # main_bot は議事録 Bot の統合ブランチ（#481）
 
 # 同じブランチで push が続いたら古い実行を止める（待ち時間と料金の節約）
 concurrency:

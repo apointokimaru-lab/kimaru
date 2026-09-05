@@ -40,7 +40,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 3. **本番デプロイは明示指示があったときだけ。** 手順は「Hosting」節（ロック解除を忘れると無言で失敗する）。
 
-4. **コメントは密に書く。** このリポジトリは「なぜこの処理が必要か」を日本語コメントで残す慣習（手本: `_lib/supabase.js` の headers 合成順、`booking-pages.js` の列フォールバック、`availability-core.js` の枠生成条件、`google.js` の `transparency`）。新しいコードにも次の2点を書く:
+4. **議事録 Bot の成果物は `main` ではなく `main_bot` に出す（#481・2026-09-05 決定）。** 対象は `poc/`・`docs/ai-bot/`・Bot 関連のコード（音声取得・文字起こし・RTMS・Meet Bot）。PR の base を `main_bot` にする。`main` → `main_bot` は Actions（`sync-main-bot.yml`）が push ごとに自動マージし、衝突時は `main` → `main_bot` の PR が立つ。`main_bot` → `main` は「フロント移行が完了」かつ「Bot の改修が完了」した時点で、ユーザーが本番を一時的に `main_bot` へ切り替えて検証したあとに行う（Claude は実行しない）。
+
+5. **コメントは密に書く。** このリポジトリは「なぜこの処理が必要か」を日本語コメントで残す慣習（手本: `_lib/supabase.js` の headers 合成順、`booking-pages.js` の列フォールバック、`availability-core.js` の枠生成条件、`google.js` の `transparency`）。新しいコードにも次の2点を書く:
    - **なぜ必要か** — どの不具合・どの仕様のためか。分かれば issue/PR 番号も添える
    - **何をしているか** — 非自明な条件・境界・順序、および「素直に書くとなぜ壊れるか」
 

@@ -67,8 +67,13 @@ def parse_s3_uri(uri: str) -> tuple[str, str]:
     return bucket, key
 
 
-def last_json_line(stdout: str) -> dict | None:
-    """--json-summary / --json の出力は最終行の JSON。前に何か混ざっても最後の { 行だけ拾う。"""
+def parse_json_output(stdout: str) -> dict | None:
+    """子プロセスの stdout から JSON を拾う。transcribe.py --json-summary は最終行に 1 行、check_complete.py --json は
+    indent 付きの複数行で出す（最初の Fargate 実測で後者を取りこぼしたので、まず全体を、だめなら最後の { 行を試す）。"""
+    try:
+        return json.loads(stdout)
+    except json.JSONDecodeError:
+        pass
     for line in reversed(stdout.splitlines()):
         line = line.strip()
         if line.startswith("{"):
@@ -114,7 +119,7 @@ def main() -> int:
     tail = tr.stderr.splitlines()[-15:]
     for line in tail:
         log(f"transcribe: {line}")
-    summary = last_json_line(tr.stdout) if tr.returncode == 0 else None
+    summary = parse_json_output(tr.stdout) if tr.returncode == 0 else None
     # 子プロセスのピーク RSS（ru_maxrss は KB）。transcribe.py 自身の peak_rss_mb と一致するはずの検算
     children_peak_mb = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss / 1024.0
 
@@ -127,7 +132,9 @@ def main() -> int:
             args += ["--expected-duration", env["EXPECTED_DURATION"]]
         ck = subprocess.run(args, capture_output=True, text=True)
         check_rc = ck.returncode
-        verdict = last_json_line(ck.stdout)
+        verdict = parse_json_output(ck.stdout)
+        # 判定の全文（隙間・低信頼区間の一覧）も S3 に残す。CloudWatch には verdict と coverage だけ出す
+        (out_dir / "check.json").write_text(ck.stdout, encoding="utf-8")
         if ck.stderr.strip():
             log(f"check_complete: {ck.stderr.strip()[-500:]}")
 

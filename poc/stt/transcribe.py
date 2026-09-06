@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import resource
 import sys
 import time
@@ -27,8 +28,10 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 # モデル置き場。HF のキャッシュ（~/.cache）ではなく PoC 直下に置いて .gitignore で除外する。
-# 本番はイメージ同梱（起動時 DL しない・T-302）なので、その配置に近い形にしておく
-MODEL_DIR = HERE / ".models"
+# 本番はイメージ同梱（起動時 DL しない・T-302）なので、その配置に近い形にしておく。
+# コンテナ（#485）ではビルド時に /opt/models へ落としてあり、env STT_MODEL_DIR でその場所を指す
+# （タスク定義 infra/poc/task-definitions.tf の STT_MODEL_DIR と同じ名前）
+MODEL_DIR = Path(os.environ.get("STT_MODEL_DIR") or HERE / ".models")
 
 MODELS = ("tiny", "base", "small", "medium", "large-v3-turbo", "large-v3")
 

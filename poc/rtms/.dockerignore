@@ -1,0 +1,8 @@
+# 画像に入れないもの（#485）。受信した音声・資格情報・手元の依存
+out/
+node_modules/
+dist/
+.env
+.env.*
+*.md
+src/*.test.ts

@@ -8,9 +8,9 @@ name: Build PoC images
 
 on:
   push:
-    # workflow_dispatch は既定ブランチ（main）に無い workflow を起こせないので、この issue の作業ブランチでは push で起こす
-    # （PR を出す前に main_bot だけへ戻す・#485）
-    branches: [main_bot, feat/issue-485-images-measure]
+    # workflow_dispatch は既定ブランチ（main）に無い workflow を起こせない。main_bot に入る前の作業ブランチで
+    # 試すときは、ここに自分のブランチを一時的に足して push で起こす（PR 前に戻す・#485）
+    branches: [main_bot]
     paths:
       - "poc/**"
       - ".github/workflows/build-images.yml"

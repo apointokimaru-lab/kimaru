@@ -27,7 +27,7 @@
 
 | ドキュメント | ドラフト（本文） | 表示ページ（公開） | 状態 |
 |---|---|---|---|
-| 利用規約 | [`terms.md`](./terms.md) | `public/terms.html` → `/terms.html` | ✅ 回答反映・HTML同期済み（全項目確定） |
+| 利用規約 | [`terms.md`](./terms.md) | `app/(public)/terms/` → `/terms`（旧 `/terms.html` は 308・#420） | ✅ 回答反映・HTML同期済み（全項目確定） |
 | プライバシーポリシー | [`privacy-policy.md`](./privacy-policy.md) | `public/privacy.html` → `/privacy.html` | ✅ 同上 |
 | 特定商取引法に基づく表記 | [`tokushoho.md`](./tokushoho.md) | `public/tokushoho.html` → `/tokushoho.html` | ✅ 同上 |
 

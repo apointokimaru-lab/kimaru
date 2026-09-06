@@ -66,6 +66,25 @@ test.describe("料金・プラン /plan（#419）", () => {
     await expect(page.locator(".plan-free-only").first()).toBeHidden();
     await expect(page.getByText(jaPricing["catkey.loginNote"])).toBeVisible();
 
+    // 先着100名の先行価格（#377）: Pro にだけ札と通常価格、条件は #presale に 1 か所（3 行）。プレミアムには何も足さない。
+    // 数え方の内訳や「プレミアムに先行価格は無い」といった除外の説明は載せない（ユーザー決定 2026-09-05）
+    const pro = page.locator(".plan.is-pop");
+    await expect(pro.locator(".plan-tag")).toHaveText(jaPricing["presale.tag"]);
+    await expect(pro.getByText(jaPricing["presale.regular"])).toBeVisible();
+    const presale = page.locator("#presale");
+    await expect(
+      presale.getByRole("heading", { name: jaPricing["presale.heading"] }),
+    ).toBeVisible();
+    await expect(presale.locator("li")).toHaveCount(3);
+    await expect(presale).toContainText(jaPricing["presale.l1"]);
+    await expect(presale).not.toContainText("Cat Key");
+    await expect(presale).not.toContainText("プレミアム");
+    await expect(page.locator(".plan.is-ai")).not.toContainText("2,200");
+    await expect(page.locator(".plan.is-ai")).not.toContainText("先着");
+    await expect(page.locator("table tbody tr").first()).toContainText(
+      jaPricing["presale.cmpNote"],
+    );
+
     expect(errors).toEqual([]);
   });
 
@@ -81,6 +100,8 @@ test.describe("料金・プラン /plan（#419）", () => {
     await expect(page.locator("h1")).toHaveText(enPricing.heading, { timeout: 10_000 });
     await expect(page).toHaveTitle(enPricing.pageTitle, { timeout: 10_000 });
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    // 先行価格の条件も英語に差し替わる（#377）
+    await expect(page.locator("#presale h3")).toHaveText(enPricing["presale.heading"]);
   });
 
   test("ヘッダーの言語選択で切り替わり、Cookie に保存される", async ({ page }) => {

@@ -1,0 +1,11 @@
+# PoC の生成物。モデル重み・仮想環境・音声は commit しない（音声は make_samples.py で再生成できる）
+.venv/
+.models/
+__pycache__/
+samples/*.wav
+samples/*.m4a
+samples/*.mp3
+samples/*.mp4
+samples/*.segments.json
+samples/*.txt
+!samples/*.expected.txt

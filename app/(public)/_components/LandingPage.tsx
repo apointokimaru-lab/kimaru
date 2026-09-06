@@ -386,7 +386,7 @@ export function LandingPage() {
         <div className={c("wrap", "footer-in")}>
           <div>
             <Link href="/terms">利用規約</Link>
-            <a href="/privacy.html">プライバシーポリシー</a>
+            <Link href="/privacy">プライバシーポリシー</Link>
             <a href="/tokushoho.html">特定商取引法に基づく表記</a>
           </div>
           <span>© 2026 キマル</span>

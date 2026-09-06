@@ -41,7 +41,7 @@
 | 14 | `/booking.html`（`/b/{slug}`） | 予約ページ（ゲスト用） | 不要 | 公開 | 旧（public/） |
 | 15 | `/guide.html` | 使い方ガイド（機能一覧＋機能ごとのModal） | 不要 | 公開 | 旧（public/） |
 | 16 | `/terms`（旧 `/terms.html` は 308） | 利用規約 | 不要 | 公開（法務） | Next（#420） |
-| 17 | `/privacy.html` | プライバシーポリシー | 不要 | 公開（法務） | 旧（public/） |
+| 17 | `/privacy`（旧 `/privacy.html` は 308） | プライバシーポリシー | 不要 | 公開（法務） | Next（#421） |
 | 18 | `/tokushoho.html` | 特定商取引法に基づく表記 | 不要 | 公開（法務） | 旧（public/） |
 
 > **配信列**: フロント刷新（#406〜#411）で画面を Next.js（`app/`）へ移すたびに「旧（public/）」→「Next」に更新する（規約 [`frontend-conventions.md`](./frontend-conventions.md) 11 章）。

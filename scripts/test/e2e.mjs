@@ -218,7 +218,7 @@ const PAGES = [
   "meeting?id=b-today", "booking?slug=taro", "public-profile?slug=taro", "manage-booking?id=b-today&t=tok",
   "manage-booking?k=b-today.tok", // 新しい1パラメータ形式の管理リンク
   "answer-question?id=b-today&t=tok", "pending-questions", "ai-assist", "guide",
-  "operator-login", "operators", "cat-key-admin", "analytics", "tokushoho", // terms・privacy は Next へ移行（#420・#421）
+  "operator-login", "operators", "cat-key-admin", "analytics", // 法務 3 ページは Next へ移行（#420〜#422）
 ];
 for (const route of PAGES) {
   const [name, query] = route.split("?");

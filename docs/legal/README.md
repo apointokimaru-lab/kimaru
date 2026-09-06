@@ -29,7 +29,7 @@
 |---|---|---|---|
 | 利用規約 | [`terms.md`](./terms.md) | `app/(public)/terms/` → `/terms`（旧 `/terms.html` は 308・#420） | ✅ 回答反映・HTML同期済み（全項目確定） |
 | プライバシーポリシー | [`privacy-policy.md`](./privacy-policy.md) | `app/(public)/privacy/` → `/privacy`（旧 `/privacy.html` は 308・#421） | ✅ 同上 |
-| 特定商取引法に基づく表記 | [`tokushoho.md`](./tokushoho.md) | `public/tokushoho.html` → `/tokushoho.html` | ✅ 同上 |
+| 特定商取引法に基づく表記 | [`tokushoho.md`](./tokushoho.md) | `app/(public)/tokushoho/` → `/tokushoho`（旧 `/tokushoho.html` は 308・#422） | ✅ 同上 |
 
 - 全ページ共通フッター（Edge注入）から3ページへ導線あり。
 - **進め方（B）**: 下の「質問事項」に記入 → ドラフト（.md）へ差し込み → 表示HTML（public/）へ同期、の順で完成させる。

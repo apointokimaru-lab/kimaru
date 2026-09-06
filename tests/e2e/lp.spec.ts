@@ -43,7 +43,7 @@ test.describe("LP /（#418）", () => {
     await expect(page.getByText("通常 ¥2,200 /月")).toBeVisible();
     await expect(page.getByRole("link", { name: "特定商取引法に基づく表記" })).toHaveAttribute(
       "href",
-      "/tokushoho.html",
+      "/tokushoho",
     );
 
     expect(errors).toEqual([]);

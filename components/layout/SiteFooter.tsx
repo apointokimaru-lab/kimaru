@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 
 // 共通フッター（法務リンク）。Edge（auth-gate.js）が旧ページに注入している SITE_FOOTER と同じ構造・同じクラス名（#419）。
-// 法務ページは Next に移したものから Link に替える（#420 利用規約 → /terms、#421 プライバシーポリシー → /privacy）。残り（.html）は旧ページへの <a>。
+// 法務 3 ページは Next に移した（#420 /terms・#421 /privacy・#422 /tokushoho）ので Link。
 export function SiteFooter() {
   const t = useT("footer");
   return (
@@ -14,7 +14,7 @@ export function SiteFooter() {
         <nav className="footer-nav">
           <Link href="/terms">{t("terms")}</Link>
           <Link href="/privacy">{t("privacy")}</Link>
-          <a href="/tokushoho.html">{t("tokushoho")}</a>
+          <Link href="/tokushoho">{t("tokushoho")}</Link>
         </nav>
         <p className="footer-copy">{t("copy")}</p>
       </div>

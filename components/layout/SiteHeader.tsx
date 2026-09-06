@@ -72,9 +72,9 @@ export function SiteHeader() {
         <a className="app-only" href="/settings.html">
           {t("settings")}
         </a>
-        <a className="app-only" href="/guide.html">
+        <Link className="app-only" href="/guide">
           {t("guide")}
-        </a>
+        </Link>
         <LangSelect />
         <a className="app-only nav-avatar" href="/settings.html" aria-hidden="true" tabIndex={-1}>
           キ

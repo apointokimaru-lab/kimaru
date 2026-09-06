@@ -27,7 +27,7 @@ export const PAGES = [
   { path: "/", name: "トップ（LP）" },
   { path: "/b/zoom-review", name: "予約ページ /b/{slug}" },
   { path: "/plan", name: "料金・プラン" }, // #419 で Next に移った。/plan.html は 308 で /plan へ
-  { path: "/guide.html", name: "使い方ガイド" },
+  { path: "/guide", name: "使い方ガイド" },
   { path: "/dashboard.html", name: "ダッシュボード（要ログイン）", needsCookie: true },
 ];
 

@@ -15,11 +15,12 @@ test.describe("旧サイトと Next.js の同居（段階0）", () => {
     expect(errors).toEqual([]);
   });
 
-  test("旧ページ（/guide.html）は同じ URL でそのまま配信される", async ({ page }) => {
-    const res = await page.goto("/guide.html");
+  test("旧ページ（/operator-login.html）は同じ URL でそのまま配信される", async ({ page }) => {
+    // 使い方ガイドは #423 で Next に移したので、最後まで public/ に残る運営ログイン（段階5・#448）で見る
+    const res = await page.goto("/operator-login.html");
     expect(res?.status()).toBe(200);
     // 旧ページの目印（i18n.js が textContent を入れる前の既定文言）
-    await expect(page.locator("body")).toContainText("使い方");
+    await expect(page.locator("body")).toContainText("運営ログイン");
   });
 
   test("存在しない URL は旧 404 ページを 404 で返す", async ({ page }) => {

@@ -1,0 +1,98 @@
+/* 使い方ガイドの一覧（#423）。public/styles.css の「使い方ガイド（#353）」節から、
+   一覧ぶん（.guide-index / .guide-group-head / .guide-list / .guide-item）を値を変えずに写した。
+   .eyebrow / .muted / .pagehead / .section / .shell はグローバル（styles/base.css・shared.css）のまま使う。 */
+
+/* 旧 guide.html の style="padding-top:0"（見出しを共通ヘッダーの直下に付ける） */
+.tight {
+  padding-top: 0;
+}
+
+/* 手引きとして読む幅に寄せる。1200px のシェル幅いっぱいだと 1 行が長すぎ、目で追えない */
+.index {
+  display: grid;
+  gap: clamp(32px, 4vw, 48px);
+  max-width: 880px;
+  margin-top: 32px;
+}
+
+.groupHead {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.groupHead :global(.eyebrow) {
+  margin: 0 0 6px;
+}
+.groupHead :global(.muted) {
+  margin: 0;
+  font-size: var(--fs-label);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 10px;
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+}
+
+/* 押せることを見た目で示すボタン。影は使わず、下辺の線だけを厚くして立体に見せ、
+   押したときに沈む（下辺を 1px に戻して同じぶん下げる＝高さが変わらない）。 */
+.item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 13px 15px;
+  text-align: left;
+  font-family: var(--display);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.item:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.item:active {
+  border-bottom-width: 1px;
+  transform: translateY(2px);
+}
+.item b {
+  font: inherit;
+}
+
+/* Modal を開いている間、背面の一覧をスクロールさせない（旧 body.modal-open）。
+   印は GuidePage.tsx が <body> に付ける。CSS Modules のクラス名は生成物で JS から確実に取れる保証が無いので、
+   React の外（body）へ付けるものはデータ属性にする */
+:global(body[data-modal-open]) {
+  overflow: hidden;
+}
+
+@media (max-width: 620px) {
+  .list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    transition: none;
+  }
+  .item:active {
+    transform: none;
+  }
+}

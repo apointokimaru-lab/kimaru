@@ -43,7 +43,7 @@ URLが発行される＝人を招ける状態になるので、それより前�
 
 ## 2. 使い方ガイド（機能一覧ページ＋項目ごとの説明Modal）
 
-ヘッダーの「使い方ガイド」は **`/guide.html`（機能一覧）** へ送る。一覧は**項目名だけのボタン**で、
+ヘッダーの「使い方ガイド」は **`/guide`（機能一覧）** へ送る。一覧は**項目名だけのボタン**で、
 押すとその項目**だけ**の説明Modalが開く。**送りは1項目の中のページ間だけで、項目をまたがない。**
 現在15項目・27ページ。
 
@@ -68,7 +68,7 @@ URLが発行される＝人を招ける状態になるので、それより前�
 
 ### 説明の中身は項目ごとに形が違う
 
-読み手が知りたいことは項目ごとに違うので、`guide.js` の `ENTRIES` でページごとに部品を選ぶ。
+読み手が知りたいことは項目ごとに違うので、`features/guide/entries.ts` の `ENTRIES` でページごとに部品を選ぶ。
 
 | 部品 | 使う場面 |
 |---|---|
@@ -79,13 +79,14 @@ URLが発行される＝人を招ける状態になるので、それより前�
 | `note` | 上限・できないこと・元に戻せないこと |
 
 文言のキーは **単ページ = `guide.<key>.*`／複数ページ = `guide.<key>.p<n>.*`**。この2つの規則は
-`guide.js` の `pagesOf` / `prefixOf` に閉じ込めてあり、`scripts/test/unit.mjs` も同じ関数の出力
-（`window.KimaruGuide.entries[].pages[].prefix`）を通して必要なキーを組み立てるので、規則は1か所にしかない。
+`features/guide/entries.ts` の `resolvePages` に閉じ込めてあり、画面もテスト（`features/guide/entries.test.ts`）も
+同じ出力（`prefix`）から必要なキーを組み立てるので、規則は1か所にしかない。
 
 ### 1ページぶんの分量（iPhone 12 でスクロールなし）
 
 **1ページは、iPhone 12（390×664＝Safariのツールバーが出ている状態）でスクロールせずに収まる量に抑える。**
-`scripts/test/e2e.mjs` が全ページの `scrollHeight` を実測して固定しているので、超えるとテストが落ちる。
+`tests/e2e/guide.spec.ts`（Playwright の iphone12 プロジェクト）が全ページの `scrollHeight` を実測して固定しているので、
+超えるとテストが落ちる。
 
 **収まらなくなったら、文を削るのではなくページを足す。** 手順や設定項目を削ると「その説明を読んでも設定できない」
 状態に戻るため。一覧のボタンは増やさない（similar な名前のボタンが並ぶと、目的の説明を探しにくい）。
@@ -106,11 +107,11 @@ URLが発行される＝人を招ける状態になるので、それより前�
 | 1つの画面の説明 | **その画面で設定する項目は1つのModalにまとめる** | 「予約ページ設定」の画面を開いたまま読み進められる。受付時間・前後バッファ・事前アンケートを別ボタンにすると、同じ画面の話が一覧に散らばる |
 | ボタンの見た目 | 1pxの枠＋角丸6px、**下辺だけ3pxで立体に見せる**（影は使わない） | 押せることを見た目で示す。押したときは下辺を1pxに戻して同じぶん下げる（沈む動きになり、高さは変わらない）。影を足すと `--shadow` を使う既存のカードと区別がつかなくなる |
 | 図 | **持たない** | 項目が「機能」から「操作」に細かくなったことで、図が手順の言い換えにしかならなくなった（`.s-*` のCSSと骨格SVGの生成コードは削除） |
-| 置き場所 | **`/guide.html` だけが `guide.js` を読む** | 開く先が一覧1枚に決まったので、全ページに配る必要がなくなった（当初は `usage.js` と同じく Edge Function が全HTMLに注入していた） |
-| 一覧の中身 | `guide.js` の `ENTRIES` / `GROUPS` に持ち、HTMLには項目名を書かない | 項目名を2か所に持つと、説明を1つ足したときに必ず片方が古くなる。`group` の書き忘れと、部品を1つも持たないページは `scripts/test/unit.mjs` が落とす |
+| 置き場所 | **`/guide` の1ルートに閉じる**（`app/(public)/guide/`・#423 で Next へ） | 開く先が一覧1枚に決まったので、全ページに配る必要がない（当初は `usage.js` と同じく Edge Function が全HTMLに `guide.js` を注入していた） |
+| 一覧の中身 | `features/guide/entries.ts` の `ENTRIES` / `GROUPS` に持ち、画面（JSX）には項目名を書かない | 項目名を2か所に持つと、説明を1つ足したときに必ず片方が古くなる。`group` の書き忘れと、部品を1つも持たないページは `features/guide/entries.test.ts` が落とす |
 | ログインの要否 | **不要**（`PROTECTED_PATHS` に入れない） | 中身は操作の説明だけで、ユーザーのデータを含まない。登録前に「何ができるのか」を読めるほうがよい |
 | 直リンク | 開いている項目を URL の `#key` に載せる（ページ番号は載せない） | 案内したいのは説明の単位で、その何ページ目かではない |
-| 文言の置き場所 | i18n.js（`guide.*` キー・3言語） | 3言語の対称性を既存のテストで担保できる |
+| 文言の置き場所 | `messages/{ja,en,zh-TW}/guide.json`（正本は `public/i18n.js` の `guide.*`・`npm run i18n:split` の生成物） | 3言語の対称性を既存のテストで担保できる |
 | 文体 | **公的な手引き・外部資料に準じた です・ます調** | 当初の語りかけ調は「機械が書いた文章」という印象を与えた。条件は「〜する場合」、動作は「〜します／〜できます」。初期設定カードも同じ文体 |
 | ナビの折り返し | ログイン時だけ**ハンバーガーの境界を1180pxに広げる** | ナビが10項目になり、1180px 未満では言語選択とアバターが2段目に落ちてヘッダーからはみ出す |
 
@@ -118,7 +119,8 @@ URLが発行される＝人を招ける状態になるので、それより前�
 
 スマホ用の詰め（`@media(max-width:620px)`）は **`.guide` 系の指定より後ろに置くこと**。
 同じ詳細度なので、前に置くと base に上書きされて黙って効かなくなる（実際に一度そうなり、
-高さの実測が通っているのに端末では詰まっていない、という状態になった）。
+高さの実測が通っているのに端末では詰まっていない、という状態になった）。CSS Modules に移した今も同じで、
+`GuideModal.module.css` の中で media query を最後に置く。
 
 ## 関連ファイル
 
@@ -126,20 +128,23 @@ URLが発行される＝人を招ける状態になるので、それより前�
 |---|---|
 | `public/dashboard.html` | 初期設定カードのマークアップ |
 | `public/app.js` | `setSetupStep` / `renderSetupCard`（達成状況の反映） |
-| `public/guide.html` | 機能一覧ページ（器だけ。項目名は書かない） |
-| `public/guide.js` | 説明の定義（`ENTRIES`）・章立て（`GROUPS`）・一覧の描画・Modalの組み立て |
-| `scripts/test/e2e.mjs` | 一覧と各Modalの描画、**390×664 でスクロールしないこと** |
-| `public/styles.css` | `.setup*` / `.guide*` |
-| `netlify/edge-functions/auth-gate.js` | ヘッダーの「使い方ガイド」→ `/guide.html` |
-| `public/i18n.js` | `setup.*` / `guide.*`（ja / en / zh-TW） |
-| `scripts/test/unit.mjs` | スライドと文言の対応・リンク先の実在 |
-| `scripts/test/e2e.mjs` | カードの状態遷移・ガイドの送り／閉じる |
+| `app/(public)/guide/page.tsx` | 機能一覧ページ（薄い page。項目名は書かない） |
+| `app/(public)/guide/_components/GuidePage.tsx` | 一覧の描画・開いている項目の state・`#key` の同期・キー操作 |
+| `app/(public)/guide/_components/GuideModal.tsx` | 1項目ぶんの説明Modal（部品の組み立て・ページ送り） |
+| `features/guide/entries.ts` | 説明の定義（`ENTRIES`）・章立て（`GROUPS`）・文言キーの規則（`resolvePages`） |
+| `features/guide/entries.test.ts` | 項目と文言の対応（3言語）・リンク先の実在・章の網羅 |
+| `tests/e2e/guide.spec.ts` | 一覧と各Modalの描画、**390×664 でスクロールしないこと**、`#key` の直リンク |
+| `app/(public)/guide/_components/*.module.css` | 一覧とModalの見た目（旧 `public/styles.css` の `.guide*` を値そのままで移した） |
+| `netlify/edge-functions/auth-gate.js` | ヘッダーの「使い方ガイド」→ `/guide` |
+| `public/i18n.js` | `setup.*` / `guide.*`（ja / en / zh-TW。`messages/` の正本） |
+| `public/dashboard.html` / `public/app.js` | 初期設定カード（カードの状態遷移は `scripts/test/e2e.mjs`） |
 
 ## 残る穴
 
 - どの機能を開いたか・どの枚で離脱したかは計測していない（`page_events` の `event` は
   `page_view` / `limit_hit` の許可リスト制。増やすならサーバ側の許可リストも触る必要がある）。
-  一覧ページ自体の表示回数は `/guide.html` の `page_view` として残る。
+  一覧ページ自体の表示回数は `/guide.html` の `page_view` として残る（Next に移したあとも `_lib/analytics.js` の
+  `MIGRATED_PATHS` で旧 URL のキーに揃えている）。
 - 一覧に検索・絞り込みは無い（15項目・4章なのでスクロールで足りる）。これ以上増えるなら検索を足すかを決め直す。
 - 説明はすべて手書きで、画面の実装とは自動で同期しない（例: `bs.*` の文言を変えても `guide.page-settings.*` は変わらない）。
   設定項目を増減したときは、この2つを合わせて直すこと。

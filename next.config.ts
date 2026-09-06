@@ -38,6 +38,8 @@ const nextConfig: NextConfig = {
       { source: "/terms.html", destination: "/terms", permanent: true },
       // #421: プライバシーポリシーを Next の /privacy に移した（Google OAuth 審査・Zoom 申請に登録した旧 URL も 308 で届く）
       { source: "/privacy.html", destination: "/privacy", permanent: true },
+      // #422: 特定商取引法に基づく表記を Next の /tokushoho に移した
+      { source: "/tokushoho.html", destination: "/tokushoho", permanent: true },
     ];
   },
 

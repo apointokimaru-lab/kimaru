@@ -2096,6 +2096,7 @@ section("usage tracking: path normalization (#342)");
   ok("Next に移した /plan は旧の集計キー /plan.html に揃う（#419）", n("/plan") === "/plan.html" && n("/plan?x=1") === "/plan.html");
   ok("Next に移した /terms は旧の集計キー /terms.html に揃う（#420）", n("/terms") === "/terms.html");
   ok("Next に移した /privacy は旧の集計キー /privacy.html に揃う（#421）", n("/privacy") === "/privacy.html");
+  ok("Next に移した /tokushoho は旧の集計キー /tokushoho.html に揃う（#422）", n("/tokushoho") === "/tokushoho.html");
 
   ok("トップは /index.html に寄せる", n("/") === "/index.html" && n("/index.html") === "/index.html");
   ok("通常の画面はそのまま", n("/dashboard.html") === "/dashboard.html");

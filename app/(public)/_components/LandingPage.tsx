@@ -387,7 +387,7 @@ export function LandingPage() {
           <div>
             <Link href="/terms">利用規約</Link>
             <Link href="/privacy">プライバシーポリシー</Link>
-            <a href="/tokushoho.html">特定商取引法に基づく表記</a>
+            <Link href="/tokushoho">特定商取引法に基づく表記</Link>
           </div>
           <span>© 2026 キマル</span>
         </div>

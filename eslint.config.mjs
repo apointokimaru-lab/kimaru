@@ -18,7 +18,7 @@ export default defineConfig([
     "scripts/**",
     // 生成物（scripts/i18n/split.mjs が書く辞書・型・レジストリ）
     "messages/**",
-    // 使い捨ての PoC（poc/rtms・poc/stt）。別スタック（Node 単体・Python）で規約も別（#475）
+    // 使い捨ての PoC（poc/stt・poc/rtms・poc/meet-bot）。別スタック（Python・Node 単体）で規約も別（#393・#475・#478）
     "poc/**",
   ]),
   ...nextVitals,

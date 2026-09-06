@@ -1,0 +1,92 @@
+# PoC のコンテナ画像（poc/stt・poc/rtms・poc/meet-bot）を arm64 でビルドして ECR へ送る（#485）。
+# なぜ GitHub Actions か: 手元に Docker が無く、長期のアクセスキーも置かない方針（infra/poc・#483）。
+# OIDC で kimaru-bot-github-actions ロールを引き受け、ECR に push するだけ（RunTask は人が run-task.sh で行う）。
+# なぜ ubuntu-24.04-arm か: Fargate は Graviton（arm64）で動かす。公開リポジトリなら arm64 のホストランナーが
+# 無料で使え、QEMU のエミュレーション（数倍遅い・faster-whisper の依存が落ちることがある）を避けられる。
+# 使えなくなったら ubuntu-latest ＋ docker/setup-qemu-action に戻す（README）。
+name: Build PoC images
+
+on:
+  push:
+    # workflow_dispatch は既定ブランチ（main）に無い workflow を起こせない。main_bot に入る前の作業ブランチで
+    # 試すときは、ここに自分のブランチを一時的に足して push で起こす（PR 前に戻す・#485）
+    branches: [main_bot]
+    paths:
+      - "poc/**"
+      - ".github/workflows/build-images.yml"
+  workflow_dispatch:
+    inputs:
+      images:
+        description: "ビルドする画像（stt / rtms / meet-bot をカンマ区切り。空なら 3 つとも）"
+        required: false
+        default: ""
+
+permissions:
+  id-token: write # OIDC トークン（AssumeRoleWithWebIdentity）
+  contents: read
+
+# 同じ画像を同時に 2 本 push しない（:latest の取り合いを避ける）。古い方を止めずに待つ
+concurrency:
+  group: build-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # 手動実行の入力から matrix を作る（job の if では matrix を参照できないので前段で決める）
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.pick.outputs.images }}
+    steps:
+      - id: pick
+        env:
+          WANT: ${{ inputs.images }}
+        run: |
+          if [ -z "$WANT" ]; then
+            echo 'images=["stt","rtms","meet-bot"]' >> "$GITHUB_OUTPUT"
+          else
+            list="$(echo "$WANT" | tr -d ' ' | tr ',' '\n' | grep -E '^(stt|rtms|meet-bot)$' | jq -R . | jq -cs .)"
+            echo "images=$list" >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.image }}
+    needs: plan
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.plan.outputs.images) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      # GHA のレイヤーキャッシュには docker-container ドライバが要る
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: poc/${{ matrix.image }}
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ vars.ECR_REGISTRY }}/kimaru-bot/${{ matrix.image }}:latest
+            ${{ vars.ECR_REGISTRY }}/kimaru-bot/${{ matrix.image }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          # provenance/SBOM の attestation を付けると manifest list になり、ECR の一覧で大きさが読みにくい。単一 manifest で送る
+          provenance: false
+          sbom: false
+
+      - name: ECR 上の大きさ（圧縮後）
+        run: |
+          aws ecr describe-images --repository-name "kimaru-bot/${{ matrix.image }}" \
+            --image-ids imageTag=${{ github.sha }} \
+            --query 'imageDetails[0].{tags:imageTags,pushedAt:imagePushedAt,sizeMB:to_string(imageSizeInBytes)}' --output table

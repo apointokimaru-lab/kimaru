@@ -4,12 +4,14 @@
 //   npx tsx src/cli.ts join --url <meet-url> --invited|--uninvited [--guest-name 名] [--out dir] [--headed] [--no-stt]
 //   npx tsx src/cli.ts selftest [--seconds 5] [--wav path]   擬似ページで録音の自己診断
 //   npx tsx src/cli.ts fake-meet [--media-dir dir] [--port n] 擬似ページを配って待つ（手で眺める用）
+//   npx tsx src/cli.ts fake-run [--seconds 300] [--out dir]   擬似ページに入室して録音し、会議終了で退出（Fargate の実測用・#485）
 
 import { parseArgs } from "node:util";
 import { chromium } from "playwright";
 import { loadConfig, loadDotEnv } from "./config.js";
 import { runBot, type JoinMode } from "./join.js";
 import { createLogger } from "./log.js";
+import { pcmRms, readWav } from "./pcm-analysis.js";
 import { runSelftest } from "./selftest.js";
 import { startFakeMeet } from "../test/fake-meet/server.js";
 import path from "node:path";
@@ -23,6 +25,7 @@ function usage(): never {
       "  tsx src/cli.ts join --url <meet-url> [--invited|--uninvited] [--guest-name 名] [--out dir] [--headed] [--max-seconds n] [--chunk-seconds n] [--no-stt]",
       "  tsx src/cli.ts selftest [--seconds 5] [--wav path] [--late ms] [--out dir]",
       "  tsx src/cli.ts fake-meet [--media-dir dir] [--port n]",
+      "  tsx src/cli.ts fake-run [--seconds 300] [--chunk-seconds n] [--out dir]",
       "",
       "設定は .env（.env.example を参照）。",
     ].join("\n") + "\n",
@@ -169,6 +172,53 @@ async function main(): Promise<number> {
       await new Promise<void>((resolve) => process.once("SIGINT", () => resolve()));
       await server.close();
       return 0;
+    }
+    case "fake-run": {
+      // Fargate 上で「Chromium ＋ 音声取り込み」の CPU/メモリと課金秒を実測するための腕（#485）。
+      // 擬似 Meet を同じプロセスの 127.0.0.1 に配り、本物と同じ runBot（入室 → 録音 → 終了検知 → 退出）を通す。
+      // --seconds 後に擬似ページが「会議は終了しました」を出し、Bot は meeting_ended で退出する。
+      // 文字起こしは呼ばない（別タスク stt の仕事。Chromium と faster-whisper を同居させて測ると値が混ざる）。
+      const seconds = values.seconds ? Number(values.seconds) : 300;
+      const server = await startFakeMeet();
+      try {
+        const q = new URLSearchParams({ tone: "440", participants: "2", end: "ended", after: String(seconds * 1000) });
+        const result = await runBot(
+          { ...cfg, outDir: values.out ? path.resolve(values.out) : cfg.outDir },
+          {
+            url: `${server.url}?${q.toString()}`,
+            mode: "invited",
+            stt: false,
+            chunkSeconds: values["chunk-seconds"] ? Number(values["chunk-seconds"]) : undefined,
+          },
+        );
+        // 録れているか（RMS が 0 なら無音＝取り込みが死んでいる）を WAV ごとに数える
+        const wav = (result.manifest?.chunks ?? [])
+          .filter((c) => c.sha256)
+          .map((c) => {
+            const info = readWav(path.join(result.out_dir, c.file));
+            return { file: c.file, seconds: +info.durationSeconds.toFixed(2), rms: Math.round(pcmRms(info.pcm)) };
+          });
+        const summary = {
+          final_state: result.final_state,
+          end_reason: result.end_reason,
+          in_meeting_seconds: result.in_meeting_seconds,
+          audio_mode: result.audio.mode,
+          sample_rate: result.audio.sample_rate,
+          pcm_bytes: result.audio.bytes,
+          total_seconds: result.manifest?.total_seconds ?? 0,
+          chunks: wav.length,
+          silent_chunks: wav.filter((w) => w.rms === 0).length,
+          wav,
+          out_dir: result.out_dir,
+          errors: result.errors,
+        };
+        // CloudWatch Logs から 1 行で拾う
+        process.stdout.write("MEET_RESULT " + JSON.stringify(summary) + "\n");
+        const ok = (result.final_state === "meeting_ended" || result.final_state === "left") && wav.length > 0 && summary.silent_chunks === 0;
+        return ok ? 0 : 1;
+      } finally {
+        await server.close();
+      }
     }
     default:
       usage();

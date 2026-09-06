@@ -3,12 +3,15 @@
 #
 # 使い方:
 #   scripts/run-task.sh <smoke|meet-bot|rtms|stt> [FARGATE|FARGATE_SPOT] [--no-wait] [--timeout <秒>]
+#                       [--env KEY=VALUE ...] [--cpu <unit> --memory <MiB>]
 #
 #   第 1 引数はタスク定義の短い名前（outputs の task_definition_families の key）。
 #   第 2 引数はキャパシティプロバイダ（既定 FARGATE = オンデマンド。stt は FARGATE_SPOT で回す前提）。
 #   --no-wait   起動だけして戻る（会議 1 本ぶん走らせるとき）。後で同じ引数に --task <arn> を付けると結果だけ取れる
 #   --timeout   待つ上限秒（既定 3600）。超えたら止めずに戻る
 #   --task <arn> 起動せず、既に走った／走っているタスクの結果だけを出す
+#   --env K=V   コンテナの環境変数を上書き・追加する（run-task の overrides。繰り返し可。#485: MODE / INPUT_S3_URI / RUN_ID 等）
+#   --cpu/--memory  タスクの大きさをタスク定義を登録し直さずに変える（Fargate の組み合わせ制約に従う。両方指定する）
 #
 # 前提: このディレクトリで terraform init/apply 済み（cluster・subnet・SG・log group を terraform output から取る）。
 #       jq は使わない（aws --query だけ）。GNU date（Linux / WSL）前提。
@@ -17,7 +20,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 TF_DIR="$HERE/.."
 
-usage() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+usage() { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 
 NAME="${1:-}"; [ -n "$NAME" ] || usage
 shift
@@ -25,12 +28,24 @@ CAPACITY="FARGATE"
 WAIT=1
 TIMEOUT=3600
 TASK_ARN=""
+ENV_JSON=""
+CPU_OVERRIDE=""
+MEM_OVERRIDE=""
+# JSON 文字列の中に入れる値の最小のエスケープ（" と \ だけ。jq を使わない方針のため）
+json_str() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 while [ $# -gt 0 ]; do
   case "$1" in
     FARGATE|FARGATE_SPOT) CAPACITY="$1" ;;
     --no-wait) WAIT=0 ;;
     --timeout) TIMEOUT="$2"; shift ;;
     --task) TASK_ARN="$2"; shift ;;
+    --env)
+      KV="$2"; shift
+      [ "${KV#*=}" != "$KV" ] || { echo "--env は KEY=VALUE の形にする: $KV" >&2; exit 2; }
+      ENV_JSON="${ENV_JSON:+$ENV_JSON,}{\"name\":\"$(json_str "${KV%%=*}")\",\"value\":\"$(json_str "${KV#*=}")\"}"
+      ;;
+    --cpu) CPU_OVERRIDE="$2"; shift ;;
+    --memory) MEM_OVERRIDE="$2"; shift ;;
     -h|--help) usage ;;
     *) echo "unknown argument: $1" >&2; usage ;;
   esac
@@ -49,6 +64,16 @@ FAMILY="$(terraform -chdir="$TF_DIR" output -json task_definition_families | sed
 
 if [ -z "$TASK_ARN" ]; then
   echo "== run-task: family=$FAMILY capacity=$CAPACITY cluster=$CLUSTER"
+  # --env / --cpu / --memory は run-task の overrides に載せる。コンテナ名はタスク定義で key と同じ（task-definitions.tf）。
+  # cpu/memory はタスク定義を登録し直さずに大きさを変える手（#485 の 2 vCPU と 1 vCPU の比較）
+  OVERRIDES=""
+  [ -n "$ENV_JSON" ] && OVERRIDES="\"containerOverrides\":[{\"name\":\"$NAME\",\"environment\":[$ENV_JSON]}]"
+  if [ -n "$CPU_OVERRIDE" ] || [ -n "$MEM_OVERRIDE" ]; then
+    [ -n "$CPU_OVERRIDE" ] && [ -n "$MEM_OVERRIDE" ] || { echo "--cpu と --memory は両方指定する" >&2; exit 2; }
+    OVERRIDES="${OVERRIDES:+$OVERRIDES,}\"cpu\":\"$CPU_OVERRIDE\",\"memory\":\"$MEM_OVERRIDE\""
+  fi
+  OVERRIDE_ARGS=()
+  [ -n "$OVERRIDES" ] && { OVERRIDE_ARGS=(--overrides "{$OVERRIDES}"); echo "   overrides: {$OVERRIDES}"; }
   # run-task の戻りに失敗理由（quota 超えなど）が入ることがあるので、tasks と failures の両方を見る
   RESULT="$(aws ecs run-task \
     --cluster "$CLUSTER" \
@@ -57,6 +82,7 @@ if [ -z "$TASK_ARN" ]; then
     --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SG],assignPublicIp=ENABLED}" \
     --started-by "run-task.sh" \
     --tags "key=Project,value=kimaru-bot" "key=Env,value=poc" "key=ManagedBy,value=run-task.sh" \
+    "${OVERRIDE_ARGS[@]}" \
     --query '{tasks: tasks[].taskArn, failures: failures}' --output json)"
   TASK_ARN="$(printf '%s' "$RESULT" | sed -nE 's/.*"(arn:aws:ecs:[^"]+:task\/[^"]+)".*/\1/p' | head -1)"
   if [ -z "$TASK_ARN" ]; then

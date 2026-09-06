@@ -9,3 +9,5 @@ out/
 !.env.example
 # tsx/tsc の一時ファイル
 *.tsbuildinfo
+# PoC 単体の依存（コンテナ用。手元ではリポジトリ直下の node_modules を使う）
+node_modules/

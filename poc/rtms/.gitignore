@@ -4,3 +4,5 @@ out/
 node_modules/
 # 資格情報
 .env
+# esbuild の束ね出力（Dockerfile の 1 段目が作る）
+dist/

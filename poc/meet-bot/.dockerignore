@@ -1,0 +1,11 @@
+# 画像に入れないもの（#485）。ログイン済みプロファイル（Google の Cookie）・録音・資格情報・手元の依存
+profile/
+profile-*/
+out/
+node_modules/
+.env
+.env.*
+*.md
+*.tsbuildinfo
+src/*.test.ts
+test/fake-meet/*.test.ts

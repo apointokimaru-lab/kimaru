@@ -194,6 +194,42 @@
 }
 
 /* styles.css:144 */
+/* 法務ページ（#420〜#422）。styles.css:1187 の「法務（mock .legal）」から逐語で抜き出し */
+/* styles.css:1189 */
+.legal {
+  max-width: 740px;
+}
+/* styles.css:1190 */
+.legal h2 {
+  font-size: 20px;
+  margin: 26px 0 8px;
+}
+/* styles.css:1191 */
+.legal p,
+.legal li {
+  color: var(--ink-2);
+}
+/* styles.css:1192 */
+.legal dl,
+.legal-dl {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 10px 18px;
+  margin-top: 8px;
+}
+/* styles.css:1193 */
+.legal dt,
+.legal-dl dt {
+  font-weight: 700;
+  color: var(--ink);
+}
+/* styles.css:1194 */
+.legal dd,
+.legal-dl dd {
+  margin: 0;
+  color: var(--ink-2);
+}
+
 @media (max-width: 900px) {
   .nav-burger {
     display: inline-flex;

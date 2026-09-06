@@ -76,7 +76,7 @@ const SITE_HEADER = `<header class="site-header">
 const SITE_FOOTER = `<footer class="foot footer">
     <div class="foot-in">
       <nav class="footer-nav">
-        <a href="/terms.html" data-i18n="footer.terms">利用規約</a>
+        <a href="/terms" data-i18n="footer.terms">利用規約</a>
         <a href="/privacy.html" data-i18n="footer.privacy">プライバシーポリシー</a>
         <a href="/tokushoho.html" data-i18n="footer.tokushoho">特定商取引法に基づく表記</a>
       </nav>

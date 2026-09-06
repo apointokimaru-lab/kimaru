@@ -59,7 +59,7 @@ test.describe("料金・プラン /plan（#419）", () => {
     await expect(header.locator("a.app-only").first()).toBeHidden();
     await expect(
       page.locator("footer.footer").getByRole("link", { name: "利用規約" }),
-    ).toHaveAttribute("href", "/terms.html");
+    ).toHaveAttribute("href", "/terms");
 
     // ログイン専用（Cat Key フォーム・Pro を始める）は見えず、未ログイン向けの案内が見える
     await expect(page.locator("#pro-cat-key-form")).toBeHidden();

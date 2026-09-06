@@ -40,7 +40,7 @@
 | 14 | `/analytics.html` | 分析ダッシュボード（利用状況・転換率・定着の集計） | 運営セッション | 運営 | 旧（public/） |
 | 14 | `/booking.html`（`/b/{slug}`） | 予約ページ（ゲスト用） | 不要 | 公開 | 旧（public/） |
 | 15 | `/guide.html` | 使い方ガイド（機能一覧＋機能ごとのModal） | 不要 | 公開 | 旧（public/） |
-| 16 | `/terms.html` | 利用規約 | 不要 | 公開（法務） | 旧（public/） |
+| 16 | `/terms`（旧 `/terms.html` は 308） | 利用規約 | 不要 | 公開（法務） | Next（#420） |
 | 17 | `/privacy.html` | プライバシーポリシー | 不要 | 公開（法務） | 旧（public/） |
 | 18 | `/tokushoho.html` | 特定商取引法に基づく表記 | 不要 | 公開（法務） | 旧（public/） |
 

@@ -1,0 +1,50 @@
+# main → main_bot の自動同期（#481）。
+# なぜ: 議事録 Bot は main ではなく main_bot に集約する決定（2026-09-05）。main の変更を随時 main_bot に
+# 取り込んでおかないと、最後にまとめて main へ戻すときのコンフリクトが大きくなる。
+# 何を: main に push があるたびに main_bot へ merge して push する。衝突したら自動では触らず、
+# main → main_bot の PR を立てて人が解決する（同じ PR が既にあれば作らない）。
+# 注意: GITHUB_TOKEN で push したコミットは他の workflow を起動しない（GitHub の仕様・ループ防止）。
+# main_bot 単体の CI は、main_bot 向きの PR の CI（PR のマージ結果で走る）で担保する。
+name: Sync main into main_bot
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# 同期は直列に（並行すると push が競合する）
+concurrency:
+  group: sync-main-bot
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main_bot
+          fetch-depth: 0
+      - name: main を main_bot に merge して push（衝突時は PR）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          if git merge --no-edit origin/main; then
+            git push origin main_bot
+            echo "merged $(git rev-parse --short origin/main) into main_bot"
+          else
+            git merge --abort
+            echo "conflict: opening PR main -> main_bot"
+            if gh pr list --base main_bot --head main --state open --json number --jq 'length' | grep -q '^0$'; then
+              gh pr create --base main_bot --head main \
+                --title "sync: main → main_bot（衝突あり・手で解決）" \
+                --body "main を main_bot へ自動同期しようとして衝突した（#481）。このブランチ上で衝突を解決してマージする。"
+            fi
+          fi

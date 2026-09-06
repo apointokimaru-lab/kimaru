@@ -9,6 +9,8 @@ package-lock.json
 deno.lock
 docs/
 *.md
+# 使い捨ての PoC（poc/rtms・poc/stt）。整形・lint の対象外（#475）
+poc/
 # 生成物（scripts/i18n/split.mjs）。手で整形しない
 messages/
 # public/styles.css からの逐語コピー（旧と見比べるため整形しない・#415）
@@ -17,4 +19,3 @@ styles/base.css
 C:*
 *wsl.localhost*
 # PoC（Python・#393）。新フロントの整形対象ではない
-poc/

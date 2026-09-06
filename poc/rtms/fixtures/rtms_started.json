@@ -1,0 +1,14 @@
+{
+  "_comment": "meeting.rtms_started の形（https://developers.zoom.us/docs/rtms/meetings/quickstart-websockets/ のサンプルどおり・値はダミー）。fake-zoom が server_urls と event_ts を差し替えて送る",
+  "event": "meeting.rtms_started",
+  "event_ts": 1757030400000,
+  "payload": {
+    "meeting_uuid": "TNhvT3WEBT6Srse3TgWRGr==",
+    "meeting_id": "81234567890",
+    "account_id": "B7Q4Y2M8X5L",
+    "operator_id": "P3Q8W2X9Y5",
+    "is_original_host": true,
+    "rtms_stream_id": "rtms_TN3WEBT6SrTgWRGr_001",
+    "server_urls": "wss://rtms-signaling.example.invalid/ws"
+  }
+}

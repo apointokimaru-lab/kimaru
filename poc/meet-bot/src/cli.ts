@@ -1,0 +1,184 @@
+// コマンドライン入口。
+//   npx tsx src/cli.ts login                      人が Google にログインするための Chromium を開く（自動入力はしない）
+//   npx tsx src/cli.ts status                     プロファイルがログイン済みかを見る
+//   npx tsx src/cli.ts join --url <meet-url> --invited|--uninvited [--guest-name 名] [--out dir] [--headed] [--no-stt]
+//   npx tsx src/cli.ts selftest [--seconds 5] [--wav path]   擬似ページで録音の自己診断
+//   npx tsx src/cli.ts fake-meet [--media-dir dir] [--port n] 擬似ページを配って待つ（手で眺める用）
+
+import { parseArgs } from "node:util";
+import { chromium } from "playwright";
+import { loadConfig, loadDotEnv } from "./config.js";
+import { runBot, type JoinMode } from "./join.js";
+import { createLogger } from "./log.js";
+import { runSelftest } from "./selftest.js";
+import { startFakeMeet } from "../test/fake-meet/server.js";
+import path from "node:path";
+
+function usage(): never {
+  process.stderr.write(
+    [
+      "使い方:",
+      "  tsx src/cli.ts login [--url https://meet.google.com/]",
+      "  tsx src/cli.ts status",
+      "  tsx src/cli.ts join --url <meet-url> [--invited|--uninvited] [--guest-name 名] [--out dir] [--headed] [--max-seconds n] [--chunk-seconds n] [--no-stt]",
+      "  tsx src/cli.ts selftest [--seconds 5] [--wav path] [--late ms] [--out dir]",
+      "  tsx src/cli.ts fake-meet [--media-dir dir] [--port n]",
+      "",
+      "設定は .env（.env.example を参照）。",
+    ].join("\n") + "\n",
+  );
+  process.exit(2);
+}
+
+async function main(): Promise<number> {
+  loadDotEnv();
+  const cfg = loadConfig();
+  const [command, ...rest] = process.argv.slice(2);
+  if (!command) usage();
+
+  const { values } = parseArgs({
+    args: rest,
+    options: {
+      url: { type: "string" },
+      invited: { type: "boolean" },
+      uninvited: { type: "boolean" },
+      "guest-name": { type: "string" },
+      out: { type: "string" },
+      headed: { type: "boolean" },
+      "max-seconds": { type: "string" },
+      "chunk-seconds": { type: "string" },
+      "no-stt": { type: "boolean" },
+      seconds: { type: "string" },
+      wav: { type: "string" },
+      late: { type: "string" },
+      "media-dir": { type: "string" },
+      port: { type: "string" },
+    },
+    strict: true,
+  });
+
+  switch (command) {
+    case "login": {
+      // 人がログインするための窓を開くだけ。ID・パスワードの入力や「次へ」のクリックはコードに書かない。
+      // なぜ: Google の自動ログインは保護措置の回避に当たる（docs/ai-bot/platform-research.md 7.3）。
+      // 人が完了したらブラウザを閉じる → プロファイルに Cookie が残り、以後 join が使う。
+      const url = values.url ?? "https://meet.google.com/";
+      process.stderr.write(
+        [
+          `プロファイル: ${cfg.profileDir}`,
+          "Chromium を開きます。Bot 用の Google アカウントで手動でログインし、Meet のトップ画面が出たらウィンドウを閉じてください。",
+          "（ヘッドレスではないので DISPLAY が必要。WSL2 なら WSLg が :0 を用意する）",
+          "",
+        ].join("\n"),
+      );
+      const context = await chromium.launchPersistentContext(cfg.profileDir, {
+        headless: false,
+        channel: cfg.browserChannel || undefined,
+        viewport: null,
+      });
+      const page = context.pages()[0] ?? (await context.newPage());
+      await page.goto(url).catch(() => {});
+      await new Promise<void>((resolve) => context.once("close", () => resolve()));
+      process.stderr.write("ブラウザが閉じられました。`status` でログイン状態を確認できます。\n");
+      return 0;
+    }
+    case "status": {
+      // ログイン済みかの目安。Meet のトップにログイン済みのときだけ出る要素（アカウントボタン／「新しい会議」）を探す
+      const context = await chromium.launchPersistentContext(cfg.profileDir, {
+        headless: cfg.headless,
+        channel: cfg.browserChannel || undefined,
+      });
+      try {
+        const page = context.pages()[0] ?? (await context.newPage());
+        await page.goto("https://meet.google.com/", { waitUntil: "domcontentloaded", timeout: 60000 });
+        await page.waitForTimeout(3000);
+        const account = page.getByRole("button", { name: /Google アカウント|Google Account/i }).or(page.getByRole("link", { name: /Google アカウント|Google Account/i }));
+        const newMeeting = page.getByRole("button", { name: /新しい会議|New meeting/i });
+        const signIn = page.getByRole("link", { name: /^(ログイン|Sign in)$/i });
+        const [hasAccount, hasNew, hasSignIn] = await Promise.all([
+          account.first().isVisible().catch(() => false),
+          newMeeting.first().isVisible().catch(() => false),
+          signIn.first().isVisible().catch(() => false),
+        ]);
+        const signedIn = hasAccount || hasNew;
+        process.stdout.write(
+          JSON.stringify({ profile_dir: cfg.profileDir, url: page.url(), signed_in: signedIn, has_account_button: hasAccount, has_new_meeting: hasNew, has_sign_in_link: hasSignIn }, null, 2) + "\n",
+        );
+        return signedIn ? 0 : 1;
+      } finally {
+        await context.close().catch(() => {});
+      }
+    }
+    case "join": {
+      if (!values.url) usage();
+      const mode: JoinMode = values["guest-name"] ? "guest" : values.invited ? "invited" : values.uninvited ? "uninvited" : "unknown";
+      const result = await runBot(
+        { ...cfg, outDir: values.out ? path.resolve(values.out) : cfg.outDir },
+        {
+          url: values.url,
+          mode,
+          guestName: values["guest-name"],
+          headless: values.headed ? false : undefined,
+          maxSeconds: values["max-seconds"] ? Number(values["max-seconds"]) : undefined,
+          chunkSeconds: values["chunk-seconds"] ? Number(values["chunk-seconds"]) : undefined,
+          stt: values["no-stt"] ? false : true,
+        },
+      );
+      process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+      return result.final_state === "left" || result.final_state === "meeting_ended" ? 0 : 1;
+    }
+    case "selftest": {
+      const logger = createLogger(null);
+      const r = await runSelftest({
+        seconds: values.seconds ? Number(values.seconds) : 5,
+        wavFile: values.wav ? path.resolve(values.wav) : undefined,
+        lateMs: values.late ? Number(values.late) : 0,
+        outDir: values.out ? path.resolve(values.out) : undefined,
+        channel: cfg.browserChannel,
+        log: logger.log,
+      });
+      // 正弦波なら 440 Hz が立つこと、WAV 再生なら音が入っていることを合格条件にする
+      const ok =
+        r.wav.length > 0 &&
+        r.wav.every((w) => w.sampleRate === 16000) &&
+        r.wav.some((w) => (values.wav ? w.rms > 500 : w.rms > 1000 && w.tone > 0.05));
+      process.stdout.write(
+        JSON.stringify(
+          {
+            ok,
+            out_dir: r.outDir,
+            audio_mode: r.audioMode,
+            ctx_sample_rate: r.ctxSampleRate,
+            tracks_seen: r.tracksSeen,
+            pcm_bytes: r.pcmBytes,
+            pcm_chunks: r.chunksReceived,
+            wav: r.wav.map((w) => ({ ...w, rms: Math.round(w.rms), tone: +w.tone.toFixed(3), tone660: +w.tone660.toFixed(3), durationSeconds: +w.durationSeconds.toFixed(2) })),
+          },
+          null,
+          2,
+        ) + "\n",
+      );
+      return ok ? 0 : 1;
+    }
+    case "fake-meet": {
+      const server = await startFakeMeet({
+        mediaDir: values["media-dir"] ? path.resolve(values["media-dir"]) : undefined,
+        port: values.port ? Number(values.port) : 0,
+      });
+      process.stderr.write(`擬似 Meet: ${server.url}  （例: ${server.url}?tone=440&participants=2&end=alone&after=20000）Ctrl+C で終了\n`);
+      await new Promise<void>((resolve) => process.once("SIGINT", () => resolve()));
+      await server.close();
+      return 0;
+    }
+    default:
+      usage();
+  }
+}
+
+main().then(
+  (code) => process.exit(code),
+  (e: unknown) => {
+    process.stderr.write(`${e instanceof Error ? e.stack ?? e.message : String(e)}\n`);
+    process.exit(1);
+  },
+);

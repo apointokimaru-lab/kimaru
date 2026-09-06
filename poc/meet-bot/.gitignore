@@ -1,0 +1,11 @@
+# 人がログインした Chromium プロファイル（Google の Cookie・トークンが入る）。絶対に commit しない
+profile/
+profile-*/
+# 録音（会議の音声・スクリーンショット・文字起こし）
+out/
+# 秘密（.env.example だけ残す）
+.env
+.env.*
+!.env.example
+# tsx/tsc の一時ファイル
+*.tsbuildinfo

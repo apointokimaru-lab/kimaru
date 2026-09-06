@@ -1,0 +1,204 @@
+<!doctype html>
+<!--
+  擬似 Meet ページ（オフライン試験用）。Google に繋がずに Bot の全経路を通すための「会議のふり」。
+  なぜ: 本物の Meet での試験は毎回人が会議を開く必要があり、Bot の入室・録音・終了検知の回帰確認には使えない。
+  Bot が頼りにしている手がかり（ボタン名・aria-label・[data-participant-id]・終了文言）だけを Meet と同じ形で出し、
+  音声は RTCPeerConnection のループバック（pc1 → pc2）で「遠隔の参加者の声」として届ける。
+  見た目は Meet と無関係。クエリで挙動を変える:
+    tone=440 amp=0.5      正弦波の周波数と振幅（既定）
+    wav=/media/x.wav      正弦波の代わりにこの WAV を繰り返し流す（--media-dir で配る）
+    late=2000             この ms 後に 2 本目のトラック（660 Hz）を再交渉で足す（途中参加の再現）
+    participants=2        入室時のタイル数（Bot 自身を含む）
+    prejoin=ask           「今すぐ参加」ではなく「参加をリクエスト」を出し、admit ms 後に入室させる（既定 2000）
+    end=removed|ended|alone|denied   after ms 後に終了系の画面へ（denied は prejoin=ask のときだけ意味がある）
+    autojoin=1            入室前画面を飛ばして即ループバック開始（低レベルの録音試験用）
+-->
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>Fake Meet</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    [hidden] { display: none !important; }
+    #tiles div { display: inline-block; border: 1px solid #999; padding: 1rem; margin: 0.5rem; }
+  </style>
+</head>
+<body>
+  <main id="prejoin">
+    <h1>会議に参加しますか？</h1>
+    <button id="mic" aria-label="マイクをオフにする (Ctrl + D)" data-is-muted="false">マイク</button>
+    <button id="cam" aria-label="カメラをオフにする (Ctrl + E)" data-is-muted="false">カメラ</button>
+    <button id="join">今すぐ参加</button>
+  </main>
+
+  <main id="waiting" hidden>
+    <p>参加をリクエストしています…</p>
+  </main>
+
+  <main id="call" hidden>
+    <div id="tiles"></div>
+    <button id="leave" aria-label="通話から退出">退出</button>
+    <p id="status"></p>
+  </main>
+
+  <main id="after" hidden>
+    <p id="after-text"></p>
+    <button>ホーム画面に戻る</button>
+  </main>
+
+  <script>
+    const q = new URLSearchParams(location.search);
+    const num = (k, d) => (q.has(k) ? Number(q.get(k)) : d);
+    const cfg = {
+      tone: num("tone", 440),
+      amp: num("amp", 0.5),
+      wav: q.get("wav"),
+      late: num("late", 0),
+      participants: num("participants", 2),
+      prejoin: q.get("prejoin") || "join",
+      admit: num("admit", 2000),
+      end: q.get("end") || "none",
+      after: num("after", 0),
+      autojoin: q.get("autojoin") === "1",
+    };
+    window.__fakeMeet = { cfg, state: "prejoin", tracksSent: 0, joinedAt: null };
+
+    const $ = (id) => document.getElementById(id);
+    const show = (id) => {
+      for (const m of document.querySelectorAll("main")) m.hidden = m.id !== id;
+      window.__fakeMeet.state = id;
+    };
+
+    // マイク／カメラの切り替え（Meet と同じく aria-label と data-is-muted を反転させる）
+    for (const [id, name, key] of [["mic", "マイク", "D"], ["cam", "カメラ", "E"]]) {
+      $(id).addEventListener("click", () => {
+        const b = $(id);
+        const muted = b.dataset.isMuted === "true";
+        b.dataset.isMuted = muted ? "false" : "true";
+        b.setAttribute("aria-label", `${name}を${muted ? "オフ" : "オン"}にする (Ctrl + ${key})`);
+      });
+    }
+
+    if (cfg.prejoin === "ask") $("join").textContent = "参加をリクエスト";
+
+    let ac, pc1, pc2;
+    async function negotiate() {
+      const offer = await pc1.createOffer();
+      await pc1.setLocalDescription(offer);
+      await pc2.setRemoteDescription(offer);
+      const answer = await pc2.createAnswer();
+      await pc2.setLocalDescription(answer);
+      await pc1.setRemoteDescription(answer);
+    }
+
+    async function makeSource(freq) {
+      const dest = ac.createMediaStreamDestination();
+      if (cfg.wav && freq === cfg.tone) {
+        const buf = await (await fetch(cfg.wav)).arrayBuffer();
+        const audio = await ac.decodeAudioData(buf);
+        const src = ac.createBufferSource();
+        src.buffer = audio;
+        src.loop = true;
+        src.connect(dest);
+        src.start();
+      } else {
+        const osc = ac.createOscillator();
+        osc.frequency.value = freq;
+        const g = ac.createGain();
+        g.gain.value = cfg.amp;
+        osc.connect(g).connect(dest);
+        osc.start();
+      }
+      return dest.stream;
+    }
+
+    async function startLoopback() {
+      ac = new AudioContext();
+      await ac.resume();
+      pc1 = new RTCPeerConnection();
+      pc2 = new RTCPeerConnection();
+      pc1.onicecandidate = (e) => e.candidate && pc2.addIceCandidate(e.candidate);
+      pc2.onicecandidate = (e) => e.candidate && pc1.addIceCandidate(e.candidate);
+      // 受信側は Meet と同じく <audio> 要素で鳴らす（Bot のフック 2 も通る）
+      pc2.ontrack = (e) => {
+        const a = document.createElement("audio");
+        a.autoplay = true;
+        a.srcObject = e.streams[0] || new MediaStream([e.track]);
+        a.dataset.fakeRemote = "1";
+        document.body.appendChild(a);
+      };
+      const s1 = await makeSource(cfg.tone);
+      s1.getAudioTracks().forEach((t) => pc1.addTrack(t, s1));
+      window.__fakeMeet.tracksSent = 1;
+      await negotiate();
+      if (cfg.late > 0) {
+        setTimeout(async () => {
+          const s2 = await makeSource(660);
+          s2.getAudioTracks().forEach((t) => pc1.addTrack(t, s2));
+          await negotiate();
+          window.__fakeMeet.tracksSent = 2;
+          $("status").textContent = "2 本目のトラックを追加";
+        }, cfg.late);
+      }
+    }
+
+    function renderTiles(n) {
+      const tiles = $("tiles");
+      tiles.innerHTML = "";
+      for (let i = 0; i < n; i++) {
+        const d = document.createElement("div");
+        d.dataset.participantId = i === 0 ? "self" : `p${i}`;
+        d.textContent = i === 0 ? "キマル 議事録（録音中）" : `参加者 ${i}`;
+        tiles.appendChild(d);
+      }
+    }
+
+    function scheduleEnd() {
+      if (cfg.end === "none" || cfg.after <= 0) return;
+      setTimeout(() => {
+        if (cfg.end === "removed") {
+          $("after-text").textContent = "通話から削除されました";
+          show("after");
+        } else if (cfg.end === "ended") {
+          $("after-text").textContent = "通話が終了しました";
+          show("after");
+        } else if (cfg.end === "alone") {
+          renderTiles(1);
+          $("status").textContent = "他の参加者が退出";
+        }
+      }, cfg.after);
+    }
+
+    async function enterCall() {
+      show("call");
+      renderTiles(cfg.participants);
+      window.__fakeMeet.joinedAt = Date.now();
+      await startLoopback();
+      scheduleEnd();
+    }
+
+    $("join").addEventListener("click", async () => {
+      if (cfg.prejoin === "ask") {
+        show("waiting");
+        if (cfg.end === "denied") {
+          setTimeout(() => {
+            $("after-text").textContent = "参加できませんでした";
+            show("after");
+          }, cfg.after || 2000);
+          return;
+        }
+        setTimeout(enterCall, cfg.admit);
+        return;
+      }
+      await enterCall();
+    });
+
+    $("leave").addEventListener("click", () => {
+      $("after-text").textContent = "通話から退出しました";
+      show("after");
+    });
+
+    if (cfg.autojoin) enterCall();
+  </script>
+</body>
+</html>

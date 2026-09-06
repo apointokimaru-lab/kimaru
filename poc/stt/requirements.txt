@@ -1,0 +1,12 @@
+# poc/stt の固定バージョン（2026-09-05・Python 3.12・CPU のみ）
+# 入れ方: uv venv .venv --python 3.12 && uv pip install --python .venv/bin/python -r requirements.txt
+faster-whisper==1.2.1
+ctranslate2==4.8.2
+av==18.1.0
+numpy==2.5.2
+onnxruntime==1.29.0
+huggingface-hub==1.30.0
+tokenizers==0.23.2
+psutil==7.2.2
+# テスト音声の合成（Open JTalk 同梱・初回 import で辞書 23 MB を DL）
+pyopenjtalk==0.4.1

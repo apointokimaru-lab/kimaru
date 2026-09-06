@@ -16,3 +16,5 @@ styles/tokens.css
 styles/base.css
 C:*
 *wsl.localhost*
+# Terraform の作業ディレクトリ（infra/poc・#483）。プロバイダのバイナリと backend の state が入り、prettier が読めない
+**/.terraform/

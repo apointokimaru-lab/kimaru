@@ -1,0 +1,11 @@
+# Terraform の作業ファイル。state と tfvars は秘密・環境依存なので commit しない（state は S3 にある）。
+# .terraform.lock.hcl は commit する（プロバイダの版とハッシュを固定するため）
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.tfplan
+crash.log
+crash.*.log
+.terraform.tfstate.lock.info

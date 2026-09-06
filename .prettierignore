@@ -9,7 +9,7 @@ package-lock.json
 deno.lock
 docs/
 *.md
-# 使い捨ての PoC（poc/rtms・poc/stt）。整形・lint の対象外（#475）
+# 使い捨ての PoC（poc/stt・poc/rtms・poc/meet-bot）。整形・lint の対象外（#393・#475・#478）
 poc/
 # 生成物（scripts/i18n/split.mjs）。手で整形しない
 messages/
@@ -18,4 +18,5 @@ styles/tokens.css
 styles/base.css
 C:*
 *wsl.localhost*
-# PoC（Python・#393）。新フロントの整形対象ではない
+# Terraform の作業ディレクトリ（infra/poc・#483）。プロバイダのバイナリと backend の state が入り、prettier が読めない
+**/.terraform/

@@ -111,11 +111,23 @@ export function StaticI18nProvider({
     };
   }, [loadDicts, apply]);
 
-  // document.title を言語に合わせる（旧 body[data-i18n-title] と同じ役目）
+  // document.title を言語に合わせる（旧 body[data-i18n-title] と同じ役目）。
+  // なぜ見張るか: 言語が ja 以外のとき、Next の metadata（サーバーが描いた ja の <title>）の hydration がこの effect より
+  // 後に走ると、タイトルが ja に戻ることがある（負荷が高いと順序が入れ替わる。#420 の e2e で再現）。
+  // <title> の変更を MutationObserver で見張り、値が違えば書き直す。自分の書き込みは値が同じなので何もしない（ループしない）。
   useEffect(() => {
     if (!titleKey) return;
     const value = messages[titleKey[0]]?.[titleKey[1]];
-    if (value) document.title = value;
+    if (!value) return;
+    const set = () => {
+      if (document.title !== value) document.title = value;
+    };
+    set();
+    const observer = new MutationObserver(set);
+    const titleEl = document.querySelector("head > title");
+    if (titleEl) observer.observe(titleEl, { childList: true, characterData: true, subtree: true });
+    observer.observe(document.head, { childList: true }); // <title> 要素ごと差し替えられる場合
+    return () => observer.disconnect();
   }, [messages, titleKey]);
 
   const setLang = useCallback(

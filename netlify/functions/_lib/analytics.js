@@ -20,7 +20,7 @@ const { sb } = require("./supabase");
 // 代わりに、長さ・使える文字を絞り、当てはまらないものは "other" の一語に潰して未知の文字列をDBへ通さない。
 const PAGE_RE = /^\/[a-z0-9][a-z0-9-]{0,39}\.html$/;
 // Next.js に移した画面（新 URL → 旧 URL の集計キー）。画面を移すたびに足す（#419〜）
-const MIGRATED_PATHS = { "/plan": "/plan.html" };
+const MIGRATED_PATHS = { "/plan": "/plan.html", "/terms": "/terms.html" };
 
 function normalizePath(input) {
   let path = String(input || "");

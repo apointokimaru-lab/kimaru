@@ -34,6 +34,8 @@ const nextConfig: NextConfig = {
       { source: "/landing3.html", destination: "/", permanent: true },
       // #419: 料金・プランを Next の /plan に移した
       { source: "/plan.html", destination: "/plan", permanent: true },
+      // #420: 利用規約を Next の /terms に移した
+      { source: "/terms.html", destination: "/terms", permanent: true },
     ];
   },
 

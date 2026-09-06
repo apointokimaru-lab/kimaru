@@ -385,7 +385,7 @@ export function LandingPage() {
       <footer>
         <div className={c("wrap", "footer-in")}>
           <div>
-            <a href="/terms.html">利用規約</a>
+            <Link href="/terms">利用規約</Link>
             <a href="/privacy.html">プライバシーポリシー</a>
             <a href="/tokushoho.html">特定商取引法に基づく表記</a>
           </div>

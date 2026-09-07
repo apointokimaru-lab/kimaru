@@ -1,0 +1,261 @@
+/* 1 項目ぶんの説明 Modal（#423）。public/styles.css の「モーダル（mock .modal）」節と
+   「使い方ガイド（#353）」節の Modal ぶんを、値を変えずに 1 つに畳んだもの
+   （旧マークアップは .modal-overlay > .modal.guide の 2 枚重ねで、.guide が .modal の width・padding・
+   text-align を上書きしていた。ここでは上書き後の値だけを書く）。
+   .button / .btn-sm / .eyebrow はグローバル（styles/base.css）のまま使う。 */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(25, 26, 28, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+.guide {
+  position: relative;
+  width: min(720px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding: clamp(20px, 3vw, 28px);
+  text-align: left;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  animation: modalpop 0.22s ease;
+}
+
+@keyframes modalpop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: var(--surface-2);
+  border-radius: 50%;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.close:hover {
+  background: var(--line-2);
+  color: var(--ink);
+}
+
+.head {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.head :global(.eyebrow) {
+  margin: 0 0 8px;
+}
+.head h2 {
+  font-family: var(--display);
+  font-size: clamp(20px, 2.4vw, 25px);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.body {
+  margin-top: 18px;
+}
+
+.lead {
+  margin: 0 0 18px;
+  font-size: var(--fs-label);
+  line-height: 1.85;
+  color: var(--ink-2);
+}
+
+/* 順序のない箇条書き。番号を振ると「この順にやる」と読めてしまうので、印は朱の短い線にする */
+.points {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+}
+.points li {
+  position: relative;
+  padding-left: 22px;
+  margin-bottom: 10px;
+  font-size: var(--fs-label);
+  line-height: 1.85;
+  color: var(--ink-2);
+}
+.points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 13px;
+  width: 10px;
+  height: 1.5px;
+  background: var(--accent);
+}
+
+.steps {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  counter-reset: guidestep;
+}
+.steps li {
+  position: relative;
+  padding-left: 34px;
+  margin-bottom: 12px;
+  font-size: var(--fs-label);
+  line-height: 1.85;
+  color: var(--ink-2);
+}
+.steps li::before {
+  counter-increment: guidestep;
+  content: counter(guidestep);
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  transform: rotate(-6deg);
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* 設定項目の対。欄の名前を左に立て、説明を 1 段下げる（画面の欄と見比べながら読むため） */
+.fields {
+  margin: 0 0 18px;
+}
+.fields dt {
+  font-family: var(--display);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  line-height: 1.6;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.fields dt:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.fields dd {
+  margin: 4px 0 12px;
+  font-size: var(--fs-note);
+  line-height: 1.85;
+  color: var(--muted);
+}
+
+.note {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-note);
+  line-height: 1.85;
+  color: var(--ink-2);
+}
+.tag {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.cta {
+  margin-top: 6px;
+}
+
+/* ページ送り。複数ページの項目でだけ出る（項目をまたぐ送りではない） */
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.count {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* スマホでは 1 ページぶんがスクロールなしで収まる量に抑えている（iPhone 12 = 390×664 基準）。
+   余白を詰め、注記のラベルを本文の上に載せて 1 行あたりの文字数を増やす。
+   ここは上の指定より後ろに置くこと（同じ詳細度なので、前に置くと上書きされて黙って効かない）。
+
+   背景の余白（.overlay の padding）は旧の 20px から 8px に詰めてある（#423）。旧ページは Google Fonts の
+   Noto Sans JP を読んでいたので折り返し位置が一定だったが、公開ページはシステムフォントになった（#418）ため、
+   同じ文が端末のフォントによって 1 行ぶれる（＝26px 伸びる）。実際「予約の前後に空ける、移動や準備のための時間です。」は
+   Noto Sans JP なら 311px で 1 行、別の和文フォントでは 325px で 2 行になり、この 1 枚だけ画面をはみ出していた。
+   Modal の高さを 24px 稼いで、1 行ぶれても収まるようにする。 */
+@media (max-width: 620px) {
+  .overlay {
+    padding: 8px;
+  }
+  .guide {
+    max-height: calc(100dvh - 16px);
+    padding: 16px;
+  }
+  .head {
+    padding-bottom: 12px;
+  }
+  .body {
+    margin-top: 14px;
+  }
+  .lead {
+    margin-bottom: 14px;
+  }
+  .steps li,
+  .points li {
+    margin-bottom: 9px;
+  }
+  .fields dd {
+    margin-bottom: 10px;
+  }
+  .note {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 12px;
+  }
+  .foot {
+    margin-top: 12px;
+    padding-top: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide {
+    animation: none;
+  }
+}

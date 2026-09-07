@@ -45,7 +45,7 @@ const OPERATOR_PATHS = [
 // モバイルの下部タブナビ（.bottom-nav）は削除（#321）。画面下を常時占有するわりに、
 // ヘッダーのメニューと導線が重複していた。スマホの移動はヘッダーのメニューに一本化する。
 // .nav-close はメニュー展開時のみ出る「閉じる」（label→同じチェックボックスを外す＝CSSのみで閉じる）。
-// 「使い方ガイド」は /guide.html（機能一覧）へのただのリンク（#353）。以前はこのEdgeが全HTMLに
+// 「使い方ガイド」は /guide（機能一覧・#423 で Next へ移行）へのただのリンク（#353）。以前はこのEdgeが全HTMLに
 // guide.js を注入して Modal を直接開いていたが、開く先が一覧1枚に決まったので注入をやめた。
 // 現在ページの強調は直後の inline script が aria-current を付与（CSPは 'unsafe-inline' 許可済み）。
 const SITE_HEADER = `<header class="site-header">
@@ -64,7 +64,7 @@ const SITE_HEADER = `<header class="site-header">
       <a class="app-only" href="/contacts.html" data-i18n="nav.admin">相手管理</a>
       <a class="app-only" href="/ai-assist.html" data-i18n="nav.aiAssist">AIアシスト</a>
       <a class="app-only" href="/settings.html" data-i18n="nav.settings">設定</a>
-      <a class="app-only" href="/guide.html" data-i18n="nav.guide">使い方ガイド</a>
+      <a class="app-only" href="/guide" data-i18n="nav.guide">使い方ガイド</a>
       <select class="lang-select" data-language-select aria-label="Language"></select>
       <a class="app-only nav-avatar" href="/settings.html" aria-hidden="true">キ</a>
       <label class="nav-close" for="km-nav-toggle" data-i18n="nav.close">閉じる</label>

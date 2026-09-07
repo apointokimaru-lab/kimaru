@@ -25,6 +25,7 @@ const MIGRATED_PATHS = {
   "/terms": "/terms.html",
   "/privacy": "/privacy.html",
   "/tokushoho": "/tokushoho.html",
+  "/guide": "/guide.html",
 };
 
 function normalizePath(input) {

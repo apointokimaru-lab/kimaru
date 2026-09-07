@@ -24,11 +24,16 @@
   /* 白地では影がカード分離の主役 → 旧暖灰地より一段強め */
   --shadow:0 1px 2px rgba(25,26,28,.07),0 14px 32px -16px rgba(25,26,28,.24);
   --shadow-lg:0 2px 6px rgba(25,26,28,.08),0 34px 72px -28px rgba(25,26,28,.34);
-  /* フォントは Noto Sans JP に統一（--sans/--display/--jp/--mono すべて同一） */
-  --sans:var(--font-noto-sans-jp),"Noto Sans JP",sans-serif;
-  --display:var(--font-noto-sans-jp),"Noto Sans JP",sans-serif;
-  --jp:var(--font-noto-sans-jp),"Noto Sans JP",sans-serif;
-  --mono:var(--font-noto-sans-jp),"Noto Sans JP",sans-serif;
+  /* フォントは Noto Sans JP に統一（--sans/--display/--jp/--mono すべて同一）。
+     next/font の変数（--font-noto-sans-jp）は (dynamic) のレイアウトだけが定義する（公開ページはシステムフォント・#418）。
+     **var() の既定値（第2引数）に入れること**: `var(--x),"Noto Sans JP",sans-serif` と書くと、変数が未定義の面では
+     宣言そのものが無効になり（invalid at computed-value time）、font-family が初期値＝Times New Roman（セリフ体）に落ちる。
+     公開ページ 5 枚（/ /plan /terms /privacy /tokushoho）が実際にそうなっていた（#423 の旧ページとの実測比較で判明）。
+     既定値の並びは #418 が LP で決めたシステムフォントの積み（旧サイトは Google Fonts から Noto Sans JP を読んでいた）。 */
+  --sans:var(--font-noto-sans-jp,"Noto Sans JP"),"Yu Gothic",system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:var(--font-noto-sans-jp,"Noto Sans JP"),"Yu Gothic",system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  --jp:var(--font-noto-sans-jp,"Noto Sans JP"),"Yu Gothic",system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:var(--font-noto-sans-jp,"Noto Sans JP"),"Yu Gothic",system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
   --shell:1200px;
   --gutter:64px;           /* コンテンツ左右余白の合計（各32px） */
   /* タイポグラフィ・スケール（clamp: スマホ下限 → PC上限）。PC/スマホの推奨サイズ表に対応。 */

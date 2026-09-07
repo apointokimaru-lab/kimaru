@@ -40,6 +40,8 @@ const nextConfig: NextConfig = {
       { source: "/privacy.html", destination: "/privacy", permanent: true },
       // #422: 特定商取引法に基づく表記を Next の /tokushoho に移した
       { source: "/tokushoho.html", destination: "/tokushoho", permanent: true },
+      // #423: 使い方ガイドを Next の /guide に移した（/guide.html#zoom の直リンクは hash がそのまま届く）
+      { source: "/guide.html", destination: "/guide", permanent: true },
     ];
   },
 

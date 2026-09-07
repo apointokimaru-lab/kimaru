@@ -12,7 +12,7 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { chromium, type BrowserContext, type Page } from "playwright";
+import { chromium, type BrowserContext, type Locator, type Page } from "playwright";
 import { AudioCapture, type AudioStats } from "./audio-capture.js";
 import type { BotConfig } from "./config.js";
 import { EndDetector, type EndReason } from "./end-detect.js";
@@ -95,7 +95,16 @@ export interface JoinResult {
   errors: string[];
 }
 
+// プロファイルを開くときは必ずこれを渡す（login / status / join で同じ鍵になるように）。
+// なぜ: Chromium は Cookie を OS のキーリング（Linux では portal / gnome-keyring）から取った鍵で暗号化して保存する。
+// 起動のしかたでキーリングが使えたり使えなかったりすると、次に開いたときに **復号できない Cookie が捨てられる**。
+// 実際、人が手で開いた窓でログイン → Playwright で開き直したら Google のセッション Cookie（SID 系）だけが消えて
+// 「ログインしていない」状態になった（2026-09-07）。basic はキーリングを使わない固定鍵なので、どの起動でも一致する。
+// 保護措置の回避ではない（自動操作の隠蔽フラグは入れない方針は変えていない）。
+export const PROFILE_ARGS = ["--password-store=basic"];
+
 const DEFAULT_ARGS = [
+  ...PROFILE_ARGS,
   // AudioContext をユーザー操作なしで走らせる（会議音声の取り込みに必須）
   "--autoplay-policy=no-user-gesture-required",
 ];
@@ -269,19 +278,37 @@ export async function runBot(cfg: BotConfig, opts: JoinOptions): Promise<JoinRes
         result.join_button_seen = "join_now";
         await muteDevices(page, log);
         log("click", { what: "join_now" });
-        await preJoin.joinNow(page).click({ timeout: 5000 });
+        if (!(await clickJoin(page, preJoin.joinNow(page)))) continue;
         clickedAt = Date.now();
       } else if (await isVisible(preJoin.askToJoin(page))) {
         result.join_button_seen = "ask_to_join";
         await muteDevices(page, log);
         log("click", { what: "ask_to_join" });
-        await preJoin.askToJoin(page).click({ timeout: 5000 });
+        if (!(await clickJoin(page, preJoin.askToJoin(page)))) continue;
         clickedAt = Date.now();
         await transition("waiting_room", "「参加をリクエスト」を押した");
       } else {
         await page.waitForTimeout(1000);
       }
     }
+    // 参加ボタンを押す。押せなかったら false を返して、呼び出し側は次の周回でやり直す。
+    // なぜ: マイクが無い環境では、押す直前に「会議中に他のユーザーにあなたの音声が聞こえるようにしますか？」の
+    // ダイアログが出てボタンを覆う（2026-09-07 の実機・#478 の 1 回目はこれで参加できずに終わった）。
+    // ダイアログの「マイクを使用せずに続行」を閉じてから押し直す。MEET_FAKE_DEVICES=1 で無音マイクを持たせても回避できる。
+    async function clickJoin(pg: Page, button: Locator): Promise<boolean> {
+      try {
+        await button.click({ timeout: 5000 });
+        return true;
+      } catch (err) {
+        if (await isVisible(preJoin.continueWithoutDevices(pg))) {
+          log("click", { what: "continue_without_devices", after: "join_click_blocked" });
+          await preJoin.continueWithoutDevices(pg).click({ timeout: 3000 }).catch(() => {});
+          return false;
+        }
+        throw err;
+      }
+    }
+
     log("join_button", { seen: result.join_button_seen, mode: opts.mode });
 
     // ---- 入室待ち ----
@@ -289,12 +316,22 @@ export async function runBot(cfg: BotConfig, opts: JoinOptions): Promise<JoinRes
     let inMeetingAt: number | null = null;
     while (inMeetingAt === null) {
       if (stopRequested) throw new Error(stopRequested);
-      if (await isVisible(inMeeting.leaveButton(page), 500)) {
+      // 入室したかの判定（#478 の実機・2026-09-07 で直した）:
+      // 退出（受話器）ボタンは **承認待ちの画面にも出る**。ボタンだけで判定していたため、ホストが承認していないのに
+      // in_meeting へ進み、2 分 20 秒ぶんの無音を「会議の録音」として保存していた。
+      // 実機の差は参加者数と音にはっきり出た（承認前: 自分だけ=1・音なし／承認後: 2・音あり）ので、
+      // 「退出ボタンが見える」かつ「待機の文言が出ていない」かつ「自分以外の参加者が居る」を入室の条件にする。
+      // 参加者数が読めない（null）ときは従来どおり信用する——DOM が変わっただけで永遠に待つのを避けるため。
+      const text = await readPageText(page, 4000);
+      const cls = classifyText(text);
+      const leaveVisible = await isVisible(inMeeting.leaveButton(page), 500);
+      const others = await readParticipantCount(page);
+      // 待機画面の実際の文言・DOM を記録に残す（Meet の UI が変わったときに、この行を見て直せるようにする）
+      log("wait_probe", { cls, leave_visible: leaveVisible, participants: others, text: text.slice(0, 300) });
+      if (leaveVisible && cls !== "waiting" && (others === null || others >= 2)) {
         inMeetingAt = Date.now();
         break;
       }
-      const text = await readPageText(page, 4000);
-      const cls = classifyText(text);
       if (cls === "denied") {
         log("page_text", { page_text: text });
         await transition("denied", "参加リクエストが拒否された");

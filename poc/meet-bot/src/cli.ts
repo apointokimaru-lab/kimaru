@@ -6,10 +6,11 @@
 //   npx tsx src/cli.ts fake-meet [--media-dir dir] [--port n] 擬似ページを配って待つ（手で眺める用）
 //   npx tsx src/cli.ts fake-run [--seconds 300] [--out dir]   擬似ページに入室して録音し、会議終了で退出（Fargate の実測用・#485）
 
+import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
 import { chromium } from "playwright";
 import { loadConfig, loadDotEnv } from "./config.js";
-import { runBot, type JoinMode } from "./join.js";
+import { PROFILE_ARGS, runBot, type JoinMode } from "./join.js";
 import { createLogger } from "./log.js";
 import { pcmRms, readWav } from "./pcm-analysis.js";
 import { runSelftest } from "./selftest.js";
@@ -65,31 +66,47 @@ async function main(): Promise<number> {
       // 人がログインするための窓を開くだけ。ID・パスワードの入力や「次へ」のクリックはコードに書かない。
       // なぜ: Google の自動ログインは保護措置の回避に当たる（docs/ai-bot/platform-research.md 7.3）。
       // 人が完了したらブラウザを閉じる → プロファイルに Cookie が残り、以後 join が使う。
+      //
+      // **Playwright で開かない**（2026-09-07・#478 の実機）: Playwright が起動した Chromium は自動操作フラグ
+      // （--enable-automation・CDP 接続）が立つため、Google のサインイン画面が
+      // 「Couldn't sign you in / This browser or app may not be secure」で必ず弾かれる。
+      // ここでは Playwright 同梱の Chromium の実行ファイルを **素のプロセスとして** 起動する。
+      // 検知の回避ではない——ログインは実際に人が普通のブラウザ窓で行い、Bot はそのセッション（Cookie）を使うだけ。
       const url = values.url ?? "https://meet.google.com/";
+      const exe = chromium.executablePath();
       process.stderr.write(
         [
           `プロファイル: ${cfg.profileDir}`,
-          "Chromium を開きます。Bot 用の Google アカウントで手動でログインし、Meet のトップ画面が出たらウィンドウを閉じてください。",
+          `ブラウザ: ${exe}`,
+          "窓が開きます。Bot 用の Google アカウントで手動でログインし、Meet のトップ画面が出たらウィンドウを閉じてください。",
           "（ヘッドレスではないので DISPLAY が必要。WSL2 なら WSLg が :0 を用意する）",
           "",
         ].join("\n"),
       );
-      const context = await chromium.launchPersistentContext(cfg.profileDir, {
-        headless: false,
-        channel: cfg.browserChannel || undefined,
-        viewport: null,
+      const code = await new Promise<number>((resolve) => {
+        const child = spawn(
+          exe,
+          [
+            `--user-data-dir=${cfg.profileDir}`,
+            ...PROFILE_ARGS,
+            "--no-first-run",
+            "--no-default-browser-check",
+            url,
+          ],
+          { stdio: "ignore" },
+        );
+        child.on("exit", (c) => resolve(c ?? 0));
+        child.on("error", () => resolve(1));
       });
-      const page = context.pages()[0] ?? (await context.newPage());
-      await page.goto(url).catch(() => {});
-      await new Promise<void>((resolve) => context.once("close", () => resolve()));
       process.stderr.write("ブラウザが閉じられました。`status` でログイン状態を確認できます。\n");
-      return 0;
+      return code === 0 ? 0 : 0; // 窓の終了コードは問わない（× で閉じても正常）
     }
     case "status": {
       // ログイン済みかの目安。Meet のトップにログイン済みのときだけ出る要素（アカウントボタン／「新しい会議」）を探す
       const context = await chromium.launchPersistentContext(cfg.profileDir, {
         headless: cfg.headless,
         channel: cfg.browserChannel || undefined,
+        args: PROFILE_ARGS,
       });
       try {
         const page = context.pages()[0] ?? (await context.newPage());

@@ -378,7 +378,7 @@ async function loadDays(startYmd, full) {
     // 「いまは止まっています」と案内すると、URLは生きていて時間を置けば予約できるように読め、
     // 相手が待ってしまう。開けない事実だけを 404 で伝える。
     if (data.suspended || data.paused) {
-      location.replace("/404.html");
+      location.replace("/404");
       return;
     }
     renderGrid(data);

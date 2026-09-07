@@ -47,7 +47,8 @@ kimaru/
 │   │   ├── page.tsx            #   /（#418）
 │   │   ├── plan/page.tsx       #   /plan
 │   │   ├── terms/page.tsx …
-│   │   ├── not-found.tsx       #   404（#424）
+│   │   ├── not-found.tsx       #   404 の本文（#424）
+│   │   ├── [...path]/page.tsx  #   未マッチ URL → notFound()（ルートレイアウトが 2 つあるため・#424）
 │   │   └── guide/
 │   │       ├── page.tsx
 │   │       └── _components/    #   このルートでしか使わない部品（先頭 _ は非ルート）
@@ -60,9 +61,6 @@ kimaru/
 │   │   │   └── dashboard/page.tsx …
 │   │   ├── (operator)/         #   運営コンソール（kimaru_admin_session・別レイアウト・dark）
 │   │   └── dev/                #   開発用の確認ページ（KIMARU_DEV_ROUTES=1 のときだけ。本番は 404）
-│   ├── _legacy/                # 旧 HTML を返す暫定（#412）。段階1 で削除
-│   ├── route.ts                # / → 旧 LP（#412）。#418 で削除
-│   └── [...path]/route.ts      # 未マッチ → 旧 404（#412）。#424 で削除
 ├── components/                 # 画面に依存しない再利用部品
 │   ├── ui/                     #   Button / Panel / Field / Modal / Badge …（トークンだけで描ける最小部品）
 │   └── layout/                 #   SiteHeader / SiteFooter / Nav / LangSwitch

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 キマル (Kimaru) — a Japanese, free-first 1-on-1 scheduling tool. Static HTML/CSS/vanilla JS frontend + serverless functions + Supabase. The product is built incrementally; the working language is Japanese.
 
-**フロント移行中（2026-09〜・#412／親 issue #406〜#411）**: 旧フロント（`public/` の静的 HTML 33 枚＋バニラ JS・ビルド無し）と **TypeScript + Next.js（App Router・リポジトリ直下の `app/`）** が同じサイトで同居している。`public/` は Next.js の静的フォルダそのものなので、旧ページは同じ URL（`/dashboard.html` 等）でそのまま配信される。`/` と未マッチ URL だけは `app/route.ts`・`app/[...path]/route.ts` が旧 `index.html`／`404.html` を返す暫定（段階1 で置き換え）。**新しい画面・機能は `app/` に作り、旧ページ（`public/*.html`・`app.js`）には足さない**。この文書の以下の記述は当面 **旧フロントと Functions について**のもの。
+**フロント移行中（2026-09〜・#412／親 issue #406〜#411）**: 旧フロント（`public/` の静的 HTML 33 枚＋バニラ JS・ビルド無し）と **TypeScript + Next.js（App Router・リポジトリ直下の `app/`）** が同じサイトで同居している。`public/` は Next.js の静的フォルダそのものなので、旧ページは同じ URL（`/dashboard.html` 等）でそのまま配信される。未マッチ URL は `app/(public)/[...path]/page.tsx` が `notFound()` を呼び、`app/(public)/not-found.tsx` が 404 で応じる（#424。段階0 の暫定 `app/_legacy/` は撤去済み）。**新しい画面・機能は `app/` に作り、旧ページ（`public/*.html`・`app.js`）には足さない**。この文書の以下の記述は当面 **旧フロントと Functions について**のもの。
 
 ### 新フロント（`app/` 以下）の規約 — 正本は [`docs/frontend-conventions.md`](docs/frontend-conventions.md)（#416）
 `app/` に触る前に必ず読む。要点だけここに書く（詳細・理由は正本）:

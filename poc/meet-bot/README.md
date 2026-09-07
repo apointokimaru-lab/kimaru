@@ -101,7 +101,9 @@ poc/meet-bot/
 ### 1. Bot 用の Google アカウントを作る
 
 - **通常の個人 Google アカウント**を新規に作る。キマルの運営用でも顧客用でもないもの
-- **名前（表示名）は「キマル 議事録（録音中）」**にする。参加者一覧にこの名前が出る。姓・名の欄がある場合は 姓「キマル」名「議事録（録音中）」など、並べたときにこの通りに見える組み合わせにする
+- **名前（表示名）は録音中と分かるもの**にする。参加者一覧にこの名前がそのまま出る。
+  実際に作ったアカウント（2026-09-07）は **「キマル議事録録音中」**。Google の姓名欄は **丸括弧を受け付けなかった**ので、
+  「キマル 議事録（録音中）」の形にはできていない。FR-2.4（録音中と分かる名前）は満たすが、読みやすさは今後の課題
 - Workspace の管理者アカウントにしない（Recall.ai の注記: “If the account is a Google Workspace admin, the bot will not be able to sign in.”）。サービスアカウントは使えない（同 “Service accounts will NOT work.”）
 - 2 段階認証を有効にするかは運用判断。有効でもプロファイルの Cookie で続くが、Google が再確認を求めたときは人が `login` をやり直す
 
@@ -110,10 +112,12 @@ poc/meet-bot/
 ```bash
 cd poc/meet-bot
 cp .env.example .env          # 必要なら MEET_PROFILE_DIR などを変える
-npx tsx src/cli.ts login      # 画面付きの Chromium が開く
+npx tsx src/cli.ts login      # 画面付きの Chromium が開く（Playwright は通さない。下記）
 ```
 
 - 開いた Chromium で **Bot 用アカウントで手動ログイン**し、Meet のトップ（「新しい会議」が見える画面）が出たら**ウィンドウを閉じる**。これで `MEET_PROFILE_DIR`（既定 `./profile`）に Cookie が残る
+- **`login` は Playwright ではなく素のプロセスとしてブラウザを起動する**（2026-09-07 に実機で判明）。Playwright が起動した Chromium は自動操作フラグ（`--enable-automation`・CDP）が立つため、Google のサインイン画面が **「Couldn't sign you in / This browser or app may not be secure」で必ず弾かれる**。検知の回避はしない方針は変えていない——ログインは実際に人が普通のブラウザ窓で行い、Bot はそのセッションを使うだけ
+- **Cookie の暗号鍵を `--password-store=basic` に固定している**（`PROFILE_ARGS`・login / status / join の全部に渡す）。Chromium は Cookie を OS のキーリング（Linux では portal / gnome-keyring）由来の鍵で暗号化するので、**起動のしかたで鍵が変わると、次に開いたときに復号できない Cookie が捨てられる**。実際、この指定が無かったときは手でログインした直後に Google のセッション Cookie（`SID` 系）だけが消え、`status` が `signed_in: false` に戻った
 - **このプロファイルには Bot 用アカウントだけ**を入れる（複数アカウントが入っていると Meet が別のアカウントで開くことがある）
 - WSL2 では WSLg が `DISPLAY=:0` を用意するので、そのまま画面が出る。出ない場合は `echo $DISPLAY` と `ls /mnt/wslg` を確認する。Windows 側の X サーバは不要
 - 確認: `npx tsx src/cli.ts status` → `signed_in: true`（Meet トップの「新しい会議」またはアカウントボタンが見えるか、という目安）
@@ -155,6 +159,45 @@ MEET_PROFILE_DIR=./profile-guest npx tsx src/cli.ts join --guest-name "キマル
 | 6 | | Workspace | ON | Restricted | なし | あり | | | | | | | | | |
 
 **仮説が成り立つ条件**: 行 1・4・5 で `join_button_seen = join_now` かつホスト側に許可ダイアログが出ない。行 2・6 は `ask_to_join` → ホストが許可すれば入れる（許可しないと `denied` か待機室タイムアウト）。行 3 は Google の説明どおりなら自動拒否（`denied`）。
+
+### 実機の結果（2026-09-07・ホストは個人 Google アカウント・Bot は `kimaru.notes.bot@gmail.com`）
+
+**仮説は成立した。** 招待済みなら「今すぐ参加」で待機ゼロ、招待なしなら「参加をリクエスト」でホストの承認待ちになる。
+
+| # | 会議 | Bot 招待 | 出たボタン | 待機 | 結果 | 音声 | 文字起こし | 退出理由 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | hew-zaof-piv | あり | `join_now` | — | **error**（マイク無しのダイアログが参加ボタンを覆った） | — | — | error |
+| 2 | hew-zaof-piv | あり | `join_now` | **0 秒（直接入室）** | in_meeting | 3 本・RMS 1095 | 通過（自己紹介・事業説明を認識） | `signal_lost`（本当は削除された） |
+| 3 | jde-mrqr-xes | なし | `ask_to_join` | （誤判定で 2 秒） | in_meeting | 8 本・421 秒 | 8 本とも通過 | `max_seconds` |
+| 4 | ktf-nmed-zas | なし | `ask_to_join` | — | **error**（権限警告でボタン名がぶれて見失った） | — | — | error |
+| 5 | ktf-nmed-zas | なし | `ask_to_join` | **301 秒維持** | timeout（承認しなかった） | — | — | `waiting_room_timeout` |
+| 6 | ktf-nmed-zas | なし | `ask_to_join` | **28 秒 → 承認で入室** | in_meeting 147 秒 | 3 本 | 3 本とも通過 | **`removed`** |
+
+- **招待あり（#2）**: ホスト側に許可のダイアログは出ず、参加者一覧に「キマル議事録録音中」がそのまま現れた。**ホストの毎回の操作は要らない**
+- **招待なし（#3・#5・#6）**: ホストの参加者パネルで **参加待ち →「潜在的なリスクあり」の列**に入り、既定の操作が「却下」「すべて拒否」。Bot のアイコン付きで表示される。
+  Google の二列フロー（2026-02 の safeguarded guest admit flow）が日本語 UI ではこの表記になることを実機で確認した
+  （それまで `docs/ai-bot/platform-research.md` ではベンダーのブログでしか裏が取れていなかった）
+- **結論**: 運用としては「キマルが作る予定に Bot を招待する」が実質必須。招待が無い経路はホストに拒否を促す UI が出るため、案内でも勧めない
+
+### 実機で直したこと（#1・#3・#4 の失敗）
+
+| 症状 | 原因 | 直し方 |
+|---|---|---|
+| マイクが無い環境で参加ボタンが押せない（#1） | 「会議中に他のユーザーにあなたの音声が聞こえるようにしますか？」のダイアログが押す直前に出てボタンを覆う。「マイクを使用せずに続行」は**リンク**で、ボタンとしてだけ探していた | クリックが失敗したらダイアログを閉じて押し直す（`clickJoin`）。選択子にリンクも足した。`MEET_FAKE_DEVICES=1` でも回避できる |
+| **承認前なのに `in_meeting` になる（#3）** | 入室判定が「退出（受話器）ボタンが見えるか」だけだった。**承認待ちの画面にも同じボタンが出る**（`wait_probe` で `leave_visible: true` を記録） | 「退出ボタンが見える」かつ「待機の文言が出ていない」かつ「**自分以外の参加者が居る**」を条件にした。承認前は参加者 1・音声なし、承認後は 2・音声ありと実測で分かれる |
+| 参加ボタンを 50 秒見失う（#4） | ボタン名を `^参加をリクエスト$` の厳密一致で探していたが、マイク／カメラの権限警告が出ると読み上げ名にアイコンの文字が混ざる | 語を含めば拾う形に緩め、可視のものだけに絞った |
+| 削除されたのに `signal_lost`（#2） | 文言が「通話/会議から削除されました」だけで、実機の「この会議から**あなたが**削除されました」に当たらない | 間の語を許す正規表現にした。#6 で `removed` を確認 |
+| 待機の文言を拾えない | 実機は「会議の主催者が通話への参加を許可するまでお待ちください」 | 文言を追加（判定は参加者数と併用） |
+
+### 文字起こしの初回（実測）
+
+`poc/stt` の venv を作った直後は **モデル（faster-whisper small）が未取得**で、`transcribe.py` は既定でオフラインのため失敗する。初回だけ 1 本を手で流してモデルを `poc/stt/.models/` に落としておく:
+
+```bash
+cd poc/stt && HF_HUB_OFFLINE=0 .venv/bin/python transcribe.py <どれかの wav>
+```
+
+以後はオフラインで動く。実測（この PC・CPU 4 スレッド・small）: モデル読み込み 3.4 秒、60 秒の音声で RTF 0.24。60 秒チャンクなら会議中でも追いつく。
 
 ## 起動方法とオプション
 

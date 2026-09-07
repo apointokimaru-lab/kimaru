@@ -24,13 +24,16 @@ export type TextClass = "removed" | "ended" | "denied" | "waiting" | "invalid_ur
  * - not_logged_in: Google のログイン画面に飛ばされた（プロファイルが未ログイン。Bot は自分でログインしない）
  */
 export const TEXT: Record<TextClass, RegExp> = {
-  removed: /通話から削除されました|会議から削除されました|You(?:'|’)ve been removed from the meeting|You have been removed/i,
+  // 実機の文言は「この会議からあなたが削除されました」（2026-09-07・#478）。「通話/会議から削除されました」だけだと
+  // 間に「あなたが」が入るこの形に当たらず、退出理由が signal_lost に落ちていた。間の語を許す形にする。
+  removed:
+    /(?:通話|会議)から(?:あなたが)?削除されました|ホストによって削除されました|You(?:'|’)ve been removed from the meeting|You have been removed/i,
   ended:
     /通話が終了しました|この通話は終了しました|会議は終了しました|通話から退出しました|The meeting has ended|This call has ended|The call ended|Your call has ended|Your host ended|You(?:'|’)ve left the meeting|You left the meeting/i,
   denied:
     /参加できませんでした|参加リクエストは拒否されました|参加が拒否されました|この通話には参加できません|参加リクエストに誰も応答しませんでした|denied your request|Your request to join was denied|No one responded to your request to join|You can(?:'|’)t join this (?:video )?call|You(?:'|’)re not allowed to join|There is a problem connecting to this video call/i,
   waiting:
-    /参加をリクエストしました|参加をリクエストしています|参加の承認を待っています|承認されると通話に参加できます|主催者が参加を許可するまでお待ちください|Asking to join|Asking to be let in|Waiting for someone to let you in|You(?:'|’)ll join the call when someone lets you in|Someone will let you in soon|Please wait until a meeting host/i,
+    /参加をリクエストしました|参加をリクエストしています|参加の承認を待っています|承認されると通話に参加できます|主催者が参加を許可するまでお待ちください|会議の主催者が通話への参加を許可するまでお待ちください|参加を許可するまでお待ちください|Asking to join|Asking to be let in|Waiting for someone to let you in|You(?:'|’)ll join the call when someone lets you in|Someone will let you in soon|Please wait until a meeting host/i,
   invalid_url:
     /会議コードが無効|会議コードを確認|この会議は見つかりません|Invalid video call name|Check your meeting code|couldn(?:'|’)t find the meeting|The meeting code you entered doesn(?:'|’)t work/i,
   not_logged_in: /ログイン\s*Google アカウント|Sign in\s*to continue to Google Meet|Google アカウントでログイン|Use your Google Account/i,
@@ -85,6 +88,12 @@ export const preJoin = {
       .getByRole("button", {
         name: /マイクとカメラを使用せずに続行|マイクを使用せずに続行|カメラを使用せずに続行|Continue without (?:microphone|camera)/i,
       })
+      // 実機ではボタンではなくリンクとして出た（2026-09-07・#478。押せずに参加ボタンが覆われたままになった）
+      .or(
+        page.getByRole("link", {
+          name: /マイクとカメラを使用せずに続行|マイクを使用せずに続行|カメラを使用せずに続行|Continue without (?:microphone|camera)/i,
+        }),
+      )
       .first(),
 
   /**
@@ -95,12 +104,22 @@ export const preJoin = {
    * どちらが出たかが #478 の仮説（招待済みなら直接入室できる）の判定そのもの。前後空白は許すが、
    * 「参加をリクエスト」に「参加」が含まれるため ^$ で厳密に分ける。
    */
+  // 語そのものが入っていれば拾う（前方一致・後方一致を許す）。厳密一致（^$）にしていたら、マイク／カメラの
+  // 権限警告が出たときにボタンの読み上げ名へアイコンの文字（"error" など）が混ざって外れ、画面には
+  // 「参加をリクエスト」が出ているのに 50 秒間見つけられなかった（2026-09-07 の実機・#478）。
+  // 「参加する」「Join」の 1 語だけは、他の語に含まれてしまうので従来どおり厳密一致で分ける。
+  // 隠れた同名要素（ダイアログの裏に残るもの）を掴まないよう、可視のものだけに絞る。
   joinNow: (page: Page): Locator =>
     page
-      .getByRole("button", { name: /^\s*(?:今すぐ参加|参加する|Join now|Join the call now|Join anyway|Join here too|Join)\s*$/ })
+      .getByRole("button", { name: /今すぐ参加|Join now|Join the call now|Join anyway|Join here too/ })
+      .or(page.getByRole("button", { name: /^\s*(?:参加する|Join)\s*$/ }))
+      .filter({ visible: true })
       .first(),
   askToJoin: (page: Page): Locator =>
-    page.getByRole("button", { name: /^\s*(?:参加をリクエスト|Ask to join|Ask to join anyway)\s*$/ }).first(),
+    page
+      .getByRole("button", { name: /参加をリクエスト|Ask to join/ })
+      .filter({ visible: true })
+      .first(),
 };
 
 // ---- 会議中の画面 ----

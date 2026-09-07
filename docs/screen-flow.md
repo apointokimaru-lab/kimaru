@@ -43,6 +43,7 @@
 | 16 | `/terms`（旧 `/terms.html` は 308） | 利用規約 | 不要 | 公開（法務） | Next（#420） |
 | 17 | `/privacy`（旧 `/privacy.html` は 308） | プライバシーポリシー | 不要 | 公開（法務） | Next（#421） |
 | 18 | `/tokushoho`（旧 `/tokushoho.html` は 308） | 特定商取引法に基づく表記 | 不要 | 公開（法務） | Next（#422） |
+| 19 | 未マッチ URL 全部（旧 `/404.html` は 308 で `/404`） | ページが見つかりません | 不要 | 公開 | Next（#424・`not-found.tsx`） |
 
 > **配信列**: フロント刷新（#406〜#411）で画面を Next.js（`app/`）へ移すたびに「旧（public/）」→「Next」に更新する（規約 [`frontend-conventions.md`](./frontend-conventions.md) 11 章）。
 

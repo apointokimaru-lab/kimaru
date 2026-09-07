@@ -16,13 +16,6 @@ const nextConfig: NextConfig = {
   // next/link の href と router.push を型で守る（規約 0 章）
   typedRoutes: true,
 
-  // 旧 HTML を返すルートハンドラ（app/route.ts・app/[...path]/route.ts）が実行時に fs で読む public/ の
-  // ファイルを関数バンドルへ含める。これが無いと、ローカルでは動くのに Netlify の関数側にだけファイルが無く
-  // ENOENT になる（public/ は CDN 用の静的資産としてしか配置されない）。
-  outputFileTracingIncludes: {
-    "/[...path]": ["./public/404.html"],
-  },
-
   async redirects() {
     // 移した旧ページの URL は恒久リダイレクトで新 URL へ（規約 12 章。permanent は 308＝301 と同じ意味）。クエリは引き継がれる
     return [
@@ -42,6 +35,9 @@ const nextConfig: NextConfig = {
       { source: "/tokushoho.html", destination: "/tokushoho", permanent: true },
       // #423: 使い方ガイドを Next の /guide に移した（/guide.html#zoom の直リンクは hash がそのまま届く）
       { source: "/guide.html", destination: "/guide", permanent: true },
+      // #424: 旧 404 ページ（public/404.html）を撤去した。/404 は実在しない URL なので、
+      // キャッチオール → not-found.tsx が 404 で応じる（受付停止中の予約ページの誘導先も /404 に変えた）
+      { source: "/404.html", destination: "/404", permanent: true },
     ];
   },
 

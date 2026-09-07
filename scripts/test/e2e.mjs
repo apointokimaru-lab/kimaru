@@ -483,8 +483,8 @@ section("#321 copy and layout fixes");
     });
     await page.goto(`${base}/b/taro`, { waitUntil: "networkidle" });
     await page.waitForTimeout(700);
-    ok("paused booking page redirects to 404", new URL(page.url()).pathname === "/404.html");
-    ok("404 page explains the page is gone", (await bodyText(page)).includes("ページが見つかりません"));
+    // 飛び先だけをここで固定する。404 ページ本体は Next に移ったので（#424）、中身は tests/e2e/not-found.spec.ts が見る
+    ok("paused booking page redirects to 404", new URL(page.url()).pathname === "/404");
     await page.close();
   }
   // --- 事前アンケート回答: 10件ごとのページ送り ---

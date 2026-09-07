@@ -1,0 +1,11 @@
+/* 404 ページ（#424）。旧 public/404.html の style 属性をクラスに置き換えたもの（値は旧と同じ）。
+   style 属性は動的ページの CSP で効かないため規約で禁止（4 章）。 */
+.card {
+  max-width: 560px;
+  margin: 48px auto;
+  text-align: center;
+}
+.actions {
+  justify-content: center;
+  margin-top: 18px;
+}

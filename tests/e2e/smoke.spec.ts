@@ -23,10 +23,10 @@ test.describe("旧サイトと Next.js の同居（段階0）", () => {
     await expect(page.locator("body")).toContainText("運営ログイン");
   });
 
-  test("存在しない URL は旧 404 ページを 404 で返す", async ({ page }) => {
+  test("存在しない URL は Next の 404 ページを 404 で返す（#424）", async ({ page }) => {
     const res = await page.goto("/__no_such_page__");
     expect(res?.status()).toBe(404);
-    await expect(page.locator('body[data-page="not-found"]')).toHaveCount(1);
+    await expect(page.locator("h1")).toHaveText("ページが見つかりません");
   });
 
   test("Next が返す応答にもセキュリティヘッダーが付き、X-Powered-By は無い", async ({
